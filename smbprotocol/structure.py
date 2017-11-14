@@ -1,0 +1,731 @@
+import copy
+import struct
+import textwrap
+import types
+import uuid
+
+from abc import ABCMeta, abstractmethod
+from binascii import hexlify
+from datetime import datetime
+from smbprotocol.exceptions import InvalidFieldDefinition
+
+TAB = "    "  # Instead of displaying a tab on the print, use 4 spaces
+
+
+def _bytes_to_hex(bytes, pretty=False, hex_per_line=8):
+    hex = hexlify(bytes).decode('utf-8')
+
+    if pretty:
+        if hex_per_line == 0:  # show hex on 1 line
+            hex_list = [hex]
+        else:
+            idx = hex_per_line * 2
+            hex_list = list(hex[i:i + idx] for i in range(0, len(hex), idx))
+
+        hexes = []
+        for h in hex_list:
+            hexes.append(
+                ' '.join(h[i:i + 2] for i in range(0, len(h), 2)).upper())
+        hex = "\n".join(hexes)
+
+    return hex
+
+
+class Structure(object):
+
+    def __init__(self):
+        # Now that self.fields is set, loop through it again and set the
+        # metadata around the fields and set the value based on default.
+        # This must be done outside of the OrderedDict definition as set_value
+        # relies on the full structure (self) being available and error
+        # messages use the field name to be helpful
+        for name, field in self.fields.items():
+            field.structure = self
+            field.name = name
+            field.set_value(field.default)
+
+    def __str__(self):
+        struct_name = self.__class__.__name__
+        raw_hex = _bytes_to_hex(self.pack(), True, hex_per_line=0)
+        field_strings = []
+
+        for name, field in self.fields.items():
+            # the field header is slightly different for a StructureField
+            # remove the leading space and put the value on the next line
+            if isinstance(field, StructureField):
+                field_header = "%s =\n%s"
+            else:
+                field_header = "%s = %s"
+
+            field_string = field_header % (field.name, str(field))
+            field_strings.append(textwrap.indent(field_string, TAB))
+
+        field_strings.append("")
+        field_strings.append(textwrap.indent("Raw Hex:", TAB))
+        hex_wrapper = textwrap.TextWrapper(
+            width=33,  # set to show 8 hex values per line, 33 for 8, 56 for 16
+            initial_indent=TAB + TAB,
+            subsequent_indent=TAB + TAB
+        )
+        field_strings.append(hex_wrapper.fill(raw_hex))
+
+        string = "%s:\n%s" % (struct_name, '\n'.join(field_strings))
+
+        return string
+
+    def __setitem__(self, key, value):
+        field = self._get_field(key)
+        field.set_value(value)
+
+    def __getitem__(self, key):
+        return self._get_field(key)
+
+    def __delitem__(self, key):
+        self._get_field(key)
+        del self.fields[key]
+
+    def __len__(self):
+        length = 0
+        for field in self.fields.values():
+            length += len(field)
+        return length
+
+    def pack(self):
+        data = b""
+        for field in self.fields.values():
+            field_data = field.pack()
+            data += field_data
+
+        return data
+
+    def unpack(self, data):
+        for field in self.fields.values():
+            data = field.unpack(data)
+
+    def _get_field(self, key):
+        field = self.fields.get(key, None)
+        if field is None:
+            raise Exception("Structure does not contain field %s" % key)
+        return field
+
+
+class Field(metaclass=ABCMeta):
+
+    def __init__(self, byte_order='<', default=None, encoding='utf-16-le',
+                 size=None):
+        """
+        The base class of a Field object. This contains the framework that a
+        field SHOULD implement in regards to packing and unpacking a value.
+        There should be little need to call this particular object as it is
+        designed to be a base class for *Type classes.
+
+        :param byte_order: When converting an int to bytes, the byte order to
+            use, < for little endian, > for big endian
+        :param default: The default value of the field, this can be any
+            supported value such as as well as a lambda function or None
+            (default).
+        :param encoding: When converting a str to bytes, the encoding to use,
+            defaults to UTF-16 which is what MS usually wants
+        :param size: The size of the field, this can be an int, lambda function
+            or None (for variable length end field) unless overridden in Class
+            definition.
+        """
+        field_type = self.__class__.__name__
+        self.byte_order = byte_order
+        self.encoding = encoding
+
+        if not (size is None or isinstance(size, int) or
+                isinstance(size, types.LambdaType)):
+            raise InvalidFieldDefinition("%s size for field must be an int or "
+                                         "None for a variable length"
+                                         % field_type)
+        self.size = size
+        self.default = default
+        self.value = None
+
+    def __str__(self):
+        return self._to_string()
+
+    def __len__(self):
+        return self._get_packed_size()
+
+    def pack(self):
+        """
+        Packs the field value into a byte string so it can be sent to the
+        server.
+
+        :param structure: The message structure class object
+        :return: A byte string of the packed field's value
+        """
+        value = self._get_calculated_value(self.value)
+        packed_value = self._pack_value(value)
+        size = self._get_calculated_size(self.size, packed_value)
+        if len(packed_value) != size:
+            raise ValueError("Invalid packed data length for field %s of %d "
+                             "does not fit field size of %d"
+                             % (self.name, len(packed_value), size))
+
+        return packed_value
+
+    def get_value(self):
+        """
+        Returns the value set for the field, will run any lambda functions
+        that is set under the value attribute and return the final value.
+
+        :return: The value attribute with lambda functions run if value is a
+            lambda function
+        """
+        return self._get_calculated_value(self.value)
+
+    def set_value(self, value):
+        """
+        Parses, and sets the value attribute for the field.
+
+        :param value: The value to be parsed and set, the allowed input types
+            vary depending on the Field used
+        """
+        parsed_value = self._parse_value(value)
+        self.value = parsed_value
+
+    def unpack(self, data):
+        """
+        Takes in a byte string and set's the field value based on field
+        definition.
+
+        :param structure: The message structure class object
+        :param data: The byte string of the data to unpack
+        :return: The remaining data for subsequent fields
+        """
+        length = len(data)
+        size = self._get_calculated_size(self.size, data)
+        self.set_value(data[0:size])
+        return data[size:]
+
+    @abstractmethod
+    def _pack_value(self, value):
+        """
+        Packs the value passed in according to the rules of the FieldType.
+
+        :param value: The value to be packed, this is derived by
+            _get_calculated_value(self.value)
+        :return: A byte string of the data once packed
+        """
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def _parse_value(self, value):
+        """
+        Parses the value into the FieldType type, this also validates that
+        the value is allowable by the FieldType.
+
+        :param value: The value to parse
+        :return: The value that has been parsed/casted to the correct value
+        """
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def _get_packed_size(self):
+        """
+        Get's the size of the data once it has been packed. Depending on the
+        FieldType, this can either be pre-set or calculated when called.
+
+        :return: The size of the field once it is packed
+        """
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def _to_string(self):
+        """
+        Creates a string which is a human readable representation of the value.
+        The output is dependent on the field implementation.
+
+        :return: string of the field value
+        """
+        # creates a string which is a friendly representation of the value
+        pass  # pragma: no cover
+
+    def _get_calculated_value(self, value):
+        """
+        Get's the final value of the field and runs the lambda functions
+        recursively until a final value is derived.
+
+        :param value: The value to calculate/expand
+        :return: The final value
+        """
+        if isinstance(value, types.LambdaType):
+            expanded_value = value(self.structure)
+            return self._get_calculated_value(expanded_value)
+        else:
+            # perform one final parsing of the value in case lambda value
+            # returned a different type
+            return self._parse_value(value)
+
+    def _get_calculated_size(self, size, data):
+        """
+        Get's the final size of the field and runs the lambda functions
+        recursively until a final size is derived. If size is None then it
+        will just return the length of the data as it is assumed it is the
+        final field (None should only be set on size for the final field).
+
+        :param size: The size to calculate/expand
+        :param data: The data that the size is being calculated for
+        :return: The final size
+        """
+        # if the size is derived from a lambda function, run it now; otherwise
+        # return the value we passed in or the length of the data if the size
+        # is None (last field value)
+        if size is None:
+            return len(data)
+        elif isinstance(size, types.LambdaType):
+            expanded_size = size(self.structure)
+            return self._get_calculated_size(expanded_size, data)
+        else:
+            return size
+
+    def _get_struct_format(self, size):
+        """
+        Get's the format specified for use in struct. This is only designed
+        for 1, 2, 4, or 8 byte values and will throw an exception if it is
+        anything else.
+
+        :param size: The size as an int
+        :return: The struct format specifier for the size specified
+        """
+        struct_format = {
+            1: 'B',
+            2: 'H',
+            4: 'L',
+            8: 'Q'
+        }
+        if size not in struct_format.keys():
+            raise InvalidFieldDefinition("Cannot struct format of size %s"
+                                         % size)
+        return struct_format[size]
+
+
+class IntField(Field):
+
+    def __init__(self, size, **kwargs):
+        """
+        Used to store an int value for a field. The size for these values MUST
+        be 1, 2, 4, or 8 and if another size is required use the BytesField
+        instead and store the values as bytes.
+
+        :param size: The size of the integer when packed
+        :param kwargs: Any other kwarg to be sent to Field()
+        """
+        if size not in [1, 2, 4, 8]:
+            raise InvalidFieldDefinition("IntField size must have a size of "
+                                         "1, 2, 4, or 8 not %s" % str(size))
+        super(IntField, self).__init__(size=size, **kwargs)
+
+    def _pack_value(self, value):
+        format = self._get_struct_format(self.size)
+        struct_string = "%s%s" % (self.byte_order, format)
+        packed_int = struct.pack(struct_string, value)
+        return packed_int
+
+    def _parse_value(self, value):
+        if value is None:
+            int_value = 0
+        elif isinstance(value, types.LambdaType):
+            int_value = value
+        elif isinstance(value, bytes):
+            format = self._get_struct_format(self.size)
+            struct_string = "%s%s" % (self.byte_order, format)
+            int_value = struct.unpack(struct_string, value)[0]
+        elif isinstance(value, int):
+            int_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to "
+                            "an int" % (self.name, type(value).__name__))
+        return int_value
+
+    def _get_packed_size(self):
+        return self.size
+
+    def _to_string(self):
+        return str(self._get_calculated_value(self.value))
+
+
+class StrField(Field):
+    """
+    Used to store a string value as a field. This is different from a bytes
+    string so take care. When packing the value, it will be encoded using the
+    encoding set with the encoding kwarg and defaults to UTF-16. So a string
+    "abc" will be packed as b"\x61\x00\x62\x00\x63\x00".
+    """
+
+    def _pack_value(self, value):
+        bytes_value = value.encode(self.encoding)
+        return bytes_value
+
+    def _parse_value(self, value):
+        if value is None:
+            str_value = ""
+        elif isinstance(value, types.LambdaType):
+            str_value = value
+        elif isinstance(value, bytes):
+            str_value = value.decode(self.encoding)
+        elif isinstance(value, str):
+            str_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to "
+                            "a str" % (self.name, type(value).__name__))
+        return str_value
+
+    def _get_packed_size(self):
+        str_value = self._get_calculated_value(self.value)
+        return len(self._pack_value(str_value))
+
+    def _to_string(self):
+        return "'%s'" % self._get_calculated_value(self.value)
+
+
+class BytesField(Field):
+    """
+    Used to store a raw bytes value as a field. Is the most universal and can
+    convert from most objects to a bytes string. Use this is the field can
+    contain multiple values and parsing will be done outside of the class.
+    """
+
+    def _pack_value(self, value):
+        return value
+
+    def _parse_value(self, value):
+        if value is None:
+            bytes_value = b""
+        elif isinstance(value, types.LambdaType):
+            bytes_value = value
+        elif isinstance(value, int):
+            format = self._get_struct_format(self.size)
+            struct_string = "%s%s" % (self.byte_order, format)
+            bytes_value = struct.pack(struct_string, value)
+        elif isinstance(value, str):
+            bytes_value = value.encode(self.encoding)
+        elif isinstance(value, Structure):
+            bytes_value = value.pack()
+        elif isinstance(value, bytes):
+            bytes_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "byte string" % (self.name, type(value).__name__))
+        return bytes_value
+
+    def _get_packed_size(self):
+        bytes_value = self._get_calculated_value(self.value)
+        return len(bytes_value)
+
+    def _to_string(self):
+        bytes_value = self._get_calculated_value(self.value)
+        return _bytes_to_hex(bytes_value, pretty=True, hex_per_line=0)
+
+
+class ListField(Field):
+
+    def __init__(self, list_count=None, list_type=BytesField(),
+                 unpack_func=None, **kwargs):
+        """
+        Used to store a list of values that are the same time, the list can
+        contain both fixed length values or variable length values but the
+        former is easier to use as it does not require lambda functions to
+        unpack the values. If the list values are different types, then the
+        BytesField list_type should be used and the data will automatically
+        will be converted to a bytes object. If appending a value to the list,
+        ensure the value it added as an actual *Field() object and not just
+        the raw value.
+
+        :param list_count: The number of entries in the list, the value can be
+            an int, lambda function or None (for variable length). The lambda
+            function is only evaluated in the pack and unpack methods. This
+            must be set if unpack_func is not set so it can unpack the data
+            receved from the server.
+        :param list_type: The *Field() definition for each list entry, defaults
+            to a variable length BytesField. If unpack_func is not set, the
+            size attribute must be set.
+        :param unpack_func: A lambda function used during the unpack method to
+            unpack the data received from the server to a list. It takes in the
+            (structure, data) arguments which is the structure of the whole
+            packet and the remaining data left to be unpacked. This MUST be
+            used when the list contains variable length values.
+        :param kwargs: Any other kwarg to be sent to Field()
+        """
+        if list_count is not None and not \
+                (isinstance(list_count, int) or isinstance(list_count,
+                                                           types.LambdaType)):
+            raise InvalidFieldDefinition("ListField list_count must be an "
+                                         "int, lambda, or None for a variable "
+                                         "list length")
+        self.list_count = list_count
+
+        if not isinstance(list_type, Field):
+            raise InvalidFieldDefinition("ListField list_type must be a "
+                                         "Field definition")
+        self.list_type = list_type
+
+        if unpack_func is not None and not isinstance(unpack_func,
+                                                      types.LambdaType):
+            raise InvalidFieldDefinition("ListField unpack_func must be a "
+                                         "lambda function or None")
+        elif unpack_func is None and \
+                (list_count is None or list_type.size is None):
+            raise InvalidFieldDefinition("ListField must either define "
+                                         "unpack_func as a lambda or set "
+                                         "list_count and list_size with a "
+                                         "size")
+        self.unpack_func = unpack_func
+
+        super(ListField, self).__init__(**kwargs)
+
+    def get_value(self):
+        # Override default get_value() so we return a list with the actual
+        # value, not the Field definition
+        list_value = []
+        for value in self._get_calculated_value(self.value):
+            list_value.append(value.get_value())
+        return list_value
+
+    def _pack_value(self, value):
+        data = b""
+        for value in list(value):
+            data += value.pack()
+        return data
+
+    def _parse_value(self, value):
+        if value is None:
+            list_value = []
+        elif isinstance(value, types.LambdaType):
+            list_value = value
+        elif isinstance(value, bytes) and isinstance(self.unpack_func,
+                                                     types.LambdaType):
+            # use the lambda function to parse the bytes to a list
+            list_value = self.unpack_func(self.structure, value)
+        elif isinstance(value, bytes):
+            # we have a fixed length array with a specified count
+            list_value = self._create_list_from_bytes(self.list_count,
+                                                      self.list_type, value)
+        elif isinstance(value, list):
+            # manually parse each list entry to the field type specified
+            list_value = []
+            for v in list(value):
+                if isinstance(v, Field):
+                    new_field = v
+                else:
+                    new_field = copy.deepcopy(self.list_type)
+                    new_field.name = "%s list entry" % self.name
+                    new_field.set_value(v)
+                list_value.append(new_field)
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "list" % (self.name, type(value).__name__))
+        return list_value
+
+    def _get_packed_size(self):
+        list_value = self._get_calculated_value(self.value)
+        size = 0
+        for field in list(list_value):
+            size += len(field)
+        return size
+
+    def _to_string(self):
+        list_value = self._get_calculated_value(self.value)
+        list_string = [textwrap.indent(str(v), TAB) for v in list(list_value)]
+        if len(list_string) == 0:
+            string = "[]"
+        else:
+            string = "[\n%s\n]" % ',\n'.join(list_string)
+        return string
+
+    def _create_list_from_bytes(self, list_count, list_type, value):
+        # calculate the list_count and rerun method if a lambda
+        if isinstance(list_count, types.LambdaType):
+            list_count = list_count(self.structure)
+            return self._create_list_from_bytes(list_count, list_type, value)
+
+        list_value = []
+        for idx in range(0, list_count):
+            new_field = copy.deepcopy(list_type)
+            value = new_field.unpack(value)
+            list_value.append(new_field)
+        return list_value
+
+
+class StructureField(Field):
+
+    def __init__(self, structure_type, **kwargs):
+        """
+        Used to store a message packet Structure object as a field. Can store
+        both an actual Structure value or a byte string.
+
+        :param structure_type: The message structure type, e.g.
+            SMB2NegotiateRequest. Used to marshal a byte string to a structure
+            object when unpacking or setting a value
+        :param kwargs: Any other kwarg to be sent to Field()
+        """
+        self.structure_type = structure_type
+        super(StructureField, self).__init__(**kwargs)
+
+    def __setitem__(self, key, value):
+        field = self._get_field(key)
+        field.set_value(value)
+
+    def __getitem__(self, key):
+        return self._get_field(key).get_value()
+
+    def _pack_value(self, value):
+        # Can either be a Structure or just plain bytes, just pack the
+        # structure if needed
+        if isinstance(value, Structure):
+            value = value.pack()
+        return value
+
+    def _parse_value(self, value):
+        if value is None:
+            structure_value = b""
+        elif isinstance(value, types.LambdaType):
+            structure_value = value
+        elif isinstance(value, bytes):
+            structure_value = value
+        elif isinstance(value, Structure):
+            structure_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "structure" % (self.name, type(value).__name__))
+
+        if isinstance(structure_value, bytes) and self.structure_type and \
+                structure_value != b"":
+            structure = self.structure_type()
+            structure.unpack(structure_value)
+            structure_value = structure
+        return structure_value
+
+    def _get_packed_size(self):
+        structure_value = self._get_calculated_value(self.value)
+        return len(structure_value)
+
+    def _to_string(self):
+        structure_value = self._get_calculated_value(self.value)
+        return str(structure_value)
+
+    def _get_field(self, key):
+        structure_value = self._get_calculated_value(self.value)
+        if isinstance(structure_value, bytes):
+            raise Exception("Cannot get field %s when structure is defined as "
+                            "a byte string" % key)
+        field = structure_value._get_field(key)
+        return field
+
+
+class DateTimeField(Field):
+
+    EPOCH_FILETIME = 116444736000000000  # epoch as a MS FILETIME int
+    HUNDREDS_NS = 10000000  # How many hundred nanoseconds in a second
+
+    def __init__(self, size=None, **kwargs):
+        """
+        [MS-DTYP] 0.0 2017-09-15
+
+        2.3.3 FILETIME
+        The FILETIME structure is a 64-it value that represents the number of
+        100 nanoseconds intervals that have elapsed since January 1, 1601 UTC.
+        This is used to convert the FILETIME int value to a native Python
+        datetime object.
+
+        While the format FILETIME is used when communicating with the server,
+        this type allows Python code to interact with datetime objects natively
+        with all the conversions handled at pack/unpack time.
+
+        :param size: Must be set to None or 8, this is so we can check/override
+        :param kwargs: Any other kwarg to be sent to Field()
+        """
+        if not (size is None or size == 8):
+            raise InvalidFieldDefinition("DateTimeField type must have a size "
+                                         "of 8 not %d" % size)
+        super(DateTimeField, self).__init__(size=8, **kwargs)
+
+    def _pack_value(self, value):
+        epoch_seconds = int(
+            (value - datetime.fromtimestamp(0)).total_seconds()
+        )
+        int_value = self.EPOCH_FILETIME + (epoch_seconds * self.HUNDREDS_NS)
+        int_value += value.microsecond * 10
+
+        format = self._get_struct_format(8)
+        struct_string = "%s%s" % (self.byte_order, format)
+        bytes_value = struct.pack(struct_string, int_value)
+
+        return bytes_value
+
+    def _parse_value(self, value):
+        if value is None:
+            datetime_value = datetime.today()
+        elif isinstance(value, types.LambdaType):
+            datetime_value = value
+        elif isinstance(value, bytes):
+            format = self._get_struct_format(8)
+            struct_string = "%s%s" % (self.byte_order, format)
+            int_value = struct.unpack(struct_string, value)[0]
+            return self._parse_value(int_value)  # just parse the value again
+        elif isinstance(value, int):
+            (seconds, remainder) = divmod(value - self.EPOCH_FILETIME,
+                                          self.HUNDREDS_NS)
+            microseconds = remainder // 10
+            datetime_value = datetime.fromtimestamp(seconds)
+            datetime_value = datetime_value.replace(microsecond=microseconds)
+        elif isinstance(value, datetime):
+            datetime_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "datetime" % (self.name, type(value).__name__))
+        return datetime_value
+
+    def _get_packed_size(self):
+        return self.size
+
+    def _to_string(self):
+        datetime_value = self._get_calculated_value(self.value)
+        return datetime_value.isoformat(' ')
+
+
+class UuidField(Field):
+
+    def __init__(self, size=None, **kwargs):
+        """
+        Used to store a UUID (GUID) as a Python UUID object.
+
+        :param size: Must be set to None or 16, this is so we can
+            check/override
+        :param kwargs: Any other kwarg to be sent to Field()
+        """
+        if not (size is None or size == 16):
+            raise InvalidFieldDefinition("UuidField type must have a size of "
+                                         "16 not %d" % size)
+        super(UuidField, self).__init__(size=16, **kwargs)
+
+    def _pack_value(self, value):
+        return value.bytes
+
+    def _parse_value(self, value):
+        if value is None:
+            uuid_value = uuid.UUID(bytes=b"\x00" * 16)
+        elif isinstance(value, str):
+            uuid_value = uuid.UUID(value)
+        elif isinstance(value, bytes):
+            uuid_value = uuid.UUID(bytes=value)
+        elif isinstance(value, int):
+            uuid_value = uuid.UUID(int=value)
+        elif isinstance(value, uuid.UUID):
+            uuid_value = value
+        elif isinstance(value, types.LambdaType):
+            uuid_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "uuid" % (self.name, type(value).__name__))
+        return uuid_value
+
+    def _get_packed_size(self):
+        return self.size
+
+    def _to_string(self):
+        uuid_value = self._get_calculated_value(self.value)
+        return str(uuid_value)

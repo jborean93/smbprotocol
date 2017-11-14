@@ -1,0 +1,2 @@
+class InvalidFieldDefinition(Exception):
+    pass
