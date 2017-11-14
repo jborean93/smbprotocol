@@ -99,3 +99,13 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# IDEA Files
+.idea
+*~
+
+# Visual Studio Code Files
+.vscode/
+
+# MacOS File
+.DS_Store
