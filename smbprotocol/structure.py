@@ -640,7 +640,7 @@ class DateTimeField(Field):
             (seconds, remainder) = divmod(value - self.EPOCH_FILETIME,
                                           self.HUNDREDS_NS)
             microseconds = remainder // 10
-            datetime_value = datetime.fromtimestamp(seconds)
+            datetime_value = datetime.utcfromtimestamp(seconds)
             datetime_value = datetime_value.replace(microsecond=microseconds)
         elif isinstance(value, datetime):
             datetime_value = value

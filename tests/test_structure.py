@@ -990,7 +990,7 @@ class TestDateTimeField(object):
     def test_unpack(self):
         field = self.StructureTest()['field']
         field.unpack(b"\x5e\x70\x27\x4a\x6e\x23\x93\x01")
-        expected = datetime(year=1960, month=8, day=2, hour=8, minute=7,
+        expected = datetime(year=1960, month=8, day=1, hour=22, minute=7,
                             second=1, microsecond=186774)
         actual = field.get_value()
         assert actual == expected
@@ -1023,7 +1023,7 @@ class TestDateTimeField(object):
     def test_set_bytes(self):
         field = self.StructureTest()['field']
         field.set_value(b"\x00\x67\x7b\x21\x3d\x5d\xd3\x01")
-        expected = datetime(year=2017, month=11, day=14, hour=21, minute=38,
+        expected = datetime(year=2017, month=11, day=14, hour=11, minute=38,
                             second=46)
         actual = field.get_value()
         assert isinstance(field.value, datetime)
@@ -1032,7 +1032,7 @@ class TestDateTimeField(object):
     def test_set_int(self):
         field = self.StructureTest()['field']
         field.set_value(131551331260000000)
-        expected = datetime(year=2017, month=11, day=14, hour=21, minute=38,
+        expected = datetime(year=2017, month=11, day=14, hour=11, minute=38,
                             second=46)
         actual = field.get_value()
         assert isinstance(field.value, datetime)
