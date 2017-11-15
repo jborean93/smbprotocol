@@ -983,7 +983,7 @@ class TestDateTimeField(object):
 
     def test_pack(self):
         field = self.StructureTest()['field']
-        expected = b"\x54\xfe\xb6\x8c\xd9\xf9\xb7\x01"
+        expected = b"\x54\x0e\x63\x5e\x2d\xfa\xb7\x01"
         actual = field.pack()
         assert actual == expected
 

@@ -660,7 +660,7 @@ class DateTimeField(Field):
         # total_seconds was not present in Python 2.6, this is suggested by
         # Python docs as an alternative
         # https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds
-        td = datetime_value - datetime.fromtimestamp(0)
+        td = datetime_value - datetime.utcfromtimestamp(0)
         seconds = (td.microseconds +
                    (td.seconds + td.days * 24 * 3600) * 10 ** 6) / 10 ** 6
         return int(seconds)
