@@ -7,6 +7,7 @@ import uuid
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 from datetime import datetime
+from six import with_metaclass, integer_types
 from smbprotocol.exceptions import InvalidFieldDefinition
 
 TAB = "    "  # Instead of displaying a tab on the print, use 4 spaces
@@ -29,6 +30,17 @@ def _bytes_to_hex(bytes, pretty=False, hex_per_line=8):
         hex = "\n".join(hexes)
 
     return hex
+
+
+def _indent_lines(string, prefix):
+    # Would use textwrap.indent for this but it is not available for Python 2
+    def predicate(line):
+        return line.strip()
+
+    lines = []
+    for line in string.splitlines(True):
+        lines.append(prefix + line if predicate(line) else line)
+    return ''.join(lines)
 
 
 class Structure(object):
@@ -58,10 +70,10 @@ class Structure(object):
                 field_header = "%s = %s"
 
             field_string = field_header % (field.name, str(field))
-            field_strings.append(textwrap.indent(field_string, TAB))
+            field_strings.append(_indent_lines(field_string, TAB))
 
         field_strings.append("")
-        field_strings.append(textwrap.indent("Raw Hex:", TAB))
+        field_strings.append(_indent_lines("Raw Hex:", TAB))
         hex_wrapper = textwrap.TextWrapper(
             width=33,  # set to show 8 hex values per line, 33 for 8, 56 for 16
             initial_indent=TAB + TAB,
@@ -109,10 +121,9 @@ class Structure(object):
         return field
 
 
-class Field(metaclass=ABCMeta):
+class Field(with_metaclass(ABCMeta, object)):
 
-    def __init__(self, byte_order='<', default=None, encoding='utf-16-le',
-                 size=None):
+    def __init__(self, byte_order='<', default=None, size=None):
         """
         The base class of a Field object. This contains the framework that a
         field SHOULD implement in regards to packing and unpacking a value.
@@ -124,17 +135,14 @@ class Field(metaclass=ABCMeta):
         :param default: The default value of the field, this can be any
             supported value such as as well as a lambda function or None
             (default).
-        :param encoding: When converting a str to bytes, the encoding to use,
-            defaults to UTF-16 which is what MS usually wants
         :param size: The size of the field, this can be an int, lambda function
             or None (for variable length end field) unless overridden in Class
             definition.
         """
         field_type = self.__class__.__name__
         self.byte_order = byte_order
-        self.encoding = encoding
 
-        if not (size is None or isinstance(size, int) or
+        if not (size is None or isinstance(size, integer_types) or
                 isinstance(size, types.LambdaType)):
             raise InvalidFieldDefinition("%s size for field must be an int or "
                                          "None for a variable length"
@@ -334,7 +342,7 @@ class IntField(Field):
             format = self._get_struct_format(self.size)
             struct_string = "%s%s" % (self.byte_order, format)
             int_value = struct.unpack(struct_string, value)[0]
-        elif isinstance(value, int):
+        elif isinstance(value, integer_types):
             int_value = value
         else:
             raise TypeError("Cannot parse value for field %s of type %s to "
@@ -346,40 +354,6 @@ class IntField(Field):
 
     def _to_string(self):
         return str(self._get_calculated_value(self.value))
-
-
-class StrField(Field):
-    """
-    Used to store a string value as a field. This is different from a bytes
-    string so take care. When packing the value, it will be encoded using the
-    encoding set with the encoding kwarg and defaults to UTF-16. So a string
-    "abc" will be packed as b"\x61\x00\x62\x00\x63\x00".
-    """
-
-    def _pack_value(self, value):
-        bytes_value = value.encode(self.encoding)
-        return bytes_value
-
-    def _parse_value(self, value):
-        if value is None:
-            str_value = ""
-        elif isinstance(value, types.LambdaType):
-            str_value = value
-        elif isinstance(value, bytes):
-            str_value = value.decode(self.encoding)
-        elif isinstance(value, str):
-            str_value = value
-        else:
-            raise TypeError("Cannot parse value for field %s of type %s to "
-                            "a str" % (self.name, type(value).__name__))
-        return str_value
-
-    def _get_packed_size(self):
-        str_value = self._get_calculated_value(self.value)
-        return len(self._pack_value(str_value))
-
-    def _to_string(self):
-        return "'%s'" % self._get_calculated_value(self.value)
 
 
 class BytesField(Field):
@@ -397,12 +371,10 @@ class BytesField(Field):
             bytes_value = b""
         elif isinstance(value, types.LambdaType):
             bytes_value = value
-        elif isinstance(value, int):
+        elif isinstance(value, integer_types):
             format = self._get_struct_format(self.size)
             struct_string = "%s%s" % (self.byte_order, format)
             bytes_value = struct.pack(struct_string, value)
-        elif isinstance(value, str):
-            bytes_value = value.encode(self.encoding)
         elif isinstance(value, Structure):
             bytes_value = value.pack()
         elif isinstance(value, bytes):
@@ -451,8 +423,8 @@ class ListField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if list_count is not None and not \
-                (isinstance(list_count, int) or isinstance(list_count,
-                                                           types.LambdaType)):
+                (isinstance(list_count, integer_types) or
+                 isinstance(list_count, types.LambdaType)):
             raise InvalidFieldDefinition("ListField list_count must be an "
                                          "int, lambda, or None for a variable "
                                          "list length")
@@ -529,7 +501,7 @@ class ListField(Field):
 
     def _to_string(self):
         list_value = self._get_calculated_value(self.value)
-        list_string = [textwrap.indent(str(v), TAB) for v in list(list_value)]
+        list_string = [_indent_lines(str(v), TAB) for v in list(list_value)]
         if len(list_string) == 0:
             string = "[]"
         else:
@@ -644,9 +616,7 @@ class DateTimeField(Field):
         super(DateTimeField, self).__init__(size=8, **kwargs)
 
     def _pack_value(self, value):
-        epoch_seconds = int(
-            (value - datetime.fromtimestamp(0)).total_seconds()
-        )
+        epoch_seconds = self._seconds_since_epoch(value)
         int_value = self.EPOCH_FILETIME + (epoch_seconds * self.HUNDREDS_NS)
         int_value += value.microsecond * 10
 
@@ -666,7 +636,7 @@ class DateTimeField(Field):
             struct_string = "%s%s" % (self.byte_order, format)
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
-        elif isinstance(value, int):
+        elif isinstance(value, integer_types):
             (seconds, remainder) = divmod(value - self.EPOCH_FILETIME,
                                           self.HUNDREDS_NS)
             microseconds = remainder // 10
@@ -685,6 +655,15 @@ class DateTimeField(Field):
     def _to_string(self):
         datetime_value = self._get_calculated_value(self.value)
         return datetime_value.isoformat(' ')
+
+    def _seconds_since_epoch(self, datetime_value):
+        # total_seconds was not present in Python 2.6, this is suggested by
+        # Python docs as an alternative
+        # https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds
+        td = datetime_value - datetime.fromtimestamp(0)
+        seconds = (td.microseconds +
+                   (td.seconds + td.days * 24 * 3600) * 10 ** 6) / 10 ** 6
+        return int(seconds)
 
 
 class UuidField(Field):
@@ -708,11 +687,9 @@ class UuidField(Field):
     def _parse_value(self, value):
         if value is None:
             uuid_value = uuid.UUID(bytes=b"\x00" * 16)
-        elif isinstance(value, str):
-            uuid_value = uuid.UUID(value)
         elif isinstance(value, bytes):
             uuid_value = uuid.UUID(bytes=value)
-        elif isinstance(value, int):
+        elif isinstance(value, integer_types):
             uuid_value = uuid.UUID(int=value)
         elif isinstance(value, uuid.UUID):
             uuid_value = value

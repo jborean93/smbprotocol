@@ -15,7 +15,9 @@ setup(
     name='smbprotocol',
     version='0.0.1',
     packages=['smbprotocol'],
-    install_requires=[],
+    install_requires=[
+        'six',
+    ],
     extras_require={
         ':python_version<"2.7"': [
             'ordereddict'

@@ -9,8 +9,8 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from smbprotocol.structure import Structure, IntField, BytesField, StrField, \
-    ListField, UuidField, DateTimeField, StructureField, _bytes_to_hex
+from smbprotocol.structure import Structure, IntField, BytesField, ListField, \
+    UuidField, DateTimeField, StructureField, _bytes_to_hex
 from smbprotocol.exceptions import InvalidFieldDefinition
 
 
@@ -69,10 +69,6 @@ class Structure1(Structure):
                 size=2,
                 default=b"\x01a",
             )),
-            ('str_field', StrField(
-                size=6,
-                default="abc",
-            )),
             ('list_field', ListField(
                 list_count=lambda s: s['int_field'].get_value(),
                 list_type=BytesField(size=8),
@@ -96,12 +92,11 @@ class TestStructure(object):
 
     def test_structure_defaults(self):
         actual = Structure1()
-        assert len(actual.fields) == 8
+        assert len(actual.fields) == 7
         assert actual['int_field'].get_value() == 0
         assert actual['bytes_field'].get_value() == b""
         assert actual['var_field'].get_value() == b""
         assert actual['default_field'].get_value() == 24833
-        assert actual['str_field'].get_value() == "abc"
         assert actual['list_field'].get_value() == []
         assert actual['structure_length'].get_value() == 0
         assert actual['structure_field'].get_value() == b""
@@ -121,9 +116,9 @@ class TestStructure(object):
 
     def test_remove_field(self):
         structure = Structure1()
-        assert len(structure.fields) == 8
-        del structure['int_field']
         assert len(structure.fields) == 7
+        del structure['int_field']
+        assert len(structure.fields) == 6
         with pytest.raises(Exception) as exc:
             value = structure['int_field']
         assert str(exc.value) == "Structure does not contain field int_field"
@@ -136,7 +131,7 @@ class TestStructure(object):
         structure['var_field'] = b"\x03\x04\x05"
         structure['list_field'] = [
             b"\x31\x00\x32\x00\x33\x00\x34\x00",
-            "1234",
+            b"1\x002\x003\x004\00",
             sub_structure,
         ]
         structure['structure_field'] = sub_structure
@@ -145,7 +140,6 @@ class TestStructure(object):
                    b"\x01\x02" \
                    b"\x03\x04\x05" \
                    b"\x01\x61" \
-                   b"\x61\x00\x62\x00\x63\x00" \
                    b"\x31\x00\x32\x00\x33\x00\x34\x00" \
                    b"\x31\x00\x32\x00\x33\x00\x34\x00" \
                    b"\x7d\x00\x00\x00\x10\x11\x12\x13" \
@@ -160,7 +154,6 @@ class TestStructure(object):
                       b"\x01\x02" \
                       b"\x03\x04\x05" \
                       b"\x01\x61" \
-                      b"\x61\x00\x62\x00\x63\x00" \
                       b"\x31\x00\x32\x00\x33\x00\x34\x00" \
                       b"\x31\x00\x32\x00\x33\x00\x34\x00" \
                       b"\x7d\x00\x00\x00\x10\x11\x12\x13" \
@@ -173,7 +166,6 @@ class TestStructure(object):
         assert actual['bytes_field'].get_value() == b"\x01\x02"
         assert actual['var_field'].get_value() == b"\x03\x04\x05"
         assert actual['default_field'].get_value() == 24833
-        assert actual['str_field'].get_value() == "abc"
         assert actual['list_field'].get_value() == [
             b"\x31\x00\x32\x00\x33\x00\x34\x00",
             b"\x31\x00\x32\x00\x33\x00\x34\x00",
@@ -192,7 +184,7 @@ class TestStructure(object):
         structure['var_field'] = b"\x03\x04\x05"
         structure['list_field'] = [
             b"\x31\x00\x32\x00\x33\x00\x34\x00",
-            "1234",
+            b"1\x002\x003\x004\x00",
             sub_structure,
         ]
         structure['structure_field'] = sub_structure
@@ -202,7 +194,6 @@ class TestStructure(object):
     bytes_field = 01 02
     var_field = 03 04 05
     default_field = 24833
-    str_field = 'abc'
     list_field = [
         31 00 32 00 33 00 34 00,
         31 00 32 00 33 00 34 00,
@@ -219,13 +210,13 @@ class TestStructure(object):
 
     Raw Hex:
         03 00 00 00 01 02 03 04
-        05 01 61 61 00 62 00 63
-        00 31 00 32 00 33 00 34
-        00 31 00 32 00 33 00 34
-        00 7D 00 00 00 10 11 12
-        13 00 08 7D 00 00 00 10
-        11 12 13"""
+        05 01 61 31 00 32 00 33
+        00 34 00 31 00 32 00 33
+        00 34 00 7D 00 00 00 10
+        11 12 13 00 08 7D 00 00
+        00 10 11 12 13"""
         actual = str(structure)
+        print(actual)
         assert actual == expected
 
     def test_end_field_no_size(self):
@@ -360,115 +351,6 @@ class TestIntField(object):
         assert actual == expected
 
 
-class TestStrField(object):
-
-    class StructureTest(Structure):
-        def __init__(self):
-            self.fields = OrderedDict([
-                ('field', StrField(size=4, default="zy"))
-            ])
-            super(TestStrField.StructureTest, self).__init__()
-
-    def test_get_size(self):
-        field = self.StructureTest()['field']
-        expected = 4
-        actual = len(field)
-        assert actual == expected
-
-    def test_to_string(self):
-        field = self.StructureTest()['field']
-        expected = "'zy'"
-        actual = str(field)
-        assert actual == expected
-
-    def test_get_value(self):
-        field = self.StructureTest()['field']
-        expected = "zy"
-        actual = field.get_value()
-        assert actual == expected
-
-    def test_pack(self):
-        field = self.StructureTest()['field']
-        expected = b"\x7a\x00\x79\x00"
-        actual = field.pack()
-        assert actual == expected
-
-    def test_unpack(self):
-        field = self.StructureTest()['field']
-        field.unpack(b"\x7a\x00\x79\x00")
-        expected = "zy"
-        actual = field.get_value()
-        assert actual == expected
-
-    def test_set_none(self):
-        field = self.StructureTest()['field']
-        field.set_value(None)
-        expected = ""
-        actual = field.get_value()
-        assert isinstance(field.value, str)
-        assert actual == expected
-
-    def test_set_lambda(self):
-        structure = self.StructureTest()
-        field = structure['field']
-        field.name = "field"
-        field.structure = self.StructureTest
-        field.set_value(lambda s: "xw")
-        expected = "xw"
-        actual = field.get_value()
-        assert isinstance(field.value, types.LambdaType)
-        assert actual == expected
-        assert len(field) == 4
-
-    def test_set_str(self):
-        field = self.StructureTest()['field']
-        field.set_value("hi")
-        expected = "hi"
-        actual = field.get_value()
-        assert isinstance(field.value, str)
-        assert actual == expected
-
-    def test_set_bytes(self):
-        field = self.StructureTest()['field']
-        field.set_value(b"\x78\x00\x77\x00")
-        expected = "xw"
-        actual = field.get_value()
-        assert isinstance(field.value, str)
-        assert actual == expected
-
-    def test_set_invalid(self):
-        field = self.StructureTest()['field']
-        field.name = "field"
-        with pytest.raises(TypeError) as exc:
-            field.set_value(0)
-        assert str(exc.value) == "Cannot parse value for field field of " \
-                                 "type int to a str"
-
-    def test_different_encoding(self):
-        class EncodingStructure(Structure):
-            def __init__(self):
-                self.fields = OrderedDict([(
-                    'field', StrField(size=2, encoding="utf-8", default="zy")
-                )])
-                super(EncodingStructure, self).__init__()
-
-        field = EncodingStructure()['field']
-        expected = b"\x7a\x79"
-        actual = field.pack()
-        assert actual == expected
-        assert len(field) == 2
-
-    def test_pack_invalid_size(self):
-        field = self.StructureTest()['field']
-        field.name = "field"
-        field.set_value("a")
-        assert len(field) == 2
-        with pytest.raises(ValueError) as exc:
-            field.pack()
-        assert str(exc.value) == "Invalid packed data length for field " \
-                                 "field of 2 does not fit field size of 4"
-
-
 class TestBytesField(object):
 
     class StructureTest(Structure):
@@ -529,14 +411,6 @@ class TestBytesField(object):
         assert actual == expected
         assert len(field) == 4
 
-    def test_set_str(self):
-        field = self.StructureTest()['field']
-        field.set_value("hi")
-        expected = b"\x68\x00\x69\x00"
-        actual = field.get_value()
-        assert isinstance(field.value, bytes)
-        assert actual == expected
-
     def test_set_bytes(self):
         field = self.StructureTest()['field']
         field.set_value(b"\x78\x00\x77\x00")
@@ -570,20 +444,6 @@ class TestBytesField(object):
             field.set_value([])
         assert str(exc.value) == "Cannot parse value for field field of " \
                                  "type list to a byte string"
-
-    def test_different_encoding(self):
-        class EncodingStructure(Structure):
-            def __init__(self):
-                self.fields = OrderedDict([(
-                    'field', BytesField(size=2, encoding="utf-8", default="zy")
-                )])
-                super(EncodingStructure, self).__init__()
-
-        field = EncodingStructure()['field']
-        expected = b"\x7a\x79"
-        actual = field.pack()
-        assert actual == expected
-        assert len(field) == 2
 
     def test_pack_invalid_size(self):
         field = self.StructureTest()['field']
@@ -1058,14 +918,6 @@ class TestUuidField(object):
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
         assert len(field) == 16
-
-    def test_set_str(self):
-        field = self.StructureTest()['field']
-        field.set_value("22222222-2222-2222-2222-222222222222")
-        expected = uuid.UUID("22222222-2222-2222-2222-222222222222")
-        actual = field.get_value()
-        assert isinstance(field.value, uuid.UUID)
-        assert actual == expected
 
     def test_set_bytes(self):
         field = self.StructureTest()['field']
