@@ -542,7 +542,7 @@ class StructureField(Field):
         field.set_value(value)
 
     def __getitem__(self, key):
-        return self._get_field(key).get_value()
+        return self._get_field(key)
 
     def _pack_value(self, value):
         # Can either be a Structure or just plain bytes, just pack the

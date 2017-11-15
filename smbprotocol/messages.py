@@ -1,12 +1,12 @@
 import struct
 
-from smbprotocol.structure import Structure, IntField, StrField, BytesField, \
+from smbprotocol.structure import Structure, IntField, BytesField, \
     ListField, UuidField, DateTimeField, StructureField
 from smbprotocol.constants import Dialects, NegotiateContextType
 
 try:
     from collections import OrderedDict
-except ValueError:
+except ImportError:
     from ordereddict import OrderedDict
 
 
@@ -54,10 +54,7 @@ class SMB1PacketHeader(Structure):
                 default=b'\xffSMB',
             )),
             ('command', IntField(size=1)),
-            ('status', BytesField(
-                size=4,
-                default=b"\x00" * 4,
-            )),
+            ('status', IntField(size=4)),
             ('flags', IntField(size=1)),
             ('flags2', IntField(size=2)),
             ('pid_high', IntField(size=2)),
@@ -102,13 +99,13 @@ class SMB2PacketHeader(Structure):
             ('flags', IntField(size=4)),
             ('next_command', IntField(size=4)),
             ('message_id', IntField(size=8)),
-            ('reserved', BytesField(
-                size=4,
-                default=b"\x00" * 4
-            )),
+            ('reserved', IntField(size=4)),
             ('tree_id', IntField(size=4)),
             ('session_id', IntField(size=8)),
-            ('signature', BytesField(size=16)),
+            ('signature', BytesField(
+                size=16,
+                default=b"\x00" * 16,
+            )),
             ('data', BytesField()),
         ])
         super(SMB2PacketHeader, self).__init__()
@@ -136,10 +133,7 @@ class SMB3PacketHeader(Structure):
             )),
             ('credit_charge', IntField(size=2)),
             ('channel_sequence', IntField(size=2)),
-            ('reserved', BytesField(
-                size=2,
-                default=b"\x00" * 2
-            )),
+            ('reserved', IntField(size=2)),
             ('command', IntField(size=2)),
             ('credit', IntField(size=2)),
             ('flags', IntField(size=4)),
@@ -571,7 +565,7 @@ class SMB2NegotiateResponse(Structure):
         field = StructureField(
             structure_type=structure_type,
             size=data_length,
-            default=data[8:data_length]
+            default=data[8:data_length + 8]
         )
         field.name = "context_list entry"
         field.set_value(field.default)

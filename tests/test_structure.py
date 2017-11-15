@@ -823,7 +823,7 @@ class TestStructureField(object):
     def test_get_structure_field(self):
         field = self.StructureTest()['field']
         expected = 125
-        actual = field['field']
+        actual = field['field'].get_value()
         assert actual == expected
 
     def test_fail_get_structure_field_missing(self):
@@ -845,7 +845,7 @@ class TestStructureField(object):
         field = self.StructureTest()['field']
         test_value = 100
         field['field'] = test_value
-        actual = field['field']
+        actual = field['field'].get_value()
         assert actual == test_value
         # test out the normal path (convoluted way)
         assert field.get_value()['field'].get_value() == test_value

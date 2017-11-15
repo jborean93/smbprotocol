@@ -103,7 +103,7 @@ class Connection(object):
         response = self.transport.recv()
 
         smb_response = SMB2NegotiateResponse()
-        smb_response.unpack(response['data'].value)
+        smb_response.unpack(response['data'].get_value())
 
         if smb_response['dialect_revision'].value == Dialects.SMB_2_WILDCARD:
             self._increment_sequence_windows(1)
