@@ -1,0 +1,38 @@
+environment:
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\build-scripts\\run_with_compiler.cmd"
+  matrix:
+  # https://www.appveyor.com/docs/installed-software/#python
+  # NOTE Python 2.6 for Windows is no longer supported by the Python core team
+  - PYTHON: Python27
+  - PYTHON: Python27-x64
+  - PYTHON: Python33
+  - PYTHON: Python33-x64
+  - PYTHON: Python34
+  - PYTHON: Python34-x64
+  - PYTHON: Python35
+  - PYTHON: Python35-x64
+  - PYTHON: Python36
+  - PYTHON: Python36-x64
+
+init:
+- ps: |
+    $ErrorActionPreference = "Stop"
+    # Override default Python version/architecture
+    $env:Path="C:\$env:PYTHON;C:\$env:PYTHON\Scripts;$env:PATH"
+    python -c "import platform; print('Python', platform.python_version(), platform.architecture()[0])"
+
+install:
+- ps: |
+    Invoke-Expression $($env:WITH_COMpUTER + " pip install cffi")
+    pip install -U pip setuptools
+    pip install -r requirements-test.txt
+    pip install coveralls
+
+build: off  # Do not run MSBuild, build stuff at install step
+
+test_script:
+- ps: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
