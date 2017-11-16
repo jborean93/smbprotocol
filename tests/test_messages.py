@@ -1,8 +1,9 @@
+import pytest
 import uuid
 
 from datetime import datetime
 from smbprotocol.constants import Capabilities, Command, Ciphers, \
-    Dialects, HashAlgorithms, SecurityMode, Smb1Flags2
+    Dialects, HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2
 from smbprotocol.messages import DirectTCPPacket, SMB1NegotiateRequest, \
     SMB1PacketHeader, SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
     SMB2NegotiateContextRequest, SMB2NegotiateResponse, SMB2PacketHeader, \
@@ -338,10 +339,51 @@ class TestSMB3NegotiateRequest(object):
 class TestSMB2NegotiateContextRequest(object):
 
     def test_create_message(self):
-        pass
+        message = SMB2NegotiateContextRequest()
+        message['context_type'] = \
+            NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+
+        enc_cap = SMB2EncryptionCapabilities()
+        enc_cap['ciphers'] = [Ciphers.AES_128_GCM]
+        message['data'] = enc_cap
+        expected = b"\x02\x00" \
+                   b"\x04\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x01\x00" \
+                   b"\x02\x00"
+        actual = message.pack()
+        assert len(message) == 12
+        assert actual == expected
 
     def test_parse_message(self):
-        pass
+        actual = SMB2NegotiateContextRequest()
+        data = b"\x02\x00" \
+               b"\x04\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x01\x00" \
+               b"\x02\x00"
+        actual.unpack(data)
+        assert len(actual) == 12
+        assert actual['context_type'].get_value() == \
+            NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+        assert actual['data_length'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+        assert isinstance(actual['data'].get_value(),
+                          SMB2EncryptionCapabilities)
+        assert actual['data']['cipher_count'].get_value() == 1
+        assert actual['data']['ciphers'].get_value() == [Ciphers.AES_128_GCM]
+
+    def test_parse_message_invalid_context_type(self):
+        actual = SMB2NegotiateContextRequest()
+        data = b"\x03\x00" \
+               b"\x04\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x01\x00" \
+               b"\x02\x00"
+        with pytest.raises(Exception) as exc:
+            actual.unpack(data)
+        assert str(exc.value) == "Could not detect type of " \
+                                 "SMB2NegotiateContextRequest data type of 3"
 
 
 class TestSMB2PreauthIntegrityCapabilities(object):
@@ -362,7 +404,6 @@ class TestSMB2PreauthIntegrityCapabilities(object):
         assert actual == expected
 
     def test_parse_message(self):
-
         actual = SMB2PreauthIntegrityCapabilities()
         data = b"\x01\x00" \
                b"\x10\x00" \
@@ -411,9 +452,162 @@ class TestSMB2EncryptionCapabilities(object):
 class TestSMB2NegotiateResponse(object):
 
     def test_create_message(self):
-        pass
+        message = SMB2NegotiateResponse()
+        message['security_mode'] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        message['dialect_revision'] = Dialects.SMB_3_0_2
+        message['server_guid'] = uuid.UUID(bytes=b"\x11" * 16)
+        message['capabilities'] = 39
+        message['max_transact_size'] = 8388608
+        message['max_read_size'] = 8388608
+        message['max_write_size'] = 8388608
+        message['system_time'] = datetime(
+            year=2017, month=11, day=15, hour=11, minute=32, second=12,
+            microsecond=1616)
+        message['server_start_time'] = datetime(
+            year=2017, month=11, day=15, hour=11, minute=27, second=26,
+            microsecond=349606)
+        message['buffer'] = b"\x01\x02\x03\x04\x05\x06\x07\x08" \
+                            b"\x09\x10"
+
+        expected = b"\x41\x00" \
+                   b"\x01\x00" \
+                   b"\x02\x03" \
+                   b"\x00\x00" \
+                   b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+                   b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+                   b"\x27\x00\x00\x00" \
+                   b"\x00\x00\x80\x00" \
+                   b"\x00\x00\x80\x00" \
+                   b"\x00\x00\x80\x00" \
+                   b"\x20\xc5\x0d\x61\x05\x5e\xd3\x01" \
+                   b"\x7c\xbb\xca\xb6\x04\x5e\xd3\x01" \
+                   b"\x80\x00" \
+                   b"\x0a\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x01\x02\x03\x04\x05\x06\x07\x08" \
+                   b"\x09\x10"
+        actual = message.pack()
+        assert len(message) == 74
+        assert actual == expected
+
+    def test_create_message_3_1_1(self):
+        message = SMB2NegotiateResponse()
+        message['security_mode'] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        message['dialect_revision'] = Dialects.SMB_3_1_1
+        message['server_guid'] = uuid.UUID(bytes=b"\x11" * 16)
+        message['capabilities'] = 39
+        message['max_transact_size'] = 8388608
+        message['max_read_size'] = 8388608
+        message['max_write_size'] = 8388608
+        message['system_time'] = datetime(
+            year=2017, month=11, day=15, hour=11, minute=32, second=12,
+            microsecond=1616)
+        message['server_start_time'] = datetime(
+            year=2017, month=11, day=15, hour=11, minute=27, second=26,
+            microsecond=349606)
+        message['buffer'] = b"\x01\x02\x03\x04\x05\x06\x07\x08" \
+                            b"\x09\x10"
+
+        int_cap = SMB2PreauthIntegrityCapabilities()
+        int_cap['hash_algorithms'] = [HashAlgorithms.SHA_512]
+        int_cap['salt'] = b"\x22" * 32
+
+        negotiate_context = SMB2NegotiateContextRequest()
+        negotiate_context['context_type'] = \
+            NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+        negotiate_context['data'] = int_cap
+
+        message['negotiate_context_list'] = [negotiate_context]
+        expected = b"\x41\x00" \
+                   b"\x01\x00" \
+                   b"\x11\x03" \
+                   b"\x01\x00" \
+                   b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+                   b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+                   b"\x27\x00\x00\x00" \
+                   b"\x00\x00\x80\x00" \
+                   b"\x00\x00\x80\x00" \
+                   b"\x00\x00\x80\x00" \
+                   b"\x20\xc5\x0d\x61\x05\x5e\xd3\x01" \
+                   b"\x7c\xbb\xca\xb6\x04\x5e\xd3\x01" \
+                   b"\x80\x00" \
+                   b"\x0a\x00" \
+                   b"\x90\x00\x00\x00" \
+                   b"\x01\x02\x03\x04\x05\x06\x07\x08" \
+                   b"\x09\x10" \
+                   b"\x00\x00\x00\x00\x00\x00" \
+                   b"\x01\x00\x26\x00\x00\x00\x00\x00" \
+                   b"\x01\x00\x20\x00\x01\x00\x22\x22" \
+                   b"\x22\x22\x22\x22\x22\x22\x22\x22" \
+                   b"\x22\x22\x22\x22\x22\x22\x22\x22" \
+                   b"\x22\x22\x22\x22\x22\x22\x22\x22" \
+                   b"\x22\x22\x22\x22\x22\x22"
+        actual = message.pack()
+        assert len(message) == 126
+        assert actual == expected
 
     def test_parse_message(self):
+        actual = SMB2NegotiateResponse()
+        data = b"\x41\x00" \
+               b"\x01\x00" \
+               b"\x02\x03" \
+               b"\x00\x00" \
+               b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+               b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+               b"\x67\x00\x00\x00" \
+               b"\x00\x00\x80\x00" \
+               b"\x00\x00\x80\x00" \
+               b"\x00\x00\x80\x00" \
+               b"\x14\x85\x12\x8b\xc2\x5e\xd3\x01" \
+               b"\x04\x88\x4d\x21\xc2\x5e\xd3\x01" \
+               b"\x80\x00" \
+               b"\x78\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x60\x76\x06\x06\x2b\x06\x01\x05" \
+               b"\x05\x02\xa0\x6c\x30\x6a\xa0\x3c" \
+               b"\x30\x3a\x06\x0a\x2b\x06\x01\x04" \
+               b"\x01\x82\x37\x02\x02\x1e\x06\x09" \
+               b"\x2a\x86\x48\x82\xf7\x12\x01\x02" \
+               b"\x02\x06\x09\x2a\x86\x48\x86\xf7" \
+               b"\x12\x01\x02\x02\x06\x0a\x2a\x86" \
+               b"\x48\x86\xf7\x12\x01\x02\x02\x03" \
+               b"\x06\x0a\x2b\x06\x01\x04\x01\x82" \
+               b"\x37\x02\x02\x0a\xa3\x2a\x30\x28" \
+               b"\xa0\x26\x1b\x24\x6e\x6f\x74\x5f" \
+               b"\x64\x65\x66\x69\x6e\x65\x64\x5f" \
+               b"\x69\x6e\x5f\x52\x46\x43\x34\x31" \
+               b"\x37\x38\x40\x70\x6c\x65\x61\x73" \
+               b"\x65\x5f\x69\x67\x6e\x6f\x72\x65"
+        actual.unpack(data)
+
+        assert len(actual) == 184
+        assert actual['structure_size'].get_value() == 65
+
+        assert actual['security_mode'].get_value() == \
+            SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        assert actual['dialect_revision'].get_value() == Dialects.SMB_3_0_2
+        assert actual['negotiate_context_count'].get_value() == 0
+        assert actual['server_guid'].get_value() == uuid.UUID(
+            bytes=b"\x11" * 16)
+        assert actual['capabilities'].get_value() == 103
+        assert actual['max_transact_size'].get_value() == 8388608
+        assert actual['max_read_size'].get_value() == 8388608
+        assert actual['max_write_size'].get_value() == 8388608
+        assert actual['system_time'].get_value() == datetime(
+            year=2017, month=11, day=16, hour=10, minute=6, second=17,
+            microsecond=378946)
+        assert actual['server_start_time'].get_value() == datetime(
+            year=2017, month=11, day=16, hour=10, minute=3, second=19,
+            microsecond=927194)
+        assert actual['security_buffer_offset'].get_value() == 128
+        assert actual['security_buffer_length'].get_value() == 120
+        assert actual['negotiate_context_offset'].get_value() == 0
+        assert isinstance(actual['buffer'].get_value(), bytes)
+        assert len(actual['buffer']) == 120
+        assert actual['padding'].get_value() == b""
+        assert actual['negotiate_context_list'].get_value() == []
+
+    def test_parse_message_3_1_1(self):
         actual = SMB2NegotiateResponse()
         data = b"\x41\x00" \
                b"\x01\x00" \
@@ -454,7 +648,7 @@ class TestSMB2NegotiateResponse(object):
                b"\x22\x22\x22\x22\x22\x22"
         actual.unpack(data)
 
-        # assert len(actual) == 230  # FIXME: neg context not calc correctly
+        assert len(actual) == 230
         assert actual['structure_size'].get_value() == 65
 
         assert actual['security_mode'].get_value() == \
@@ -472,8 +666,7 @@ class TestSMB2NegotiateResponse(object):
             microsecond=1616)
         assert actual['server_start_time'].get_value() == datetime(
             year=2017, month=11, day=15, hour=11, minute=27, second=26,
-            microsecond=349606
-        )
+            microsecond=349606)
         assert actual['security_buffer_offset'].get_value() == 128
         assert actual['security_buffer_length'].get_value() == 120
         assert actual['negotiate_context_offset'].get_value() == 248
@@ -483,11 +676,18 @@ class TestSMB2NegotiateResponse(object):
 
         assert isinstance(actual['negotiate_context_list'].get_value(), list)
         assert len(actual['negotiate_context_list'].get_value()) == 1
+
         neg_context = actual['negotiate_context_list'].get_value()[0]
-        assert isinstance(neg_context, SMB2PreauthIntegrityCapabilities)
-        assert neg_context['hash_algorithm_count'].get_value() == 1
-        assert neg_context['salt_length'].get_value() == 32
-        assert neg_context['hash_algorithms'].get_value() == [
+        assert isinstance(neg_context, SMB2NegotiateContextRequest)
+        assert neg_context['context_type'].get_value() == \
+            NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+        assert neg_context['data_length'].get_value() == 38
+        assert neg_context['reserved'].get_value() == 0
+
+        preauth_cap = neg_context['data']
+        assert preauth_cap['hash_algorithm_count'].get_value() == 1
+        assert preauth_cap['salt_length'].get_value() == 32
+        assert preauth_cap['hash_algorithms'].get_value() == [
             HashAlgorithms.SHA_512
         ]
-        assert neg_context['salt'].get_value() == b"\x22" * 32
+        assert preauth_cap['salt'].get_value() == b"\x22" * 32

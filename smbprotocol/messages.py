@@ -381,7 +381,7 @@ class SMB2NegotiateContextRequest(Structure):
         super(SMB2NegotiateContextRequest, self).__init__()
 
     def _data_structure_type(self, structure):
-        con_type = structure['context_type']
+        con_type = structure['context_type'].get_value()
         if con_type == \
                 NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES:
             return SMB2PreauthIntegrityCapabilities
@@ -389,7 +389,7 @@ class SMB2NegotiateContextRequest(Structure):
             return SMB2EncryptionCapabilities
         else:
             raise Exception("Could not detect type of "
-                            "SMB2NegotiateContextRequest data type %d"
+                            "SMB2NegotiateContextRequest data type of %d"
                             % con_type)
 
 
@@ -496,6 +496,7 @@ class SMB2NegotiateResponse(Structure):
             )),
             ('padding', BytesField(
                 size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s),
             )),
             ('negotiate_context_list', ListField(
                 list_count=lambda s: s['negotiate_context_count'].get_value(),
@@ -529,44 +530,28 @@ class SMB2NegotiateResponse(Structure):
 
     def _padding_size(self, structure):
         # Padding between the end of the buffer value and the first Negotiate
-        # context value so that the first value is 8-byte aligned.
+        # context value so that the first value is 8-byte aligned. Padding is
+        # not required if there are not negotiate contexts
+        if structure['negotiate_context_count'].get_value() == 0:
+            return 0
+
         mod = structure['security_buffer_length'].get_value() % 8
-        if structure['security_buffer_length'].get_value() <= 8:
-            return 8 - mod
+        if mod == 0:
+            return 0
         else:
-            return mod
+            return 8 - mod
 
     def _negotiate_context_list(self, structure, data):
-        # handle no list
-        if data == b'':
-            return []
-
+        context_count = structure['negotiate_context_count'].get_value()
         context_list = []
-        while True:
-            field, data = \
-                self._parse_negotiate_context_entry(data)
+        for idx in range(0, context_count):
+            field, data = self._parse_negotiate_context_entry(data, idx)
             context_list.append(field)
-            if data == b"":
-                break
 
         return context_list
 
-    def _parse_negotiate_context_entry(self, data):
-        context_type = struct.unpack("<H", data[0:2])[0]
+    def _parse_negotiate_context_entry(self, data, idx):
         data_length = struct.unpack("<H", data[2:4])[0]
-        if context_type == \
-                NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES:
-            structure_type = SMB2PreauthIntegrityCapabilities
-        elif context_type == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES:
-            structure_type = SMB2EncryptionCapabilities
-        else:
-            raise Exception("TODO: Better error, unknown context_type")
-
-        field = StructureField(
-            structure_type=structure_type,
-            size=data_length,
-            default=data[8:data_length + 8]
-        )
-        field.name = "context_list entry"
-        field.set_value(field.default)
-        return field, data[8 + data_length:]
+        negotiate_context = SMB2NegotiateContextRequest()
+        negotiate_context.unpack(data[:data_length + 8])
+        return negotiate_context, data[8 + data_length:]

@@ -197,7 +197,12 @@ class TestStructure(object):
     list_field = [
         31 00 32 00 33 00 34 00,
         31 00 32 00 33 00 34 00,
-        7D 00 00 00 10 11 12 13
+        Structure2:
+            field = 125
+            bytes = 10 11 12 13
+
+            Raw Hex:
+                7D 00 00 00 10 11 12 13
     ]
     structure_length = 8
     structure_field =
@@ -216,7 +221,6 @@ class TestStructure(object):
         11 12 13 00 08 7D 00 00
         00 10 11 12 13"""
         actual = str(structure)
-        print(actual)
         assert actual == expected
 
     def test_end_field_no_size(self):
@@ -727,7 +731,7 @@ class TestStructureField(object):
         actual = field.pack()
         assert actual == expected
 
-    def test_without_type(self):
+    def test_pack_without_type(self):
         field = self.StructureTest()['field']
         field.structure_type = None
 
@@ -800,7 +804,7 @@ class TestStructureField(object):
         field.set_value(b"\x7d\x00\x00\x00\x14\x15\x16\x17")
         expected = b"\x7d\x00\x00\x00\x14\x15\x16\x17"
         actual = field.get_value()
-        assert isinstance(field.value, Structure)
+        assert isinstance(field.value, Structure2)
         assert actual.pack() == expected
 
     def test_set_bytes_without_type(self):
@@ -811,6 +815,29 @@ class TestStructureField(object):
         actual = field.get_value()
         assert isinstance(field.value, bytes)
         assert actual == expected
+
+    def test_set_bytes_then_structure_type(self):
+        field = self.StructureTest()['field']
+        field.structure_type = None
+        field.set_value(b"\x7d\x00\x00\x00\x14\x15\x16\x17")
+        expected = b"\x7d\x00\x00\x00\x14\x15\x16\x17"
+        actual = field.get_value()
+        assert isinstance(field.value, bytes)
+        assert actual == expected
+        field.set_structure_type(Structure2)
+
+        actual = field.get_value()
+        assert isinstance(field.value, Structure2)
+        assert actual.pack() == expected
+
+    def test_set_bytes_with_lambda_type(self):
+        field = self.StructureTest()['field']
+        field.structure_type = lambda s: Structure2
+        field.set_value(b"\x7d\x00\x00\x00\x14\x15\x16\x17")
+        expected = b"\x7d\x00\x00\x00\x14\x15\x16\x17"
+        actual = field.get_value()
+        assert isinstance(field.value, Structure2)
+        assert actual.pack() == expected
 
     def test_set_structure(self):
         field = self.StructureTest()['field']

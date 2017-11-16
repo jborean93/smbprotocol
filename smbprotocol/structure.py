@@ -204,7 +204,6 @@ class Field(with_metaclass(ABCMeta, object)):
         :param data: The byte string of the data to unpack
         :return: The remaining data for subsequent fields
         """
-        length = len(data)
         size = self._get_calculated_size(self.size, data)
         self.set_value(data[0:size])
         return data[size:]
@@ -453,8 +452,13 @@ class ListField(Field):
         # Override default get_value() so we return a list with the actual
         # value, not the Field definition
         list_value = []
-        for value in self._get_calculated_value(self.value):
-            list_value.append(value.get_value())
+        if isinstance(self.value, types.LambdaType):
+            value = self._get_calculated_value(self.value)
+        else:
+            value = self.value
+
+        for entry in value:
+            list_value.append(entry.get_value())
         return list_value
 
     def _pack_value(self, value):
@@ -467,7 +471,7 @@ class ListField(Field):
         if value is None:
             list_value = []
         elif isinstance(value, types.LambdaType):
-            list_value = value
+            return value
         elif isinstance(value, bytes) and isinstance(self.unpack_func,
                                                      types.LambdaType):
             # use the lambda function to parse the bytes to a list
@@ -478,19 +482,30 @@ class ListField(Field):
                                                       self.list_type, value)
         elif isinstance(value, list):
             # manually parse each list entry to the field type specified
-            list_value = []
-            for v in list(value):
-                if isinstance(v, Field):
-                    new_field = v
-                else:
-                    new_field = copy.deepcopy(self.list_type)
-                    new_field.name = "%s list entry" % self.name
-                    new_field.set_value(v)
-                list_value.append(new_field)
+            list_value = value
         else:
             raise TypeError("Cannot parse value for field %s of type %s to a "
                             "list" % (self.name, type(value).__name__))
+        list_value = [self._parse_sub_value(v) for v in list_value]
         return list_value
+
+    def _parse_sub_value(self, value):
+        if isinstance(value, Field):
+            new_field = value
+        elif isinstance(value, Structure):
+            new_field = StructureField(
+                size=len(value),
+                structure_type=type(value),
+                default=value,
+            )
+            new_field.name = "%s list entry" % self.name
+            new_field.structure = value
+            new_field.set_value(new_field.default)
+        else:
+            new_field = copy.deepcopy(self.list_type)
+            new_field.name = "%s list entry" % self.name
+            new_field.set_value(value)
+        return new_field
 
     def _get_packed_size(self):
         list_value = self._get_calculated_value(self.value)
@@ -544,6 +559,12 @@ class StructureField(Field):
     def __getitem__(self, key):
         return self._get_field(key)
 
+    def set_structure_type(self, structure_type):
+        # Set's the structure type and convert a byte string to the actual
+        # structure specified
+        self.structure_type = structure_type
+        self.set_value(self.value)
+
     def _pack_value(self, value):
         # Can either be a Structure or just plain bytes, just pack the
         # structure if needed
@@ -566,7 +587,11 @@ class StructureField(Field):
 
         if isinstance(structure_value, bytes) and self.structure_type and \
                 structure_value != b"":
-            structure = self.structure_type()
+            if isinstance(self.structure_type, types.LambdaType):
+                structure_type = self.structure_type(self.structure)
+            else:
+                structure_type = self.structure_type
+            structure = structure_type()
             structure.unpack(structure_value)
             structure_value = structure
         return structure_value
