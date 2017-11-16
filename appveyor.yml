@@ -27,10 +27,9 @@ init:
 
 install:
 - ps: |
-    Invoke-Expression $($env:WITH_COMpUTER + " pip install cffi")
     pip install -U pip setuptools
+    pip install .
     pip install -r requirements-test.txt
-    pip install coveralls
 
 build: off  # Do not run MSBuild, build stuff at install step
 
