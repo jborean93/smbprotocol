@@ -6,7 +6,7 @@ import uuid
 
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
-from datetime import datetime
+from datetime import datetime, timedelta
 from six import with_metaclass, integer_types
 from smbprotocol.exceptions import InvalidFieldDefinition
 
@@ -662,11 +662,10 @@ class DateTimeField(Field):
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
         elif isinstance(value, integer_types):
-            (seconds, remainder) = divmod(value - self.EPOCH_FILETIME,
-                                          self.HUNDREDS_NS)
-            microseconds = remainder // 10
-            datetime_value = datetime.utcfromtimestamp(seconds)
-            datetime_value = datetime_value.replace(microsecond=microseconds)
+
+            time_microseconds = (value - self.EPOCH_FILETIME) // 10
+            datetime_value = datetime(1970, 1, 1) + \
+                timedelta(microseconds=time_microseconds)
         elif isinstance(value, datetime):
             datetime_value = value
         else:
