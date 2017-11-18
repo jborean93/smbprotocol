@@ -448,6 +448,10 @@ class ListField(Field):
 
         super(ListField, self).__init__(**kwargs)
 
+    def __getitem__(self, item):
+        # TODO: Make this more efficient
+        return self.get_value()[item]
+
     def get_value(self):
         # Override default get_value() so we return a list with the actual
         # value, not the Field definition

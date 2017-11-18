@@ -507,6 +507,11 @@ class TestListField(object):
         actual = len(field)
         assert actual == expected
 
+    def test_get_item(self):
+        field = self.StructureTest()['field']
+        assert field[0] == b"\x01\x02"
+        assert field[1] == b"\x03\x04"
+
     def test_to_string(self):
         field = self.StructureTest()['field']
         expected = "[\n    01 02,\n    03 04\n]"

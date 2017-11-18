@@ -300,6 +300,7 @@ class TestSMB3PacketHeader(object):
         assert actual['data'].get_value() == b"\x01\x02\x03\x04"
 
 
+# TODO: Once I get proper responses from the server
 class TestSMB2ErrorResponse(object):
 
     def test_create_message(self):
@@ -309,6 +310,7 @@ class TestSMB2ErrorResponse(object):
         pass
 
 
+# TODO: Once I get proper responses from the server
 class TestSMB2ErrorContextResponse(object):
 
     def test_create_message(self):
@@ -321,19 +323,201 @@ class TestSMB2ErrorContextResponse(object):
 class TestSMB2NegotiateRequest(object):
 
     def test_create_message(self):
-        pass
+        message = SMB2NegotiateRequest()
+        message['security_mode'] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        message['capabilities'] = 10
+        message['client_guid'] = uuid.UUID(bytes=b"\x33" * 16)
+        message['dialects'] = [
+            Dialects.SMB_2_0_2,
+            Dialects.SMB_2_1_0,
+            Dialects.SMB_3_0_0,
+            Dialects.SMB_3_0_2
+        ]
+        expected = b"\x24\x00" \
+                   b"\x04\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00" \
+                   b"\x0a\x00\x00\x00" \
+                   b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+                   b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x02\x02" \
+                   b"\x10\x02" \
+                   b"\x00\x03" \
+                   b"\x02\x03"
+        actual = message.pack()
+        assert len(message) == 44
+        assert actual == expected
 
     def test_parse_message(self):
-        pass
+        actual = SMB2NegotiateRequest()
+        data = b"\x24\x00" \
+               b"\x04\x00" \
+               b"\x01\x00" \
+               b"\x00\x00" \
+               b"\x0a\x00\x00\x00" \
+               b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+               b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x02\x02" \
+               b"\x10\x02" \
+               b"\x00\x03" \
+               b"\x02\x03"
+        actual.unpack(data)
+        assert len(actual) == 44
+        assert actual['structure_size'].get_value() == 36
+        assert actual['dialect_count'].get_value() == 4
+        assert actual['security_mode'].get_value() == \
+            SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        assert actual['reserved'].get_value() == 0
+        assert actual['capabilities'].get_value() == 10
+        assert actual['client_guid'].get_value() == \
+            uuid.UUID(bytes=b"\x33" * 16)
+        assert actual['client_start_time'].get_value() == 0
+        assert actual['dialects'].get_value() == [
+            Dialects.SMB_2_0_2,
+            Dialects.SMB_2_1_0,
+            Dialects.SMB_3_0_0,
+            Dialects.SMB_3_0_2
+        ]
 
 
 class TestSMB3NegotiateRequest(object):
 
     def test_create_message(self):
-        pass
+        message = SMB3NegotiateRequest()
+        message['security_mode'] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        message['capabilities'] = 10
+        message['client_guid'] = uuid.UUID(bytes=b"\x33" * 16)
+        message['dialects'] = [
+            Dialects.SMB_2_0_2,
+            Dialects.SMB_2_1_0,
+            Dialects.SMB_3_0_0,
+            Dialects.SMB_3_0_2,
+            Dialects.SMB_3_1_1
+        ]
+        con_req = SMB2NegotiateContextRequest()
+        con_req['context_type'] = \
+            NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+
+        enc_cap = SMB2EncryptionCapabilities()
+        enc_cap['ciphers'] = [Ciphers.AES_128_GCM]
+        con_req['data'] = enc_cap
+        message['negotiate_context_list'] = [
+            con_req
+        ]
+        expected = b"\x24\x00" \
+                   b"\x05\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00" \
+                   b"\x0a\x00\x00\x00" \
+                   b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+                   b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+                   b"\x70\x00\x00\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00" \
+                   b"\x02\x02" \
+                   b"\x10\x02" \
+                   b"\x00\x03" \
+                   b"\x02\x03" \
+                   b"\x11\x03" \
+                   b"\x00\x00" \
+                   b"\x02\x00\x04\x00\x00\x00\x00\x00" \
+                   b"\x01\x00\x02\x00"
+        actual = message.pack()
+        assert len(message) == 60
+        assert actual == expected
+
+    def test_create_message_one_dialect(self):
+        message = SMB3NegotiateRequest()
+        message['security_mode'] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        message['capabilities'] = 10
+        message['client_guid'] = uuid.UUID(bytes=b"\x33" * 16)
+        message['dialects'] = [
+            Dialects.SMB_3_1_1
+        ]
+        con_req = SMB2NegotiateContextRequest()
+        con_req['context_type'] = \
+            NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+
+        enc_cap = SMB2EncryptionCapabilities()
+        enc_cap['ciphers'] = [Ciphers.AES_128_GCM]
+        con_req['data'] = enc_cap
+        message['negotiate_context_list'] = [
+            con_req
+        ]
+        expected = b"\x24\x00" \
+                   b"\x01\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00" \
+                   b"\x0a\x00\x00\x00" \
+                   b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+                   b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+                   b"\x68\x00\x00\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00" \
+                   b"\x11\x03" \
+                   b"\x00\x00" \
+                   b"\x02\x00\x04\x00\x00\x00\x00\x00" \
+                   b"\x01\x00\x02\x00"
+        actual = message.pack()
+        assert len(message) == 52
+        assert actual == expected
 
     def test_parse_message(self):
-        pass
+        actual = SMB3NegotiateRequest()
+        data = b"\x24\x00" \
+               b"\x05\x00" \
+               b"\x01\x00" \
+               b"\x00\x00" \
+               b"\x0a\x00\x00\x00" \
+               b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+               b"\x33\x33\x33\x33\x33\x33\x33\x33" \
+               b"\x70\x00\x00\x00" \
+               b"\x01\x00" \
+               b"\x00\x00" \
+               b"\x02\x02" \
+               b"\x10\x02" \
+               b"\x00\x03" \
+               b"\x02\x03" \
+               b"\x11\x03" \
+               b"\x00\x00" \
+               b"\x02\x00\x04\x00\x00\x00\x00\x00" \
+               b"\x01\x00\x02\x00"
+        actual.unpack(data)
+        assert len(actual) == 60
+        assert actual['structure_size'].get_value() == 36
+        assert actual['dialect_count'].get_value() == 5
+        assert actual['security_mode'].get_value() == \
+            SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        assert actual['reserved'].get_value() == 0
+        assert actual['capabilities'].get_value() == 10
+        assert actual['client_guid'].get_value() == \
+            uuid.UUID(bytes=b"\x33" * 16)
+        assert actual['negotiate_context_offset'].get_value() == 112
+        assert actual['negotiate_context_count'].get_value() == 1
+        assert actual['reserved2'].get_value() == 0
+        assert actual['dialects'].get_value() == [
+            Dialects.SMB_2_0_2,
+            Dialects.SMB_2_1_0,
+            Dialects.SMB_3_0_0,
+            Dialects.SMB_3_0_2,
+            Dialects.SMB_3_1_1
+        ]
+        assert actual['padding'].get_value() == b"\x00\x00"
+
+        assert len(actual['negotiate_context_list'].get_value()) == 1
+        neg_con = actual['negotiate_context_list'][0]
+        assert isinstance(neg_con, SMB2NegotiateContextRequest)
+        assert len(neg_con) == 12
+        assert neg_con['context_type'].get_value() == \
+            NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+        assert neg_con['data_length'].get_value() == 4
+        assert neg_con['reserved'].get_value() == 0
+        assert isinstance(neg_con['data'].get_value(),
+                          SMB2EncryptionCapabilities)
+        assert neg_con['data']['cipher_count'].get_value() == 1
+        assert neg_con['data']['ciphers'].get_value() == [Ciphers.AES_128_GCM]
 
 
 class TestSMB2NegotiateContextRequest(object):

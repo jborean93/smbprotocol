@@ -261,13 +261,10 @@ class SMB2NegotiateRequest(Structure):
                 default=lambda s: len(s['dialects'].get_value()),
             )),
             ('security_mode', IntField(size=2)),
-            ('reserved', BytesField(
-                size=2,
-                default=b"\x00" * 2
-            )),
+            ('reserved', IntField(size=2)),
             ('capabilities', IntField(size=4)),
             ('client_guid', UuidField()),
-            ('client_start_time', BytesField(size=8)),
+            ('client_start_time', IntField(size=8)),
             ('dialects', ListField(
                 size=lambda s: s['dialect_count'].get_value() * 2,
                 list_count=lambda s: s['dialect_count'].get_value(),
@@ -299,10 +296,7 @@ class SMB3NegotiateRequest(Structure):
                 default=lambda s: len(s['dialects'].get_value()),
             )),
             ('security_mode', IntField(size=2)),
-            ('reserved', BytesField(
-                size=2,
-                default=b"\x00" * 2
-            )),
+            ('reserved', IntField(size=2)),
             ('capabilities', IntField(size=4)),
             ('client_guid', UuidField()),
             ('negotiate_context_offset', IntField(
@@ -313,10 +307,7 @@ class SMB3NegotiateRequest(Structure):
                 size=2,
                 default=lambda s: len(s['negotiate_context_list'].get_value()),
             )),
-            ('reserved2', BytesField(
-                size=2,
-                default=b"\x00" * 2
-            )),
+            ('reserved2', IntField(size=2)),
             ('dialects', ListField(
                 size=lambda s: s['dialect_count'].get_value() * 2,
                 list_count=lambda s: s['dialect_count'].get_value(),
@@ -343,17 +334,26 @@ class SMB3NegotiateRequest(Structure):
         return header_size + negotiate_size + dialect_size + padding_size
 
     def _padding_size(self, structure):
-        # Padding between the end of the Dialects array and the first Negotiate
-        # context value so that the first value is 8-byte aligned.
-        mod = len(structure['dialects']) % 8
-        if len(structure['dialects']) <= 8:
-            return 8 - mod
-        else:
-            return mod
+        # Padding between the end of the buffer value and the first Negotiate
+        # context value so that the first value is 8-byte aligned. Padding is
+        # 4 is there are no dialects specified
+        mod = (structure['dialect_count'].get_value() * 2) % 8
+        return 0 if mod == 0 else mod
 
     def _negotiate_context_list(self, structure, data):
-        # TODO: add this work in here
-        pass
+        context_count = structure['negotiate_context_count'].get_value()
+        context_list = []
+        for idx in range(0, context_count):
+            field, data = self._parse_negotiate_context_entry(data, idx)
+            context_list.append(field)
+
+        return context_list
+
+    def _parse_negotiate_context_entry(self, data, idx):
+        data_length = struct.unpack("<H", data[2:4])[0]
+        negotiate_context = SMB2NegotiateContextRequest()
+        negotiate_context.unpack(data[:data_length + 8])
+        return negotiate_context, data[8 + data_length:]
 
 
 class SMB2NegotiateContextRequest(Structure):
@@ -536,10 +536,7 @@ class SMB2NegotiateResponse(Structure):
             return 0
 
         mod = structure['security_buffer_length'].get_value() % 8
-        if mod == 0:
-            return 0
-        else:
-            return 8 - mod
+        return 0 if mod == 0 else 8 - mod
 
     def _negotiate_context_list(self, structure, data):
         context_count = structure['negotiate_context_count'].get_value()
