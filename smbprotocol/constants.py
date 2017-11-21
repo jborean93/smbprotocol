@@ -74,5 +74,14 @@ class Capabilities(object):  # Page 44
 
 
 class NtStatus(object):
+    """
+    [MS-ERREF] https://msdn.microsoft.com/en-au/library/cc704588.aspx
+
+    2.3.1 NTSTATUS Values
+    These values are set in the status field of an SMB2Header response. This is
+    not an exhaustive list but common values that are returned.
+    """
     STATUS_SUCCESS = 0x00000000
     STATUS_INVALID_PARAMETER = 0xC000000D
+    STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
+    STATUS_LOGON_FAILURE = 0xC000006D

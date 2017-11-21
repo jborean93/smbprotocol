@@ -481,7 +481,7 @@ class SMB2NegotiateResponse(Structure):
             ('server_start_time', DateTimeField()),
             ('security_buffer_offset', IntField(
                 size=2,
-                default=128,  # Header size = 64 + response size = 64
+                default=128,  # (header size 64) + (response size 64)
             )),
             ('security_buffer_length', IntField(
                 size=2,
@@ -552,3 +552,69 @@ class SMB2NegotiateResponse(Structure):
         negotiate_context = SMB2NegotiateContextRequest()
         negotiate_context.unpack(data[:data_length + 8])
         return negotiate_context, data[8 + data_length:]
+
+
+class SMB2SessionSetupRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.5 SMB2 SESSION_SETUP Request
+    The SMB2 SESSION_SETUP Request packet is sent by the client to request a
+    new authenticated session within a new or existing SMB 2 connection.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=25,
+            )),
+            ('flags', IntField(size=1)),
+            ('security_mode', IntField(size=1)),
+            ('capabilities', IntField(size=4)),
+            ('channel', IntField(size=4)),
+            ('security_buffer_offset', IntField(
+                size=2,
+                default=88,  # (header size 64) + (response size 24)
+            )),
+            ('security_buffer_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('previous_session_id', IntField(size=8)),
+            ('buffer', BytesField(
+                size=lambda s: s['security_buffer_length'].get_value(),
+            )),
+        ])
+        super(SMB2SessionSetupRequest, self).__init__()
+
+
+class SMB2SessionSetupResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.6 SMB2 SESSION_SETUP Response
+    The SMB2 SESSION_SETUP Response packet is sent by the server in response to
+    an SMB2 SESSION_SETUP Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=9,
+            )),
+            ('session_flags', IntField(size=2)),
+            ('security_buffer_offset', IntField(
+                size=2,
+                default=72,  # (header size 64) + (response size 8)
+            )),
+            ('security_buffer_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('buffer', BytesField(
+                size=lambda s: s['security_buffer_length'].get_value(),
+            ))
+        ])
+        super(SMB2SessionSetupResponse, self).__init__()

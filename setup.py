@@ -16,6 +16,8 @@ setup(
     version='0.0.1',
     packages=['smbprotocol'],
     install_requires=[
+        'ntlm-auth',
+        'pyasn1',
         'six',
     ],
     extras_require={

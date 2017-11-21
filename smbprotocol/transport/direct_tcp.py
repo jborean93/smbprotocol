@@ -46,7 +46,6 @@ class DirectTcp(object):
 
         tcp_packet = DirectTCPPacket()
         tcp_packet['smb2_message'] = data
-        print(str(tcp_packet))
 
         return tcp_packet.pack()
 
