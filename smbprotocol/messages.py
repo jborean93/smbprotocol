@@ -376,6 +376,12 @@ class SMB2NegotiateContextRequest(Structure):
                 size=lambda s: s['data_length'].get_value(),
                 structure_type=lambda s: self._data_structure_type(s)
             )),
+            # not actually a field but each list entry must start at the 8 byte
+            # alignment
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s),
+            ))
         ])
         super(SMB2NegotiateContextRequest, self).__init__()
 
@@ -390,6 +396,10 @@ class SMB2NegotiateContextRequest(Structure):
             raise Exception("Could not detect type of "
                             "SMB2NegotiateContextRequest data type of %d"
                             % con_type)
+
+    def _padding_size(self, structure):
+        data_size = len(structure['data'])
+        return 8 - data_size if data_size <= 8 else 8 - (data_size % 8)
 
 
 class SMB2PreauthIntegrityCapabilities(Structure):
@@ -541,16 +551,20 @@ class SMB2NegotiateResponse(Structure):
         context_count = structure['negotiate_context_count'].get_value()
         context_list = []
         for idx in range(0, context_count):
-            field, data = self._parse_negotiate_context_entry(data, idx)
+            field, data = self._parse_negotiate_context_entry(data)
             context_list.append(field)
 
         return context_list
 
-    def _parse_negotiate_context_entry(self, data, idx):
+    def _parse_negotiate_context_entry(self, data):
         data_length = struct.unpack("<H", data[2:4])[0]
         negotiate_context = SMB2NegotiateContextRequest()
         negotiate_context.unpack(data[:data_length + 8])
-        return negotiate_context, data[8 + data_length:]
+        padded_size = data_length % 8
+        if padded_size != 0:
+            padded_size = 8 - padded_size
+
+        return negotiate_context, data[8 + data_length + padded_size:]
 
 
 class SMB2SessionSetupRequest(Structure):

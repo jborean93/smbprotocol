@@ -376,9 +376,10 @@ class TestSMB3NegotiateRequest(object):
                    b"\x11\x03" \
                    b"\x00\x00" \
                    b"\x02\x00\x04\x00\x00\x00\x00\x00" \
-                   b"\x01\x00\x02\x00"
+                   b"\x01\x00\x02\x00" \
+                   b"\x00\x00\x00\x00"
         actual = message.pack()
-        assert len(message) == 60
+        assert len(message) == 64
         assert actual == expected
 
     def test_create_message_one_dialect(self):
@@ -412,9 +413,10 @@ class TestSMB3NegotiateRequest(object):
                    b"\x11\x03" \
                    b"\x00\x00" \
                    b"\x02\x00\x04\x00\x00\x00\x00\x00" \
-                   b"\x01\x00\x02\x00"
+                   b"\x01\x00\x02\x00" \
+                   b"\x00\x00\x00\x00"
         actual = message.pack()
-        assert len(message) == 52
+        assert len(message) == 56
         assert actual == expected
 
     def test_parse_message(self):
@@ -436,7 +438,8 @@ class TestSMB3NegotiateRequest(object):
                b"\x11\x03" \
                b"\x00\x00" \
                b"\x02\x00\x04\x00\x00\x00\x00\x00" \
-               b"\x01\x00\x02\x00"
+               b"\x01\x00\x02\x00" \
+               b"\x00\x00\x00\x00"
         actual.unpack(data)
         assert len(actual) == 60
         assert actual['structure_size'].get_value() == 36
@@ -487,9 +490,10 @@ class TestSMB2NegotiateContextRequest(object):
                    b"\x04\x00" \
                    b"\x00\x00\x00\x00" \
                    b"\x01\x00" \
-                   b"\x02\x00"
+                   b"\x02\x00" \
+                   b"\x00\x00\x00\x00"
         actual = message.pack()
-        assert len(message) == 12
+        assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
@@ -678,9 +682,10 @@ class TestSMB2NegotiateResponse(object):
                    b"\x22\x22\x22\x22\x22\x22\x22\x22" \
                    b"\x22\x22\x22\x22\x22\x22\x22\x22" \
                    b"\x22\x22\x22\x22\x22\x22\x22\x22" \
-                   b"\x22\x22\x22\x22\x22\x22"
+                   b"\x22\x22\x22\x22\x22\x22" \
+                   b"\x00\x00"
         actual = message.pack()
-        assert len(message) == 126
+        assert len(message) == 128
         assert actual == expected
 
     def test_parse_message(self):

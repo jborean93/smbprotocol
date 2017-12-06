@@ -526,7 +526,13 @@ class Connection(object):
             enc_cap['context_type'] = \
                 NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
             enc_cap['data'] = SMB2EncryptionCapabilities()
-            enc_cap['data']['ciphers'] = [Ciphers.AES_128_GCM]
+            enc_cap['data']['ciphers'] = [
+                Ciphers.AES_128_GCM,
+                Ciphers.AES_128_CCM
+            ]
+            # remove extra padding for last list entry
+            enc_cap['padding'].size = 0
+            enc_cap['padding'] = b""
 
             neg_req['negotiate_context_list'] = [
                 int_cap,
