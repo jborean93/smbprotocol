@@ -8,7 +8,7 @@ class DirectTcp(object):
     MAX_SIZE = 16777215
     BUFFER = 1024
 
-    def __init__(self, server, port=445):
+    def __init__(self, server, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._is_connected = False
         self.server = server
@@ -23,9 +23,9 @@ class DirectTcp(object):
         if self._is_connected is True:
             self.sock.close()
 
-    def send(self, data):
+    def send(self, request):
         self.connect()
-        tcp_packet = self._pack_data(data)
+        tcp_packet = self._pack_data(request.message)
         self.sock.send(tcp_packet)
 
     def recv(self):
@@ -45,7 +45,7 @@ class DirectTcp(object):
                              % (data_length, self.MAX_SIZE))
 
         tcp_packet = DirectTCPPacket()
-        tcp_packet['smb2_message'] = data
+        tcp_packet['smb2_message'] = data.pack()
 
         return tcp_packet.pack()
 
@@ -53,4 +53,4 @@ class DirectTcp(object):
         tcp_packet = DirectTCPPacket()
         tcp_packet.unpack(data)
 
-        return tcp_packet['smb2_message']
+        return tcp_packet['smb2_message'].pack()

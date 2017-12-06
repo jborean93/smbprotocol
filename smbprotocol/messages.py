@@ -29,9 +29,8 @@ class DirectTCPPacket(Structure):
                 byte_order='>',
                 default=lambda s: len(s['smb2_message']),
             )),
-            ('smb2_message', StructureField(
+            ('smb2_message', BytesField(
                 size=lambda s: s['stream_protocol_length'].get_value(),
-                structure_type=SMB2PacketHeader,
             )),
         ])
         super(DirectTCPPacket, self).__init__()
@@ -618,3 +617,28 @@ class SMB2SessionSetupResponse(Structure):
             ))
         ])
         super(SMB2SessionSetupResponse, self).__init__()
+
+
+class SMB2TransformHeader(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.41 SMB@ TRANSFORM_HEADER
+    The SMB2 Transform Header is used by the client or server when sending
+    encrypted message. This is only valid for the SMB.x dialect family.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('protocol_id', BytesField(
+                size=4,
+                default=b"\xfdSMB"
+            )),
+            ('signature', BytesField(size=16)),
+            ('nonce', BytesField(size=16)),
+            ('original_message_size', IntField(size=4)),
+            ('reserved', IntField(size=2, default=0)),
+            ('flags', IntField(size=2)),
+            ('session_id', IntField(size=8))
+        ])
+        super(SMB2TransformHeader, self).__init__()

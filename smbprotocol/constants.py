@@ -1,3 +1,7 @@
+import hashlib
+from cryptography.hazmat.primitives.ciphers import aead
+
+
 class Command(object):
     SMB2_NEGOTIATE = 0x0000
     SMB2_SESSION_SETUP = 0x0001
@@ -39,13 +43,38 @@ class NegotiateContextType(object):  # Page 45
     SMB2_ENCRYPTION_CAPABILITIES = 0x0002
 
 
-class HashAlgorithms(object):  # Page 46
+class HashAlgorithms(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1.1 SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+    16-bit integer IDs that specify the integrity hash algorithm supported
+    """
     SHA_512 = 0x0001
 
+    @staticmethod
+    def get_algorithm(hash):
+        return {
+            HashAlgorithms.SHA_512: hashlib.sha512
+        }[hash]
 
-class Ciphers(object):  # Page 47
+
+class Ciphers(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1.2 SMB2_ENCRYPTION_CAPABILITIES
+    16-bit integer IDs that specify the supported encryption algorithms.
+    """
     AES_128_CCM = 0x0001
     AES_128_GCM = 0x0002
+
+    @staticmethod
+    def get_cipher(cipher):
+        return {
+            Ciphers.AES_128_CCM: aead.AESCCM,
+            Ciphers.AES_128_GCM: aead.AESGCM
+        }[cipher]
 
 
 class Smb1Flags2(object):  # [MS-CIFS] and [MS-SMB]
@@ -61,6 +90,16 @@ class Smb1Flags2(object):  # [MS-CIFS] and [MS-SMB]
     SMB_FLAGS2_PAGING_IO = 0x2000
     SMB_FLAGS2_NT_STATUS = 0x4000
     SMB_FLAGS2_UNICODE = 0x8000
+
+
+class Smb2Flags(object):
+    SMB2_FLAGS_SERVER_TO_REDIR = 0x00000001
+    SMB2_FLAGS_ASYNC_COMMAND = 0x00000002
+    SMB2_FLAGS_RELATED_OPERATIONS = 0x00000004
+    SMB2_FLAGS_SIGNED = 0x00000008
+    SMB2_FLAGS_PRIORITY_MASK = 0x00000070
+    SMB2_FLAGS_DFS_OPERATIONS = 0x10000000
+    SMB2_FLAGS_REPLAY_OPERATIONS = 0x20000000
 
 
 class Capabilities(object):  # Page 44
@@ -85,3 +124,7 @@ class NtStatus(object):
     STATUS_INVALID_PARAMETER = 0xC000000D
     STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
     STATUS_LOGON_FAILURE = 0xC000006D
+    STATUS_PASSWORD_EXPIRED = 0xC0000071
+    STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
+    STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
+    STATUS_USER_SESSION_DELETED = 0xC0000203

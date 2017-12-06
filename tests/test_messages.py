@@ -14,76 +14,28 @@ from smbprotocol.messages import DirectTCPPacket, SMB1NegotiateRequest, \
 class TestDirectTcpPacket(object):
 
     def test_create_message(self):
-        header = SMB2PacketHeader()
-        header['command'] = Command.SMB2_SESSION_SETUP
-        header['flags'] = Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION | \
-            Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL | \
-            Capabilities.SMB2_GLOBAL_CAP_DFS
-        header['message_id'] = 1
-        header['session_id'] = 10
-
         message = DirectTCPPacket()
-        message['smb2_message'] = header
-        expected = b"\x00\x00\x00\x40" \
-                   b"\xfe\x53\x4d\x42" \
-                   b"\x40\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x01\x00" \
-                   b"\x00\x00" \
-                   b"\x49\x00\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x01\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        message['smb2_message'] = b"\xfe\x53\x4d\x42"
+        expected = b"\x00\x00\x00\x04" \
+                   b"\xfe\x53\x4d\x42"
 
         actual = message.pack()
-        assert len(message) == 68
-        assert message['stream_protocol_length'].get_value() == 64
+        assert len(message) == 8
+        assert message['stream_protocol_length'].get_value() == 4
         assert actual == expected
 
     def test_parse_message(self):
         actual = DirectTCPPacket()
-        data = b"\x00\x00\x00\x4c" \
-               b"\xfe\x53\x4d\x42" \
-               b"\x40\x00" \
-               b"\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x01\x00" \
-               b"\x00\x00" \
-               b"\x49\x00\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x01\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        data = b"\x00\x00\x00\x04" \
+               b"\xfe\x53\x4d\x42"
         actual.unpack(data)
-        assert len(actual) == 76
-        assert actual['stream_protocol_length'].get_value() == 76
-        assert isinstance(actual['smb2_message'].get_value(), SMB2PacketHeader)
+        assert len(actual) == 8
+        assert actual['stream_protocol_length'].get_value() == 4
+        assert isinstance(actual['smb2_message'].get_value(), bytes)
 
         actual_header = actual['smb2_message']
-        assert len(actual_header) == 72
-        assert actual_header['protocol_id'].get_value() == b"\xfe\x53\x4d\x42"
-        assert actual_header['structure_size'].get_value() == 64
-        assert actual_header['credit_charge'].get_value() == 0
-        assert actual_header['status'].get_value() == 0
-        assert actual_header['command'].get_value() == 1
-        assert actual_header['flags'].get_value() == 73
-        assert actual_header['next_command'].get_value() == 0
-        assert actual_header['message_id'].get_value() == 1
-        assert actual_header['reserved'].get_value() == 0
-        assert actual_header['tree_id'].get_value() == 0
-        assert actual_header['session_id'].get_value() == 10
-        assert actual_header['signature'].get_value() == b"\x00" * 16
-        assert actual_header['data'].get_value() == b"\x01\x02\x03\x04" \
-                                                    b"\x05\x06\x07\x08"
+        assert len(actual_header) == 4
+        assert actual_header.get_value() == b"\xfe\x53\x4d\x42"
 
 
 class TestSMB1PacketHeader(object):
