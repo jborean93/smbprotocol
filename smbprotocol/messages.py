@@ -633,6 +633,52 @@ class SMB2SessionSetupResponse(Structure):
         super(SMB2SessionSetupResponse, self).__init__()
 
 
+class SMB2TreeConnectRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.9 SMB2 TREE_CONNECT Request
+    Sent by the client to request access to a particular share on the server
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=9
+            )),
+            ('flags', IntField(size=2)),
+            ('path_offset', IntField(size=2)),
+            ('path_length', IntField(size=2)),
+            ('buffer', BytesField())
+        ])
+        super(SMB2TreeConnectRequest, self).__init__()
+
+
+class SMB2TreeConnectResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.10 SMB2 TREE_CONNECT Response
+    Sent by the server when an SMB2 TREE_CONNECT request is processed
+    successfully
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=16
+            )),
+            ('share_type', IntField(size=1)),
+            ('reserved', IntField(size=1)),
+            ('share_flags', IntField(size=4)),
+            ('capabilities', IntField(size=4)),
+            ('maximal_access', IntField(size=4))
+        ])
+        super(SMB2TreeConnectResponse, self).__init__()
+
+
 class SMB2TransformHeader(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -648,11 +694,18 @@ class SMB2TransformHeader(Structure):
                 size=4,
                 default=b"\xfdSMB"
             )),
-            ('signature', BytesField(size=16)),
+            ('signature', BytesField(
+                size=16,
+                default=b"\x00" * 16
+            )),
             ('nonce', BytesField(size=16)),
             ('original_message_size', IntField(size=4)),
             ('reserved', IntField(size=2, default=0)),
-            ('flags', IntField(size=2)),
-            ('session_id', IntField(size=8))
+            ('flags', IntField(
+                size=2,
+                default=1
+            )),
+            ('session_id', IntField(size=8)),
+            ('data', BytesField())  # not in spec
         ])
         super(SMB2TransformHeader, self).__init__()

@@ -20,10 +20,12 @@ from smbprotocol.messages import SMB2PacketHeader, SMB3PacketHeader, \
     SMB2PreauthIntegrityCapabilities, SMB2NegotiateContextRequest, \
     SMB1PacketHeader, SMB1NegotiateRequest, SMB2NegotiateResponse, \
     SMB2ErrorResponse, SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
-    SMB2SessionSetupResponse, SMB2TransformHeader
+    SMB2SessionSetupResponse, SMB2TransformHeader, SMB2TreeConnectRequest,\
+    SMB2TreeConnectResponse
 from smbprotocol.constants import Command, SecurityMode, Dialects,\
     HashAlgorithms, NegotiateContextType, Capabilities, Smb1Flags2, NtStatus, \
-    Ciphers, Smb2Flags
+    Ciphers, Smb2Flags, SessionFlags, TreeFlags, ShareCapabilities, \
+    ShareFlags, ShareType
 from smbprotocol.spnego import InitialContextToken, MechTypes
 from smbprotocol.transport.direct_tcp import DirectTcp
 
@@ -69,7 +71,7 @@ class Client(object):
             # a list of Server entries
             self.server_list = []
 
-    def open_connection(self, share_name, username, password, server_name,
+    def open_connection(self, share, username, password,
                         port=445):
         """
         ﻿[MS-SMB2] v53.0 2017-09-15
@@ -81,13 +83,18 @@ class Client(object):
             * Authenticate the user
             * Connect to the share specified
 
-        :param share_name: The name of the share of the remote server
+        :param share: The share to access, should be the full network form
         :param username: The username to authenticate with
         :param password: The password to authenticate with
-        ﻿:param server_name: The server to connect to
         :param port: The port to use for the transport
         :return: Session and TreeConnect handle
         """
+        # determine the server from the UNC share that we are connecting to
+        if not share.startswith("\\\\"):
+            raise Exception("Share should be in the full UNC form "
+                            "\\\\server\\share")
+        server_name = share[2:].split("\\")[0]
+
         # Try and find an existing connections to the server
         connection = None
         for conn in self.connection_table:
@@ -119,12 +126,13 @@ class Client(object):
         # Try and find an existing TreeConnect from the Session
         tree_connect = None
         for id, tree in session.tree_connect_table.items():
-            if tree.share_name == share_name:
+            if tree.share_name == share:
                 tree_connect = tree
 
         # we don't have an existing TreeConnect, create a new one
         if tree_connect is None:
-            tree_connect = TreeConnect()
+            tree_connect = TreeConnect(session)
+            tree_connect.connect(share)
 
         return session, tree_connect
 
@@ -301,7 +309,7 @@ class Connection(object):
 
         return session
 
-    def send_message(self, message, command, session_id=0):
+    def send_message(self, message, command, session=None):
         # if we haven't negotiated the dialect use SMB2
         if command == Command.SMB2_NEGOTIATE:
             header = SMB2PacketHeader()
@@ -310,25 +318,33 @@ class Connection(object):
         else:
             header = SMB3PacketHeader()
 
-        request = PendingRequest(header)
         header['command'] = command
         header['data'] = message
-        header['session_id'] = session_id
 
+        if session:
+            header['session_id'] = session.session_id
+        else:
+            header['session_id'] = 0
+
+        # TODO: pass through the message id to cancel
+        message_id = 0
         if command != Command.SMB2_CANCEL:
             message_id = self.sequence_window['low']
-            header['message_id'] = message_id
             self._increment_sequence_windows(1)
-            self.outstanding_requests[message_id] = request
-        else:
-            # TODO: pass through the message id to cancel
-            header['message_id'] = 0
 
-        # Sign the message
+        header['message_id'] = message_id
+
+        if session and session.encrypt_data:
+            header = self.encrypt_message(header, session)
+        elif session and session.signing_required:
+            self.sign_message(header, session)
+
         # ﻿https://msdn.microsoft.com/en-us/library/cc246611.aspx
         # ﻿Encrypt the message
         # https://msdn.microsoft.com/en-us/library/hh880620.aspx
 
+        request = PendingRequest(header)
+        self.outstanding_requests[message_id] = request
         self.transport.send(request)
         return header
 
@@ -337,6 +353,8 @@ class Connection(object):
         response = self.transport.recv()
         message = self.decrypt_message(response)
 
+        self.verify_message_signature(message)
+
         # TODO: handle session reauth on STATUS_NETWORK_SESSION_EXPIRED
 
         if message['status'].get_value() != expected_status:
@@ -344,11 +362,47 @@ class Connection(object):
             raise Exception("Unexpected status returned from the server: %s"
                             % error_message)
 
-        self.verify_message_signature(message)
-
         del self.outstanding_requests[message['message_id'].get_value()]
 
         return message
+
+    def encrypt_message(self, message, session):
+        """
+        [MS-SMB2] v53.0 2017-09-15
+
+        3.1.4.3 Encrypting the Message
+
+        :param message: The message to encrypt
+        :return: The encrypted message in a SMB2 TRANSFORM_HEADER
+        """
+        # https://msdn.microsoft.com/en-us/library/jj906475.aspx
+
+        header = SMB2TransformHeader()
+        header['original_message_size'] = len(message)
+        header['session_id'] = message['session_id'].get_value()
+
+        encryption_key = session.encryption_key
+
+        if self.dialect >= Dialects.SMB_3_1_1:
+            cipher = self.cipher_id
+        else:
+            cipher = Ciphers.get_cipher(Ciphers.AES_128_CCM)
+        if cipher == aead.AESGCM:
+            nonce = os.urandom(12)
+            header['nonce'] = nonce + (b"\x00" * 4)
+        else:
+            nonce = os.urandom(11)
+            header['nonce'] = nonce + (b"\x00" * 5)
+
+        cipher_text = cipher(encryption_key).encrypt(nonce, message.pack(),
+                                                     header.pack()[20:])
+        signature = cipher_text[-16:]
+        enc_message = cipher_text[:-16]
+
+        header['signature'] = signature
+        header['data'] = enc_message
+
+        return header
 
     def decrypt_message(self, message):
         """
@@ -373,7 +427,7 @@ class Connection(object):
             return header
 
         header = SMB2TransformHeader()
-        header.unpack(message[:52])
+        header.unpack(message)
         if header['flags'].get_value() != 0x0001:
             raise Exception("Expecting flag of 0x0001 in SMB response header")
 
@@ -393,8 +447,12 @@ class Connection(object):
         else:
             nonce = header['nonce'].get_value()[:11]
 
+        signature = header['signature'].get_value()
+        enc_message = header['data'].get_value() + signature
+        header['data'] = b""
+
         c = cipher(session.decryption_key)
-        decrypted_message = c.decrypt(nonce, message[52:], message[20:52])
+        decrypted_message = c.decrypt(nonce, enc_message, header.pack()[20:])
 
         packet = SMB2PacketHeader()
         packet.unpack(decrypted_message)
@@ -425,16 +483,28 @@ class Connection(object):
                             "verification" % session_id)
         self.verify_signature(message, session)
 
+    def sign_message(self, message, session):
+        signing_key = session.signing_key
+        message['flags'] = message['flags'].get_value() | \
+            Smb2Flags.SMB2_FLAGS_SIGNED
+        if self.dialect >= Dialects.SMB_3_0_0:
+            c = cmac.CMAC(algorithms.AES(signing_key),
+                          backend=default_backend())
+            c.update(message.pack())
+            signature = c.finalize()
+        else:
+            hmac_algo = hmac.new(signing_key, msg=message.pack(),
+                                 digestmod=hashlib.sha256)
+            signature = hmac_algo.digest()[:16]
+        message['signature'] = signature
+
     def verify_signature(self, message, session):
         actual = message['signature'].get_value()
         message['signature'] = b"\x00" * 16
 
         if self.dialect >= Dialects.SMB_3_0_0:
-            if message['command'].get_value() == Command.SMB2_SESSION_SETUP:
-                signing_key = session.signing_key
-            else:
-                channel = message['channel_sequence'].get_value()
-                signing_key = session.channel_list[channel].signing_key
+            # TODO: work out when to get channel.signing_key
+            signing_key = session.signing_key
 
             c = cmac.CMAC(algorithms.AES(signing_key),
                           backend=default_backend())
@@ -443,7 +513,7 @@ class Connection(object):
         else:
             signing_key = session.signing_key
             hmac_algo = hmac.new(signing_key, msg=message.pack(),
-                                 digestmod=hashlib.sha3_256)
+                                 digestmod=hashlib.sha256)
             expected = hmac_algo.digest()[:16]
         message['signature'] = actual
 
@@ -595,7 +665,7 @@ class Session(object):
         # context, right-padded with 0 bytes
         self.session_key = None
 
-        self.signing_required = None
+        self.signing_required = connection.require_signing
         self.connection = connection
         self.username = username
         self.password = password
@@ -693,11 +763,24 @@ class Session(object):
             self.signing_key = self.session_key
             self.application_key = self.session_key
 
+        flags = setup_response['session_flags'].get_value()
+        if flags & SessionFlags.SMB2_SESSION_FLAG_IS_GUEST == 0 and \
+                self.signing_required:
+            raise Exception("SMB Signing is required but could only auth as "
+                            "guest")
+        if flags & SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA == \
+                SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA:
+            self.encrypt_data = True
+            self.signing_required = False  # encryption covers signing
+        else:
+            self.encrypt_data = False
+            self.signing_required = True
+
         self.connection.verify_signature(response, self)
 
     def send_message(self, message, command):
-        session_id = self.session_id if self.session_id is not None else 0
-        return self.connection.send_message(message, command, session_id)
+        session = self if self.session_id is not None else None
+        return self.connection.send_message(message, command, session)
 
     def receive_message(self, expected_status=NtStatus.STATUS_SUCCESS):
         return self.connection.receive_message(expected_status)
@@ -773,7 +856,7 @@ class Session(object):
 
 class TreeConnect(object):
 
-    def __init__(self):
+    def __init__(self, session):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -782,13 +865,48 @@ class TreeConnect(object):
         """
         self.share_name = None
         self.tree_connect_id = None
-        self.session = None
+        self.session = session
         self.is_dfs_share = None
 
         # SMB 3.x+
         self.is_ca_share = None
         self.encrypt_data = None
         self.is_scaleout_share = None
+
+    def connect(self, share_name):
+        utf_share_name = share_name.encode('utf-16-le')
+        connect = SMB2TreeConnectRequest()
+        connect['path_offset'] = 64 + 8
+        connect['path_length'] = len(utf_share_name)
+        connect['buffer'] = utf_share_name
+
+        self.session.send_message(connect, Command.SMB2_TREE_CONNECT)
+        response = self.session.receive_message()
+        tree_response = SMB2TreeConnectResponse()
+        tree_response.unpack(response['data'].get_value())
+
+        # https://msdn.microsoft.com/en-us/library/cc246687.aspx
+
+        self.tree_connect_id = response['tree_id'].get_value()
+
+        capabilites = tree_response['capabilities'].get_value()
+        self.is_dfs_share = capabilites & \
+            ShareCapabilities.SMB2_SHARE_CAP_DFS == \
+            ShareCapabilities.SMB2_SHARE_CAP_DFS
+        self.is_ca_share = capabilites & \
+            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY == \
+            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY
+        self.share_name = utf_share_name
+
+        if self.session.connection.dialect >= Dialects.SMB_3_1_1 and \
+                self.session.connection.supports_encryption:
+            self.encrypt_data = tree_response['share_flags'].get_value() & \
+                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA == \
+                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA
+
+        # TODO: Run Secure Negotiate
+
+        a = ""
 
 
 class OpenFile(object):
@@ -914,4 +1032,4 @@ class Server(object):
 
 
 client = Client()
-client.open_connection('C$', 'vagrant', 'vagrant', '127.0.0.1', port=8445)
+client.open_connection('\\\\127.0.0.1\\c$', 'vagrant', 'vagrant', port=8445)
