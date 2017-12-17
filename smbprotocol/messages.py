@@ -633,6 +633,26 @@ class SMB2SessionSetupResponse(Structure):
         super(SMB2SessionSetupResponse, self).__init__()
 
 
+class SMB2Logoff(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.7/8 SMB2 LOGOFF Request/Response
+    Request and response to request the termination of a particular session as
+    specified by the header.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2Logoff, self).__init__()
+
+
 class SMB2TreeConnectRequest(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -661,7 +681,7 @@ class SMB2TreeConnectResponse(Structure):
 
     2.2.10 SMB2 TREE_CONNECT Response
     Sent by the server when an SMB2 TREE_CONNECT request is processed
-    successfully
+    successfully.
     """
 
     def __init__(self):
@@ -677,6 +697,26 @@ class SMB2TreeConnectResponse(Structure):
             ('maximal_access', IntField(size=4))
         ])
         super(SMB2TreeConnectResponse, self).__init__()
+
+
+class SMB2TreeDisconnect(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.11/12 SMB2 TREE_DISCONNECT Request and Response
+    Sent by the client to request that the tree connect specific by tree_id in
+    the header is disconnected.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4,
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2TreeDisconnect, self).__init__()
 
 
 class SMB2TransformHeader(Structure):

@@ -2,8 +2,8 @@ import pytest
 import uuid
 
 from datetime import datetime
-from smbprotocol.constants import Capabilities, Command, Ciphers, \
-    Dialects, HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2
+from smbprotocol.constants import Commands, Ciphers, Dialects, \
+    HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2
 from smbprotocol.messages import DirectTCPPacket, SMB1NegotiateRequest, \
     SMB1PacketHeader, SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
     SMB2NegotiateContextRequest, SMB2NegotiateResponse, SMB2PacketHeader, \
@@ -133,7 +133,7 @@ class TestSMB2PacketHeader(object):
 
     def test_create_message(self):
         header = SMB2PacketHeader()
-        header['command'] = Command.SMB2_SESSION_SETUP
+        header['command'] = Commands.SMB2_SESSION_SETUP
         header['message_id'] = 1
         header['session_id'] = 10
         expected = b"\xfe\x53\x4d\x42" \
@@ -177,7 +177,7 @@ class TestSMB2PacketHeader(object):
         assert actual['structure_size'].get_value() == 64
         assert actual['credit_charge'].get_value() == 0
         assert actual['status'].get_value() == 0
-        assert actual['command'].get_value() == Command.SMB2_SESSION_SETUP
+        assert actual['command'].get_value() == Commands.SMB2_SESSION_SETUP
         assert actual['credit'].get_value() == 0
         assert actual['flags'].get_value() == 0
         assert actual['next_command'].get_value() == 0
@@ -193,7 +193,7 @@ class TestSMB3PacketHeader(object):
 
     def test_create_message(self):
         header = SMB3PacketHeader()
-        header['command'] = Command.SMB2_SESSION_SETUP
+        header['command'] = Commands.SMB2_SESSION_SETUP
         header['message_id'] = 1
         header['process_id'] = 15
         header['session_id'] = 10
@@ -241,7 +241,7 @@ class TestSMB3PacketHeader(object):
         assert actual['credit_charge'].get_value() == 0
         assert actual['channel_sequence'].get_value() == 0
         assert actual['reserved'].get_value() == 0
-        assert actual['command'].get_value() == Command.SMB2_SESSION_SETUP
+        assert actual['command'].get_value() == Commands.SMB2_SESSION_SETUP
         assert actual['credit'].get_value() == 0
         assert actual['flags'].get_value() == 0
         assert actual['next_command'].get_value() == 0

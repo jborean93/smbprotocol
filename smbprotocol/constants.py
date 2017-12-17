@@ -2,7 +2,7 @@ import hashlib
 from cryptography.hazmat.primitives.ciphers import aead
 
 
-class Command(object):
+class Commands(object):
     SMB2_NEGOTIATE = 0x0000
     SMB2_SESSION_SETUP = 0x0001
     SMB2_LOGOFF = 0x0002
@@ -202,5 +202,6 @@ class NtStatus(object):
     STATUS_LOGON_FAILURE = 0xC000006D
     STATUS_PASSWORD_EXPIRED = 0xC0000071
     STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
+    STATUS_BAD_NETWORK_NAME = 0xC00000CC
     STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
     STATUS_USER_SESSION_DELETED = 0xC0000203
