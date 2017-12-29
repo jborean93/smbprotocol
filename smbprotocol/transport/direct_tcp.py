@@ -1,6 +1,9 @@
+import logging
 import socket
 
 from smbprotocol.messages import DirectTCPPacket
+
+log = logging.getLogger(__name__)
 
 
 class DirectTcp(object):
@@ -9,6 +12,7 @@ class DirectTcp(object):
     BUFFER = 1024
 
     def __init__(self, server, port):
+        log.info("Setting up DirectTcp connection on %s:%d" % (server, port))
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._is_connected = False
         self.server = server
@@ -16,11 +20,13 @@ class DirectTcp(object):
 
     def connect(self):
         if self._is_connected is False:
+            log.info("Connecting TCP connection")
             self.sock.connect((self.server, self.port))
             self._is_connected = True
 
     def disconnect(self):
         if self._is_connected is True:
+            log.info("Disconnecting TCP connection")
             self.sock.close()
 
     def send(self, request):

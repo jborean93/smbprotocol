@@ -1,15 +1,16 @@
+import logging
 import uuid
 
-from smbprotocol.messages import SMB2TreeConnectRequest, \
-    SMB2TreeConnectResponse
-from smbprotocol.constants import Commands, Dialects, ShareCapabilities,\
-    ShareFlags
+from smbprotocol.constants import Dialects
 from smbprotocol.connection import Connection
+from smbprotocol.tree import TreeConnect
+
+log = logging.getLogger(__name__)
 
 
 class Client(object):
     def __init__(self, dialect=None, require_secure_negotiate=True,
-                 require_message_signging=True):
+                 require_message_signing=True):
         """
         ﻿[MS-SMB2] v53.0 2017-09-15
 
@@ -26,7 +27,7 @@ class Client(object):
             validation of all SMB requests and responses
         """
         self.connection_table = []
-        self.require_message_signing = require_message_signging
+        self.require_message_signing = require_message_signing
 
         self.dialect = dialect
         if dialect is None or dialect >= Dialects.SMB_2_1_0:
@@ -123,61 +124,6 @@ class Client(object):
         pass
 
 
-class TreeConnect(object):
-
-    def __init__(self, session):
-        """
-        [MS-SMB2] v53.0 2017-09-15
-
-        3.2.1.4 Per Tree Connect
-        Attributes per Tree Connect (share connections)
-        """
-        self.share_name = None
-        self.tree_connect_id = None
-        self.session = session
-        self.is_dfs_share = None
-
-        # SMB 3.x+
-        self.is_ca_share = None
-        self.encrypt_data = None
-        self.is_scaleout_share = None
-
-    def connect(self, share_name):
-        utf_share_name = share_name.encode('utf-16-le')
-        connect = SMB2TreeConnectRequest()
-        connect['path_offset'] = 64 + 8
-        connect['path_length'] = len(utf_share_name)
-        connect['buffer'] = utf_share_name
-
-        self.session.send(connect, Commands.SMB2_TREE_CONNECT)
-        response = self.session.receive()
-        tree_response = SMB2TreeConnectResponse()
-        tree_response.unpack(response['data'].get_value())
-
-        # https://msdn.microsoft.com/en-us/library/cc246687.aspx
-
-        self.tree_connect_id = response['tree_id'].get_value()
-
-        capabilites = tree_response['capabilities'].get_value()
-        self.is_dfs_share = capabilites & \
-            ShareCapabilities.SMB2_SHARE_CAP_DFS == \
-            ShareCapabilities.SMB2_SHARE_CAP_DFS
-        self.is_ca_share = capabilites & \
-            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY == \
-            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY
-        self.share_name = utf_share_name
-
-        if self.session.connection.dialect >= Dialects.SMB_3_1_1 and \
-                self.session.connection.supports_encryption:
-            self.encrypt_data = tree_response['share_flags'].get_value() & \
-                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA == \
-                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA
-
-        # TODO: Run Secure Negotiate
-
-        a = ""
-
-
 class OpenFile(object):
 
     def __init__(self):
@@ -269,7 +215,3 @@ class Server(object):
                             type(address_list).__name__)
 
         self.server_name = server_name
-
-
-client = Client()
-client.open_connection('\\\\127.0.0.1\\c$', 'vagrant', 'vagrant', port=8445)

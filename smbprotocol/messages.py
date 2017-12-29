@@ -719,6 +719,128 @@ class SMB2TreeDisconnect(Structure):
         super(SMB2TreeDisconnect, self).__init__()
 
 
+class SMB2IOCTLRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 IOCTL Request
+    Send by the client to issue an implementation-specific file system control
+    or device control command across the network.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(size=2, default=57)),
+            ('reserved', IntField(size=2, default=0)),
+            ('ctl_code', IntField(size=4)),
+            ('file_id', BytesField(size=16)),
+            ('input_offset', IntField(
+                size=4,
+                default=lambda s: self._buffer_offset_value(s)
+            )),
+            ('input_count', IntField(
+                size=4,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('max_input_response', IntField(size=4)),
+            ('output_offset', IntField(
+                size=4,
+                default=lambda s: self._buffer_offset_value(s)
+            )),
+            ('output_count', IntField(size=4, default=0)),
+            ('max_output_response', IntField(size=4)),
+            ('flags', IntField(size=4)),
+            ('reserved2', IntField(size=4, default=0)),
+            ('buffer', BytesField(
+                size=lambda s: s['input_count'].get_value()
+            ))
+        ])
+        super(SMB2IOCTLRequest, self).__init__()
+
+    def _buffer_offset_value(self, structure):
+        # The offset from the beginning of the SMB2 header to the value of the
+        # buffer, 0 if no buffer is set
+        if len(structure['buffer']) > 0:
+            header_size = 64
+            request_size = structure['structure_size'].get_value()
+            return header_size + request_size - 1
+        else:
+            return 0
+
+
+class SMB2ValidateNegotiateInfoRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31.4 VALIDATE_NEGOTIATE_INFO Request
+    Packet sent to the server to request validation of a previous SMB 2
+    NEGOTIATE request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('capabilities', IntField(size=4)),
+            ('guid', UuidField()),
+            ('security_mode', IntField(size=2)),
+            ('dialect_count', IntField(
+                size=2,
+                default=lambda s: len(s['dialects'].get_value())
+            )),
+            ('dialects', ListField(
+                size=lambda s: s['dialect_count'].get_value() * 2,
+                list_count=lambda s: s['dialect_count'].get_value(),
+                list_type=IntField(size=2),
+            ))
+        ])
+        super(SMB2ValidateNegotiateInfoRequest, self).__init__()
+
+
+class SMB2IOCTLResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.32 SMB2 IOCTL Response
+    Sent by the server to transmit the results of a client SMB2 IOCTL Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(size=2, default=49)),
+            ('reserved', IntField(size=2, default=0)),
+            ('ctl_code', IntField(size=4)),
+            ('file_id', BytesField(size=16)),
+            ('input_offset', IntField(size=4)),
+            ('input_count', IntField(size=4)),
+            ('output_offset', IntField(size=4)),
+            ('output_count', IntField(size=4)),
+            ('flags', IntField(size=4, default=0)),
+            ('reserved2', IntField(size=4, default=0)),
+            ('buffer', BytesField(
+                size=lambda s: s['output_count'].get_value(),
+            ))
+        ])
+        super(SMB2IOCTLResponse, self).__init__()
+
+
+class SMB2ValidateNegotiateInfoResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.32.6 VALIDATE_NEGOTIATE_INFO Response
+    Packet sent by the server on a request validation of SMB 2 negotiate
+    request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('capabilities', IntField(size=4)),
+            ('guid', UuidField()),
+            ('security_mode', IntField(size=2)),
+            ('dialect', IntField(size=2))
+        ])
+        super(SMB2ValidateNegotiateInfoResponse, self).__init__()
+
+
 class SMB2TransformHeader(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15

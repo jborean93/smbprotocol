@@ -1,4 +1,6 @@
 import base64
+import binascii
+import logging
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.kbkdf import CounterLocation, \
@@ -13,6 +15,8 @@ from smbprotocol.constants import Commands, Dialects, NtStatus, SessionFlags, \
     Smb2Flags
 from smbprotocol.spnego import InitialContextToken, MechTypes
 
+log = logging.getLogger(__name__)
+
 
 class Session(object):
 
@@ -23,6 +27,7 @@ class Session(object):
         3.2.1.3 Per Session
         List of attributes that are set per session
         """
+        log.info("Initialising session with username: %s" % username)
         self.session_id = None
 
         # Table of tree connection, lookup by TreeConnect.tree_connect_id and
@@ -62,6 +67,7 @@ class Session(object):
             connection.preauth_integrity_hash_value
 
     def authenticate(self):
+        log.info("Authenticating session")
         token, rdata = decoder.decode(self.connection.gss_negotiate_token,
                                       asn1Spec=InitialContextToken())
 
@@ -72,7 +78,11 @@ class Session(object):
         server_types = token['innerContextToken']['negTokenInit']['mechTypes']
         auth_method = None
         for type in server_types:
+            log.debug("Checking if server mechType %s is supported by the "
+                      "client" % type)
             if type in client_types:
+                log.info("Server mechType %s will be used for authentication"
+                         % type)
                 auth_method = client_types[type]
                 break
 
@@ -132,7 +142,7 @@ class Session(object):
             self.application_key = self.session_key
 
         flags = setup_response['session_flags'].get_value()
-        if flags & SessionFlags.SMB2_SESSION_FLAG_IS_GUEST == 0 and \
+        if flags & SessionFlags.SMB2_SESSION_FLAG_IS_GUEST != 0 and \
                 self.signing_required:
             raise Exception("SMB Signing is required but could only auth as "
                             "guest")
@@ -143,15 +153,9 @@ class Session(object):
         else:
             self.encrypt_data = False
             self.signing_required = True
-
+        log.info("Verifying the SMB Setup Session signature as auth is "
+                 "successful")
         self.connection._verify(response)
-
-    def send(self, message, command):
-        session = self if self.session_id is not None else None
-        return self.connection.send(message, command, session)
-
-    def receive(self, expected_status=NtStatus.STATUS_SUCCESS):
-        return self.connection.receive(expected_status)
 
     def _authenticate_ntlm(self):
         auth = Ntlm()
@@ -161,36 +165,52 @@ class Session(object):
             username = self.username
             domain = ''
 
-        neg_message = auth.create_negotiate_message(domain)
+        log.info("NTLM: creating negotiate message")
+        neg_message = base64.b64decode(auth.create_negotiate_message(domain))
+        log.debug("NTLM NEGOTIATE: %s" % binascii.hexlify(neg_message))
 
         session_setup = SMB2SessionSetupRequest()
         session_setup['security_mode'] = self.connection.client_security_mode
-        session_setup['buffer'] = base64.b64decode(neg_message)
+        session_setup['buffer'] = neg_message
 
-        header = self.send(session_setup, Commands.SMB2_SESSION_SETUP)
+        log.info("NTLM: sending negoitate message")
+        log.debug(str(session_setup))
+        header = self.connection.send(session_setup,
+                                      Commands.SMB2_SESSION_SETUP)
         self.preauth_integrity_hash_value.append(header)
 
-        response = self.receive(
+        response = self.connection.receive(
             NtStatus.STATUS_MORE_PROCESSING_REQUIRED)
+        log.info("NTLM: receiving challenge message")
         self.preauth_integrity_hash_value.append(response)
 
         self.session_id = response['session_id'].get_value()
+        log.info("Setting session id to %s" % self.session_id)
 
         session_resp = SMB2SessionSetupResponse()
         session_resp.unpack(response['data'].get_value())
+        log.debug(str(session_resp))
 
-        auth.parse_challenge_message(base64.b64encode(
-            session_resp['buffer'].get_value()
-        ))
-        auth_message = auth.create_authenticate_message(username,
-                                                        self.password, domain)
+        challenge_msg = session_resp['buffer'].get_value()
+        log.info("NTLM parsing challenge message")
+        log.debug("NTLM CHALLENGE: %s" % binascii.hexlify(challenge_msg))
+        auth.parse_challenge_message(base64.b64encode(challenge_msg))
+
+        log.info("NTLM creating authentication message")
+        auth_message = base64.b64decode(
+            auth.create_authenticate_message(username, self.password, domain)
+        )
+
         session_auth = SMB2SessionSetupRequest()
         session_auth['security_mode'] = self.connection.client_security_mode
-        session_auth['buffer'] = base64.b64decode(auth_message)
+        session_auth['buffer'] = auth_message
 
-        header = self.send(session_auth, Commands.SMB2_SESSION_SETUP)
+        log.info("NTLM: sending authentication message")
+        header = self.connection.send(session_auth,
+                                      Commands.SMB2_SESSION_SETUP, self)
         self.preauth_integrity_hash_value.append(header)
-        response = self.receive()
+        response = self.connection.receive()
+        log.info("NTLM: receiving authentication response")
 
         session_key = auth.authenticate_message.exported_session_key
 

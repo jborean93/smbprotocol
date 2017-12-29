@@ -2,6 +2,7 @@
 # coding: utf-8
 
 from setuptools import setup
+from smbprotocol import __version__
 
 # PyPi supports only reStructuredText, so pandoc should be installed
 # before uploading package
@@ -11,9 +12,10 @@ try:
 except ImportError:
     long_description = ''
 
+
 setup(
     name='smbprotocol',
-    version='0.0.1',
+    version=__version__,
     packages=['smbprotocol'],
     install_requires=[
         'cryptography>=2.0',

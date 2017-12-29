@@ -1,4 +1,5 @@
 import copy
+import logging
 import hashlib
 import hmac
 import os
@@ -20,6 +21,8 @@ from smbprotocol.messages import SMB2PacketHeader, SMB3PacketHeader, \
 from smbprotocol.session import Session
 from smbprotocol.transport.direct_tcp import DirectTcp
 
+log = logging.getLogger(__name__)
+
 
 class Connection(object):
 
@@ -37,6 +40,9 @@ class Connection(object):
         :param server_name: The server to start the connection
         :param port: The port to use for the transport
         """
+        log.info("Initialising connection, guid: %s, signing_required: %s, "
+                 "server_name: %s, port: %d"
+                 % (guid, signing_required, server_name, port))
         self.server_name = server_name
         self.port = port
         self.transport = DirectTcp(server_name, port)
@@ -62,9 +68,7 @@ class Connection(object):
         # authentication
         self.gss_negotiate_token = None
 
-        # Not in docs but contains some attributes used below like guid
-        self.server = None
-
+        self.server_guid = None
         self.max_transact_size = None
         self.max_read_size = None
         self.max_write_size = None
@@ -87,6 +91,8 @@ class Connection(object):
         self.client_security_mode = \
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED if \
             signing_required else SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+        self.server_security_mode = None
+        self.server_capabilities = None
 
         # SMB 3.1.1+
         # The hashing algorithm object that was negotiated
@@ -106,6 +112,7 @@ class Connection(object):
         3.2.4.2.1 Connecting to the Target Server
         Will connect to the target server using the connection specified.
         """
+        log.info("Setting up transport connection")
         self.transport.connect()
 
     def negotiate(self, dialect=None):
@@ -117,13 +124,17 @@ class Connection(object):
         sending an SMB1 negotiate message then finally an SMB2 negotiate
         message.
         """
-        smb_response = self._send_smb1_negotiate()
+        log.info("Starting negotiation with SMB server")
+        smb_response = self._send_smb1_negotiate(dialect)
 
         # Renegotiate with SMB2NegotiateRequest if 2.??? was received back
         if smb_response['dialect_revision'].get_value() == \
                 Dialects.SMB_2_WILDCARD:
             smb_response = self._send_smb2_negotiate()
 
+        log.info("Negotiated dialect: %s"
+                 % [dialect for dialect, v in vars(Dialects).items()
+                    if v == smb_response['dialect_revision'].get_value()][0])
         self.dialect = smb_response['dialect_revision'].get_value()
         self.max_transact_size = smb_response['max_transact_size'].get_value()
         self.max_read_size = smb_response['max_read_size'].get_value()
@@ -134,6 +145,7 @@ class Connection(object):
         self.require_signing = self._flag_is_set(
             smb_response['security_mode'].get_value(),
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED)
+        log.info("Connection require signing: %s" % self.require_signing)
         capabilities = smb_response['capabilities'].get_value()
 
         # SMB 2.1
@@ -184,7 +196,7 @@ class Connection(object):
 
         return session
 
-    def send(self, message, command, session=None):
+    def send(self, message, command, session=None, tree=None):
         """
         Sends a message
         :return:
@@ -201,8 +213,8 @@ class Connection(object):
 
         if session:
             header['session_id'] = session.session_id
-        else:
-            header['session_id'] = 0
+        if tree:
+            header['tree_id'] = tree.tree_connect_id
 
         # TODO: pass through the message id to cancel
         message_id = 0
@@ -212,10 +224,10 @@ class Connection(object):
 
         header['message_id'] = message_id
 
-        if session and session.encrypt_data:
+        if session and session.encrypt_data and session.encryption_key:
             header = self._encrypt(header, session)
-        elif session and session.signing_required:
-            self._sign(header, session)
+        elif session and session.signing_required and session.signing_key:
+            self._sign(header, message)
 
         request = PendingRequest(header)
         self.outstanding_requests[message_id] = request
@@ -234,6 +246,7 @@ class Connection(object):
             header.unpack(message)
         else:
             header = self._decrypt(message)
+        self._verify(header)
 
         if header['status'].get_value() != expected_status:
             error_message = self._parse_error(header)
@@ -373,7 +386,7 @@ class Connection(object):
 
         return packet
 
-    def _send_smb1_negotiate(self):
+    def _send_smb1_negotiate(self, dialect):
         header = SMB1PacketHeader()
         header['command'] = 0x72  # SMBv1 Negotiate Protocol
         header['flags2'] = Smb1Flags2.SMB_FLAGS2_LONG_NAME | \
@@ -382,17 +395,21 @@ class Connection(object):
             Smb1Flags2.SMB_FLAGS2_UNICODE
         header['data'] = SMB1NegotiateRequest()
         dialects = b"\x02SMB 2.002\x00"
-        if self.dialect != Dialects.SMB_2_0_2:
+        if dialect != Dialects.SMB_2_0_2:
             dialects += b"\x02SMB 2.???\x00"
         header['data']['dialects'] = dialects
         request = PendingRequest(header)
 
+        log.info("Sending SMB1 Negotiate message with dialects: %s" % dialects)
+        log.debug(str(header))
         self.transport.send(request)
 
         self._increment_sequence_windows(1)
         response = self.transport.recv()
+        log.info("Receiving SMB1 Negotiate response")
         header = SMB2PacketHeader()
         header.unpack(response)
+        log.debug(str(header))
         smb_response = SMB2NegotiateResponse()
         try:
             smb_response.unpack(header['data'].get_value())
@@ -408,7 +425,7 @@ class Connection(object):
 
         if self.dialect is None:
             neg_req = SMB3NegotiateRequest()
-            neg_req['dialects'] = [
+            self.negotiated_dialects = [
                 Dialects.SMB_2_0_2,
                 Dialects.SMB_2_1_0,
                 Dialects.SMB_3_0_0,
@@ -421,17 +438,25 @@ class Connection(object):
                 neg_req = SMB3NegotiateRequest()
             else:
                 neg_req = SMB2NegotiateRequest()
-            neg_req['dialects'] = [
+            self.negotiated_dialects = [
                 self.dialect
             ]
             highest_dialect = self.dialect
+        neg_req['dialects'] = self.negotiated_dialects
+        log.info("Negotiating with SMB2 protocol with highest client dialect "
+                 "of: %s" % [dialect for dialect, v in vars(Dialects).items()
+                             if v == highest_dialect][0])
 
         neg_req['security_mode'] = self.client_security_mode
 
         if highest_dialect >= Dialects.SMB_2_1_0:
+            log.debug("Adding client guid %s to negotiate request"
+                      % self.client_guid)
             neg_req['client_guid'] = self.client_guid
 
         if highest_dialect >= Dialects.SMB_3_0_0:
+            log.debug("Adding client capabilities %d to negotiate request"
+                      % self.client_capabilities)
             neg_req['capabilities'] = self.client_capabilities
 
         if highest_dialect >= Dialects.SMB_3_1_1:
@@ -443,6 +468,8 @@ class Connection(object):
                 HashAlgorithms.SHA_512
             ]
             int_cap['data']['salt'] = self.salt
+            log.debug("Adding preauth integrity capabilities of hash SHA512 "
+                      "and salt %s to negotiate request" % self.salt)
 
             enc_cap = SMB2NegotiateContextRequest()
             enc_cap['context_type'] = \
@@ -455,16 +482,22 @@ class Connection(object):
             # remove extra padding for last list entry
             enc_cap['padding'].size = 0
             enc_cap['padding'] = b""
+            log.debug("Adding encryption capabilities of AES128 GCM and "
+                      "AES128 CCM to negotiate request")
 
             neg_req['negotiate_context_list'] = [
                 int_cap,
                 enc_cap
             ]
 
+        log.info("Sending SMB2 Negotiate message")
+        log.debug(str(neg_req))
         header = self.send(neg_req, Commands.SMB2_NEGOTIATE)
         self.preauth_integrity_hash_value.append(header)
 
         response = self.receive()
+        log.info("Receiving SMB2 Negotiate response")
+        log.debug(str(response))
         self.preauth_integrity_hash_value.append(response)
 
         smb_response = SMB2NegotiateResponse()
