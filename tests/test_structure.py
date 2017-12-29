@@ -9,8 +9,10 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
+from smbprotocol.constants import Capabilities, Commands, Dialects
 from smbprotocol.structure import Structure, IntField, BytesField, ListField, \
-    UuidField, DateTimeField, StructureField, _bytes_to_hex
+    UuidField, DateTimeField, StructureField, EnumField, FlagField, \
+    _bytes_to_hex
 from smbprotocol.exceptions import InvalidFieldDefinition
 
 
@@ -288,13 +290,13 @@ class TestIntField(object):
     def test_invalid_size_none(self):
         with pytest.raises(InvalidFieldDefinition) as exc:
             IntField(size=None)
-        assert str(exc.value) == "IntField size must have a size of 1, 2, " \
+        assert str(exc.value) == "IntField size must have a value of 1, 2, " \
                                  "4, or 8 not None"
 
     def test_invalid_size_bad_int(self):
         with pytest.raises(InvalidFieldDefinition) as exc:
             IntField(size=3)
-        assert str(exc.value) == "IntField size must have a size of 1, 2, " \
+        assert str(exc.value) == "IntField size must have a value of 1, 2, " \
                                  "4, or 8 not 3"
 
     def test_set_none(self):
@@ -1092,3 +1094,210 @@ class TestDateTimeField(object):
             DateTimeField(size=4)
         assert str(exc.value) == "DateTimeField type must have a size of 8 " \
                                  "not 4"
+
+
+class TestEnumField(object):
+
+    class StructureTest(Structure):
+        def __init__(self):
+            self.fields = OrderedDict([
+                ('field', EnumField(
+                    size=1,
+                    enum_type=Commands,
+                    default=Commands.SMB2_IOCTL,
+                )),
+            ])
+            super(TestEnumField.StructureTest, self).__init__()
+
+    def test_get_size(self):
+        field = self.StructureTest()['field']
+        expected = 1
+        actual = len(field)
+        assert actual == expected
+
+    def test_to_string(self):
+        field = self.StructureTest()['field']
+        expected = "(11) SMB2_IOCTL"
+        actual = str(field)
+        assert actual == expected
+
+    def test_to_string_default_as_zero(self):
+        class StructureTestDefaultZero(Structure):
+            def __init__(self):
+                self.fields = OrderedDict([
+                    ('field', EnumField(
+                        size=2,
+                        enum_type=Dialects,
+                    ))
+                ])
+                super(StructureTestDefaultZero, self).__init__()
+        field = StructureTestDefaultZero()['field']
+        expected = "(0)"
+        actual = str(field)
+        assert actual == expected
+
+    def test_get_value(self):
+        field = self.StructureTest()['field']
+        expected = 11
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_pack(self):
+        field = self.StructureTest()['field']
+        expected = b"\x0b"
+        actual = field.pack()
+        assert actual == expected
+
+    def test_unpack(self):
+        field = self.StructureTest()['field']
+        field.unpack(b"\x0b")
+        expected = 11
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_set_none(self):
+        field = self.StructureTest()['field']
+        field.set_value(None)
+        expected = 0
+        actual = field.get_value()
+        assert actual == expected
+        assert isinstance(field.value, int)
+        assert str(field) == "(0) SMB2_NEGOTIATE"
+
+    def test_set_bytes(self):
+        field = self.StructureTest()['field']
+        field.set_value(b"\x08")
+        expected = 8
+        actual = field.get_value()
+        assert actual == expected
+        assert isinstance(field.value, int)
+        assert str(field) == "(8) SMB2_READ"
+
+    def test_set_int(self):
+        field = self.StructureTest()['field']
+        field.set_value(8)
+        expected = 8
+        actual = field.get_value()
+        assert actual == expected
+        assert isinstance(field.value, int)
+        assert str(field) == "(8) SMB2_READ"
+
+    def test_set_invalid(self):
+        field = self.StructureTest()['field']
+        field.name = "field"
+        with pytest.raises(TypeError) as exc:
+            field.set_value([])
+        assert str(exc.value) == "Cannot parse value for field field of " \
+                                 "type list to an int"
+
+    def test_set_invalid_value(self):
+        field = self.StructureTest()['field']
+        with pytest.raises(Exception) as exc:
+            field.set_value(0x13)
+        assert str(exc.value) == "Enum value 19 does not exist in enum type " \
+                                 "<class 'smbprotocol.constants.Commands'>"
+
+
+class TestFlagField(object):
+
+    class StructureTest(Structure):
+        def __init__(self):
+            self.fields = OrderedDict([
+                ('field', FlagField(
+                    size=4,
+                    flag_type=Capabilities,
+                    default=Capabilities.SMB2_GLOBAL_CAP_LEASING |
+                    Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
+                )),
+            ])
+            super(TestFlagField.StructureTest, self).__init__()
+
+    def test_get_size(self):
+        field = self.StructureTest()['field']
+        expected = 4
+        actual = len(field)
+        assert actual == expected
+
+    def test_to_string(self):
+        field = self.StructureTest()['field']
+        expected = "(66) SMB2_GLOBAL_CAP_ENCRYPTION, SMB2_GLOBAL_CAP_LEASING"
+        actual = str(field)
+        assert actual == expected
+
+    def test_get_value(self):
+        field = self.StructureTest()['field']
+        expected = 66
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_pack(self):
+        field = self.StructureTest()['field']
+        expected = b"\x42\x00\x00\x00"
+        actual = field.pack()
+        assert actual == expected
+
+    def test_unpack(self):
+        field = self.StructureTest()['field']
+        field.unpack(b"\x4a\x00\x00\x00")
+        expected = 74
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_set_none(self):
+        field = self.StructureTest()['field']
+        field.set_value(None)
+        expected = 0
+        actual = field.get_value()
+        assert actual == expected
+        assert isinstance(field.value, int)
+        assert str(field) == "0"
+
+    def test_set_bytes(self):
+        field = self.StructureTest()['field']
+        field.set_value(b"\x08\x00\x00\x00")
+        expected = 8
+        actual = field.get_value()
+        assert actual == expected
+        assert isinstance(field.value, int)
+        assert str(field) == "(8) SMB2_GLOBAL_CAP_MULTI_CHANNEL"
+
+    def test_set_int(self):
+        field = self.StructureTest()['field']
+        field.set_value(8)
+        expected = 8
+        actual = field.get_value()
+        assert actual == expected
+        assert isinstance(field.value, int)
+        assert str(field) == "(8) SMB2_GLOBAL_CAP_MULTI_CHANNEL"
+
+    def test_set_invalid(self):
+        field = self.StructureTest()['field']
+        field.name = "field"
+        with pytest.raises(TypeError) as exc:
+            field.set_value([])
+        assert str(exc.value) == "Cannot parse value for field field of " \
+                                 "type list to an int"
+
+    def test_check_flag_set(self):
+        field = self.StructureTest()['field']
+        assert field.has_flag(Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION)
+        assert not field.has_flag(Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL)
+
+    def test_set_flag(self):
+        field = self.StructureTest()['field']
+        assert not field.has_flag(Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL)
+        field.set_flag(Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL)
+        assert field.has_flag(Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL)
+
+    def test_set_invalid_flag(self):
+        field = self.StructureTest()['field']
+        with pytest.raises(Exception) as exc:
+            field.set_flag(10)
+        assert str(exc.value) == "Flag value does not exist in flag type " \
+                                 "<class 'smbprotocol.constants.Capabilities'>"
+
+    def test_set_invalid_value(self):
+        field = self.StructureTest()['field']
+        with pytest.raises(Exception) as exc:
+            field.set_value(0x00000082)
+        assert str(exc.value) == "Invalid flag value set 128"

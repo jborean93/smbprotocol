@@ -523,8 +523,9 @@ class TestSMB2NegotiateContextRequest(object):
                b"\x02\x00"
         with pytest.raises(Exception) as exc:
             actual.unpack(data)
-        assert str(exc.value) == "Could not detect type of " \
-                                 "SMB2NegotiateContextRequest data type of 3"
+        assert str(exc.value) == "Enum value 3 does not exist in enum type " \
+                                 "<class 'smbprotocol.constants." \
+                                 "NegotiateContextType'>"
 
 
 class TestSMB2PreauthIntegrityCapabilities(object):

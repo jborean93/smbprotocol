@@ -322,7 +322,7 @@ class IntField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if size not in [1, 2, 4, 8]:
-            raise InvalidFieldDefinition("IntField size must have a size of "
+            raise InvalidFieldDefinition("IntField size must have a value of "
                                          "1, 2, 4, or 8 not %s" % str(size))
         super(IntField, self).__init__(size=size, **kwargs)
 
@@ -734,3 +734,79 @@ class UuidField(Field):
     def _to_string(self):
         uuid_value = self._get_calculated_value(self.value)
         return str(uuid_value)
+
+
+class EnumField(IntField):
+
+    def __init__(self, enum_type, **kwargs):
+        self.enum_type = enum_type
+        super(EnumField, self).__init__(**kwargs)
+
+    def _parse_value(self, value):
+        int_value = super(EnumField, self)._parse_value(value)
+        valid = False
+        for flag_value in vars(self.enum_type).values():
+            if int_value == flag_value:
+                valid = True
+                break
+
+        if not valid and int_value != 0:
+            raise Exception("Enum value %d does not exist in enum type %s"
+                            % (int_value, self.enum_type))
+        return int_value
+
+    def _to_string(self):
+        enum_name = None
+        value = self._get_calculated_value(self.value)
+        for enum, enum_value in vars(self.enum_type).items():
+            if value == enum_value:
+                enum_name = enum
+                break
+        if enum_name is None:
+            return "(%d)" % value
+        else:
+            return "(%d) %s" % (value, enum_name)
+
+
+class FlagField(IntField):
+
+    def __init__(self, flag_type, **kwargs):
+        self.flag_type = flag_type
+        super(FlagField, self).__init__(**kwargs)
+
+    def set_flag(self, flag):
+        valid = False
+        for value in vars(self.flag_type).values():
+            if flag == value:
+                valid = True
+                break
+
+        if not valid:
+            raise Exception("Flag value does not exist in flag type %s"
+                            % self.flag_type)
+        self.set_value(self.value | flag)
+
+    def has_flag(self, flag):
+        return self.value & flag == flag
+
+    def _parse_value(self, value):
+        int_value = super(FlagField, self)._parse_value(value)
+        current_val = int_value
+        for value in vars(self.flag_type).values():
+            if isinstance(value, int):
+                current_val &= ~value
+        if current_val != 0:
+            raise Exception("Invalid flag value set %d" % current_val)
+
+        return int_value
+
+    def _to_string(self):
+        field_value = self._get_calculated_value(self.value)
+        if field_value == 0:
+            return "0"
+        flags = []
+        for flag, value in vars(self.flag_type).items():
+            if isinstance(value, int) and self.has_flag(value):
+                flags.append(flag)
+        flags.sort()
+        return "(%d) %s" % (field_value, ", ".join(flags))

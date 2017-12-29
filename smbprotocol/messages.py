@@ -1,8 +1,11 @@
 import struct
 
-from smbprotocol.structure import Structure, IntField, BytesField, \
-    ListField, UuidField, DateTimeField, StructureField
-from smbprotocol.constants import Dialects, NegotiateContextType
+from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
+    FlagField, IntField, ListField, Structure, StructureField, UuidField
+from smbprotocol.constants import Commands, Capabilities, Ciphers, CtlCode, \
+    Dialects, HashAlgorithms, IOCTLFlags, NegotiateContextType, SecurityMode, \
+    SessionFlags, ShareCapabilities, ShareFlags, ShareType, Smb1Flags2, \
+    Smb2Flags, TreeFlags
 
 try:
     from collections import OrderedDict
@@ -55,7 +58,10 @@ class SMB1PacketHeader(Structure):
             ('command', IntField(size=1)),
             ('status', IntField(size=4)),
             ('flags', IntField(size=1)),
-            ('flags2', IntField(size=2)),
+            ('flags2', FlagField(
+                size=2,
+                flag_type=Smb1Flags2,
+            )),
             ('pid_high', IntField(size=2)),
             ('security_features', IntField(size=8)),
             ('reserved', IntField(size=2)),
@@ -93,9 +99,15 @@ class SMB2PacketHeader(Structure):
             )),
             ('credit_charge', IntField(size=2)),
             ('status', IntField(size=4)),
-            ('command', IntField(size=2)),
+            ('command', EnumField(
+                size=2,
+                enum_type=Commands
+            )),
             ('credit', IntField(size=2)),
-            ('flags', IntField(size=4)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=Smb2Flags,
+            )),
             ('next_command', IntField(size=4)),
             ('message_id', IntField(size=8)),
             ('reserved', IntField(size=4)),
@@ -133,9 +145,15 @@ class SMB3PacketHeader(Structure):
             ('credit_charge', IntField(size=2)),
             ('channel_sequence', IntField(size=2)),
             ('reserved', IntField(size=2)),
-            ('command', IntField(size=2)),
+            ('command', EnumField(
+                size=2,
+                enum_type=Commands
+            )),
             ('credit', IntField(size=2)),
-            ('flags', IntField(size=4)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=Smb2Flags,
+            )),
             ('next_command', IntField(size=4)),
             ('message_id', IntField(size=8)),
             ('process_id', IntField(size=4)),
@@ -259,15 +277,21 @@ class SMB2NegotiateRequest(Structure):
                 size=2,
                 default=lambda s: len(s['dialects'].get_value()),
             )),
-            ('security_mode', IntField(size=2)),
+            ('security_mode', EnumField(
+                size=2,
+                enum_type=SecurityMode
+            )),
             ('reserved', IntField(size=2)),
-            ('capabilities', IntField(size=4)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
             ('client_guid', UuidField()),
             ('client_start_time', IntField(size=8)),
             ('dialects', ListField(
                 size=lambda s: s['dialect_count'].get_value() * 2,
                 list_count=lambda s: s['dialect_count'].get_value(),
-                list_type=IntField(size=2),
+                list_type=EnumField(size=2, enum_type=Dialects),
             )),
         ])
 
@@ -294,9 +318,15 @@ class SMB3NegotiateRequest(Structure):
                 size=2,
                 default=lambda s: len(s['dialects'].get_value()),
             )),
-            ('security_mode', IntField(size=2)),
+            ('security_mode', EnumField(
+                size=2,
+                enum_type=SecurityMode,
+            )),
             ('reserved', IntField(size=2)),
-            ('capabilities', IntField(size=4)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
             ('client_guid', UuidField()),
             ('negotiate_context_offset', IntField(
                 size=4,
@@ -310,7 +340,7 @@ class SMB3NegotiateRequest(Structure):
             ('dialects', ListField(
                 size=lambda s: s['dialect_count'].get_value() * 2,
                 list_count=lambda s: s['dialect_count'].get_value(),
-                list_type=IntField(size=2),
+                list_type=EnumField(size=2, enum_type=Dialects),
             )),
             ('padding', BytesField(
                 size=lambda s: self._padding_size(s),
@@ -366,7 +396,10 @@ class SMB2NegotiateContextRequest(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([
-            ('context_type', IntField(size=2)),
+            ('context_type', EnumField(
+                size=2,
+                enum_type=NegotiateContextType,
+            )),
             ('data_length', IntField(
                 size=2,
                 default=lambda s: len(s['data'].get_value()),
@@ -392,10 +425,6 @@ class SMB2NegotiateContextRequest(Structure):
             return SMB2PreauthIntegrityCapabilities
         elif con_type == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES:
             return SMB2EncryptionCapabilities
-        else:
-            raise Exception("Could not detect type of "
-                            "SMB2NegotiateContextRequest data type of %d"
-                            % con_type)
 
     def _padding_size(self, structure):
         data_size = len(structure['data'])
@@ -426,7 +455,7 @@ class SMB2PreauthIntegrityCapabilities(Structure):
             ('hash_algorithms', ListField(
                 size=lambda s: s['hash_algorithm_count'].get_value() * 2,
                 list_count=lambda s: s['hash_algorithm_count'].get_value(),
-                list_type=IntField(size=2),
+                list_type=EnumField(size=2, enum_type=HashAlgorithms),
             )),
             ('salt', BytesField(
                 size=lambda s: s['salt_length'].get_value(),
@@ -454,7 +483,7 @@ class SMB2EncryptionCapabilities(Structure):
             ('ciphers', ListField(
                 size=lambda s: s['cipher_count'].get_value() * 2,
                 list_count=lambda s: s['cipher_count'].get_value(),
-                list_type=IntField(size=2),
+                list_type=EnumField(size=2, enum_type=Ciphers),
             )),
         ])
         super(SMB2EncryptionCapabilities, self).__init__()
@@ -475,14 +504,23 @@ class SMB2NegotiateResponse(Structure):
                 size=2,
                 default=65,
             )),
-            ('security_mode', IntField(size=2)),
-            ('dialect_revision', IntField(size=2)),
+            ('security_mode', EnumField(
+                size=2,
+                enum_type=SecurityMode,
+            )),
+            ('dialect_revision', EnumField(
+                size=2,
+                enum_type=Dialects,
+            )),
             ('negotiate_context_count', IntField(
                 size=2,
                 default=lambda s: self._negotiate_context_count_value(s),
             )),
             ('server_guid', UuidField()),
-            ('capabilities', IntField(size=4)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities
+            )),
             ('max_transact_size', IntField(size=4)),
             ('max_read_size', IntField(size=4)),
             ('max_write_size', IntField(size=4)),
@@ -583,8 +621,14 @@ class SMB2SessionSetupRequest(Structure):
                 default=25,
             )),
             ('flags', IntField(size=1)),
-            ('security_mode', IntField(size=1)),
-            ('capabilities', IntField(size=4)),
+            ('security_mode', EnumField(
+                size=1,
+                enum_type=SecurityMode,
+            )),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
             ('channel', IntField(size=4)),
             ('security_buffer_offset', IntField(
                 size=2,
@@ -617,7 +661,10 @@ class SMB2SessionSetupResponse(Structure):
                 size=2,
                 default=9,
             )),
-            ('session_flags', IntField(size=2)),
+            ('session_flags', FlagField(
+                size=2,
+                flag_type=SessionFlags,
+            )),
             ('security_buffer_offset', IntField(
                 size=2,
                 default=72,  # (header size 64) + (response size 8)
@@ -667,7 +714,10 @@ class SMB2TreeConnectRequest(Structure):
                 size=2,
                 default=9
             )),
-            ('flags', IntField(size=2)),
+            ('flags', FlagField(
+                size=2,
+                flag_type=TreeFlags,
+            )),
             ('path_offset', IntField(size=2)),
             ('path_length', IntField(size=2)),
             ('buffer', BytesField())
@@ -690,10 +740,19 @@ class SMB2TreeConnectResponse(Structure):
                 size=2,
                 default=16
             )),
-            ('share_type', IntField(size=1)),
+            ('share_type', EnumField(
+                size=1,
+                enum_type=ShareType,
+            )),
             ('reserved', IntField(size=1)),
-            ('share_flags', IntField(size=4)),
-            ('capabilities', IntField(size=4)),
+            ('share_flags', FlagField(
+                size=4,
+                flag_type=ShareFlags,
+            )),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=ShareCapabilities,
+            )),
             ('maximal_access', IntField(size=4))
         ])
         super(SMB2TreeConnectResponse, self).__init__()
@@ -732,7 +791,10 @@ class SMB2IOCTLRequest(Structure):
         self.fields = OrderedDict([
             ('structure_size', IntField(size=2, default=57)),
             ('reserved', IntField(size=2, default=0)),
-            ('ctl_code', IntField(size=4)),
+            ('ctl_code', EnumField(
+                size=4,
+                enum_type=CtlCode,
+            )),
             ('file_id', BytesField(size=16)),
             ('input_offset', IntField(
                 size=4,
@@ -749,7 +811,10 @@ class SMB2IOCTLRequest(Structure):
             )),
             ('output_count', IntField(size=4, default=0)),
             ('max_output_response', IntField(size=4)),
-            ('flags', IntField(size=4)),
+            ('flags', EnumField(
+                size=4,
+                enum_type=IOCTLFlags,
+            )),
             ('reserved2', IntField(size=4, default=0)),
             ('buffer', BytesField(
                 size=lambda s: s['input_count'].get_value()
@@ -779,9 +844,15 @@ class SMB2ValidateNegotiateInfoRequest(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([
-            ('capabilities', IntField(size=4)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
             ('guid', UuidField()),
-            ('security_mode', IntField(size=2)),
+            ('security_mode', EnumField(
+                size=2,
+                enum_type=SecurityMode,
+            )),
             ('dialect_count', IntField(
                 size=2,
                 default=lambda s: len(s['dialects'].get_value())
@@ -789,7 +860,7 @@ class SMB2ValidateNegotiateInfoRequest(Structure):
             ('dialects', ListField(
                 size=lambda s: s['dialect_count'].get_value() * 2,
                 list_count=lambda s: s['dialect_count'].get_value(),
-                list_type=IntField(size=2),
+                list_type=EnumField(size=2, enum_type=Dialects),
             ))
         ])
         super(SMB2ValidateNegotiateInfoRequest, self).__init__()
@@ -807,7 +878,10 @@ class SMB2IOCTLResponse(Structure):
         self.fields = OrderedDict([
             ('structure_size', IntField(size=2, default=49)),
             ('reserved', IntField(size=2, default=0)),
-            ('ctl_code', IntField(size=4)),
+            ('ctl_code', EnumField(
+                size=4,
+                enum_type=CtlCode,
+            )),
             ('file_id', BytesField(size=16)),
             ('input_offset', IntField(size=4)),
             ('input_count', IntField(size=4)),
@@ -833,10 +907,19 @@ class SMB2ValidateNegotiateInfoResponse(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([
-            ('capabilities', IntField(size=4)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
             ('guid', UuidField()),
-            ('security_mode', IntField(size=2)),
-            ('dialect', IntField(size=2))
+            ('security_mode', EnumField(
+                size=2,
+                enum_type=SecurityMode,
+            )),
+            ('dialect', EnumField(
+                size=2,
+                enum_type=Dialects
+            ))
         ])
         super(SMB2ValidateNegotiateInfoResponse, self).__init__()
 
