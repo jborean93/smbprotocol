@@ -33,8 +33,6 @@ class TreeConnect(object):
                  % (self.session.session_id, share_name))
         utf_share_name = share_name.encode('utf-16-le')
         connect = SMB2TreeConnectRequest()
-        connect['path_offset'] = 64 + 8
-        connect['path_length'] = len(utf_share_name)
         connect['buffer'] = utf_share_name
 
         log.info("Session: %d - Sending Tree Connect message"

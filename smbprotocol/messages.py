@@ -718,8 +718,14 @@ class SMB2TreeConnectRequest(Structure):
                 size=2,
                 flag_type=TreeFlags,
             )),
-            ('path_offset', IntField(size=2)),
-            ('path_length', IntField(size=2)),
+            ('path_offset', IntField(
+                size=2,
+                default=64 + 8,
+            )),
+            ('path_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer']),
+            )),
             ('buffer', BytesField())
         ])
         super(SMB2TreeConnectRequest, self).__init__()

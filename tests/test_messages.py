@@ -2,13 +2,17 @@ import pytest
 import uuid
 
 from datetime import datetime
-from smbprotocol.constants import Commands, Ciphers, Dialects, \
-    HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2
+from smbprotocol.constants import Commands, Ciphers, CtlCode, Dialects, \
+    HashAlgorithms, IOCTLFlags, NegotiateContextType, SecurityMode, Smb1Flags2
 from smbprotocol.messages import DirectTCPPacket, SMB1NegotiateRequest, \
-    SMB1PacketHeader, SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
-    SMB2NegotiateContextRequest, SMB2NegotiateResponse, SMB2PacketHeader, \
-    SMB2PreauthIntegrityCapabilities, SMB3NegotiateRequest, SMB3PacketHeader, \
-    SMB2SessionSetupRequest, SMB2SessionSetupResponse
+    SMB1PacketHeader, SMB2EncryptionCapabilities, SMB2ErrorContextResponse, \
+    SMB2ErrorResponse, SMB2IOCTLRequest, SMB2IOCTLResponse, SMB2Logoff, \
+    SMB2NegotiateContextRequest, SMB2NegotiateRequest, SMB2NegotiateResponse, \
+    SMB2PacketHeader, SMB2PreauthIntegrityCapabilities, \
+    SMB2SessionSetupRequest, SMB2SessionSetupResponse, SMB2TransformHeader, \
+    SMB2TreeConnectRequest, SMB2TreeConnectResponse, SMB2TreeDisconnect, \
+    SMB2ValidateNegotiateInfoRequest, SMB2ValidateNegotiateInfoResponse, \
+    SMB3NegotiateRequest, SMB3PacketHeader
 
 
 class TestDirectTcpPacket(object):
@@ -476,6 +480,37 @@ class TestSMB3NegotiateRequest(object):
         assert neg_con['data']['ciphers'].get_value() == [Ciphers.AES_128_GCM]
 
 
+class TestSMB2ErrorResponse(object):
+
+    # TODO: Add tests for context messages when I get one
+
+    def test_create_message_plain(self):
+        # This is a plain error response without the error context response
+        # data appended
+        message = SMB2ErrorResponse()
+        expected = b"\x09\x00" \
+                   b"\x00" \
+                   b"\x00" \
+                   b"\x00\x00\x00\x00"
+        actual = message.pack()
+        assert len(actual) == 8
+        assert actual == expected
+
+    def test_parse_message_plain(self):
+        actual = SMB2ErrorResponse()
+        data = b"\x09\x00" \
+               b"\x00" \
+               b"\x00" \
+               b"\x00\x00\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 8
+        assert actual['structure_size'].get_value() == 9
+        assert actual['error_context_count'].get_value() == 0
+        assert actual['reserved'].get_value() == 0
+        assert actual['byte_count'].get_value() == 0
+        assert actual['error_data'].get_value() == []
+
+
 class TestSMB2NegotiateContextRequest(object):
 
     def test_create_message(self):
@@ -907,3 +942,373 @@ class TestSMB2SessionSetupResponse(object):
         assert actual['security_buffer_offset'].get_value() == 72
         assert actual['security_buffer_length'].get_value() == 4
         assert actual['buffer'].get_value() == b"\x04\x03\x02\x01"
+
+
+class TestSMB2Logoff(object):
+
+    def test_create_message(self):
+        message = SMB2Logoff()
+        expected = b"\x04\x00" \
+                   b"\x00\x00"
+        actual = message.pack()
+        assert len(message) == 4
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2Logoff()
+        data = b"\x04\x00" \
+               b"\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 4
+        assert actual['structure_size'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+
+
+class TestSMB2TreeConnectRequest(object):
+
+    def test_create_message(self):
+        message = SMB2TreeConnectRequest()
+        message['flags'] = 2
+        message['buffer'] = "\\\\127.0.0.1\\c$".encode("utf-16-le")
+        expected = b"\x09\x00" \
+                   b"\x02\x00" \
+                   b"\x48\x00" \
+                   b"\x1c\x00" \
+                   b"\x5c\x00\x5c\x00\x31\x00\x32\x00" \
+                   b"\x37\x00\x2e\x00\x30\x00\x2e\x00" \
+                   b"\x30\x00\x2e\x00\x31\x00\x5c\x00" \
+                   b"\x63\x00\x24\x00"
+        actual = message.pack()
+        assert len(message) == 36
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2TreeConnectRequest()
+        data = b"\x09\x00" \
+               b"\x02\x00" \
+               b"\x48\x00" \
+               b"\x1c\x00" \
+               b"\x5c\x00\x5c\x00\x31\x00\x32\x00" \
+               b"\x37\x00\x2e\x00\x30\x00\x2e\x00" \
+               b"\x30\x00\x2e\x00\x31\x00\x5c\x00" \
+               b"\x63\x00\x24\x00"
+        actual.unpack(data)
+        assert len(actual) == 36
+        assert actual['structure_size'].get_value() == 9
+        assert actual['flags'].get_value() == 2
+        assert actual['path_offset'].get_value() == 72
+        assert actual['path_length'].get_value() == 28
+        assert actual['buffer'].get_value() == "\\\\127.0.0.1\\c$"\
+            .encode("utf-16-le")
+
+
+class TestSMB2TreeConnectResponse(object):
+
+    def test_create_message(self):
+        message = SMB2TreeConnectResponse()
+        message['share_type'] = 1
+        message['share_flags'] = 2
+        message['capabilities'] = 8
+        message['maximal_access'] = 10
+        expected = b"\x10\x00" \
+                   b"\x01" \
+                   b"\x00" \
+                   b"\x02\x00\x00\x00" \
+                   b"\x08\x00\x00\x00" \
+                   b"\x0a\x00\x00\x00"
+        actual = message.pack()
+        assert len(message) == 16
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2TreeConnectResponse()
+        data = b"\x10\x00" \
+               b"\x01" \
+               b"\x00" \
+               b"\x02\x00\x00\x00" \
+               b"\x08\x00\x00\x00" \
+               b"\x0a\x00\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 16
+        assert actual['structure_size'].get_value() == 16
+        assert actual['share_type'].get_value() == 1
+        assert actual['reserved'].get_value() == 0
+        assert actual['share_flags'].get_value() == 2
+        assert actual['capabilities'].get_value() == 8
+        assert actual['maximal_access'].get_value() == 10
+
+
+class TestSMB2TreeDisconnect(object):
+
+    def test_create_message(self):
+        message = SMB2TreeDisconnect()
+        expected = b"\x04\x00" \
+                   b"\x00\x00"
+        actual = message.pack()
+        assert len(message) == 4
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2TreeDisconnect()
+        data = b"\x04\x00" \
+               b"\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 4
+        assert actual['structure_size'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+
+
+class TestSMB2IOCTLRequest(object):
+
+    def test_create_message(self):
+        message = SMB2IOCTLRequest()
+        message['ctl_code'] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
+        message['file_id'] = b"\xff" * 16
+        message['max_input_response'] = 12
+        message['max_output_response'] = 12
+        message['flags'] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+        message['buffer'] = b"\x12\x13\x14\x15"
+        expected = b"\x39\x00" \
+                   b"\x00\x00" \
+                   b"\x04\x02\x14\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\x78\x00\x00\x00" \
+                   b"\x04\x00\x00\x00" \
+                   b"\x0c\x00\x00\x00" \
+                   b"\x78\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x0c\x00\x00\x00" \
+                   b"\x01\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x12\x13\x14\x15"
+        actual = message.pack()
+        assert len(message) == 60
+        assert actual == expected
+
+    def test_create_message_no_buffer(self):
+        message = SMB2IOCTLRequest()
+        message['ctl_code'] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
+        message['file_id'] = b"\xff" * 16
+        message['flags'] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+        expected = b"\x39\x00" \
+                   b"\x00\x00" \
+                   b"\x04\x02\x14\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x01\x00\x00\x00" \
+                   b"\x00\x00\x00\x00"
+        actual = message.pack()
+        assert len(message) == 56
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2IOCTLRequest()
+        data = b"\x39\x00" \
+               b"\x00\x00" \
+               b"\x04\x02\x14\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\x78\x00\x00\x00" \
+               b"\x04\x00\x00\x00" \
+               b"\x0c\x00\x00\x00" \
+               b"\x78\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x0c\x00\x00\x00" \
+               b"\x01\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x12\x13\x14\x15"
+        actual.unpack(data)
+        assert len(actual) == 60
+        assert actual['structure_size'].get_value() == 57
+        assert actual['reserved'].get_value() == 0
+        assert actual['ctl_code'].get_value() == \
+            CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
+        assert actual['file_id'].get_value() == b"\xff" * 16
+        assert actual['input_offset'].get_value() == 120
+        assert actual['input_count'].get_value() == 4
+        assert actual['max_input_response'].get_value() == 12
+        assert actual['output_offset'].get_value() == 120
+        assert actual['output_count'].get_value() == 0
+        assert actual['max_output_response'].get_value() == 12
+        assert actual['flags'].get_value() == IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+        assert actual['reserved2'].get_value() == 0
+        assert actual['buffer'].get_value() == b"\x12\x13\x14\x15"
+
+
+class TestSMB2ValidateNegotiateInfoRequest(object):
+
+    def test_create_message(self):
+        message = SMB2ValidateNegotiateInfoRequest()
+        message['capabilities'] = 8
+        message['guid'] = b"\x11" * 16
+        message['security_mode'] = 1
+        message['dialect_count'] = 2
+        message['dialects'] = [Dialects.SMB_2_0_2, Dialects.SMB_2_1_0]
+        expected = b"\x08\x00\x00\x00" \
+                   b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+                   b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+                   b"\x01\x00" \
+                   b"\x02\x00" \
+                   b"\x02\x02\x10\x02"
+        actual = message.pack()
+        assert len(message) == 28
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2ValidateNegotiateInfoRequest()
+        data = b"\x08\x00\x00\x00" \
+               b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+               b"\x11\x11\x11\x11\x11\x11\x11\x11" \
+               b"\x01\x00" \
+               b"\x02\x00" \
+               b"\x02\x02\x10\x02"
+        actual.unpack(data)
+        assert len(actual) == 28
+        assert actual['capabilities'].get_value() == 8
+        assert actual['guid'].get_value() == uuid.UUID(bytes=b"\x11" * 16)
+        assert actual['security_mode'].get_value() == 1
+        assert actual['dialect_count'].get_value() == 2
+        assert actual['dialects'][0] == 514
+        assert actual['dialects'][1] == 528
+        assert len(actual['dialects'].get_value()) == 2
+
+
+class TestSMB2IOCTLResponse(object):
+
+    def test_create_message(self):
+        message = SMB2IOCTLResponse()
+        message['ctl_code'] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
+        message['file_id'] = b"\xff" * 16
+        message['input_offset'] = 0
+        message['input_count'] = 0
+        message['output_offset'] = 112
+        message['output_count'] = 4
+        message['flags'] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+        message['buffer'] = b"\x20\x21\x22\x23"
+        expected = b"\x31\x00\x00\x00" \
+                   b"\x04\x02\x14\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x70\x00\x00\x00" \
+                   b"\x04\x00\x00\x00" \
+                   b"\x01\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x20\x21\x22\x23"
+        actual = message.pack()
+        assert len(message) == 52
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2IOCTLResponse()
+        data = b"\x31\x00\x00\x00" \
+               b"\x04\x02\x14\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x70\x00\x00\x00" \
+               b"\x04\x00\x00\x00" \
+               b"\x01\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x20\x21\x22\x23"
+        actual.unpack(data)
+        assert len(actual) == 52
+        assert actual['structure_size'].get_value() == 49
+        assert actual['reserved'].get_value() == 0
+        assert actual['ctl_code'].get_value() == \
+            CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
+        assert actual['file_id'].get_value() == b"\xff" * 16
+        assert actual['input_offset'].get_value() == 0
+        assert actual['input_count'].get_value() == 0
+        assert actual['output_offset'].get_value() == 112
+        assert actual['output_count'].get_value() == 4
+        assert actual['flags'].get_value() == IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+        assert actual['reserved2'].get_value() == 0
+        assert actual['buffer'].get_value() == b"\x20\x21\x22\x23"
+
+
+class TestSMB2ValidateNegotiateInfoResponse(object):
+
+    def test_create_message(self):
+        message = SMB2ValidateNegotiateInfoResponse()
+        message['capabilities'] = 8
+        message['guid'] = b"\xff" * 16
+        message['security_mode'] = 0
+        message['dialect'] = Dialects.SMB_3_0_2
+        expected = b"\x08\x00\x00\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\x00\x00" \
+                   b"\x02\x03"
+        actual = message.pack()
+        assert len(message) == 24
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2ValidateNegotiateInfoResponse()
+        data = b"\x08\x00\x00\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\x00\x00" \
+               b"\x02\x03"
+        actual.unpack(data)
+        assert len(actual) == 24
+        assert actual['capabilities'].get_value() == 8
+        assert actual['guid'].get_value() == uuid.UUID(bytes=b"\xff" * 16)
+        assert actual['security_mode'].get_value() == 0
+        assert actual['dialect'].get_value() == Dialects.SMB_3_0_2
+
+
+class TestSMB2TransformHeader(object):
+
+    def test_create_message(self):
+        message = SMB2TransformHeader()
+        message['nonce'] = b"\xff" * 16
+        message['original_message_size'] = 4
+        message['session_id'] = 1
+        message['data'] = b"\x01\x02\x03\x04"
+        expected = b"\xfd\x53\x4d\x42" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\x04\x00\x00\x00" \
+                   b"\x00\x00" \
+                   b"\x01\x00" \
+                   b"\x01\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x01\x02\x03\x04"
+        actual = message.pack()
+        assert len(message) == 56
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2TransformHeader()
+        data = b"\xfd\x53\x4d\x42" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\x04\x00\x00\x00" \
+               b"\x00\x00" \
+               b"\x01\x00" \
+               b"\x01\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x01\x02\x03\x04"
+        actual.unpack(data)
+        assert len(actual) == 56
+        assert actual['protocol_id'].get_value() == b"\xfd\x53\x4d\x42"
+        assert actual['signature'].get_value() == b"\x00" * 16
+        assert actual['nonce'].get_value() == b"\xff" * 16
+        assert actual['original_message_size'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+        assert actual['flags'].get_value() == 1
+        assert actual['session_id'].get_value() == 1
+        assert actual['data'].get_value() == b"\x01\x02\x03\x04"

@@ -2,7 +2,35 @@ import hashlib
 from cryptography.hazmat.primitives.ciphers import aead
 
 
+class Smb1Flags2(object):
+    """
+    [MS-CIFS] and [MS-SMB]
+
+    Various flags that are used in an SMBv1 message. Only a small amount of
+    these flags are used in the initial SMBv1 negotiate message and are mostly
+    irrevalent.
+    """
+    SMB_FLAGS2_LONG_NAME = 0x0001
+    SMB_FLAGS2_EAS = 0x0002
+    SMB_FLAGS2_SMB_SECURITY_SIGNATURE = 0x0004
+    SMB_FLAGS2_COMPRESSES = 0x0008
+    SMB_FLAGS2_SMB_SECURITY_SIGNATURE_REQUIRED = 0x0010
+    SMB_FLAGS2_IS_LONG_NAME = 0x0040
+    SMB_FLAGS2_REPARSE_PATH = 0x0400
+    SMB_FLAGS2_EXTENDED_SECURITY = 0x0800
+    SMB_FLAGS2_DFS = 0x1000
+    SMB_FLAGS2_PAGING_IO = 0x2000
+    SMB_FLAGS2_NT_STATUS = 0x4000
+    SMB_FLAGS2_UNICODE = 0x8000
+
+
 class Commands(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC Command
+    The command code of an SMB2 packet, it is used in the packet header.
+    """
     SMB2_NEGOTIATE = 0x0000
     SMB2_SESSION_SETUP = 0x0001
     SMB2_LOGOFF = 0x0002
@@ -24,12 +52,58 @@ class Commands(object):
     SMB2_OPLOCK_BREAK = 0x0012
 
 
+class Smb2Flags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC Flags
+    Indicates various processing rules that need to be done on the SMB2 packet.
+    """
+    SMB2_FLAGS_SERVER_TO_REDIR = 0x00000001
+    SMB2_FLAGS_ASYNC_COMMAND = 0x00000002
+    SMB2_FLAGS_RELATED_OPERATIONS = 0x00000004
+    SMB2_FLAGS_SIGNED = 0x00000008
+    SMB2_FLAGS_PRIORITY_MASK = 0x00000070
+    SMB2_FLAGS_DFS_OPERATIONS = 0x10000000
+    SMB2_FLAGS_REPLAY_OPERATIONS = 0x20000000
+
+
 class SecurityMode(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 NEGOTIATE Request SecurityMode
+    Indicates whether SMB signing is enabled or required by the client.
+    """
     SMB2_NEGOTIATE_SIGNING_ENABLED = 0x0001
     SMB2_NEGOTIATE_SIGNING_REQUIRED = 0x0002
 
 
+class Capabilities(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 NEGOTIATE Request Capabilities
+    Used in SMB3.x and above, used to specify the capabilities supported.
+    """
+    SMB2_GLOBAL_CAP_DFS = 0x00000001
+    SMB2_GLOBAL_CAP_LEASING = 0x00000002
+    SMB2_GLOBAL_CAP_MTU = 0x00000004
+    SMB2_GLOBAL_CAP_MULTI_CHANNEL = 0x00000008
+    SMB2_GLOBAL_CAP_PERSISTENT_HANDLES = 0x00000010
+    SMB2_GLOBAL_CAP_DIRECTORY_LEASING = 0x00000020
+    SMB2_GLOBAL_CAP_ENCRYPTION = 0x00000040
+
+
 class Dialects(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 NEGOTIATE Request Dialects
+    16-bit integeres specifying an SMB2 dialect that is supported. 0x02FF is
+    used in the SMBv1 negotiate request to say that dialects greater than
+    2.0.2 is supported.
+    """
     SMB_2_0_2 = 0x0202
     SMB_2_1_0 = 0x0210
     SMB_3_0_0 = 0x0300
@@ -38,7 +112,13 @@ class Dialects(object):
     SMB_2_WILDCARD = 0x02FF
 
 
-class NegotiateContextType(object):  # Page 45
+class NegotiateContextType(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1 SMB2 NEGOTIATE_CONTENT Request ContextType
+    Specifies the type of context in an SMB2 NEGOTIATE_CONTEXT message.
+    """
     SMB2_PREAUTH_INTEGRITY_CAPABILITIES = 0x0001
     SMB2_ENCRYPTION_CAPABILITIES = 0x0002
 
@@ -77,31 +157,6 @@ class Ciphers(object):
         }[cipher]
 
 
-class Smb1Flags2(object):  # [MS-CIFS] and [MS-SMB]
-    SMB_FLAGS2_LONG_NAME = 0x0001
-    SMB_FLAGS2_EAS = 0x0002
-    SMB_FLAGS2_SMB_SECURITY_SIGNATURE = 0x0004
-    SMB_FLAGS2_COMPRESSES = 0x0008
-    SMB_FLAGS2_SMB_SECURITY_SIGNATURE_REQUIRED = 0x0010
-    SMB_FLAGS2_IS_LONG_NAME = 0x0040
-    SMB_FLAGS2_REPARSE_PATH = 0x0400
-    SMB_FLAGS2_EXTENDED_SECURITY = 0x0800
-    SMB_FLAGS2_DFS = 0x1000
-    SMB_FLAGS2_PAGING_IO = 0x2000
-    SMB_FLAGS2_NT_STATUS = 0x4000
-    SMB_FLAGS2_UNICODE = 0x8000
-
-
-class Smb2Flags(object):
-    SMB2_FLAGS_SERVER_TO_REDIR = 0x00000001
-    SMB2_FLAGS_ASYNC_COMMAND = 0x00000002
-    SMB2_FLAGS_RELATED_OPERATIONS = 0x00000004
-    SMB2_FLAGS_SIGNED = 0x00000008
-    SMB2_FLAGS_PRIORITY_MASK = 0x00000070
-    SMB2_FLAGS_DFS_OPERATIONS = 0x10000000
-    SMB2_FLAGS_REPLAY_OPERATIONS = 0x20000000
-
-
 class SessionFlags(object):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -124,16 +179,6 @@ class TreeFlags(object):
     SMB2_TREE_CONNECT_FLAG_CLUSTER_RECONNECT = 0x0004
     SMB2_TREE_CONNECT_FLAG_REDIRECT_TO_OWNER = 0x0002
     SMB2_TREE_CONNECT_FLAG_EXTENSION_PRESENT = 0x0001
-
-
-class Capabilities(object):  # Page 44
-    SMB2_GLOBAL_CAP_DFS = 0x00000001
-    SMB2_GLOBAL_CAP_LEASING = 0x00000002
-    SMB2_GLOBAL_CAP_MTU = 0x00000004
-    SMB2_GLOBAL_CAP_MULTI_CHANNEL = 0x00000008
-    SMB2_GLOBAL_CAP_PERSISTENT_HANDLES = 0x00000010
-    SMB2_GLOBAL_CAP_DIRECTORY_LEASING = 0x00000020
-    SMB2_GLOBAL_CAP_ENCRYPTION = 0x00000040
 
 
 class ShareType(object):
