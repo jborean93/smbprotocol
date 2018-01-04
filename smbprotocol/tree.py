@@ -54,33 +54,29 @@ class TreeConnect(object):
                  % (self.session.session_id, self.tree_connect_id))
         self.session.tree_connect_table[self.tree_connect_id] = self
 
-        capabilities = tree_response['capabilities'].get_value()
-        self.is_dfs_share = capabilities & \
-            ShareCapabilities.SMB2_SHARE_CAP_DFS == \
-            ShareCapabilities.SMB2_SHARE_CAP_DFS
-        self.is_ca_share = capabilities & \
-            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY == \
-            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY
+        capabilities = tree_response['capabilities']
+        self.is_dfs_share = capabilities.has_flag(
+            ShareCapabilities.SMB2_SHARE_CAP_DFS)
+        self.is_ca_share = capabilities.has_flag(
+            ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY)
         self.share_name = utf_share_name
 
         dialect = self.session.connection.dialect
         if dialect >= Dialects.SMB_3_0_0 and \
                 self.session.connection.supports_encryption:
-            self.encrypt_data = tree_response['share_flags'].get_value() & \
-                                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA == \
-                                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA
+            self.encrypt_data = tree_response['share_flags'].has_flag(
+                ShareFlags.SMB2_SHAREFLAG_ENCRYPT_DATA)
 
-            scaleout_bit = ShareCapabilities.SMB2_SHARE_CAP_SCALEOUT
-            self.is_scaleout_share = capabilities & scaleout_bit == \
-                scaleout_bit
+            self.is_scaleout_share = capabilities.has_flag(
+                ShareCapabilities.SMB2_SHARE_CAP_SCALEOUT)
 
             if dialect < Dialects.SMB_3_1_1 and require_secure_negotiate:
                 self._verify_dialect_negotiate()
 
     def _verify_dialect_negotiate(self):
-        log.info("Session: %d, Tree: %d - Running secure negotiate "
-                 "process" % (self.session.session_id,
-                              self.tree_connect_id))
+        log_header = "Session: %d, Tree: %d"\
+                     % (self.session.session_id, self.tree_connect_id)
+        log.info("%s - Running secure negotiate process" % log_header)
         ioctl_request = SMB2IOCTLRequest()
         ioctl_request['ctl_code'] = \
             CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
@@ -98,18 +94,15 @@ class TreeConnect(object):
         ioctl_request['buffer'] = val_neg
         ioctl_request['max_output_response'] = len(val_neg)
         ioctl_request['flags'] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
-        log.info("Session: %d, Tree: %d = Sending Secure Negotiate "
-                 "Validation message" % (self.session.session_id,
-                                         self.tree_connect_id))
+        log.info("%s - Sending Secure Negotiate Validation message"
+                 % log_header)
         log.debug(str(ioctl_request))
         log.debug(str(val_neg))
         self.session.connection.send(ioctl_request,
                                      Commands.SMB2_IOCTL, self.session,
                                      self)
         response = self.session.connection.receive()
-        log.info("Session: %s, Tree: %d - Receiving secure negotiation "
-                 "response"
-                 % (self.session.session_id, self.tree_connect_id))
+        log.info("%s - Receiving secure negotiation response" % log_header)
 
         ioctl_resp = SMB2IOCTLResponse()
         ioctl_resp.unpack(response['data'].get_value())
@@ -118,16 +111,25 @@ class TreeConnect(object):
         val_resp.unpack(ioctl_resp['buffer'].get_value())
         log.debug(str(val_resp))
 
-        if val_resp['capabilities'].get_value() != \
-                self.session.connection.server_capabilities:
-            raise Exception("Invalid capabilities")
-        if val_resp['guid'].get_value() != \
-                self.session.connection.server_guid:
-            raise Exception("Invalid server guid")
-        if val_resp['security_mode'].get_value() != \
-                self.session.connection.server_security_mode:
-            raise Exception("Invalid server security mode")
-        if val_resp['dialect'].get_value() != self.session.connection.dialect:
-            raise Exception("Invalid server dialect")
+        self._verify("server capabilities",
+                     val_resp['capabilities'].get_value(),
+                     self.session.connection.server_capabilities)
+        self._verify("server guid",
+                     val_resp['guid'].get_value(),
+                     self.session.connection.server_guid)
+        self._verify("server security mode",
+                     val_resp['security_mode'].get_value(),
+                     self.session.connection.server_security_mode)
+        self._verify("server dialect",
+                     val_resp['dialect'].get_value(),
+                     self.session.connection.dialect)
         log.info("Session: %d, Tree: %d - Secure negotiate complete"
                  % (self.session.session_id, self.tree_connect_id))
+
+    def _verify(self, check, actual, expected):
+        log_header = "Session: %d, Tree: %d"\
+                     % (self.session.session_id, self.tree_connect_id)
+        if actual != expected:
+            raise Exception("%s - Secure negotiate failed to verify %s, "
+                            "Actual: %s, Expected: %s"
+                            % (log_header, check, actual, expected))

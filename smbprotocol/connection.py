@@ -133,8 +133,7 @@ class Connection(object):
             smb_response = self._send_smb2_negotiate()
 
         log.info("Negotiated dialect: %s"
-                 % [dialect for dialect, v in vars(Dialects).items()
-                    if v == smb_response['dialect_revision'].get_value()][0])
+                 % str(smb_response['dialect_revision']))
         self.dialect = smb_response['dialect_revision'].get_value()
         self.max_transact_size = smb_response['max_transact_size'].get_value()
         self.max_read_size = smb_response['max_read_size'].get_value()
@@ -142,35 +141,30 @@ class Connection(object):
         self.server_guid = smb_response['server_guid'].get_value()
         self.gss_negotiate_token = smb_response['buffer'].get_value()
 
-        self.require_signing = self._flag_is_set(
-            smb_response['security_mode'].get_value(),
-            SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED)
+        self.require_signing = smb_response['security_mode'].get_value() == \
+            SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
         log.info("Connection require signing: %s" % self.require_signing)
-        capabilities = smb_response['capabilities'].get_value()
+        capabilities = smb_response['capabilities']
 
         # SMB 2.1
         if self.dialect >= Dialects.SMB_2_1_0:
-            self.supports_file_leasing = self._flag_is_set(
-                capabilities, Capabilities.SMB2_GLOBAL_CAP_LEASING
-            )
-            self.supports_multi_credit = self._flag_is_set(
-                capabilities, Capabilities.SMB2_GLOBAL_CAP_MTU
-            )
+            self.supports_file_leasing = \
+                capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_LEASING)
+            self.supports_multi_credit = \
+                capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_MTU)
 
         # SMB 3.x
         if self.dialect >= Dialects.SMB_3_0_0:
-            self.supports_directory_leasing = self._flag_is_set(
-                capabilities, Capabilities.SMB2_GLOBAL_CAP_DIRECTORY_LEASING
-            )
-            self.supports_multi_channel = self._flag_is_set(
-                capabilities, Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL
-            )
+            self.supports_directory_leasing = capabilities.has_flag(
+                Capabilities.SMB2_GLOBAL_CAP_DIRECTORY_LEASING)
+            self.supports_multi_channel = capabilities.has_flag(
+                Capabilities.SMB2_GLOBAL_CAP_MULTI_CHANNEL)
 
             # TODO: SMB2_GLOBAL_CAP_PERSISTENT_HANDLES
             self.supports_persistent_handles = False
-            self.supports_encryption = self._flag_is_set(
-                capabilities, Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
-            ) and self.dialect < Dialects.SMB_3_1_1
+            self.supports_encryption = capabilities.has_flag(
+                Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION) \
+                and self.dialect < Dialects.SMB_3_1_1
             self.server_capabilities = capabilities
             self.server_security_mode = \
                 smb_response['security_mode'].get_value()
@@ -227,7 +221,7 @@ class Connection(object):
         if session and session.encrypt_data and session.encryption_key:
             header = self._encrypt(header, session)
         elif session and session.signing_required and session.signing_key:
-            self._sign(header, message)
+            self._sign(header, session)
 
         request = PendingRequest(header)
         self.outstanding_requests[message_id] = request
@@ -258,15 +252,14 @@ class Connection(object):
         return header
 
     def _sign(self, message, session):
-        message['flags'] = message['flags'].get_value() | \
-            Smb2Flags.SMB2_FLAGS_SIGNED
+        message['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
         signature = self._generate_signature(message, session)
         message['signature'] = signature
 
     def _verify(self, message):
         if message['message_id'].get_value() == 0xFFFFFFFFFFFFFFFF:
             return
-        elif message['flags'].get_value() & Smb2Flags.SMB2_FLAGS_SIGNED == 0:
+        elif not message['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
             return
         elif message['command'].get_value() == Commands.SMB2_SESSION_SETUP:
             return
@@ -508,9 +501,6 @@ class Connection(object):
     def _increment_sequence_windows(self, credits):
         self.sequence_window['low'] = self.sequence_window['high'] + credits
         self.sequence_window['high'] += credits
-
-    def _flag_is_set(self, value, flag):
-        return value & flag == flag
 
     def _parse_error(self, data):
         error_code = data['status'].value

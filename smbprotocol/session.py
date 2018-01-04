@@ -94,8 +94,7 @@ class Session(object):
         setup_response = SMB2SessionSetupResponse()
         setup_response.unpack(response['data'].get_value())
         if self.connection.dialect >= Dialects.SMB_3_1_1:
-            if response['flags'].get_value() & Smb2Flags.SMB2_FLAGS_SIGNED != \
-                    Smb2Flags.SMB2_FLAGS_SIGNED:
+            if not response['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
                 raise Exception("SMB2_FLAGS_SIGNED must be set in SMB2 "
                                 "SESSION_SETUP Response when on Dialect 3.1.1")
 
@@ -141,13 +140,12 @@ class Session(object):
             self.signing_key = self.session_key
             self.application_key = self.session_key
 
-        flags = setup_response['session_flags'].get_value()
-        if flags & SessionFlags.SMB2_SESSION_FLAG_IS_GUEST != 0 and \
-                self.signing_required:
+        flags = setup_response['session_flags']
+        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_GUEST) \
+                and self.signing_required:
             raise Exception("SMB Signing is required but could only auth as "
                             "guest")
-        if flags & SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA == \
-                SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA:
+        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA):
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
         else:
