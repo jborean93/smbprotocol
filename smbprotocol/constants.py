@@ -232,6 +232,172 @@ class ShareCapabilities(object):
     SMB2_SHARE_CAP_REDIRECT_TO_OWNER = 0x00000100
 
 
+class RequestedOplockLevel(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request RequestedOplockLevel
+    The requested oplock level used when creating/accessing a file.
+    """
+    SMB2_OPLOCK_LEVEL_NONE = 0x00
+    SMB2_OPLOCK_LEVEL_II = 0x01
+    SMB2_OPLOCK_LEVEL_EXCLUSIVE = 0x08
+    SMB2_OPLOCK_LEVEL_BATCH = 0x09
+    SMB2_OPLOCK_LEVEL_LEASE = 0xFF
+
+
+class ImpersonationLevel(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request ImpersonationLevel
+    The impersonation level requested by the application in a create request.
+    """
+    Anonymous = 0x0
+    Identification = 0x1
+    Impersonation = 0x2
+    Delegate = 0x3
+
+
+class ShareAccess(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request ShareAccess
+    The sharing mode for the open
+    """
+    FILE_SHARE_READ = 0x1
+    FILE_SHARE_WRITE = 0x2
+    FILE_SHARE_DELETE = 0x4
+
+
+class CreateDisposition(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request CreateDisposition
+    Defines the action the server must take if the file that is specific
+    already exists.
+    """
+    FILE_SUPERSEDE = 0x0
+    FILE_OPEN = 0x1
+    FILE_CREATE = 0x2
+    FILE_OPEN_IF = 0x3
+    FILE_OVERWRITE = 0x4
+    FILE_OVERWRITE_IF = 0x5
+
+
+class CreateOptions(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request CreateOptions
+    Specifies the options to be applied when creating or opening the file
+    """
+    FILE_DIRECTORY_FILE = 0x00000001
+    FILE_WRITE_THROUGH = 0x00000002
+    FILE_SEQUENTIAL_ONLY = 0x00000004
+    FILE_NO_INTERMEDIATE_BUFFERING = 0x00000008
+    FILE_SYNCHRONOUS_IO_ALERT = 0x00000010
+    FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+    FILE_NON_DIRECTORY_FILE = 0x00000040
+    FILE_COMPLETE_IF_OPLOCKED = 0x00000100
+    FILE_NO_EA_KNOWLEDGE = 0x00000200
+    FILE_RANDOM_ACCESS = 0x00000800
+    FILE_DELETE_ON_CLOSE = 0x00001000
+    FILE_OPEN_BY_FILE_ID = 0x00002000
+    FILE_OPEN_FOR_BACKUP_INTENT = 0x00004000
+    FILE_NO_COMPRESSION = 0x00008000
+    FILE_OPEN_REMOTE_INSTANCE = 0x00000400
+    FILE_OPEN_REQUIRING_OPLOCK = 0x00010000
+    FILE_DISALLOW_EXCLUSIVE = 0x00020000
+    FILE_RESERVE_OPFILTER = 0x00100000
+    FILE_OPEN_REPARSE_POINT = 0x00200000
+    FILE_OPEN_NO_RECALL = 0x00400000
+    FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
+
+
+class FilePipePrinterAccessMask(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13.1.1 File_Pipe_Printer_Access_Mask
+    Access Mask flag values to be used when accessing a file, pipe, or printer
+    """
+    FILE_READ_DATA = 0x00000001
+    FILE_WRITE_DATA = 0x00000002
+    FILE_APPEND_DATA = 0x00000004
+    FILE_READ_EA = 0x00000008
+    FILE_WRITE_EA = 0x00000010
+    FILE_DELETE_CHILD = 0x00000040
+    FILE_EXECUTE = 0x00000020
+    FILE_READ_ATTRIBUTES = 0x00000080
+    FILE_WRITE_ATTRIBUTES = 0x00000100
+    DELETE = 0x00010000
+    READ_CONTROL = 0x00020000
+    WRITE_DAC = 0x00040000
+    WRITE_OWNER = 0x00080000
+    SYNCHRONIZE = 0x00100000
+    ACCESS_SYSTEM_SECURITY = 0x01000000
+    MAXIMUM_ALLOWED = 0x02000000
+    GENERIC_ALL = 0x10000000
+    GENERIC_EXECUTE = 0x20000000
+    GENERIC_WRITE = 0x40000000
+    GENERIC_READ = 0x80000000
+
+
+class DirectoryAccessMask(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13.1.2 Directory_Access_Mask
+    Access Mask flag values to be used when accessing a directory
+    """
+    FILE_LIST_DIRECTORY = 0x00000001
+    FILE_ADD_FILE = 0x00000002
+    FILE_ADD_SUBDIRECTORY = 0x00000004
+    FILE_READ_EA = 0x00000008
+    FILE_WRITE_EA = 0x00000010
+    FILE_TRAVERSE = 0x00000020
+    FILE_DELETE_CHILD = 0x00000040
+    FILE_READ_ATTRIBUTES = 0x00000080
+    FILE_WRITE_ATTRIBUTES = 0x00000100
+    DELETE = 0x00010000
+    READ_CONTROL = 0x00020000
+    WRITE_DAC = 0x00040000
+    WRITE_OWNER = 0x00080000
+    SYNCHRONIZE = 0x00100000
+    ACCESS_SYSTEM_SECURITY = 0x01000000
+    MAXIMUM_ALLOWED = 0x02000000
+    GENERIC_ALL = 0x10000000
+    GENERIC_EXECUTE = 0x20000000
+    GENERIC_WRITE = 0x40000000
+    GENERIC_READ = 0x80000000
+
+
+class FileFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14 SMB2 CREATE Response Flags
+    Flag that details info about the file that was opened.
+    """
+    SMB2_CREATE_FLAG_REPARSEPOINT = 0x1
+
+
+class CreateAction(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14 SMB2 CREATE Response Flags
+    The action taken in establishing the open.
+    """
+    FILE_SUPERSEDED = 0x0
+    FILE_OPENED = 0x1
+    FILE_CREATED = 0x2
+    FILE_OVERWRITTEN = 0x3
+
+
 class CtlCode(object):
     """
     [MS-SMB2] v53.0 2017-09-15

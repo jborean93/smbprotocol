@@ -2,10 +2,12 @@ import struct
 
 from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
     FlagField, IntField, ListField, Structure, StructureField, UuidField
-from smbprotocol.constants import Commands, Capabilities, Ciphers, CtlCode, \
-    Dialects, HashAlgorithms, IOCTLFlags, NegotiateContextType, SecurityMode, \
-    SessionFlags, ShareCapabilities, ShareFlags, ShareType, Smb1Flags2, \
-    Smb2Flags, TreeFlags
+from smbprotocol.constants import Capabilities, Ciphers, Commands, \
+    CreateAction, CreateDisposition, CreateOptions, CtlCode, Dialects, \
+    DirectoryAccessMask, FileFlags, FilePipePrinterAccessMask, \
+    HashAlgorithms, ImpersonationLevel, IOCTLFlags, NegotiateContextType, \
+    RequestedOplockLevel, SecurityMode, SessionFlags, ShareAccess, \
+    ShareCapabilities, ShareFlags, ShareType, Smb1Flags2, Smb2Flags, TreeFlags
 
 try:
     from collections import OrderedDict
@@ -277,9 +279,9 @@ class SMB2NegotiateRequest(Structure):
                 size=2,
                 default=lambda s: len(s['dialects'].get_value()),
             )),
-            ('security_mode', EnumField(
+            ('security_mode', FlagField(
                 size=2,
-                enum_type=SecurityMode
+                flag_type=SecurityMode
             )),
             ('reserved', IntField(size=2)),
             ('capabilities', FlagField(
@@ -318,9 +320,9 @@ class SMB3NegotiateRequest(Structure):
                 size=2,
                 default=lambda s: len(s['dialects'].get_value()),
             )),
-            ('security_mode', EnumField(
+            ('security_mode', FlagField(
                 size=2,
-                enum_type=SecurityMode,
+                flag_type=SecurityMode,
             )),
             ('reserved', IntField(size=2)),
             ('capabilities', FlagField(
@@ -504,9 +506,9 @@ class SMB2NegotiateResponse(Structure):
                 size=2,
                 default=65,
             )),
-            ('security_mode', EnumField(
+            ('security_mode', FlagField(
                 size=2,
-                enum_type=SecurityMode,
+                flag_type=SecurityMode,
             )),
             ('dialect_revision', EnumField(
                 size=2,
@@ -782,6 +784,30 @@ class SMB2TreeDisconnect(Structure):
             ('reserved', IntField(size=2))
         ])
         super(SMB2TreeDisconnect, self).__init__()
+
+
+class SMB2CreateRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13 SMB2 CREATE Request
+    The SMB2 Create Request packet is sent by a client to request either
+    creation of or access to a file.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=57,
+            )),
+            ('security_flags', IntField(size=1)),
+            ('requested_oplock_level', EnumField(
+                size=1,
+                enum_type=None
+            ))
+        ])
+        super(SMB2CreateRequest, self).__init__()
 
 
 class SMB2IOCTLRequest(Structure):

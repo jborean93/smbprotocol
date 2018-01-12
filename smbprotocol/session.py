@@ -15,6 +15,15 @@ from smbprotocol.constants import Commands, Dialects, NtStatus, SessionFlags, \
     Smb2Flags
 from smbprotocol.spnego import InitialContextToken, MechTypes
 
+HAVE_KERBEROS = False
+try:
+    import gssapi
+    # Needed to get the session key for signing and encryption
+    from gssapi.raw import inquire_sec_context_by_oid
+    HAVE_KERBEROS = True
+except ImportError:
+    pass
+
 log = logging.getLogger(__name__)
 
 
@@ -71,10 +80,13 @@ class Session(object):
         token, rdata = decoder.decode(self.connection.gss_negotiate_token,
                                       asn1Spec=InitialContextToken())
 
-        # TODO: Add support for Kerberos
         client_types = {
             MechTypes.NTLMSSP: self._authenticate_ntlm
         }
+        if HAVE_KERBEROS:
+            client_types[MechTypes.MS_KRB5] = self._authenticate_kerberos
+            client_types[MechTypes.KRB5] = self._authenticate_kerberos
+
         server_types = token['innerContextToken']['negTokenInit']['mechTypes']
         auth_method = None
         for type in server_types:
@@ -153,7 +165,7 @@ class Session(object):
             self.signing_required = True
         log.info("Verifying the SMB Setup Session signature as auth is "
                  "successful")
-        self.connection._verify(response)
+        self.connection._verify(response, True)
 
     def _authenticate_ntlm(self):
         auth = Ntlm()
@@ -178,7 +190,9 @@ class Session(object):
         self.preauth_integrity_hash_value.append(header)
 
         response = self.connection.receive(
-            NtStatus.STATUS_MORE_PROCESSING_REQUIRED)
+            [
+                NtStatus.STATUS_MORE_PROCESSING_REQUIRED
+            ])
         log.info("NTLM: receiving challenge message")
         self.preauth_integrity_hash_value.append(response)
 
@@ -213,6 +227,100 @@ class Session(object):
         session_key = auth.authenticate_message.exported_session_key
 
         return response, session_key
+
+    def _authenticate_kerberos(self):
+        log.info("KERBEROS: a")
+
+        # 3 use cases with kerberos
+        #   1. Both the user and pass is supplied so we want to create a new
+        #      ticket with the pass
+        #   2. Only the user is supplied so we will attempt to get the cred
+        #      from the existing store
+        #   3. The user is not supplied so we will attempt to get the default
+        #      cred from the existing store
+        if self.username and self.password:
+            user = gssapi.Name(base=self.username,
+                               name_type=gssapi.NameType.kerberos_principal)
+            bpass = self.password.encode('utf-8')
+            try:
+                creds = gssapi.raw.acquire_cred_with_password(user, bpass,
+                                                              usage='initiate')
+            except AttributeError:
+                raise Exception("Cannot get new kerberos ticket with password "
+                                "as the necessary GSSAPI extensions are not "
+                                "available")
+            except gssapi.exceptions.GSSError as er:
+                raise Exception("Failed to acquire kerberos ticket with "
+                                "password: %s" % er.message)
+            # acquire_cred_with_password returns a wrapper, we want the creds
+            # object inside this wrapper
+            creds = creds.creds
+        elif self.username:
+            user = gssapi.Name(base=self.username,
+                               name_type=gssapi.NameType.kerberos_principal)
+
+            try:
+                creds = gssapi.Credentials(name=user, usage='initiate')
+            except gssapi.exceptions.MissingCredentialsError as er:
+                raise Exception("Failed to acquire kerberos ticket for user %s"
+                                " from the existing cache: %s"
+                                % (str(user), str(er)))
+        else:
+            try:
+                creds = gssapi.Credentials(name=None, usage='initiate')
+            except gssapi.exceptions.GSSError as er:
+                raise er
+            user = creds.name
+
+        # TODO: find a way to override the realm
+        realm = str(user).split("@")[-1]
+        server_spn = "cifs/%s@%s" % (self.connection.server_name, realm)
+
+        server_name = gssapi.Name(base=server_spn,
+                                  name_type=gssapi.NameType.kerberos_principal)
+
+        context = gssapi.SecurityContext(name=server_name, creds=creds,
+                                         usage='initiate')
+
+        out_token = context.step()
+        while not context.complete:
+            session_setup = SMB2SessionSetupRequest()
+            session_setup['security_mode'] = \
+                self.connection.client_security_mode
+            session_setup['buffer'] = out_token
+
+            header = self.connection.send(session_setup,
+                                          Commands.SMB2_SESSION_SETUP)
+            self.preauth_integrity_hash_value.append(header)
+
+            # we could either receive a success on the first response or more
+            # tokens are required to be sent
+            response = self.connection.receive(
+                expected_status=[
+                    NtStatus.STATUS_SUCCESS,
+                    NtStatus.STATUS_MORE_PROCESSING_REQUIRED
+                ])
+
+            self.session_id = response['session_id'].get_value()
+            session_resp = SMB2SessionSetupResponse()
+            session_resp.unpack(response['data'].get_value())
+
+            out_token = context.step(session_resp['buffer'].get_value())
+
+            if response['status'].get_value() == \
+                    NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
+                self.preauth_integrity_hash_value.append(response)
+
+        # Once the context is established we need to get the session key from
+        # the context, this uses the gss_inquire_sec_context_by_oid GSSAPI
+        # call
+
+        # GSS_C_INQ_SSPI_SESSION_KEY
+        session_key_oid = gssapi.OID.from_int_seq("1.2.840.113554.1.2.2.5.5")
+        context_data = gssapi.raw.inquire_sec_context_by_oid(context,
+                                                             session_key_oid)
+
+        return response, context_data[0]
 
     def _smb3kdf(self, ki, label, context):
         """

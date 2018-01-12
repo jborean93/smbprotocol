@@ -280,6 +280,6 @@ class InitialContextToken(Sequence):
         )
     )
     tagSet = TagSet(
-        Tag(tagClassUniversal, tagFormatConstructed, 0x10),
+        Sequence.tagSet,
         Tag(tagClassApplication, tagFormatConstructed, 0),
     )

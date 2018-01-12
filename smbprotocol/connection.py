@@ -228,7 +228,7 @@ class Connection(object):
         self.transport.send(request)
         return header
 
-    def receive(self, expected_status=NtStatus.STATUS_SUCCESS):
+    def receive(self, expected_status=list([NtStatus.STATUS_SUCCESS])):
         """
         # 3.2.5.1 - Receiving Any Message
         :return:
@@ -242,7 +242,7 @@ class Connection(object):
             header = self._decrypt(message)
         self._verify(header)
 
-        if header['status'].get_value() != expected_status:
+        if header['status'].get_value() not in expected_status:
             error_message = self._parse_error(header)
             raise Exception("Unexpected status returned from the server: %s"
                             % error_message)
@@ -256,12 +256,13 @@ class Connection(object):
         signature = self._generate_signature(message, session)
         message['signature'] = signature
 
-    def _verify(self, message):
+    def _verify(self, message, verify_session=False):
         if message['message_id'].get_value() == 0xFFFFFFFFFFFFFFFF:
             return
         elif not message['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
             return
-        elif message['command'].get_value() == Commands.SMB2_SESSION_SETUP:
+        elif message['command'].get_value() == Commands.SMB2_SESSION_SETUP \
+                and not verify_session:
             return
 
         session_id = message['session_id'].get_value()
