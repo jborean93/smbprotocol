@@ -12,7 +12,7 @@ class Client(object):
     def __init__(self, dialect=None, require_secure_negotiate=True,
                  require_message_signing=True):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.1 Global
         Used as the client interface with an SMB server, the attributes set
@@ -52,7 +52,7 @@ class Client(object):
     def open_connection(self, share, username, password,
                         port=445):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.4.2 Application Requests a Connection to a Share
         Will do the following
@@ -139,7 +139,7 @@ class Server(object):
     def __init__(self, server_guid, dialect_revision, capabilities,
                  security_mode, address_list, server_name):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.9 Per Server
         List of attributes that are set per server

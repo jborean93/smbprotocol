@@ -5,7 +5,7 @@ from pyasn1.type.univ import BitString, Choice, Enumerated, ObjectIdentifier, \
 from pyasn1.type.namedtype import NamedType, NamedTypes, OptionalNamedType
 from pyasn1.type.namedval import NamedValues
 from pyasn1.type.tag import Tag, tagClassApplication, tagClassContext, \
-    tagFormatConstructed, tagFormatSimple, tagClassUniversal, TagSet
+    tagFormatConstructed, tagFormatSimple, TagSet
 
 
 class MechTypes(object):
@@ -38,12 +38,12 @@ class MechTypeList(SequenceOf):
 
     MechTypeList ::= SEQUENCE OF MechType
     """
-    componentType = ObjectIdentifier()
+    componentType = MechType()
 
 
 class ContextFlags(BitString):
     """
-    [RFC-41178]
+    [RFC-4178]
 
     ContextFlags ::= BIT STRING {
         delegFlag (0),
@@ -68,7 +68,7 @@ class ContextFlags(BitString):
 
 class NegStat(Enumerated):
     """
-    [RFC-41178]
+    [RFC-4178]
 
     NegState ::= ENUMERATED {
         accept-completed (0),
@@ -114,7 +114,7 @@ class NegHints(Sequence):
 
 class NegTokenInit(Sequence):
     """
-    [RFC-4117]
+    [RFC-4178]
 
     NegTokenInit ::= SEQUENCE {
         mechTypes [0] MechTypeList,
@@ -197,7 +197,7 @@ class NegTokenInit2(Sequence):
 
 class NegTokenResp(Sequence):
     """
-    [RFC-41178]
+    [RFC-4178]
 
     4.2.2 negTokenResp
     The response message for NegTokenInit.
@@ -236,7 +236,7 @@ class NegTokenResp(Sequence):
 
 class NegotiateToken(Choice):
     """
-    [RFC-41178]
+    [RFC-4178]
 
     NegotiateToken ::= CHOICE {
         negTokenInit [0] NegTokenInit,

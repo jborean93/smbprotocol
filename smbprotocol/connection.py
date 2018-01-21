@@ -28,7 +28,7 @@ class Connection(object):
 
     def __init__(self, guid, signing_required, server_name, port):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.2 Per SMB2 Transport Connection
         Used as the transport interface for a server. Some values have been
@@ -36,7 +36,7 @@ class Connection(object):
         self.server
 
         :param guid: The client guid generated in Client
-        :param ﻿signing_required: Whether signing is required on SMB messages
+        :param signing_required: Whether signing is required on SMB messages
         :param server_name: The server to start the connection
         :param port: The port to use for the transport
         """
@@ -107,7 +107,7 @@ class Connection(object):
 
     def connect(self):
         """
-        ﻿﻿[MS-SMB2] v53.0 2017-09-15
+        ??[MS-SMB2] v53.0 2017-09-15
 
         3.2.4.2.1 Connecting to the Target Server
         Will connect to the target server using the connection specified.
@@ -117,7 +117,7 @@ class Connection(object):
 
     def negotiate(self, dialect=None):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        ?[MS-SMB2] v53.0 2017-09-15
 
         3.2.4.2.2 Negotiating the Protocol
         Will negotiate the capabilities with the server, it does this by
@@ -526,7 +526,7 @@ class PendingRequest(object):
 
     def __init__(self, message):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        ?[MS-SMB2] v53.0 2017-09-15
 
         3.2.1.7 Per Pending Request
         For each request that was sent to the server and is await a response
