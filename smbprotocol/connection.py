@@ -107,7 +107,7 @@ class Connection(object):
 
     def connect(self):
         """
-        ??[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.4.2.1 Connecting to the Target Server
         Will connect to the target server using the connection specified.
@@ -117,7 +117,7 @@ class Connection(object):
 
     def negotiate(self, dialect=None):
         """
-        ?[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.4.2.2 Negotiating the Protocol
         Will negotiate the capabilities with the server, it does this by
@@ -526,7 +526,7 @@ class PendingRequest(object):
 
     def __init__(self, message):
         """
-        ?[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.7 Per Pending Request
         For each request that was sent to the server and is await a response

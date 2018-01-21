@@ -7,9 +7,6 @@ except ImportError:
         def emit(self, record):
             pass
 
-from .client import Client
-
-
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 
@@ -24,5 +21,5 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 # end TODO
 
-__all__ = ('Client')
+__all__ = ('client')
 __version__ = '0.0.1'
