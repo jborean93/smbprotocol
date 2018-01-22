@@ -4,6 +4,7 @@ import uuid
 from smbprotocol.constants import Dialects
 from smbprotocol.connection import Connection
 from smbprotocol.tree import TreeConnect
+from smbprotocol.file import OpenFile, ApplicationOpenFile
 
 log = logging.getLogger(__name__)
 
@@ -116,16 +117,13 @@ class Client(object):
 
     def open_file(self, session, tree_connect, path):
         # TODO: verify session and tree_connect are valid
-
-        file = None
-        if self.dialect > Dialects.SMB_2_0_2:
-            file = self.global_file_table.get(path, None)
+        file = self.global_file_table.get(path, None)
 
         if not file:
+            file = OpenFile()
+            file.open_file(tree_connect, path)
             # create new file
             a = ""
-
-        pass
 
     def open_directory(self):
         pass

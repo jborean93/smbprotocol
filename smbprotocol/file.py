@@ -1,5 +1,11 @@
 import logging
 
+from smbprotocol.constants import Commands, NtStatus, ImpersonationLevel, \
+    FilePipePrinterAccessMask, FileAttributes, CreateDisposition, \
+    CreateAction, ShareAccess, CreateOptions
+from smbprotocol.messages import SMB2CreateRequest, SMB2CreateResponse, \
+    SMB2CloseRequest, SMB2CloseResponse
+
 log = logging.getLogger(__name__)
 
 
@@ -22,6 +28,26 @@ class OpenFile(object):
         # SMB 3.x+
         # A squence number stored by the client to track lease state changes
         self.lease_epoch = None
+
+    def open_file(self, tree_connect, path):
+        create = SMB2CreateRequest()
+        create['impersonation_level'] = ImpersonationLevel.Impersonation
+        create['desired_access'] = FilePipePrinterAccessMask.FILE_READ_DATA
+        create['file_attributes'] = FileAttributes.FILE_ATTRIBUTE_NORMAL
+        create['share_access'] = ShareAccess.FILE_SHARE_DELETE | \
+            ShareAccess.FILE_SHARE_READ | \
+            ShareAccess.FILE_SHARE_WRITE
+        create['create_disposition'] = CreateDisposition.FILE_OPEN
+        create['create_options'] = CreateOptions.FILE_NON_DIRECTORY_FILE
+        create['buffer_path'] = path.encode('utf-16-le')
+
+        header = tree_connect.session.connection.send(create,
+                                                      Commands.SMB2_CREATE,
+                                                      tree_connect.session,
+                                                      tree_connect)
+        response = tree_connect.session.connection.receive()
+        create_response = SMB2CreateResponse()
+        create_response.unpack(response['data'].get_value())
 
 
 class ApplicationOpenFile(object):

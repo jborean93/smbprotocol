@@ -1130,7 +1130,7 @@ class TestSMB2IOCTLRequest(object):
         assert actual['reserved'].get_value() == 0
         assert actual['ctl_code'].get_value() == \
             CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
-        assert actual['file_id'].get_value() == b"\xff" * 16
+        assert actual['file_id'].pack() == b"\xff" * 16
         assert actual['input_offset'].get_value() == 120
         assert actual['input_count'].get_value() == 4
         assert actual['max_input_response'].get_value() == 12
@@ -1226,7 +1226,7 @@ class TestSMB2IOCTLResponse(object):
         assert actual['reserved'].get_value() == 0
         assert actual['ctl_code'].get_value() == \
             CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
-        assert actual['file_id'].get_value() == b"\xff" * 16
+        assert actual['file_id'].pack() == b"\xff" * 16
         assert actual['input_offset'].get_value() == 0
         assert actual['input_count'].get_value() == 0
         assert actual['output_offset'].get_value() == 112

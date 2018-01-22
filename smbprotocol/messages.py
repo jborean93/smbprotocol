@@ -2,9 +2,9 @@ import struct
 
 from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
     FlagField, IntField, ListField, Structure, StructureField, UuidField
-from smbprotocol.constants import Capabilities, Ciphers, Commands, \
-    CreateAction, CreateDisposition, CreateOptions, CtlCode, Dialects, \
-    DirectoryAccessMask, FileFlags, FilePipePrinterAccessMask, \
+from smbprotocol.constants import Capabilities, Ciphers, CloseFlags, \
+    Commands, CreateAction, CreateContextName, CreateDisposition, \
+    CreateOptions, CtlCode, Dialects, FileAttributes, FileFlags, \
     HashAlgorithms, ImpersonationLevel, IOCTLFlags, NegotiateContextType, \
     RequestedOplockLevel, SecurityMode, SessionFlags, ShareAccess, \
     ShareCapabilities, ShareFlags, ShareType, Smb1Flags2, Smb2Flags, TreeFlags
@@ -530,7 +530,7 @@ class SMB2NegotiateResponse(Structure):
             ('server_start_time', DateTimeField()),
             ('security_buffer_offset', IntField(
                 size=2,
-                default=128,  # (header size 64) + (response size 64)
+                default=128,  # (header size 64) + (structure size 64)
             )),
             ('security_buffer_length', IntField(
                 size=2,
@@ -804,10 +804,271 @@ class SMB2CreateRequest(Structure):
             ('security_flags', IntField(size=1)),
             ('requested_oplock_level', EnumField(
                 size=1,
-                enum_type=None
+                enum_type=RequestedOplockLevel
+            )),
+            ('impersonation_level', EnumField(
+                size=4,
+                enum_type=ImpersonationLevel
+            )),
+            ('smb_create_flags', IntField(size=8)),
+            ('reserved', IntField(size=8)),
+            ('desired_access', IntField(size=4)),
+            ('file_attributes', IntField(size=4)),
+            ('share_access', FlagField(
+                size=4,
+                flag_type=ShareAccess
+            )),
+            ('create_disposition', EnumField(
+                size=4,
+                enum_type=CreateDisposition
+            )),
+            ('create_options', FlagField(
+                size=4,
+                flag_type=CreateOptions
+            )),
+            ('name_offset', IntField(
+                size=2,
+                default=120  # (header size 64) + (structure size 56)
+            )),
+            ('name_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer_path'])
+            )),
+            ('create_contexts_offset', IntField(
+                size=4,
+                default=lambda s: self._create_contexts_offset(s)
+            )),
+            ('create_contexts_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer_context'])
+            )),
+            # Technically these are all under buffer but we split it to make
+            # things easier
+            ('buffer_path', BytesField(
+                size=lambda s: s['name_length'].get_value(),
+            )),
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s)
+            )),
+            ('buffer_context', ListField(
+                size=lambda s: s['create_contexts_length'].get_value(),
+                unpack_func=lambda s, d: self._buffer_context_list(s, d)
             ))
         ])
         super(SMB2CreateRequest, self).__init__()
+
+    def _create_contexts_offset(self, structure):
+        if len(structure['buffer_context']) == 0:
+            return 0
+        else:
+            return structure['name_offset'].get_value() + \
+                   structure['padding'].get_value()
+
+    def _padding_size(self, structure):
+        # no padding is needed if there are no contexts
+        if len(structure['buffer_context']) == 0:
+            return 0
+
+        mod = structure['name_length'].get_value() % 8
+        return 0 if mod == 0 else 8 - mod
+
+    def _buffer_context_list(self, structure, data):
+        context_list = []
+        last_context = False
+        while not last_context:
+            field, data = self._parse_create_context_entry(data)
+            last_context = field['next'].get_value() == 0
+
+        return context_list
+
+    def _parse_create_context_entry(self, data):
+        create_context = SMB2CreateContextRequest()
+        create_context.unpack(data)
+        return create_context, data[len(create_context):]
+
+
+class SMB2CreateContextRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13.2 SMB2_CREATE_CONTEXT Request Values
+    Structure used in the SMB2 CREATE Request and SMB2 CREATE Response to
+    encode additional flags and attributes
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('next', IntField(size=4)),
+            ('name_offset', IntField(
+                size=2,
+                default=16
+            )),
+            ('name_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer_name'])
+            )),
+            ('reserved', IntField(size=2)),
+            ('data_offset', IntField(
+                size=2,
+                default=lambda s: self._buffer_data_offset(s)
+            )),
+            ('data_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer_data'])
+            )),
+            ('buffer_name', EnumField(
+                size=lambda s: s['name_length'].get_value(),
+                enum_type=CreateContextName
+            )),
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s)
+            )),
+            ('buffer_data', BytesField(
+                size=lambda s: s['data_length'].get_value()
+            ))
+        ])
+        super(SMB2CreateContextRequest, self).__init__()
+
+    def _buffer_data_offset(self, structure):
+        if structure['data_length'].get_value() == 0:
+            return 0
+        else:
+            return structure['name_offset'].get_value() + \
+                   len(structure['padding'])
+
+    def _padding_size(self, structure):
+        if structure['data_length'].get_value() == 0:
+            return 0
+
+        mod = structure['data_length'].get_value() % 8
+        return 0 if mod == 0 else 8 - mod
+
+
+class SMB2CreateResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14 SMB2 CREATE Response
+    The SMB2 Create Response packet is sent by the server to an SMB2 CREATE
+    Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=89
+            )),
+            ('oplock_level', EnumField(
+                size=1,
+                enum_type=RequestedOplockLevel
+            )),
+            ('flag', FlagField(
+                size=1,
+                flag_type=FileFlags
+            )),
+            ('create_action', EnumField(
+                size=4,
+                enum_type=CreateAction
+            )),
+            ('creation_time', DateTimeField()),
+            ('last_access_time', DateTimeField()),
+            ('last_write_time', DateTimeField()),
+            ('change_time', DateTimeField()),
+            ('allocation_size', IntField(size=8)),
+            ('end_of_file', IntField(size=8)),
+            ('file_attributes', FlagField(
+                size=4,
+                flag_type=FileAttributes
+            )),
+            ('reserved2', IntField(size=4)),
+            ('file_id', StructureField(
+                size=16,
+                structure_type=SMB2FileId
+            )),
+            ('create_contexts_offset', IntField(size=4)),
+            ('create_contexts_length', IntField(size=4)),
+            ('buffer', BytesField())
+        ])
+        super(SMB2CreateResponse, self).__init__()
+
+
+class SMB2FileId(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14.1 SMB2_FILEID
+    Used to represent an open to a file
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('persistent', BytesField(size=8)),
+            ('volatile', BytesField(size=8)),
+        ])
+        super(SMB2FileId, self).__init__()
+
+
+class SMB2CloseRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.15 SMB2 CLOSE Request
+    Used by the client to close an instance of a file
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=24
+            )),
+            ('flags', FlagField(
+                size=2,
+                flag_type=CloseFlags
+            )),
+            ('reserved', IntField(size=4)),
+            ('file_id', StructureField(
+                size=16,
+                structure_type=SMB2FileId
+            ))
+        ])
+        super(SMB2CloseRequest, self).__init__()
+
+
+class SMB2CloseResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.16 SMB2 CLOSE Response
+    The response of a SMB2 CLOSE Request
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=60
+            )),
+            ('flags', FlagField(
+                size=2,
+                flag_type=CloseFlags
+            )),
+            ('reserved', IntField(size=4)),
+            ('creation_time', DateTimeField()),
+            ('last_access_time', DateTimeField()),
+            ('last_write_time', DateTimeField()),
+            ('change_time', DateTimeField()),
+            ('allocation_size', IntField(size=8)),
+            ('end_of_file', IntField(size=8)),
+            ('file_attributes', FlagField(
+                size=4,
+                flag_type=FileAttributes
+            ))
+        ])
+        super(SMB2CloseResponse, self).__init__()
 
 
 class SMB2IOCTLRequest(Structure):
@@ -827,7 +1088,10 @@ class SMB2IOCTLRequest(Structure):
                 size=4,
                 enum_type=CtlCode,
             )),
-            ('file_id', BytesField(size=16)),
+            ('file_id', StructureField(
+                size=16,
+                structure_type=SMB2FileId
+            )),
             ('input_offset', IntField(
                 size=4,
                 default=lambda s: self._buffer_offset_value(s)
@@ -914,7 +1178,10 @@ class SMB2IOCTLResponse(Structure):
                 size=4,
                 enum_type=CtlCode,
             )),
-            ('file_id', BytesField(size=16)),
+            ('file_id', StructureField(
+                size=16,
+                structure_type=SMB2FileId
+            )),
             ('input_offset', IntField(size=4)),
             ('input_count', IntField(size=4)),
             ('output_offset', IntField(size=4)),
