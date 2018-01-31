@@ -4,7 +4,12 @@ import uuid
 from smbprotocol.constants import Dialects
 from smbprotocol.connection import Connection
 from smbprotocol.tree import TreeConnect
-from smbprotocol.file import OpenFile, ApplicationOpenFile
+from smbprotocol.file import OpenFile, Open
+
+from smbprotocol.constants import Commands, Dialects, NtStatus, \
+    ImpersonationLevel, \
+    FilePipePrinterAccessMask, FileAttributes, CreateDisposition, \
+    CreateAction, ShareAccess, CreateOptions
 
 log = logging.getLogger(__name__)
 
@@ -120,10 +125,23 @@ class Client(object):
         file = self.global_file_table.get(path, None)
 
         if not file:
-            file = OpenFile()
-            file.open_file(tree_connect, path)
-            # create new file
-            a = ""
+            file = Open()
+            impersonation_level = ImpersonationLevel.Impersonation
+            desired_access = FilePipePrinterAccessMask.FILE_READ_DATA | \
+                FilePipePrinterAccessMask.FILE_WRITE_DATA
+            file_attributes = FileAttributes.FILE_ATTRIBUTE_NORMAL
+            share_access = ShareAccess.FILE_SHARE_DELETE | \
+                ShareAccess.FILE_SHARE_READ | \
+                ShareAccess.FILE_SHARE_WRITE
+            create_disposition = CreateDisposition.FILE_OPEN
+            create_options = CreateOptions.FILE_NON_DIRECTORY_FILE
+
+            file.open(tree_connect, path, impersonation_level, desired_access,
+                      file_attributes, share_access, create_disposition,
+                      create_options)
+            self.global_file_table[path] = file
+
+        return file
 
     def open_directory(self):
         pass

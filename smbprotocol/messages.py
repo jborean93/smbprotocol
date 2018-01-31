@@ -6,8 +6,9 @@ from smbprotocol.constants import Capabilities, Ciphers, CloseFlags, \
     Commands, CreateAction, CreateContextName, CreateDisposition, \
     CreateOptions, CtlCode, Dialects, FileAttributes, FileFlags, \
     HashAlgorithms, ImpersonationLevel, IOCTLFlags, NegotiateContextType, \
-    RequestedOplockLevel, SecurityMode, SessionFlags, ShareAccess, \
-    ShareCapabilities, ShareFlags, ShareType, Smb1Flags2, Smb2Flags, TreeFlags
+    ReadFlags, ReadWriteChannel, RequestedOplockLevel, SecurityMode, \
+    SessionFlags, ShareAccess, ShareCapabilities, ShareFlags, ShareType, \
+    Smb1Flags2, Smb2Flags, TreeFlags, WriteFlags
 
 try:
     from collections import OrderedDict
@@ -1069,6 +1070,226 @@ class SMB2CloseResponse(Structure):
             ))
         ])
         super(SMB2CloseResponse, self).__init__()
+
+
+class SMB2FlushRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.17 SMB2 FLUSH Request
+    Flush all cached file information for a specified open of a file to the
+    persistent store that backs the file.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=24
+            )),
+            ('reserved1', IntField(size=2)),
+            ('reserved2', IntField(size=4)),
+            ('file_id', StructureField(
+                structure_type=SMB2FileId
+            ))
+        ])
+        super(SMB2FlushRequest, self).__init__()
+
+
+class SMB2FlushResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.18 SMB2 FLUSH Response
+    SMB2 FLUSH Response packet sent by the server.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2FlushResponse, self).__init__()
+
+
+class SMB2ReadRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.19 SMB2 READ Request
+    The request is used to run a read operation on the file specified.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=49
+            )),
+            ('padding', IntField(size=1)),
+            ('flags', FlagField(
+                size=1,
+                flag_type=ReadFlags
+            )),
+            ('length', IntField(
+                size=4
+            )),
+            ('offset', IntField(
+                size=8
+            )),
+            ('file_id', StructureField(
+                structure_type=SMB2FileId
+            )),
+            ('minimum_count', IntField(
+                size=4
+            )),
+            ('channel', FlagField(
+                size=4,
+                flag_type=ReadWriteChannel
+            )),
+            ('remaining_bytes', IntField(size=4)),
+            ('read_channel_info_offset', IntField(
+                size=2,
+                default=lambda s: self._get_read_channel_info_offset(s)
+            )),
+            ('read_channel_info_length', IntField(
+                size=2,
+                default=lambda s: self._get_read_channel_info_length(s)
+            )),
+            ('buffer', BytesField(
+                size=lambda s: self._get_buffer_length(s),
+                default=b"\x00"
+            ))
+        ])
+        super(SMB2ReadRequest, self).__init__()
+
+    def _get_read_channel_info_offset(self, structure):
+        if structure['channel'].has_flag(ReadWriteChannel.SMB2_CHANNEL_NONE):
+            return 0
+        else:
+            return 64 + structure['structure_size'].get_value()
+
+    def _get_read_channel_info_length(self, structure):
+        if structure['channel'].has_flag(ReadWriteChannel.SMB2_CHANNEL_NONE):
+            return 0
+        else:
+            return len(structure['buffer'].get_value())
+
+    def _get_buffer_length(self, structure):
+        # buffer should contain 1 byte of \x00 and not be empty
+        if structure['channel'].has_flag(ReadWriteChannel.SMB2_CHANNEL_NONE):
+            return 1
+        else:
+            return structure['read_channel_info_length'].get_value()
+
+
+class SMB2ReadResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.20 SMB2 READ Response
+    Response to an SMB2 READ Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=17
+            )),
+            ('data_offset', IntField(size=1)),
+            ('reserved', IntField(size=1)),
+            ('data_length', IntField(size=4)),
+            ('data_remaining', IntField(size=4)),
+            ('reserved2', IntField(size=4)),
+            ('buffer', BytesField())
+        ])
+        super(SMB2ReadResponse, self).__init__()
+
+
+class SMB2WriteRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.21 SMB2 WRITE Request
+    A write packet to sent to an open file or named pipe on the server
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=49
+            )),
+            ('data_offset', IntField(size=2)),
+            ('length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer'])
+            )),
+            ('offset', IntField(size=8)),
+            ('file_id', StructureField(
+                structure_type=SMB2FileId
+            )),
+            ('channel', FlagField(
+                size=4,
+                flag_type=ReadWriteChannel
+            )),
+            ('remaining_bytes', IntField(size=4)),
+            ('write_channel_info_offset', IntField(
+                size=2,
+                default=lambda s: self._get_write_Channel_info_offset(s)
+            )),
+            ('write_channel_info_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer_channel_info'])
+            )),
+            ('flags', FlagField(
+                size=4,
+                flag_type=WriteFlags
+            )),
+            ('buffer', BytesField(
+                size=lambda s: s['length'].get_value()
+            )),
+            ('buffer_channel_info', BytesField(
+                size=lambda s: s['write_channel_info_length'].get_value()
+            ))
+        ])
+        super(SMB2WriteRequest, self).__init__()
+
+    def _get_write_Channel_info_offset(self, structure):
+        if len(structure['buffer_channel_info']) == 0:
+            return 0
+        else:
+            header_size = 64
+            packet_size = structure['structure_size'].get_value()
+            buffer_size = len(structure['buffer'])
+            return header_size + packet_size + buffer_size
+
+
+class SMB2WriteResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.22 SMB2 WRITE Response
+    The response to the SMB2 WRITE Request sent by the server
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=17
+            )),
+            ('reserved', IntField(size=2)),
+            ('count', IntField(size=4)),
+            ('remaining', IntField(size=4)),
+            ('write_channel_info_offset', IntField(size=2)),
+            ('write_channel_info_length', IntField(size=2))
+        ])
+        super(SMB2WriteResponse, self).__init__()
 
 
 class SMB2IOCTLRequest(Structure):

@@ -456,6 +456,39 @@ class CloseFlags(object):
     SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB = 0x01
 
 
+class ReadFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.19 SMB2 READ Request Flags
+    Read flags for SMB 3.0.2 and newer dialects
+    """
+    SMB2_READFLAG_READ_UNBUFFERED = 0x01
+
+
+class ReadWriteChannel(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.19/21 SMB2 READ/Write Request Channel
+    Channel information for an SMB2 READ Request message
+    """
+    SMB2_CHANNEL_NONE = 0x0
+    SMB2_CHANNEL_RDMA_V1 = 0x1
+    SMB2_CHANNEL_RDMA_V1_INVALIDATE = 0x2
+
+
+class WriteFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.21 SMB2 WRITE Request Flags
+    Flags to indicate how to process the operation
+    """
+    SMB2_WRITEFLAG_WRITE_THROUGH = 0x1
+    SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x2
+
+
 class CtlCode(object):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -501,6 +534,7 @@ class NtStatus(object):
     """
     STATUS_SUCCESS = 0x00000000
     STATUS_INVALID_PARAMETER = 0xC000000D
+    STATUS_END_OF_FILE = 0xC0000011
     STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
     STATUS_ACCESS_DENIED = 0xC0000022
     STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
@@ -511,4 +545,5 @@ class NtStatus(object):
     STATUS_BAD_NETWORK_NAME = 0xC00000CC
     STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
     STATUS_NOT_A_DIRECTORY = 0xC0000103
+    STATUS_FILE_CLOSED = 0xC0000128
     STATUS_USER_SESSION_DELETED = 0xC0000203
