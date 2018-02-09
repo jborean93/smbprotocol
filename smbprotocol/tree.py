@@ -1,24 +1,25 @@
 import logging
 
+from smbprotocol.constants import Commands, Dialects, ShareCapabilities, \
+    ShareFlags, IOCTLFlags, CtlCode
 from smbprotocol.messages import SMB2TreeConnectRequest, \
     SMB2TreeConnectResponse, SMB2IOCTLRequest, SMB2IOCTLResponse, \
-    SMB2ValidateNegotiateInfoRequest, SMB2ValidateNegotiateInfoResponse
-from smbprotocol.constants import Commands, Dialects, ShareCapabilities,\
-    ShareFlags, IOCTLFlags, CtlCode, NtStatus
+    SMB2ValidateNegotiateInfoRequest, SMB2ValidateNegotiateInfoResponse, \
+    SMB2TreeDisconnect
 
 log = logging.getLogger(__name__)
 
 
 class TreeConnect(object):
 
-    def __init__(self, session):
+    def __init__(self, session, share_name):
         """
         [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.4 Per Tree Connect
         Attributes per Tree Connect (share connections)
         """
-        self.share_name = None
+        self.share_name = share_name
         self.tree_connect_id = None
         self.session = session
         self.is_dfs_share = None
@@ -28,10 +29,10 @@ class TreeConnect(object):
         self.encrypt_data = None
         self.is_scaleout_share = None
 
-    def connect(self, share_name, require_secure_negotiate=True):
+    def connect(self, require_secure_negotiate=True):
         log.info("Session: %d - Creating connection to share %s"
-                 % (self.session.session_id, share_name))
-        utf_share_name = share_name.encode('utf-16-le')
+                 % (self.session.session_id, self.share_name))
+        utf_share_name = self.share_name.encode('utf-16-le')
         connect = SMB2TreeConnectRequest()
         connect['buffer'] = utf_share_name
 
@@ -73,8 +74,27 @@ class TreeConnect(object):
             self.is_scaleout_share = capabilities.has_flag(
                 ShareCapabilities.SMB2_SHARE_CAP_SCALEOUT)
 
+            # secure negotiate is only valid for SMB 3 dialects before 3.1.1
             if dialect < Dialects.SMB_3_1_1 and require_secure_negotiate:
                 self._verify_dialect_negotiate()
+
+    def disconnect(self):
+        log_header = "Session: %d, Tree: %d"\
+                     % (self.session.session_id, self.tree_connect_id)
+        log.info("%s - Disconnecting from Tree Connect %s"
+                 % (log_header, self.share_name))
+
+        req = SMB2TreeDisconnect()
+        log.info("%s - Sending Tree Disconnect message")
+        log.debug(str(req))
+        header = self.session.connection.send(req,
+                                              Commands.SMB2_TREE_DISCONNECT,
+                                              self.session, self)
+        log.info("%s - Receiving Tree Disconnect response")
+        res = self.session.connection.receive(header['message_id'].get_value())
+        res_disconnect = SMB2TreeDisconnect()
+        res_disconnect.unpack(res['data'].get_value())
+        log.debug(str(res_disconnect))
 
     def _verify_dialect_negotiate(self):
         log_header = "Session: %d, Tree: %d"\
@@ -100,19 +120,20 @@ class TreeConnect(object):
         log.info("%s - Sending Secure Negotiate Validation message"
                  % log_header)
         log.debug(str(ioctl_request))
-        log.debug(str(val_neg))
         header = self.session.connection.send(ioctl_request,
                                               Commands.SMB2_IOCTL,
                                               self.session,
                                               self)
+
+        log.info("%s - Receiving secure negotiation response" % log_header)
         response = self.session.connection.receive(
             header['message_id'].get_value()
         )
-        log.info("%s - Receiving secure negotiation response" % log_header)
-
         ioctl_resp = SMB2IOCTLResponse()
         ioctl_resp.unpack(response['data'].get_value())
         log.debug(str(ioctl_resp))
+
+        log.info("%s - Unpacking secure negotiate response info" % log_header)
         val_resp = SMB2ValidateNegotiateInfoResponse()
         val_resp.unpack(ioctl_resp['buffer'].get_value())
         log.debug(str(val_resp))

@@ -1,11 +1,12 @@
-import pytest
 import uuid
-
 from datetime import datetime
+
+import pytest
+
 from smbprotocol.constants import Commands, Ciphers, CtlCode, Dialects, \
     HashAlgorithms, IOCTLFlags, NegotiateContextType, SecurityMode, Smb1Flags2
 from smbprotocol.messages import DirectTCPPacket, SMB1NegotiateRequest, \
-    SMB1PacketHeader, SMB2EncryptionCapabilities, SMB2ErrorContextResponse, \
+    SMB1PacketHeader, SMB2EncryptionCapabilities, \
     SMB2ErrorResponse, SMB2IOCTLRequest, SMB2IOCTLResponse, SMB2Logoff, \
     SMB2NegotiateContextRequest, SMB2NegotiateRequest, SMB2NegotiateResponse, \
     SMB2PacketHeader, SMB2PreauthIntegrityCapabilities, \
@@ -156,6 +157,7 @@ class TestSMB2PacketHeader(object):
                    b"\x00\x00\x00\x00\x00\x00\x00\x00"
         actual = header.pack()
         assert len(header) == 64
+        print(str(header))
         assert actual == expected
 
     def test_parse_message(self):

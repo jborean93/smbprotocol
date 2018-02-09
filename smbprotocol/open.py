@@ -10,30 +10,9 @@ from smbprotocol.messages import SMB2CreateRequest, SMB2CreateResponse, \
 log = logging.getLogger(__name__)
 
 
-class OpenFile(object):
-
-    def __init__(self):
-        """
-        [MS-SMB2] v53.0 2017-09-15
-
-        3.2.1.5 Per Open File
-        For SMB 2.1+, for each opened file (distinguished by name), attributes
-        for that open object
-        """
-        # Table of Opens to this file
-        self.open_table = {}
-
-        self.lease_key = None
-        self.lease_state = None
-
-        # SMB 3.x+
-        # A squence number stored by the client to track lease state changes
-        self.lease_epoch = None
-
-
 class Open(object):
 
-    def __init__(self):
+    def __init__(self, tree, name):
         """
         ﻿[MS-SMB2] v53.0 2017-09-15
 
@@ -52,11 +31,11 @@ class Open(object):
 
         # properties used privately
         self.file_id = None
-        self.tree_connect = None
-        self.connection = None
+        self.tree_connect = tree
+        self.connection = tree.session.connection
         self.oplock_level = None
         self.durable = None
-        self.file_name = None
+        self.file_name = name
         self.resilient_handle = None
         self.last_disconnect_time = None
         self.resilient_timeout = None
@@ -82,12 +61,11 @@ class Open(object):
         self.file_attributes = None
         self.create_disposition = None
 
-    def open(self, tree_connect, file_name, impersonation_level,
-             desired_access, file_attributes, share_access, create_disposition,
-             create_options):
+    def open(self, impersonation_level, desired_access, file_attributes,
+             share_access, create_disposition, create_options):
         log_header = "Session: %s, Tree Connect ID: %s" \
-                     % (tree_connect.session.session_id,
-                        tree_connect.tree_connect_id)
+                     % (self.tree_connect.session.session_id,
+                        self.tree_connect.tree_connect_id)
 
         create = SMB2CreateRequest()
         create['impersonation_level'] = impersonation_level
@@ -96,32 +74,26 @@ class Open(object):
         create['share_access'] = share_access
         create['create_disposition'] = create_disposition
         create['create_options'] = create_options
-        create['buffer_path'] = file_name.encode('utf-16-le')
+        create['buffer_path'] = self.file_name.encode('utf-16-le')
 
         log.info("%s - sending SMB2 Create Request for file %s"
-                 % (log_header, file_name))
+                 % (log_header, self.file_name))
         log.debug(str(create))
-        header = tree_connect.session.connection.send(create,
-                                                      Commands.SMB2_CREATE,
-                                                      tree_connect.session,
-                                                      tree_connect)
+        header = self.connection.send(create, Commands.SMB2_CREATE,
+                                      self.tree_connect.session,
+                                      self.tree_connect)
 
         log.info("%s - receiving SMB2 Create Response" % log_header)
-        response = tree_connect.session.connection.receive(
-            header['message_id'].get_value()
-        )
+        response = self.connection.receive(header['message_id'].get_value())
         create_response = SMB2CreateResponse()
         create_response.unpack(response['data'].get_value())
         log.debug(str(create_response))
 
         self.file_id = create_response['file_id'].get_value()
-        self.tree_connect = tree_connect
-        self.connection = tree_connect.session.connection
         self.oplock_level = create_response['oplock_level'].get_value()
         self.durable = False
         self.resilient_handle = False
         self.last_disconnect_time = 0
-        self.file_name = file_name
 
         if self.connection.dialect >= Dialects.SMB_3_0_0:
             self.desired_access = desired_access

@@ -3,11 +3,12 @@ import struct
 import textwrap
 import types
 import uuid
-
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 from datetime import datetime, timedelta
+
 from six import with_metaclass, integer_types
+
 from smbprotocol.exceptions import InvalidFieldDefinition
 
 TAB = "    "  # Instead of displaying a tab on the print, use 4 spaces

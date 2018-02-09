@@ -1,11 +1,11 @@
 from pyasn1.type.char import GeneralString
 from pyasn1.type.constraint import SingleValueConstraint
-from pyasn1.type.univ import BitString, Choice, Enumerated, ObjectIdentifier, \
-    OctetString, Sequence, SequenceOf
 from pyasn1.type.namedtype import NamedType, NamedTypes, OptionalNamedType
 from pyasn1.type.namedval import NamedValues
 from pyasn1.type.tag import Tag, tagClassApplication, tagClassContext, \
     tagFormatConstructed, tagFormatSimple, TagSet
+from pyasn1.type.univ import BitString, Choice, Enumerated, ObjectIdentifier, \
+    OctetString, Sequence, SequenceOf
 
 
 class MechTypes(object):

@@ -1,35 +1,34 @@
 import copy
-import logging
 import hashlib
 import hmac
+import logging
 import os
+from datetime import datetime
+from multiprocessing.dummy import Lock
+from queue import Empty
 
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
-from cryptography.hazmat.backends import default_backend
-from datetime import datetime
-from queue import Empty
-from multiprocessing.dummy import Lock
 
 from smbprotocol.constants import Capabilities, Ciphers, Commands, Dialects, \
     HashAlgorithms, NegotiateContextType, NtStatus, SecurityMode, Smb1Flags2, \
     Smb2Flags
+from smbprotocol.exceptions import SMBResponseException
 from smbprotocol.messages import SMB2PacketHeader, SMB3PacketHeader, \
     SMB3NegotiateRequest, \
     SMB2PreauthIntegrityCapabilities, SMB2NegotiateContextRequest, \
     SMB1PacketHeader, SMB1NegotiateRequest, SMB2NegotiateResponse, \
     SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
     SMB2TransformHeader
-from smbprotocol.session import Session
-from smbprotocol.transport.direct_tcp import Tcp
-from smbprotocol.exceptions import SMBResponseException
+from smbprotocol.transport import Tcp
 
 log = logging.getLogger(__name__)
 
 
 class Connection(object):
 
-    def __init__(self, guid, signing_required, server_name, port):
+    def __init__(self, guid, server_name, port, require_signing=True):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -39,13 +38,13 @@ class Connection(object):
         self.server
 
         :param guid: The client guid generated in Client
-        :param signing_required: Whether signing is required on SMB messages
         :param server_name: The server to start the connection
         :param port: The port to use for the transport
+        :param require_signing: Whether signing is required on SMB messages
         """
-        log.info("Initialising connection, guid: %s, signing_required: %s, "
+        log.info("Initialising connection, guid: %s, require_singing: %s, "
                  "server_name: %s, port: %d"
-                 % (guid, signing_required, server_name, port))
+                 % (guid, require_signing, server_name, port))
         self.server_name = server_name
         self.port = port
         self.transport = Tcp(server_name, port)
@@ -93,7 +92,7 @@ class Connection(object):
         self.client_capabilities = Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
         self.client_security_mode = \
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED if \
-            signing_required else SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            require_signing else SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
         self.server_security_mode = None
         self.server_capabilities = None
 
@@ -108,33 +107,23 @@ class Connection(object):
         # The cipher object that was negotiated
         self.cipher_id = None
 
-        # used to ensure sequence num/message id's are gathered in the same
-        # order
+        # used to ensure sequence num/message id's are gathered/sent in the
+        # same order if running in multiple threads
         self.lock = Lock()
 
-    def connect(self):
+    def connect(self, dialect=None):
         """
         [MS-SMB2] v53.0 2017-09-15
 
         3.2.4.2.1 Connecting to the Target Server
-        Will connect to the target server using the connection specified.
+        Will connect to the target server using the connection specified. Once
+        connected will negotiate that capabilities with the SMB service, it
+        does this by sending an SMB1 negotiate message then finally an SMB2
+        negotiate message.
         """
         log.info("Setting up transport connection")
         self.transport.connect()
 
-    def disconnect(self):
-        log.info("Disconnecting transport connection")
-        self.transport.disconnect()
-
-    def negotiate(self, dialect=None):
-        """
-        [MS-SMB2] v53.0 2017-09-15
-
-        3.2.4.2.2 Negotiating the Protocol
-        Will negotiate the capabilities with the server, it does this by
-        sending an SMB1 negotiate message then finally an SMB2 negotiate
-        message.
-        """
         log.info("Starting negotiation with SMB server")
         smb_response = self._send_smb1_negotiate(dialect)
 
@@ -195,20 +184,15 @@ class Connection(object):
                     self.preauth_integrity_hash_id = \
                         HashAlgorithms.get_algorithm(hash_id)
 
-    def create_session(self, username, password):
-        session = Session(self, username, password)
-        session.authenticate()
+    def disconnect(self):
+        log.info("Disconnecting transport connection")
+        self.transport.disconnect()
 
-        return session
-
-    def send(self, message, command, session=None, tree=None, sock=None):
+    def send(self, message, command, session=None, tree=None):
         """
         Sends a message
         :return:
         """
-        if not sock:
-            sock = self.transport
-
         if command == Commands.SMB2_NEGOTIATE:
             header = SMB2PacketHeader()
         elif self.dialect < Dialects.SMB_3_0_0:
@@ -217,7 +201,6 @@ class Connection(object):
             header = SMB3PacketHeader()
 
         header['command'] = command
-        header['data'] = message
         header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_PRIORITY_MASK)
 
         if session:
@@ -235,6 +218,11 @@ class Connection(object):
             self._increment_sequence_windows(1)
 
         header['message_id'] = message_id
+        log.info("Sending SMB Header for %s request" % str(header['command']))
+        log.debug(str(header))
+
+        # now add the actual data so we don't pollute the logs too much
+        header['data'] = message
 
         if session and session.encrypt_data and session.encryption_key:
             header = self._encrypt(header, session)
@@ -243,7 +231,7 @@ class Connection(object):
 
         request = Request(header)
         self.outstanding_requests[message_id] = request
-        sock.send(request)
+        self.transport.send(request)
         self.lock.release()
 
         return header

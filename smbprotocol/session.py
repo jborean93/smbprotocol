@@ -1,20 +1,20 @@
 import base64
 import logging
 
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.kbkdf import CounterLocation, \
     KBKDFHMAC, Mode
-from cryptography.hazmat.backends import default_backend
 from ntlm_auth.ntlm import Ntlm
 from pyasn1.codec.der import decoder
 
-from smbprotocol.messages import SMB2SessionSetupRequest, \
-    SMB2SessionSetupResponse
 from smbprotocol.constants import Commands, Dialects, NtStatus, SessionFlags, \
     Smb2Flags
+from smbprotocol.exceptions import SMBResponseException
+from smbprotocol.messages import SMB2SessionSetupRequest, \
+    SMB2SessionSetupResponse
 from smbprotocol.spnego import InitialContextToken, MechTypes, ObjectIdentifier
 from smbprotocol.structure import _bytes_to_hex
-from smbprotocol.exceptions import SMBResponseException
 
 HAVE_SSPI = False  # TODO: add support for Windows and SSPI
 HAVE_GSSAPI = False
@@ -31,7 +31,8 @@ log = logging.getLogger(__name__)
 
 class Session(object):
 
-    def __init__(self, connection, username, password, must_encrypt=False):
+    def __init__(self, connection, username, password,
+                 require_encryption=False):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -40,7 +41,7 @@ class Session(object):
         """
         log.info("Initialising session with username: %s" % username)
         self.session_id = None
-        self.must_encrypt = must_encrypt
+        self.require_encryption = require_encryption
 
         # Table of tree connection, lookup by TreeConnect.tree_connect_id and
         # by share_name
@@ -78,7 +79,7 @@ class Session(object):
         self.preauth_integrity_hash_value = \
             connection.preauth_integrity_hash_value
 
-    def authenticate(self):
+    def connect(self):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
         token, rdata = decoder.decode(self.connection.gss_negotiate_token,
                                       asn1Spec=InitialContextToken())
@@ -102,7 +103,7 @@ class Session(object):
 
             log.info("Attempting auth with mech %s" % mech_key)
             try:
-                response, session_key = self._setup_session(mech)
+                response, session_key = self._authenticate_session(mech)
                 break
             except Exception as exc:
                 log.warning("Failed auth for mech %s: %s"
@@ -172,7 +173,7 @@ class Session(object):
         if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA):
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
-        elif self.must_encrypt:
+        elif self.require_encryption:
             self.encrypt_data = True
             self.signing_required = False
         else:
@@ -182,7 +183,7 @@ class Session(object):
                  "successful")
         self.connection._verify(response, True)
 
-    def _setup_session(self, mech):
+    def _authenticate_session(self, mech):
         if mech in [MechTypes.KRB5, MechTypes.MS_KRB5] and HAVE_GSSAPI:
             context = GSSAPIContext(username=self.username,
                                     password=self.password,
@@ -383,16 +384,3 @@ class GSSAPIContext(object):
 
         log.info("GSSAPI: Acquired credentials for user %s" % str(user))
         return creds
-
-
-class Channel(object):
-
-    def __init__(self):
-        """
-        [MS-SMB2] v53.0 2017-09-15
-
-        3.2.1.8 Per Channel
-        If SMB 3.x+ is used, attributes per channel
-        """
-        self.signing_key = None
-        self.connection = None
