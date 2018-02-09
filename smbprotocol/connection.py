@@ -8,6 +8,8 @@ from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime
+from queue import Empty
+from multiprocessing.dummy import Lock
 
 from smbprotocol.constants import Capabilities, Ciphers, Commands, Dialects, \
     HashAlgorithms, NegotiateContextType, NtStatus, SecurityMode, Smb1Flags2, \
@@ -16,10 +18,11 @@ from smbprotocol.messages import SMB2PacketHeader, SMB3PacketHeader, \
     SMB3NegotiateRequest, \
     SMB2PreauthIntegrityCapabilities, SMB2NegotiateContextRequest, \
     SMB1PacketHeader, SMB1NegotiateRequest, SMB2NegotiateResponse, \
-    SMB2ErrorResponse, SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
+    SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
     SMB2TransformHeader
 from smbprotocol.session import Session
-from smbprotocol.transport.direct_tcp import DirectTcp
+from smbprotocol.transport.direct_tcp import Tcp
+from smbprotocol.exceptions import SMBResponseException
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ class Connection(object):
                  % (guid, signing_required, server_name, port))
         self.server_name = server_name
         self.port = port
-        self.transport = DirectTcp(server_name, port)
+        self.transport = Tcp(server_name, port)
 
         # Table of Session entries
         self.session_table = {}
@@ -54,15 +57,15 @@ class Connection(object):
         # session_id
         self.preauth_session_table = {}
 
-        # Table of Requests awaiting a response, indexed by Request.cancel_id
-        # and message_id
-        self.outstanding_requests = {}
+        # Table of Requests that have yet to be picked up by the application,
+        # it MAY contain a response from the server as well
+        self.outstanding_requests = dict()
 
         # Table of available sequence numbers
-        self.sequence_window = {
-            'low': 0,
-            'high': 0
-        }
+        self.sequence_window = dict(
+            low=0,
+            high=0
+        )
 
         # Byte array containing the negotiate token and remembered for
         # authentication
@@ -105,6 +108,10 @@ class Connection(object):
         # The cipher object that was negotiated
         self.cipher_id = None
 
+        # used to ensure sequence num/message id's are gathered in the same
+        # order
+        self.lock = Lock()
+
     def connect(self):
         """
         [MS-SMB2] v53.0 2017-09-15
@@ -114,6 +121,10 @@ class Connection(object):
         """
         log.info("Setting up transport connection")
         self.transport.connect()
+
+    def disconnect(self):
+        log.info("Disconnecting transport connection")
+        self.transport.disconnect()
 
     def negotiate(self, dialect=None):
         """
@@ -190,11 +201,14 @@ class Connection(object):
 
         return session
 
-    def send(self, message, command, session=None, tree=None):
+    def send(self, message, command, session=None, tree=None, sock=None):
         """
         Sends a message
         :return:
         """
+        if not sock:
+            sock = self.transport
+
         if command == Commands.SMB2_NEGOTIATE:
             header = SMB2PacketHeader()
         elif self.dialect < Dialects.SMB_3_0_0:
@@ -204,12 +218,16 @@ class Connection(object):
 
         header['command'] = command
         header['data'] = message
+        header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_PRIORITY_MASK)
 
         if session:
             header['session_id'] = session.session_id
         if tree:
             header['tree_id'] = tree.tree_connect_id
 
+        # when run in a thread or subprocess, getting the message id and
+        # sending the messages in order are important
+        self.lock.acquire()
         # TODO: pass through the message id to cancel
         message_id = 0
         if command != Commands.SMB2_CANCEL:
@@ -223,33 +241,81 @@ class Connection(object):
         elif session and session.signing_required and session.signing_key:
             self._sign(header, session)
 
-        request = PendingRequest(header)
+        request = Request(header)
         self.outstanding_requests[message_id] = request
-        self.transport.send(request)
+        sock.send(request)
+        self.lock.release()
+
         return header
 
-    def receive(self, expected_status=list([NtStatus.STATUS_SUCCESS])):
+    def receive(self, message_id):
         """
         # 3.2.5.1 - Receiving Any Message
         :return:
         """
-        message = self.transport.recv()
-        if self.dialect is None or self.dialect < Dialects.SMB_3_0_0 or \
-                message[:4] != b"\xfdSMB":
-            header = SMB2PacketHeader()
-            header.unpack(message)
+        request = self.outstanding_requests.get(message_id, None)
+        if not request:
+            raise Exception("No request with the ID %d is expecting a response"
+                            % message_id)
+
+        # check if we have received a response
+        response = None
+        if request.response:
+            response = request.response
         else:
-            header = self._decrypt(message)
-        self._verify(header)
+            # otherwise wait until we receive a response
+            while not response:
+                self._flush_message_buffer()
+                request = self.outstanding_requests[message_id]
+                response = request.response
 
-        if header['status'].get_value() not in expected_status:
-            error_message = self._parse_error(header)
-            raise Exception("Unexpected status returned from the server: %s"
-                            % error_message)
+        status = response['status'].get_value()
 
-        del self.outstanding_requests[header['message_id'].get_value()]
+        if status == NtStatus.STATUS_PENDING:
+            request.response = None
+            self.outstanding_requests[message_id] = request
 
-        return header
+        if status != NtStatus.STATUS_SUCCESS:
+            raise SMBResponseException(response, status, message_id)
+
+        # now we have a retrieval request for the response, we can delete the
+        # request from the outstanding requests
+        del self.outstanding_requests[message_id]
+
+        return response
+
+    def _flush_message_buffer(self):
+        """
+        Loops through the transport message_buffer until there are no messages
+        left in the queue. Each response is assigned to the Request object
+        based on the message_id which are then available in
+        self.outstanding_requests
+        :return: None
+        """
+        while True:
+            try:
+                message = self.transport.message_buffer.get(block=False)
+            except Empty:
+                # raises Empty if wait=False and there are no messages, in this
+                # case we have nothing to parse and so break from the loop
+                break
+
+            # if bytes then it is an unknown message, if TransformHeader we
+            # need to decrypt it
+            if isinstance(message, bytes):
+                raise Exception("Invalid header '%s' received from server"
+                                % message[:4])
+            elif isinstance(message, SMB2TransformHeader):
+                message = self._decrypt(message)
+            self._verify(message)
+
+            message_id = message['message_id'].get_value()
+            request = self.outstanding_requests.get(message_id, None)
+            if not request:
+                raise Exception("Received request with an unknown message ID: "
+                                "%d" % message_id)
+            request.response = message
+            self.outstanding_requests[message_id] = request
 
     def _sign(self, message, session):
         message['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
@@ -346,14 +412,11 @@ class Connection(object):
         :param message: The message to decrypt
         :return: The decrypted message including the header
         """
-        header = SMB2TransformHeader()
-        header.unpack(message)
-
-        if header['flags'].get_value() != 0x0001:
+        if message['flags'].get_value() != 0x0001:
             raise Exception("Expecting flag of 0x0001 in SMB Transform Header "
                             "Response")
 
-        session_id = header['session_id'].get_value()
+        session_id = message['session_id'].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
             raise Exception("Failed to find session %s for message decryption"
@@ -365,18 +428,18 @@ class Connection(object):
             cipher = Ciphers.get_cipher(Ciphers.AES_128_CCM)
 
         if cipher == aead.AESGCM:
-            nonce = header['nonce'].get_value()[:12]
+            nonce = message['nonce'].get_value()[:12]
         else:
-            nonce = header['nonce'].get_value()[:11]
+            nonce = message['nonce'].get_value()[:11]
 
-        signature = header['signature'].get_value()
-        enc_message = header['data'].get_value() + signature
+        signature = message['signature'].get_value()
+        enc_message = message['data'].get_value() + signature
 
         c = cipher(session.decryption_key)
-        decrypted_message = c.decrypt(nonce, enc_message, header.pack()[20:52])
+        dec_message = c.decrypt(nonce, enc_message, message.pack()[20:52])
 
         packet = SMB2PacketHeader()
-        packet.unpack(decrypted_message)
+        packet.unpack(dec_message)
 
         return packet
 
@@ -392,21 +455,19 @@ class Connection(object):
         if dialect != Dialects.SMB_2_0_2:
             dialects += b"\x02SMB 2.???\x00"
         header['data']['dialects'] = dialects
-        request = PendingRequest(header)
+        request = Request(header)
 
         log.info("Sending SMB1 Negotiate message with dialects: %s" % dialects)
         log.debug(str(header))
         self.transport.send(request)
 
         self._increment_sequence_windows(1)
-        response = self.transport.recv()
+        response = self.transport.message_buffer.get(block=True)
         log.info("Receiving SMB1 Negotiate response")
-        header = SMB2PacketHeader()
-        header.unpack(response)
-        log.debug(str(header))
+        log.debug(str(response))
         smb_response = SMB2NegotiateResponse()
         try:
-            smb_response.unpack(header['data'].get_value())
+            smb_response.unpack(response['data'].get_value())
         except Exception as exc:
             raise Exception("Expecting SMB2NegotiateResponse message type in "
                             "response but could not unpack data: %s"
@@ -489,7 +550,7 @@ class Connection(object):
         header = self.send(neg_req, Commands.SMB2_NEGOTIATE)
         self.preauth_integrity_hash_value.append(header)
 
-        response = self.receive()
+        response = self.receive(header['message_id'].get_value())
         log.info("Receiving SMB2 Negotiate response")
         log.debug(str(response))
         self.preauth_integrity_hash_value.append(response)
@@ -499,30 +560,13 @@ class Connection(object):
 
         return smb_response
 
-    def _increment_sequence_windows(self, credits):
-        self.sequence_window['low'] = self.sequence_window['high'] + credits
-        self.sequence_window['high'] += credits
-
-    def _parse_error(self, data):
-        error_code = data['status'].value
-        error_message = "UNKNOWN"
-        for msg, code in vars(NtStatus).items():
-            if code == error_code:
-                error_message = msg
-                break
-        error_message = "%s: %s" % (error_message, hex(error_code))
-
-        error = SMB2ErrorResponse()
-        error.unpack(data['data'].value)
-        byte_count = error['byte_count'].value
-        if byte_count != 0:
-            # TODO: add code to handle this
-            # error_data countains an array of these many entries
-            a = ""
-        return error_message
+    def _increment_sequence_windows(self, credit_charge):
+        high_value = self.sequence_window['high']
+        self.sequence_window['low'] = high_value + credit_charge
+        self.sequence_window['high'] = high_value + credit_charge
 
 
-class PendingRequest(object):
+class Request(object):
 
     def __init__(self, message):
         """
@@ -536,3 +580,8 @@ class PendingRequest(object):
         self.async_id = os.urandom(8)
         self.message = message
         self.timestamp = datetime.now()
+
+        # not in SMB spec
+        # Used to contain the corresponding response from the server as the
+        # receiving in done in parallel
+        self.response = None

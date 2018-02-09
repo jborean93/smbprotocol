@@ -1,10 +1,8 @@
 import logging
 
-from smbprotocol.constants import Commands, Dialects, NtStatus, \
-    ImpersonationLevel, \
-    FilePipePrinterAccessMask, FileAttributes, CreateDisposition, \
-    CreateAction, ShareAccess, CreateOptions, CloseFlags, ReadFlags, \
-    ReadWriteChannel, WriteFlags
+from smbprotocol.constants import Commands, Dialects, NtStatus, CloseFlags, \
+    ReadFlags, WriteFlags
+from smbprotocol.exceptions import SMBResponseException
 from smbprotocol.messages import SMB2CreateRequest, SMB2CreateResponse, \
     SMB2CloseRequest, SMB2CloseResponse, SMB2ReadRequest, SMB2ReadResponse, \
     SMB2WriteRequest, SMB2WriteResponse, SMB2FlushRequest, SMB2FlushResponse
@@ -87,6 +85,10 @@ class Open(object):
     def open(self, tree_connect, file_name, impersonation_level,
              desired_access, file_attributes, share_access, create_disposition,
              create_options):
+        log_header = "Session: %s, Tree Connect ID: %s" \
+                     % (tree_connect.session.session_id,
+                        tree_connect.tree_connect_id)
+
         create = SMB2CreateRequest()
         create['impersonation_level'] = impersonation_level
         create['desired_access'] = desired_access
@@ -96,13 +98,21 @@ class Open(object):
         create['create_options'] = create_options
         create['buffer_path'] = file_name.encode('utf-16-le')
 
-        tree_connect.session.connection.send(create,
-                                             Commands.SMB2_CREATE,
-                                             tree_connect.session,
-                                             tree_connect)
-        response = tree_connect.session.connection.receive()
+        log.info("%s - sending SMB2 Create Request for file %s"
+                 % (log_header, file_name))
+        log.debug(str(create))
+        header = tree_connect.session.connection.send(create,
+                                                      Commands.SMB2_CREATE,
+                                                      tree_connect.session,
+                                                      tree_connect)
+
+        log.info("%s - receiving SMB2 Create Response" % log_header)
+        response = tree_connect.session.connection.receive(
+            header['message_id'].get_value()
+        )
         create_response = SMB2CreateResponse()
         create_response.unpack(response['data'].get_value())
+        log.debug(str(create_response))
 
         self.file_id = create_response['file_id'].get_value()
         self.tree_connect = tree_connect
@@ -129,7 +139,10 @@ class Open(object):
         self.file_attributes = create_response['file_attributes'].get_value()
         self.opened = True
 
-    def read(self, offset, length, min_length=0, unbuffered=False):
+    def read(self, offset, length, min_length=0, unbuffered=False, wait=False):
+        log_header = "Session: %s, Tree Connect ID: %s" \
+                     % (self.tree_connect.session.session_id,
+                        self.tree_connect.tree_connect_id)
         read = SMB2ReadRequest()
 
         if unbuffered:
@@ -146,17 +159,43 @@ class Open(object):
         read['padding'] = b"\x50"
 
         # deal with length greater than connection max size
-        self.connection.send(read, Commands.SMB2_READ,
-                             self.tree_connect.session, self.tree_connect)
-        response = self.connection.receive()
+        log.info("%s - sending SMB2 Read Request for file %s"
+                 % (log_header, self.file_name))
+        log.debug(str(read))
+        header = self.connection.send(read, Commands.SMB2_READ,
+                                      self.tree_connect.session,
+                                      self.tree_connect)
+
+        status = NtStatus.STATUS_PENDING
+        log.info("%s - receiving SMB2 Read Response" % log_header)
+        while True:
+            try:
+                response = self.connection.receive(
+                    header['message_id'].get_value()
+                )
+            except SMBResponseException as exc:
+                if not wait:
+                    raise exc
+                elif status != NtStatus.STATUS_PENDING:
+                    raise exc
+                else:
+                    pass
+            else:
+                break
+
         read_response = SMB2ReadResponse()
         read_response.unpack(response['data'].get_value())
+        log.debug(str(read_response))
 
         return read_response['buffer'].get_value()
 
     def write(self, data, offset=0, write_through=False, unbuffered=False):
         # handle data over max write size
+        log_header = "Session: %s, Tree Connect ID: %s" \
+                     % (self.tree_connect.session.session_id,
+                        self.tree_connect.tree_connect_id)
         write = SMB2WriteRequest()
+
         write['length'] = len(data)
         write['offset'] = offset
         write['file_id'] = self.file_id
@@ -176,38 +215,74 @@ class Open(object):
                                 "newer")
             write['flags'].set_flag(WriteFlags.SMB2_WRITEFLAG_WRITE_UNBUFFERED)
 
-        self.connection.send(write, Commands.SMB2_WRITE,
-                             self.tree_connect.session, self.tree_connect)
-        response = self.connection.receive()
+        log.info("%s - sending SMB2 Write Request for file %s"
+                 % (log_header, self.file_name))
+        log.debug(str(write))
+        header = self.connection.send(write, Commands.SMB2_WRITE,
+                                      self.tree_connect.session,
+                                      self.tree_connect)
+
+        log.info("%s - receiving SMB2 Write Response" % log_header)
+        response = self.connection.receive(
+            header['message_id'].get_value()
+        )
         write_response = SMB2WriteResponse()
         write_response.unpack(response['data'].get_value())
+        log.debug(str(write_response))
+
         return write_response['count'].get_value()
 
     def flush(self):
+        log_header = "Session: %s, Tree Connect ID: %s" \
+                     % (self.tree_connect.session.session_id,
+                        self.tree_connect.tree_connect_id)
         flush = SMB2FlushRequest()
+
         flush['file_id'] = self.file_id
 
-        self.connection.send(flush, Commands.SMB2_FLUSH,
-                             self.tree_connect.session, self.tree_connect)
-        response = self.connection.receive()
+        log.info("%s - sending SMB2 Flush Request for file %s"
+                 % (log_header, self.file_name))
+        log.debug(str(flush))
+        header = self.connection.send(flush, Commands.SMB2_FLUSH,
+                                      self.tree_connect.session,
+                                      self.tree_connect)
+
+        log.info("%s - receiving SMB2 Flush Response" % log_header)
+        response = self.connection.receive(
+            header['message_id'].get_value()
+        )
         flush_response = SMB2FlushResponse()
         flush_response.unpack(response['data'].get_value())
+        log.debug(str(flush_response))
 
     def close(self, get_attributes):
         # if connection is NULL and durable is True, the client SHOULD attempt
         # to reconnect this open and the close retried
         # if connection is NULL and durable is False the client MUST fail the
         # close operation
+        log_header = "Session: %s, Tree Connect ID: %s" \
+                     % (self.tree_connect.session.session_id,
+                        self.tree_connect.tree_connect_id)
         close = SMB2CloseRequest()
+
         close['file_id'] = self.file_id
         if get_attributes:
             close['flags'] = CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB
 
-        self.connection.send(close, Commands.SMB2_CLOSE,
-                             self.tree_connect.session, self.tree_connect)
-        response = self.connection.receive()
+        log.info("%s - sending SMB2 Close Request for file %s"
+                 % (log_header, self.file_name))
+        log.debug(str(close))
+        header = self.connection.send(close, Commands.SMB2_CLOSE,
+                                      self.tree_connect.session,
+                                      self.tree_connect)
+
+        log.info("%s - receiving SMB2 Close Response" % log_header)
+        response = self.connection.receive(
+            header['message_id'].get_value()
+        )
         c_resp = SMB2CloseResponse()
         c_resp.unpack(response['data'].get_value())
+        log.debug(str(c_resp))
 
         # update the attributes if requested
         if get_attributes:

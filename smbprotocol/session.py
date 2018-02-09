@@ -14,6 +14,7 @@ from smbprotocol.constants import Commands, Dialects, NtStatus, SessionFlags, \
     Smb2Flags
 from smbprotocol.spnego import InitialContextToken, MechTypes, ObjectIdentifier
 from smbprotocol.structure import _bytes_to_hex
+from smbprotocol.exceptions import SMBResponseException
 
 HAVE_SSPI = False  # TODO: add support for Windows and SSPI
 HAVE_GSSAPI = False
@@ -30,7 +31,7 @@ log = logging.getLogger(__name__)
 
 class Session(object):
 
-    def __init__(self, connection, username, password):
+    def __init__(self, connection, username, password, must_encrypt=False):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -39,6 +40,7 @@ class Session(object):
         """
         log.info("Initialising session with username: %s" % username)
         self.session_id = None
+        self.must_encrypt = must_encrypt
 
         # Table of tree connection, lookup by TreeConnect.tree_connect_id and
         # by share_name
@@ -170,6 +172,9 @@ class Session(object):
         if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA):
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
+        elif self.must_encrypt:
+            self.encrypt_data = True
+            self.signing_required = False
         else:
             self.encrypt_data = False
             self.signing_required = True
@@ -202,13 +207,17 @@ class Session(object):
             log.info("Sending SMB2_SESSION_SETUP request message")
             header = self.connection.send(session_setup,
                                           Commands.SMB2_SESSION_SETUP, self)
+            message_id = header['message_id'].get_value()
             self.preauth_integrity_hash_value.append(header)
 
             log.info("Receiving SMB2_SESSION_SETUP response message")
-            response = self.connection.receive(expected_status=[
-                NtStatus.STATUS_SUCCESS,
-                NtStatus.STATUS_MORE_PROCESSING_REQUIRED
-            ])
+            try:
+                response = self.connection.receive(message_id)
+            except SMBResponseException as exc:
+                if exc.status != NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
+                    raise exc
+                del self.connection.outstanding_requests[message_id]
+                response = exc.header
 
             self.session_id = response['session_id'].get_value()
             session_resp = SMB2SessionSetupResponse()

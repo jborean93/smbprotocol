@@ -1132,7 +1132,7 @@ class TestEnumField(object):
                 ])
                 super(StructureTestDefaultZero, self).__init__()
         field = StructureTestDefaultZero()['field']
-        expected = "(0)"
+        expected = "(0) UNKNOWN_ENUM"
         actual = str(field)
         assert actual == expected
 

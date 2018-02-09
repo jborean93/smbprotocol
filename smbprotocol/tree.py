@@ -38,12 +38,15 @@ class TreeConnect(object):
         log.info("Session: %d - Sending Tree Connect message"
                  % self.session.session_id)
         log.debug(str(connect))
-        self.session.connection.send(connect, Commands.SMB2_TREE_CONNECT,
-                                     self.session)
+        header = self.session.connection.send(connect,
+                                              Commands.SMB2_TREE_CONNECT,
+                                              self.session)
 
         log.info("Session: %d - Receiving Tree Connect response"
                  % self.session.session_id)
-        response = self.session.connection.receive()
+        response = self.session.connection.receive(
+            header['message_id'].get_value()
+        )
         tree_response = SMB2TreeConnectResponse()
         tree_response.unpack(response['data'].get_value())
         log.debug(str(tree_response))
@@ -98,10 +101,13 @@ class TreeConnect(object):
                  % log_header)
         log.debug(str(ioctl_request))
         log.debug(str(val_neg))
-        self.session.connection.send(ioctl_request,
-                                     Commands.SMB2_IOCTL, self.session,
-                                     self)
-        response = self.session.connection.receive()
+        header = self.session.connection.send(ioctl_request,
+                                              Commands.SMB2_IOCTL,
+                                              self.session,
+                                              self)
+        response = self.session.connection.receive(
+            header['message_id'].get_value()
+        )
         log.info("%s - Receiving secure negotiation response" % log_header)
 
         ioctl_resp = SMB2IOCTLResponse()

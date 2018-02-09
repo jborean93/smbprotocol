@@ -111,7 +111,7 @@ class Structure(object):
         return data
 
     def unpack(self, data):
-        for field in self.fields.values():
+        for key, field in self.fields.items():
             data = field.unpack(data)
 
     def _get_field(self, key):
@@ -206,7 +206,7 @@ class Field(with_metaclass(ABCMeta, object)):
         """
         size = self._get_calculated_size(self.size, data)
         self.set_value(data[0:size])
-        return data[size:]
+        return data[self._get_calculated_size(self.size, self.value):]
 
     @abstractmethod
     def _pack_value(self, value):
@@ -710,13 +710,18 @@ class UuidField(Field):
         super(UuidField, self).__init__(size=16, **kwargs)
 
     def _pack_value(self, value):
-        return value.bytes
+        if self.byte_order == '<':
+            return value.bytes
+        else:
+            return value.bytes_le
 
     def _parse_value(self, value):
         if value is None:
             uuid_value = uuid.UUID(bytes=b"\x00" * 16)
-        elif isinstance(value, bytes):
+        elif isinstance(value, bytes) and self.byte_order == '<':
             uuid_value = uuid.UUID(bytes=value)
+        elif isinstance(value, bytes) and self.byte_order == '>':
+            uuid_value = uuid.UUID(bytes_le=value)
         elif isinstance(value, integer_types):
             uuid_value = uuid.UUID(int=value)
         elif isinstance(value, uuid.UUID):
@@ -738,8 +743,9 @@ class UuidField(Field):
 
 class EnumField(IntField):
 
-    def __init__(self, enum_type, **kwargs):
+    def __init__(self, enum_type, enum_strict=True, **kwargs):
         self.enum_type = enum_type
+        self.enum_strict = enum_strict
         super(EnumField, self).__init__(**kwargs)
 
     def _parse_value(self, value):
@@ -750,7 +756,7 @@ class EnumField(IntField):
                 valid = True
                 break
 
-        if not valid and int_value != 0:
+        if not valid and int_value != 0 and self.enum_strict:
             raise Exception("Enum value %d does not exist in enum type %s"
                             % (int_value, self.enum_type))
         return int_value
@@ -763,7 +769,7 @@ class EnumField(IntField):
                 enum_name = enum
                 break
         if enum_name is None:
-            return "(%d)" % value
+            return "(%d) UNKNOWN_ENUM" % value
         else:
             return "(%d) %s" % (value, enum_name)
 
