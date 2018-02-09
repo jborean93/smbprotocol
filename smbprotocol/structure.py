@@ -124,15 +124,15 @@ class Structure(object):
 
 class Field(with_metaclass(ABCMeta, object)):
 
-    def __init__(self, byte_order='<', default=None, size=None):
+    def __init__(self, little_endian=True, default=None, size=None):
         """
         The base class of a Field object. This contains the framework that a
         field SHOULD implement in regards to packing and unpacking a value.
         There should be little need to call this particular object as it is
         designed to be a base class for *Type classes.
 
-        :param byte_order: When converting an int to bytes, the byte order to
-            use, < for little endian, > for big endian
+        :param little_endian: When converting an int/uuid to bytes, the byte
+            order to pack as, False means it will be big endian
         :param default: The default value of the field, this can be any
             supported value such as as well as a lambda function or None
             (default).
@@ -141,7 +141,7 @@ class Field(with_metaclass(ABCMeta, object)):
             definition.
         """
         field_type = self.__class__.__name__
-        self.byte_order = byte_order
+        self.little_endian = little_endian
 
         if not (size is None or isinstance(size, integer_types) or
                 isinstance(size, types.LambdaType)):
@@ -329,7 +329,7 @@ class IntField(Field):
 
     def _pack_value(self, value):
         format = self._get_struct_format(self.size)
-        struct_string = "%s%s" % (self.byte_order, format)
+        struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
         packed_int = struct.pack(struct_string, value)
         return packed_int
 
@@ -340,7 +340,8 @@ class IntField(Field):
             int_value = value
         elif isinstance(value, bytes):
             format = self._get_struct_format(self.size)
-            struct_string = "%s%s" % (self.byte_order, format)
+            struct_string = "%s%s"\
+                            % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
         elif isinstance(value, integer_types):
             int_value = value
@@ -373,7 +374,8 @@ class BytesField(Field):
             bytes_value = value
         elif isinstance(value, integer_types):
             format = self._get_struct_format(self.size)
-            struct_string = "%s%s" % (self.byte_order, format)
+            struct_string = "%s%s"\
+                            % ("<" if self.little_endian else ">", format)
             bytes_value = struct.pack(struct_string, value)
         elif isinstance(value, Structure):
             bytes_value = value.pack()
@@ -651,7 +653,8 @@ class DateTimeField(Field):
         int_value += value.microsecond * 10
 
         format = self._get_struct_format(8)
-        struct_string = "%s%s" % (self.byte_order, format)
+        struct_string = "%s%s"\
+                        % ("<" if self.little_endian else ">", format)
         bytes_value = struct.pack(struct_string, int_value)
 
         return bytes_value
@@ -663,7 +666,8 @@ class DateTimeField(Field):
             datetime_value = value
         elif isinstance(value, bytes):
             format = self._get_struct_format(8)
-            struct_string = "%s%s" % (self.byte_order, format)
+            struct_string = "%s%s"\
+                            % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
         elif isinstance(value, integer_types):
@@ -711,7 +715,7 @@ class UuidField(Field):
         super(UuidField, self).__init__(size=16, **kwargs)
 
     def _pack_value(self, value):
-        if self.byte_order == '<':
+        if self.little_endian:
             return value.bytes
         else:
             return value.bytes_le
@@ -719,9 +723,9 @@ class UuidField(Field):
     def _parse_value(self, value):
         if value is None:
             uuid_value = uuid.UUID(bytes=b"\x00" * 16)
-        elif isinstance(value, bytes) and self.byte_order == '<':
+        elif isinstance(value, bytes) and self.little_endian:
             uuid_value = uuid.UUID(bytes=value)
-        elif isinstance(value, bytes) and self.byte_order == '>':
+        elif isinstance(value, bytes) and not self.little_endian:
             uuid_value = uuid.UUID(bytes_le=value)
         elif isinstance(value, integer_types):
             uuid_value = uuid.UUID(int=value)

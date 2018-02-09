@@ -33,7 +33,7 @@ class DirectTCPPacket(Structure):
         self.fields = OrderedDict([
             ('stream_protocol_length', IntField(
                 size=4,
-                byte_order='>',
+                little_endian=False,
                 default=lambda s: len(s['smb2_message']),
             )),
             ('smb2_message', BytesField(

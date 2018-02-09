@@ -78,7 +78,7 @@ class Structure1(Structure):
             )),
             ('structure_length', IntField(
                 size=2,
-                byte_order='>',
+                little_endian=False,
                 default=lambda s: len(s['structure_field']),
             )),
             ('structure_field', StructureField(
@@ -347,7 +347,7 @@ class TestIntField(object):
         class ByteOrderStructure(Structure):
             def __init__(self):
                 self.fields = OrderedDict([(
-                    'field', IntField(size=2, byte_order=">", default=10)
+                    'field', IntField(size=2, little_endian=False, default=10)
                 )])
                 super(ByteOrderStructure, self).__init__()
 
