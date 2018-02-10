@@ -9,11 +9,10 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from smbprotocol.constants import Capabilities, Commands, Dialects
+from smbprotocol.connection import Capabilities, Commands, Dialects
 from smbprotocol.structure import Structure, IntField, BytesField, ListField, \
     UuidField, DateTimeField, StructureField, EnumField, FlagField, \
-    _bytes_to_hex
-from smbprotocol.exceptions import InvalidFieldDefinition
+    _bytes_to_hex, InvalidFieldDefinition
 
 
 def test_bytes_to_hex_pretty_newline():
@@ -1213,7 +1212,7 @@ class TestEnumField(object):
         with pytest.raises(Exception) as exc:
             field.set_value(0x13)
         assert str(exc.value) == "Enum value 19 does not exist in enum type " \
-                                 "<class 'smbprotocol.constants.Commands'>"
+                                 "<class 'smbprotocol.connection.Commands'>"
 
 
 class TestFlagField(object):
@@ -1309,10 +1308,10 @@ class TestFlagField(object):
 
     def test_set_invalid_flag(self):
         field = self.StructureTest()['field']
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(Exception) as ex:
             field.set_flag(10)
-        assert str(exc.value) == "Flag value does not exist in flag type " \
-                                 "<class 'smbprotocol.constants.Capabilities'>"
+        assert str(ex.value) == "Flag value does not exist in flag type " \
+                                "<class 'smbprotocol.connection.Capabilities'>"
 
     def test_set_invalid_value(self):
         field = self.StructureTest()['field']

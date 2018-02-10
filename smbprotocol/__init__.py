@@ -21,5 +21,5 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 # end TODO
 
-__all__ = ('client')
+__all__ = ('')
 __version__ = '0.0.1'

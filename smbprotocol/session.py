@@ -8,12 +8,12 @@ from cryptography.hazmat.primitives.kdf.kbkdf import CounterLocation, \
 from ntlm_auth.ntlm import Ntlm
 from pyasn1.codec.der import decoder
 
-from smbprotocol.constants import Commands, Dialects, NtStatus, SessionFlags, \
-    Smb2Flags
+from smbprotocol.connection import Capabilities, Commands, Dialects, \
+    NtStatus, SecurityMode, Smb2Flags
 from smbprotocol.exceptions import SMBResponseException
-from smbprotocol.messages import SMB2SessionSetupRequest, \
-    SMB2SessionSetupResponse
 from smbprotocol.spnego import InitialContextToken, MechTypes, ObjectIdentifier
+from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
+    Structure
 from smbprotocol.structure import _bytes_to_hex
 
 HAVE_SSPI = False  # TODO: add support for Windows and SSPI
@@ -26,7 +26,119 @@ try:
 except ImportError:
     pass
 
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
+
 log = logging.getLogger(__name__)
+
+
+class SessionFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.6 SMB2 SESSION_SETUP Response Flags
+    Flags the indicates additional information about the session.
+    """
+    SMB2_SESSION_FLAG_IS_GUEST = 0x0001
+    SMB2_SESSION_FLAG_IS_NULL = 0x0002
+    SMB2_SESSION_FLAG_ENCRYPT_DATA = 0x0004
+
+
+class SMB2SessionSetupRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.5 SMB2 SESSION_SETUP Request
+    The SMB2 SESSION_SETUP Request packet is sent by the client to request a
+    new authenticated session within a new or existing SMB 2 connection.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=25,
+            )),
+            ('flags', IntField(size=1)),
+            ('security_mode', EnumField(
+                size=1,
+                enum_type=SecurityMode,
+            )),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
+            ('channel', IntField(size=4)),
+            ('security_buffer_offset', IntField(
+                size=2,
+                default=88,  # (header size 64) + (response size 24)
+            )),
+            ('security_buffer_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('previous_session_id', IntField(size=8)),
+            ('buffer', BytesField(
+                size=lambda s: s['security_buffer_length'].get_value(),
+            )),
+        ])
+        super(SMB2SessionSetupRequest, self).__init__()
+
+
+class SMB2SessionSetupResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.6 SMB2 SESSION_SETUP Response
+    The SMB2 SESSION_SETUP Response packet is sent by the server in response to
+    an SMB2 SESSION_SETUP Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=9,
+            )),
+            ('session_flags', FlagField(
+                size=2,
+                flag_type=SessionFlags,
+            )),
+            ('security_buffer_offset', IntField(
+                size=2,
+                default=72,  # (header size 64) + (response size 8)
+            )),
+            ('security_buffer_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('buffer', BytesField(
+                size=lambda s: s['security_buffer_length'].get_value(),
+            ))
+        ])
+        super(SMB2SessionSetupResponse, self).__init__()
+
+
+class SMB2Logoff(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.7/8 SMB2 LOGOFF Request/Response
+    Request and response to request the termination of a particular session as
+    specified by the header.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2Logoff, self).__init__()
 
 
 class Session(object):
@@ -182,6 +294,23 @@ class Session(object):
         log.info("Verifying the SMB Setup Session signature as auth is "
                  "successful")
         self.connection._verify(response, True)
+
+    def disconnect(self):
+        if not self.session_id:
+            log.info("No need to log off when session is already set up")
+            return
+
+        log.info("Session: %d - Logging off of SMB Session" % self.session_id)
+        logoff = SMB2Logoff()
+        log.info("Session: %d - Sending Logoff message" % self.session_id)
+        log.debug(str(logoff))
+        header = self.connection.send(logoff, Commands.SMB2_LOGOFF, self)
+
+        log.info("Session: %d - Receiving Logoff response" % self.session_id)
+        res = self.connection.receive(header['message_id'].get_value())
+        res_logoff = SMB2Logoff()
+        res_logoff.unpack(res['data'].get_value())
+        log.debug(str(res_logoff))
 
     def _authenticate_session(self, mech):
         if mech in [MechTypes.KRB5, MechTypes.MS_KRB5] and HAVE_GSSAPI:

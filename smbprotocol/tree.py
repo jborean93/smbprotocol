@@ -1,13 +1,165 @@
 import logging
 
-from smbprotocol.constants import Commands, Dialects, ShareCapabilities, \
-    ShareFlags, IOCTLFlags, CtlCode
-from smbprotocol.messages import SMB2TreeConnectRequest, \
-    SMB2TreeConnectResponse, SMB2IOCTLRequest, SMB2IOCTLResponse, \
-    SMB2ValidateNegotiateInfoRequest, SMB2ValidateNegotiateInfoResponse, \
-    SMB2TreeDisconnect
+from smbprotocol.connection import Commands, Dialects
+from smbprotocol.ioctl import CtlCode, IOCTLFlags, SMB2IOCTLRequest, \
+    SMB2IOCTLResponse, SMB2ValidateNegotiateInfoRequest, \
+    SMB2ValidateNegotiateInfoResponse
+from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
+    Structure
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
+
+
+class TreeFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.9 SMB2 TREE_CONNECT Response Flags
+    Flags used in SMB 3.1.1  to indicate how to process the operation.
+    """
+    SMB2_TREE_CONNECT_FLAG_CLUSTER_RECONNECT = 0x0004
+    SMB2_TREE_CONNECT_FLAG_REDIRECT_TO_OWNER = 0x0002
+    SMB2_TREE_CONNECT_FLAG_EXTENSION_PRESENT = 0x0001
+
+
+class ShareType(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.10 SMB2 TREE_CONNECT Response Capabilities
+    The type of share being accessed
+    """
+    SMB2_SHARE_TYPE_DISK = 0x01
+    SMB2_SHARE_TYPE_PIPE = 0x02
+    SMB2_SHARE_TYPE_PRINT = 0x03
+
+
+class ShareFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.10 SMB2 TREE_CONNECT Response Capabilities
+    Properties for the share
+    """
+    SMB2_SHAREFLAG_MANUAL_CACHING = 0x00000000
+    SMB2_SHAREFLAG_AUTO_CACHING = 0x00000010
+    SMB2_SHAREFLAG_VDO_CACHING = 0x00000020
+    SMB2_SHAREFLAG_NO_CACHING = 0x00000030
+    SMB2_SHAREFLAG_DFS = 0x00000001
+    SMB2_SHAREFLAG_DFS_ROOT = 0x00000002
+    SMB2_SHAREFLAG_RESTRICT_EXCLUSIVE_OPENS = 0x00000100
+    SMB2_SHAREFLAG_FORCE_SHARED_DELETE = 0x00000200
+    SMB2_SHAREFLAG_ALLOW_NAMESPACE_CACHING = 0x00000400
+    SMB2_SHAREFLAG_ACCESS_BASED_DIRECTORY_ENUM = 0x00000800
+    SMB2_SHAREFLAG_FORCE_LEVELII_OPLOCK = 0x00001000
+    SMB2_SHAREFLAG_ENABLE_HASH_V1 = 0x00002000
+    SMB2_SHAREFLAG_ENABLE_HASH_V2 = 0x00004000
+    SMB2_SHAREFLAG_ENCRYPT_DATA = 0x00008000
+    SMB2_SHAREFLAG_IDENTITY_REMOTING = 0x00040000
+
+
+class ShareCapabilities(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.10 SMB2 TREE_CONNECT Response Capabilities
+    Indicates various capabilities for a share
+    """
+    SMB2_SHARE_CAP_DFS = 0x00000008
+    SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY = 0x00000010
+    SMB2_SHARE_CAP_SCALEOUT = 0x00000020
+    SMB2_SHARE_CAP_CLUSTER = 0x00000040
+    SMB2_SHARE_CAP_ASYMMETRIC = 0x00000080
+    SMB2_SHARE_CAP_REDIRECT_TO_OWNER = 0x00000100
+
+
+class SMB2TreeConnectRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.9 SMB2 TREE_CONNECT Request
+    Sent by the client to request access to a particular share on the server
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=9
+            )),
+            ('flags', FlagField(
+                size=2,
+                flag_type=TreeFlags,
+            )),
+            ('path_offset', IntField(
+                size=2,
+                default=64 + 8,
+            )),
+            ('path_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('buffer', BytesField())
+        ])
+        super(SMB2TreeConnectRequest, self).__init__()
+
+
+class SMB2TreeConnectResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.10 SMB2 TREE_CONNECT Response
+    Sent by the server when an SMB2 TREE_CONNECT request is processed
+    successfully.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=16
+            )),
+            ('share_type', EnumField(
+                size=1,
+                enum_type=ShareType,
+            )),
+            ('reserved', IntField(size=1)),
+            ('share_flags', FlagField(
+                size=4,
+                flag_type=ShareFlags,
+            )),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=ShareCapabilities,
+            )),
+            ('maximal_access', IntField(size=4))
+        ])
+        super(SMB2TreeConnectResponse, self).__init__()
+
+
+class SMB2TreeDisconnect(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.11/12 SMB2 TREE_DISCONNECT Request and Response
+    Sent by the client to request that the tree connect specific by tree_id in
+    the header is disconnected.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4,
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2TreeDisconnect, self).__init__()
 
 
 class TreeConnect(object):

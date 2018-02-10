@@ -1,20 +1,710 @@
 import logging
 
-from smbprotocol.constants import Commands, Dialects, NtStatus, CloseFlags, \
-    ReadFlags, WriteFlags
 from smbprotocol.exceptions import SMBResponseException
-from smbprotocol.messages import SMB2CreateRequest, SMB2CreateResponse, \
-    SMB2CloseRequest, SMB2CloseResponse, SMB2ReadRequest, SMB2ReadResponse, \
-    SMB2WriteRequest, SMB2WriteResponse, SMB2FlushRequest, SMB2FlushResponse
+from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
+    FlagField, IntField, ListField, Structure, StructureField
+from smbprotocol.connection import Commands, Dialects, NtStatus
+from smbprotocol.create_contexts import SMB2CreateContextRequest
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
+
+
+class RequestedOplockLevel(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request RequestedOplockLevel
+    The requested oplock level used when creating/accessing a file.
+    """
+    SMB2_OPLOCK_LEVEL_NONE = 0x00
+    SMB2_OPLOCK_LEVEL_II = 0x01
+    SMB2_OPLOCK_LEVEL_EXCLUSIVE = 0x08
+    SMB2_OPLOCK_LEVEL_BATCH = 0x09
+    SMB2_OPLOCK_LEVEL_LEASE = 0xFF
+
+
+class ImpersonationLevel(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request ImpersonationLevel
+    The impersonation level requested by the application in a create request.
+    """
+    Anonymous = 0x0
+    Identification = 0x1
+    Impersonation = 0x2
+    Delegate = 0x3
+
+
+class ShareAccess(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request ShareAccess
+    The sharing mode for the open
+    """
+    FILE_SHARE_READ = 0x1
+    FILE_SHARE_WRITE = 0x2
+    FILE_SHARE_DELETE = 0x4
+
+
+class CreateDisposition(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request CreateDisposition
+    Defines the action the server must take if the file that is specific
+    already exists.
+    """
+    FILE_SUPERSEDE = 0x0
+    FILE_OPEN = 0x1
+    FILE_CREATE = 0x2
+    FILE_OPEN_IF = 0x3
+    FILE_OVERWRITE = 0x4
+    FILE_OVERWRITE_IF = 0x5
+
+
+class CreateOptions(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.31 SMB2 CREATE Request CreateOptions
+    Specifies the options to be applied when creating or opening the file
+    """
+    FILE_DIRECTORY_FILE = 0x00000001
+    FILE_WRITE_THROUGH = 0x00000002
+    FILE_SEQUENTIAL_ONLY = 0x00000004
+    FILE_NO_INTERMEDIATE_BUFFERING = 0x00000008
+    FILE_SYNCHRONOUS_IO_ALERT = 0x00000010
+    FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+    FILE_NON_DIRECTORY_FILE = 0x00000040
+    FILE_COMPLETE_IF_OPLOCKED = 0x00000100
+    FILE_NO_EA_KNOWLEDGE = 0x00000200
+    FILE_RANDOM_ACCESS = 0x00000800
+    FILE_DELETE_ON_CLOSE = 0x00001000
+    FILE_OPEN_BY_FILE_ID = 0x00002000
+    FILE_OPEN_FOR_BACKUP_INTENT = 0x00004000
+    FILE_NO_COMPRESSION = 0x00008000
+    FILE_OPEN_REMOTE_INSTANCE = 0x00000400
+    FILE_OPEN_REQUIRING_OPLOCK = 0x00010000
+    FILE_DISALLOW_EXCLUSIVE = 0x00020000
+    FILE_RESERVE_OPFILTER = 0x00100000
+    FILE_OPEN_REPARSE_POINT = 0x00200000
+    FILE_OPEN_NO_RECALL = 0x00400000
+    FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
+
+
+class FilePipePrinterAccessMask(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13.1.1 File_Pipe_Printer_Access_Mask
+    Access Mask flag values to be used when accessing a file, pipe, or printer
+    """
+    FILE_READ_DATA = 0x00000001
+    FILE_WRITE_DATA = 0x00000002
+    FILE_APPEND_DATA = 0x00000004
+    FILE_READ_EA = 0x00000008
+    FILE_WRITE_EA = 0x00000010
+    FILE_DELETE_CHILD = 0x00000040
+    FILE_EXECUTE = 0x00000020
+    FILE_READ_ATTRIBUTES = 0x00000080
+    FILE_WRITE_ATTRIBUTES = 0x00000100
+    DELETE = 0x00010000
+    READ_CONTROL = 0x00020000
+    WRITE_DAC = 0x00040000
+    WRITE_OWNER = 0x00080000
+    SYNCHRONIZE = 0x00100000
+    ACCESS_SYSTEM_SECURITY = 0x01000000
+    MAXIMUM_ALLOWED = 0x02000000
+    GENERIC_ALL = 0x10000000
+    GENERIC_EXECUTE = 0x20000000
+    GENERIC_WRITE = 0x40000000
+    GENERIC_READ = 0x80000000
+
+
+class DirectoryAccessMask(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13.1.2 Directory_Access_Mask
+    Access Mask flag values to be used when accessing a directory
+    """
+    FILE_LIST_DIRECTORY = 0x00000001
+    FILE_ADD_FILE = 0x00000002
+    FILE_ADD_SUBDIRECTORY = 0x00000004
+    FILE_READ_EA = 0x00000008
+    FILE_WRITE_EA = 0x00000010
+    FILE_TRAVERSE = 0x00000020
+    FILE_DELETE_CHILD = 0x00000040
+    FILE_READ_ATTRIBUTES = 0x00000080
+    FILE_WRITE_ATTRIBUTES = 0x00000100
+    DELETE = 0x00010000
+    READ_CONTROL = 0x00020000
+    WRITE_DAC = 0x00040000
+    WRITE_OWNER = 0x00080000
+    SYNCHRONIZE = 0x00100000
+    ACCESS_SYSTEM_SECURITY = 0x01000000
+    MAXIMUM_ALLOWED = 0x02000000
+    GENERIC_ALL = 0x10000000
+    GENERIC_EXECUTE = 0x20000000
+    GENERIC_WRITE = 0x40000000
+    GENERIC_READ = 0x80000000
+
+
+class FileFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14 SMB2 CREATE Response Flags
+    Flag that details info about the file that was opened.
+    """
+    SMB2_CREATE_FLAG_REPARSEPOINT = 0x1
+
+
+class CreateAction(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14 SMB2 CREATE Response Flags
+    The action taken in establishing the open.
+    """
+    FILE_SUPERSEDED = 0x0
+    FILE_OPENED = 0x1
+    FILE_CREATED = 0x2
+    FILE_OVERWRITTEN = 0x3
+
+
+class FileAttributes(object):
+    """
+    [MS-FSCC]
+
+    2.6 File Attributes
+    Combination of file attributes for a file or directory
+    """
+    FILE_ATTRIBUTE_ARCHIVE = 0x00000020
+    FILE_ATTRIBUTE_COMPRESSED = 0x00000800
+    FILE_ATTRIBUTE_DIRECTORY = 0x00000010
+    FILE_ATTRIBUTE_ENCRYPTED = 0x00004000
+    FILE_ATTRIBUTE_HIDDEN = 0x00000002
+    FILE_ATTRIBUTE_NORMAL = 0x00000080
+    FILE_ATTRIBUTE_NOT_CONTENT_INDEXED = 0x00002000
+    FILE_ATTRIBUTE_OFFLINE = 0x00001000
+    FILE_ATTRIBUTE_READONLY = 0x00000001
+    FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+    FILE_ATTRIBUTE_SPARSE_FILE = 0x00000200
+    FILE_ATTRIBUTE_SYSTEM = 0x00000004
+    FILE_ATTRIBUTE_TEMPORARY = 0x00000100
+    FILE_ATTRIBUTE_INTEGRITY_STREAM = 0x00008000
+    FILE_ATTRIBUTE_NO_SCRUB_DATA = 0x00020000
+
+
+class CloseFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.15 SMB2 CLOSE Request Flags
+    Flags to indicate how to process the operation
+    """
+    SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB = 0x01
+
+
+class ReadFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.19 SMB2 READ Request Flags
+    Read flags for SMB 3.0.2 and newer dialects
+    """
+    SMB2_READFLAG_READ_UNBUFFERED = 0x01
+
+
+class ReadWriteChannel(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.19/21 SMB2 READ/Write Request Channel
+    Channel information for an SMB2 READ Request message
+    """
+    SMB2_CHANNEL_NONE = 0x0
+    SMB2_CHANNEL_RDMA_V1 = 0x1
+    SMB2_CHANNEL_RDMA_V1_INVALIDATE = 0x2
+
+
+class WriteFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.21 SMB2 WRITE Request Flags
+    Flags to indicate how to process the operation
+    """
+    SMB2_WRITEFLAG_WRITE_THROUGH = 0x1
+    SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x2
+
+
+class SMB2CreateRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.13 SMB2 CREATE Request
+    The SMB2 Create Request packet is sent by a client to request either
+    creation of or access to a file.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=57,
+            )),
+            ('security_flags', IntField(size=1)),
+            ('requested_oplock_level', EnumField(
+                size=1,
+                enum_type=RequestedOplockLevel
+            )),
+            ('impersonation_level', EnumField(
+                size=4,
+                enum_type=ImpersonationLevel
+            )),
+            ('smb_create_flags', IntField(size=8)),
+            ('reserved', IntField(size=8)),
+            ('desired_access', IntField(size=4)),
+            ('file_attributes', IntField(size=4)),
+            ('share_access', FlagField(
+                size=4,
+                flag_type=ShareAccess
+            )),
+            ('create_disposition', EnumField(
+                size=4,
+                enum_type=CreateDisposition
+            )),
+            ('create_options', FlagField(
+                size=4,
+                flag_type=CreateOptions
+            )),
+            ('name_offset', IntField(
+                size=2,
+                default=120  # (header size 64) + (structure size 56)
+            )),
+            ('name_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer_path'])
+            )),
+            ('create_contexts_offset', IntField(
+                size=4,
+                default=lambda s: self._create_contexts_offset(s)
+            )),
+            ('create_contexts_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer_context'])
+            )),
+            # Technically these are all under buffer but we split it to make
+            # things easier
+            ('buffer_path', BytesField(
+                size=lambda s: s['name_length'].get_value(),
+            )),
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s)
+            )),
+            ('buffer_context', ListField(
+                size=lambda s: s['create_contexts_length'].get_value(),
+                unpack_func=lambda s, d: self._buffer_context_list(s, d)
+            ))
+        ])
+        super(SMB2CreateRequest, self).__init__()
+
+    def _create_contexts_offset(self, structure):
+        if len(structure['buffer_context']) == 0:
+            return 0
+        else:
+            return structure['name_offset'].get_value() + \
+                   structure['padding'].get_value()
+
+    def _padding_size(self, structure):
+        # no padding is needed if there are no contexts
+        if len(structure['buffer_context']) == 0:
+            return 0
+
+        mod = structure['name_length'].get_value() % 8
+        return 0 if mod == 0 else 8 - mod
+
+    def _buffer_context_list(self, structure, data):
+        context_list = []
+        last_context = False
+        while not last_context:
+            field, data = self._parse_create_context_entry(data)
+            last_context = field['next'].get_value() == 0
+
+        return context_list
+
+    def _parse_create_context_entry(self, data):
+        create_context = SMB2CreateContextRequest()
+        create_context.unpack(data)
+        return create_context, data[len(create_context):]
+
+
+class SMB2CreateResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14 SMB2 CREATE Response
+    The SMB2 Create Response packet is sent by the server to an SMB2 CREATE
+    Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=89
+            )),
+            ('oplock_level', EnumField(
+                size=1,
+                enum_type=RequestedOplockLevel
+            )),
+            ('flag', FlagField(
+                size=1,
+                flag_type=FileFlags
+            )),
+            ('create_action', EnumField(
+                size=4,
+                enum_type=CreateAction
+            )),
+            ('creation_time', DateTimeField()),
+            ('last_access_time', DateTimeField()),
+            ('last_write_time', DateTimeField()),
+            ('change_time', DateTimeField()),
+            ('allocation_size', IntField(size=8)),
+            ('end_of_file', IntField(size=8)),
+            ('file_attributes', FlagField(
+                size=4,
+                flag_type=FileAttributes
+            )),
+            ('reserved2', IntField(size=4)),
+            ('file_id', StructureField(
+                size=16,
+                structure_type=SMB2FileId
+            )),
+            ('create_contexts_offset', IntField(size=4)),
+            ('create_contexts_length', IntField(size=4)),
+            ('buffer', BytesField())
+        ])
+        super(SMB2CreateResponse, self).__init__()
+
+
+class SMB2FileId(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.14.1 SMB2_FILEID
+    Used to represent an open to a file
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('persistent', BytesField(size=8)),
+            ('volatile', BytesField(size=8)),
+        ])
+        super(SMB2FileId, self).__init__()
+
+
+class SMB2CloseRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.15 SMB2 CLOSE Request
+    Used by the client to close an instance of a file
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=24
+            )),
+            ('flags', FlagField(
+                size=2,
+                flag_type=CloseFlags
+            )),
+            ('reserved', IntField(size=4)),
+            ('file_id', StructureField(
+                size=16,
+                structure_type=SMB2FileId
+            ))
+        ])
+        super(SMB2CloseRequest, self).__init__()
+
+
+class SMB2CloseResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.16 SMB2 CLOSE Response
+    The response of a SMB2 CLOSE Request
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=60
+            )),
+            ('flags', FlagField(
+                size=2,
+                flag_type=CloseFlags
+            )),
+            ('reserved', IntField(size=4)),
+            ('creation_time', DateTimeField()),
+            ('last_access_time', DateTimeField()),
+            ('last_write_time', DateTimeField()),
+            ('change_time', DateTimeField()),
+            ('allocation_size', IntField(size=8)),
+            ('end_of_file', IntField(size=8)),
+            ('file_attributes', FlagField(
+                size=4,
+                flag_type=FileAttributes
+            ))
+        ])
+        super(SMB2CloseResponse, self).__init__()
+
+
+class SMB2FlushRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.17 SMB2 FLUSH Request
+    Flush all cached file information for a specified open of a file to the
+    persistent store that backs the file.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=24
+            )),
+            ('reserved1', IntField(size=2)),
+            ('reserved2', IntField(size=4)),
+            ('file_id', StructureField(
+                structure_type=SMB2FileId
+            ))
+        ])
+        super(SMB2FlushRequest, self).__init__()
+
+
+class SMB2FlushResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.18 SMB2 FLUSH Response
+    SMB2 FLUSH Response packet sent by the server.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2FlushResponse, self).__init__()
+
+
+class SMB2ReadRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.19 SMB2 READ Request
+    The request is used to run a read operation on the file specified.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=49
+            )),
+            ('padding', IntField(size=1)),
+            ('flags', FlagField(
+                size=1,
+                flag_type=ReadFlags
+            )),
+            ('length', IntField(
+                size=4
+            )),
+            ('offset', IntField(
+                size=8
+            )),
+            ('file_id', StructureField(
+                structure_type=SMB2FileId
+            )),
+            ('minimum_count', IntField(
+                size=4
+            )),
+            ('channel', FlagField(
+                size=4,
+                flag_type=ReadWriteChannel
+            )),
+            ('remaining_bytes', IntField(size=4)),
+            ('read_channel_info_offset', IntField(
+                size=2,
+                default=lambda s: self._get_read_channel_info_offset(s)
+            )),
+            ('read_channel_info_length', IntField(
+                size=2,
+                default=lambda s: self._get_read_channel_info_length(s)
+            )),
+            ('buffer', BytesField(
+                size=lambda s: self._get_buffer_length(s),
+                default=b"\x00"
+            ))
+        ])
+        super(SMB2ReadRequest, self).__init__()
+
+    def _get_read_channel_info_offset(self, structure):
+        if structure['channel'].get_value() == 0:
+            return 0
+        else:
+            return 64 + structure['structure_size'].get_value() - 1
+
+    def _get_read_channel_info_length(self, structure):
+        if structure['channel'].get_value() == 0:
+            return 0
+        else:
+            return len(structure['buffer'].get_value())
+
+    def _get_buffer_length(self, structure):
+        # buffer should contain 1 byte of \x00 and not be empty
+        if structure['channel'].get_value() == 0:
+            return 1
+        else:
+            return structure['read_channel_info_length'].get_value()
+
+
+class SMB2ReadResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.20 SMB2 READ Response
+    Response to an SMB2 READ Request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=17
+            )),
+            ('data_offset', IntField(size=1)),
+            ('reserved', IntField(size=1)),
+            ('data_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer'])
+            )),
+            ('data_remaining', IntField(size=4)),
+            ('reserved2', IntField(size=4)),
+            ('buffer', BytesField())
+        ])
+        super(SMB2ReadResponse, self).__init__()
+
+
+class SMB2WriteRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.21 SMB2 WRITE Request
+    A write packet to sent to an open file or named pipe on the server
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=49
+            )),
+            ('data_offset', IntField(  # offset to the buffer field
+                size=2,
+                default=0x70  # seems to be hardcoded to this value
+            )),
+            ('length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer'])
+            )),
+            ('offset', IntField(size=8)),  # the offset in the file of the data
+            ('file_id', StructureField(
+                structure_type=SMB2FileId
+            )),
+            ('channel', FlagField(
+                size=4,
+                flag_type=ReadWriteChannel
+            )),
+            ('remaining_bytes', IntField(size=4)),
+            ('write_channel_info_offset', IntField(
+                size=2,
+                default=lambda s: self._get_write_channel_info_offset(s)
+            )),
+            ('write_channel_info_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer_channel_info'])
+            )),
+            ('flags', FlagField(
+                size=4,
+                flag_type=WriteFlags
+            )),
+            ('buffer', BytesField(
+                size=lambda s: s['length'].get_value()
+            )),
+            ('buffer_channel_info', BytesField(
+                size=lambda s: s['write_channel_info_length'].get_value()
+            ))
+        ])
+        super(SMB2WriteRequest, self).__init__()
+
+    def _get_write_channel_info_offset(self, structure):
+        if len(structure['buffer_channel_info']) == 0:
+            return 0
+        else:
+            header_size = 64
+            packet_size = structure['structure_size'].get_value() - 1
+            buffer_size = len(structure['buffer'])
+            return header_size + packet_size + buffer_size
+
+
+class SMB2WriteResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.22 SMB2 WRITE Response
+    The response to the SMB2 WRITE Request sent by the server
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=17
+            )),
+            ('reserved', IntField(size=2)),
+            ('count', IntField(size=4)),
+            ('remaining', IntField(size=4)),
+            ('write_channel_info_offset', IntField(size=2)),
+            ('write_channel_info_length', IntField(size=2))
+        ])
+        super(SMB2WriteResponse, self).__init__()
 
 
 class Open(object):
 
     def __init__(self, tree, name):
         """
-        ﻿[MS-SMB2] v53.0 2017-09-15
+        [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.6 Per Application Open of a File
         Attributes per each open of a file of an application
@@ -171,7 +861,6 @@ class Open(object):
         write['length'] = len(data)
         write['offset'] = offset
         write['file_id'] = self.file_id
-        write['data_offset'] = 0x70
         write['buffer'] = data
         if write_through:
             if self.connection.dialect < Dialects.SMB_2_1_0:

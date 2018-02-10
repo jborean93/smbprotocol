@@ -3,25 +3,24 @@ import hashlib
 import hmac
 import logging
 import os
+import struct
 import sys
-
 from datetime import datetime
 from multiprocessing.dummy import Lock
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
 
-from smbprotocol.constants import Capabilities, Ciphers, Commands, Dialects, \
-    HashAlgorithms, NegotiateContextType, NtStatus, SecurityMode, Smb1Flags2, \
-    Smb2Flags
 from smbprotocol.exceptions import SMBResponseException
-from smbprotocol.messages import SMB2PacketHeader, SMB3PacketHeader, \
-    SMB3NegotiateRequest, \
-    SMB2PreauthIntegrityCapabilities, SMB2NegotiateContextRequest, \
-    SMB1PacketHeader, SMB1NegotiateRequest, SMB2NegotiateResponse, \
-    SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
-    SMB2TransformHeader
+from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
+    FlagField, IntField, ListField, Structure, StructureField, UuidField
 from smbprotocol.transport import Tcp
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 if sys.version[0] == '2':
     from Queue import Empty
@@ -29,6 +28,730 @@ else:
     from queue import Empty
 
 log = logging.getLogger(__name__)
+
+
+class Smb1Flags2(object):
+    """
+    [MS-CIFS] and [MS-SMB]
+
+    Various flags that are used in an SMBv1 message. Only a small amount of
+    these flags are used in the initial SMBv1 negotiate message and are mostly
+    irrevalent.
+    """
+    SMB_FLAGS2_LONG_NAME = 0x0001
+    SMB_FLAGS2_EAS = 0x0002
+    SMB_FLAGS2_SMB_SECURITY_SIGNATURE = 0x0004
+    SMB_FLAGS2_COMPRESSES = 0x0008
+    SMB_FLAGS2_SMB_SECURITY_SIGNATURE_REQUIRED = 0x0010
+    SMB_FLAGS2_IS_LONG_NAME = 0x0040
+    SMB_FLAGS2_REPARSE_PATH = 0x0400
+    SMB_FLAGS2_EXTENDED_SECURITY = 0x0800
+    SMB_FLAGS2_DFS = 0x1000
+    SMB_FLAGS2_PAGING_IO = 0x2000
+    SMB_FLAGS2_NT_STATUS = 0x4000
+    SMB_FLAGS2_UNICODE = 0x8000
+
+
+class Commands(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC Command
+    The command code of an SMB2 packet, it is used in the packet header.
+    """
+    SMB2_NEGOTIATE = 0x0000
+    SMB2_SESSION_SETUP = 0x0001
+    SMB2_LOGOFF = 0x0002
+    SMB2_TREE_CONNECT = 0x0003
+    SMB2_TREE_DISCONNECT = 0x0004
+    SMB2_CREATE = 0x0005
+    SMB2_CLOSE = 0x0006
+    SMB2_FLUSH = 0x0007
+    SMB2_READ = 0x0008
+    SMB2_WRITE = 0x0009
+    SMB2_LOCK = 0x000A
+    SMB2_IOCTL = 0x000B
+    SMB2_CANCEL = 0x000C
+    SMB2_ECHO = 0x000D
+    SMB2_QUERY_DIRECTORY = 0x000E
+    SMB2_CHANGE_NOTIFY = 0x000F
+    SMB2_QUERY_INFO = 0x0010
+    SMB2_SET_INFO = 0x0011
+    SMB2_OPLOCK_BREAK = 0x0012
+
+
+class Smb2Flags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC Flags
+    Indicates various processing rules that need to be done on the SMB2 packet.
+    """
+    SMB2_FLAGS_SERVER_TO_REDIR = 0x00000001
+    SMB2_FLAGS_ASYNC_COMMAND = 0x00000002
+    SMB2_FLAGS_RELATED_OPERATIONS = 0x00000004
+    SMB2_FLAGS_SIGNED = 0x00000008
+    SMB2_FLAGS_PRIORITY_MASK = 0x00000070
+    SMB2_FLAGS_DFS_OPERATIONS = 0x10000000
+    SMB2_FLAGS_REPLAY_OPERATIONS = 0x20000000
+
+
+class SecurityMode(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 NEGOTIATE Request SecurityMode
+    Indicates whether SMB signing is enabled or required by the client.
+    """
+    SMB2_NEGOTIATE_SIGNING_ENABLED = 0x0001
+    SMB2_NEGOTIATE_SIGNING_REQUIRED = 0x0002
+
+
+class Capabilities(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 NEGOTIATE Request Capabilities
+    Used in SMB3.x and above, used to specify the capabilities supported.
+    """
+    SMB2_GLOBAL_CAP_DFS = 0x00000001
+    SMB2_GLOBAL_CAP_LEASING = 0x00000002
+    SMB2_GLOBAL_CAP_MTU = 0x00000004
+    SMB2_GLOBAL_CAP_MULTI_CHANNEL = 0x00000008
+    SMB2_GLOBAL_CAP_PERSISTENT_HANDLES = 0x00000010
+    SMB2_GLOBAL_CAP_DIRECTORY_LEASING = 0x00000020
+    SMB2_GLOBAL_CAP_ENCRYPTION = 0x00000040
+
+
+class Dialects(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 NEGOTIATE Request Dialects
+    16-bit integeres specifying an SMB2 dialect that is supported. 0x02FF is
+    used in the SMBv1 negotiate request to say that dialects greater than
+    2.0.2 is supported.
+    """
+    SMB_2_0_2 = 0x0202
+    SMB_2_1_0 = 0x0210
+    SMB_3_0_0 = 0x0300
+    SMB_3_0_2 = 0x0302
+    SMB_3_1_1 = 0x0311
+    SMB_2_WILDCARD = 0x02FF
+
+
+class NegotiateContextType(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1 SMB2 NEGOTIATE_CONTENT Request ContextType
+    Specifies the type of context in an SMB2 NEGOTIATE_CONTEXT message.
+    """
+    SMB2_PREAUTH_INTEGRITY_CAPABILITIES = 0x0001
+    SMB2_ENCRYPTION_CAPABILITIES = 0x0002
+
+
+class HashAlgorithms(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1.1 SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+    16-bit integer IDs that specify the integrity hash algorithm supported
+    """
+    SHA_512 = 0x0001
+
+    @staticmethod
+    def get_algorithm(hash):
+        return {
+            HashAlgorithms.SHA_512: hashlib.sha512
+        }[hash]
+
+
+class Ciphers(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1.2 SMB2_ENCRYPTION_CAPABILITIES
+    16-bit integer IDs that specify the supported encryption algorithms.
+    """
+    AES_128_CCM = 0x0001
+    AES_128_GCM = 0x0002
+
+    @staticmethod
+    def get_cipher(cipher):
+        return {
+            Ciphers.AES_128_CCM: aead.AESCCM,
+            Ciphers.AES_128_GCM: aead.AESGCM
+        }[cipher]
+
+
+class NtStatus(object):
+    """
+    [MS-ERREF] https://msdn.microsoft.com/en-au/library/cc704588.aspx
+
+    2.3.1 NTSTATUS Values
+    These values are set in the status field of an SMB2Header response. This is
+    not an exhaustive list but common values that are returned.
+    """
+    STATUS_SUCCESS = 0x00000000
+    STATUS_PENDING = 0x00000103
+    STATUS_INVALID_PARAMETER = 0xC000000D
+    STATUS_END_OF_FILE = 0xC0000011
+    STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
+    STATUS_ACCESS_DENIED = 0xC0000022
+    STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
+    STATUS_SHARING_VIOLATION = 0xC0000043
+    STATUS_LOGON_FAILURE = 0xC000006D
+    STATUS_PASSWORD_EXPIRED = 0xC0000071
+    STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
+    STATUS_PIPE_BUSY = 0xC00000AE
+    STATUS_FILE_IS_A_DIRECTORY = 0xC00000BA
+    STATUS_NOT_SUPPORTED = 0xC00000BB
+    STATUS_BAD_NETWORK_NAME = 0xC00000CC
+    STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
+    STATUS_NOT_A_DIRECTORY = 0xC0000103
+    STATUS_FILE_CLOSED = 0xC0000128
+    STATUS_PIPE_BROKEN = 0xC000014B
+    STATUS_USER_SESSION_DELETED = 0xC0000203
+
+
+class SMB1PacketHeader(Structure):
+    """
+    [MS-SMB] v46.0 2017-0-01
+
+    2.2.3.1 SMB Header Extensions
+    Used in the initial negotiation process, the SMBv1 header must be sent
+    with the SMBv1 Negotiate Request packet in order to determine if the server
+    supports SMBv2+.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('protocol', BytesField(
+                size=4,
+                default=b'\xffSMB',
+            )),
+            ('command', IntField(size=1)),
+            ('status', IntField(size=4)),
+            ('flags', IntField(size=1)),
+            ('flags2', FlagField(
+                size=2,
+                flag_type=Smb1Flags2,
+            )),
+            ('pid_high', IntField(size=2)),
+            ('security_features', IntField(size=8)),
+            ('reserved', IntField(size=2)),
+            ('tid', IntField(size=2)),
+            ('pid_low', IntField(size=2)),
+            ('uid', IntField(size=2)),
+            ('mid', IntField(size=2)),
+            ('data', StructureField(
+                structure_type=SMB1NegotiateRequest
+            ))
+        ])
+        super(SMB1PacketHeader, self).__init__()
+
+
+class SMB2PacketHeader(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC
+    The header of all SMBv2 Protocol requests and responses. This is the SYNC
+    form of the header is is used for all server responses and on client
+    requests if SMBv2 was negotiated. If SMBv3 was negotiated then
+    SMB3PacketHeader is used on all client requests.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('protocol_id', BytesField(
+                size=4,
+                default=b'\xfeSMB',
+            )),
+            ('structure_size', IntField(
+                size=2,
+                default=64,
+            )),
+            ('credit_charge', IntField(size=2)),
+            ('status', EnumField(
+                size=4,
+                enum_type=NtStatus,
+                enum_strict=False
+            )),
+            ('command', EnumField(
+                size=2,
+                enum_type=Commands
+            )),
+            ('credit', IntField(size=2)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=Smb2Flags,
+            )),
+            ('next_command', IntField(size=4)),
+            ('message_id', IntField(size=8)),
+            ('reserved', IntField(size=4)),
+            ('tree_id', IntField(size=4)),
+            ('session_id', IntField(size=8)),
+            ('signature', BytesField(
+                size=16,
+                default=b"\x00" * 16,
+            )),
+            ('data', BytesField()),
+        ])
+        super(SMB2PacketHeader, self).__init__()
+
+
+class SMB3PacketHeader(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC
+    This is the same as SMB2PacketHeader except it contains the
+    channel_sequence + reserved fields instead of status. This is used on all
+    client requests if the Dialect negotiated is v3.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('protocol_id', BytesField(
+                size=4,
+                default=b"\xfeSMB",
+            )),
+            ('structure_size', IntField(
+                size=2,
+                default=64,
+            )),
+            ('credit_charge', IntField(size=2)),
+            ('channel_sequence', IntField(size=2)),
+            ('reserved', IntField(size=2)),
+            ('command', EnumField(
+                size=2,
+                enum_type=Commands
+            )),
+            ('credit', IntField(size=2)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=Smb2Flags,
+            )),
+            ('next_command', IntField(size=4)),
+            ('message_id', IntField(size=8)),
+            ('process_id', IntField(size=4)),
+            ('tree_id', IntField(size=4)),
+            ('session_id', IntField(size=8)),
+            ('signature', BytesField(
+                size=16,
+                default=b"\x00" * 16,
+            )),
+            ('data', BytesField()),
+        ])
+        super(SMB3PacketHeader, self).__init__()
+
+
+class SMB1NegotiateRequest(Structure):
+    """
+    [MS-CIFS] v27.0 2017-06-01
+
+    2.2.4.52 SMB_COM_NEGOTIATE (0x72)
+    The command is used to initial an SMB connection between the client and
+    the server. This is used only in the initial negotiation process to
+    determine whether SMBv2+ is supported on the server.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('word_count', IntField(size=1)),
+            ('byte_count', IntField(
+                size=2,
+                default=lambda s: len(s['dialects']),
+            )),
+            ('dialects', BytesField(
+                size=lambda s: s['byte_count'].get_value(),
+            )),
+        ])
+        super(SMB1NegotiateRequest, self).__init__()
+
+
+class SMB2NegotiateRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 Negotiate Request
+    The SMB2 NEGOTIATE Request packet is used by the client to notify the
+    server what dialects of the SMB2 Protocol the client understands. This is
+    only used if the client explicitly sets the Dialect to use to a version
+    less than 3.1.1. Dialect 3.1.1 added support for negotiate_context and
+    SMB3NegotiateRequest should be used to support that.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=36,
+            )),
+            ('dialect_count', IntField(
+                size=2,
+                default=lambda s: len(s['dialects'].get_value()),
+            )),
+            ('security_mode', FlagField(
+                size=2,
+                flag_type=SecurityMode
+            )),
+            ('reserved', IntField(size=2)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
+            ('client_guid', UuidField()),
+            ('client_start_time', IntField(size=8)),
+            ('dialects', ListField(
+                size=lambda s: s['dialect_count'].get_value() * 2,
+                list_count=lambda s: s['dialect_count'].get_value(),
+                list_type=EnumField(size=2, enum_type=Dialects),
+            )),
+        ])
+
+        super(SMB2NegotiateRequest, self).__init__()
+
+
+class SMB3NegotiateRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3 SMB2 Negotiate Request
+    Like SMB2NegotiateRequest but with support for setting a list of
+    Negotiate Context values. This is used by default and is for Dialects 3.1.1
+    or greater.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=36,
+            )),
+            ('dialect_count', IntField(
+                size=2,
+                default=lambda s: len(s['dialects'].get_value()),
+            )),
+            ('security_mode', FlagField(
+                size=2,
+                flag_type=SecurityMode,
+            )),
+            ('reserved', IntField(size=2)),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities,
+            )),
+            ('client_guid', UuidField()),
+            ('negotiate_context_offset', IntField(
+                size=4,
+                default=lambda s: self._negotiate_context_offset_value(s),
+            )),
+            ('negotiate_context_count', IntField(
+                size=2,
+                default=lambda s: len(s['negotiate_context_list'].get_value()),
+            )),
+            ('reserved2', IntField(size=2)),
+            ('dialects', ListField(
+                size=lambda s: s['dialect_count'].get_value() * 2,
+                list_count=lambda s: s['dialect_count'].get_value(),
+                list_type=EnumField(size=2, enum_type=Dialects),
+            )),
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s),
+            )),
+            ('negotiate_context_list', ListField(
+                list_count=lambda s: s['negotiate_context_count'].get_value(),
+                unpack_func=lambda s, d: self._negotiate_context_list(s, d),
+            )),
+        ])
+        super(SMB3NegotiateRequest, self).__init__()
+
+    def _negotiate_context_offset_value(self, structure):
+        # The offset from the beginning of the SMB2 header to the first, 8-byte
+        # aligned, negotiate context
+        header_size = 64
+        negotiate_size = structure['structure_size'].get_value()
+        dialect_size = len(structure['dialects'])
+        padding_size = self._padding_size(structure)
+        return header_size + negotiate_size + dialect_size + padding_size
+
+    def _padding_size(self, structure):
+        # Padding between the end of the buffer value and the first Negotiate
+        # context value so that the first value is 8-byte aligned. Padding is
+        # 4 is there are no dialects specified
+        mod = (structure['dialect_count'].get_value() * 2) % 8
+        return 0 if mod == 0 else mod
+
+    def _negotiate_context_list(self, structure, data):
+        context_count = structure['negotiate_context_count'].get_value()
+        context_list = []
+        for idx in range(0, context_count):
+            field, data = self._parse_negotiate_context_entry(data, idx)
+            context_list.append(field)
+
+        return context_list
+
+    def _parse_negotiate_context_entry(self, data, idx):
+        data_length = struct.unpack("<H", data[2:4])[0]
+        negotiate_context = SMB2NegotiateContextRequest()
+        negotiate_context.unpack(data[:data_length + 8])
+        return negotiate_context, data[8 + data_length:]
+
+
+class SMB2NegotiateContextRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1 SMB2 NEGOTIATE_CONTEXT Request Values
+    The SMB2_NEGOTIATE_CONTEXT structure is used by the SMB2 NEGOTIATE Request
+    and the SMB2 NEGOTIATE Response to encode additional properties.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('context_type', EnumField(
+                size=2,
+                enum_type=NegotiateContextType,
+            )),
+            ('data_length', IntField(
+                size=2,
+                default=lambda s: len(s['data'].get_value()),
+            )),
+            ('reserved', IntField(size=4)),
+            ('data', StructureField(
+                size=lambda s: s['data_length'].get_value(),
+                structure_type=lambda s: self._data_structure_type(s)
+            )),
+            # not actually a field but each list entry must start at the 8 byte
+            # alignment
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s),
+            ))
+        ])
+        super(SMB2NegotiateContextRequest, self).__init__()
+
+    def _data_structure_type(self, structure):
+        con_type = structure['context_type'].get_value()
+        if con_type == \
+                NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES:
+            return SMB2PreauthIntegrityCapabilities
+        elif con_type == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES:
+            return SMB2EncryptionCapabilities
+
+    def _padding_size(self, structure):
+        data_size = len(structure['data'])
+        return 8 - data_size if data_size <= 8 else 8 - (data_size % 8)
+
+
+class SMB2PreauthIntegrityCapabilities(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1.1 SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+    The SMB2_PREAUTH_INTEGRITY_CAPABILITIES context is specified in an SMB2
+    NEGOTIATE request by the client to indicate which preauthentication
+    integrity hash algorithms it supports and to optionally supply a
+    preauthentication integrity hash salt value.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('hash_algorithm_count', IntField(
+                size=2,
+                default=lambda s: len(s['hash_algorithms'].get_value()),
+            )),
+            ('salt_length', IntField(
+                size=2,
+                default=lambda s: len(s['salt']),
+            )),
+            ('hash_algorithms', ListField(
+                size=lambda s: s['hash_algorithm_count'].get_value() * 2,
+                list_count=lambda s: s['hash_algorithm_count'].get_value(),
+                list_type=EnumField(size=2, enum_type=HashAlgorithms),
+            )),
+            ('salt', BytesField(
+                size=lambda s: s['salt_length'].get_value(),
+            )),
+        ])
+        super(SMB2PreauthIntegrityCapabilities, self).__init__()
+
+
+class SMB2EncryptionCapabilities(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.3.1.2 SMB2_ENCRYPTION_CAPABILITIES
+    The SMB2_ENCRYPTION_CAPABILITIES context is specified in an SMB2 NEGOTIATE
+    request by the client to indicate which encryption algorithms the client
+    supports.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('cipher_count', IntField(
+                size=2,
+                default=lambda s: len(s['ciphers'].get_value()),
+            )),
+            ('ciphers', ListField(
+                size=lambda s: s['cipher_count'].get_value() * 2,
+                list_count=lambda s: s['cipher_count'].get_value(),
+                list_type=EnumField(size=2, enum_type=Ciphers),
+            )),
+        ])
+        super(SMB2EncryptionCapabilities, self).__init__()
+
+
+class SMB2NegotiateResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.4 SMB2 NEGOTIATE Response
+    The SMB2 NEGOTIATE Response packet is sent by the server to notify the
+    client of the preferred common dialect.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=65,
+            )),
+            ('security_mode', FlagField(
+                size=2,
+                flag_type=SecurityMode,
+            )),
+            ('dialect_revision', EnumField(
+                size=2,
+                enum_type=Dialects,
+            )),
+            ('negotiate_context_count', IntField(
+                size=2,
+                default=lambda s: self._negotiate_context_count_value(s),
+            )),
+            ('server_guid', UuidField()),
+            ('capabilities', FlagField(
+                size=4,
+                flag_type=Capabilities
+            )),
+            ('max_transact_size', IntField(size=4)),
+            ('max_read_size', IntField(size=4)),
+            ('max_write_size', IntField(size=4)),
+            ('system_time', DateTimeField()),
+            ('server_start_time', DateTimeField()),
+            ('security_buffer_offset', IntField(
+                size=2,
+                default=128,  # (header size 64) + (structure size 64)
+            )),
+            ('security_buffer_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer'].get_value()),
+            )),
+            ('negotiate_context_offset', IntField(
+                size=4,
+                default=lambda s: self._negotiate_context_offset_value(s),
+            )),
+            ('buffer', BytesField(
+                size=lambda s: s['security_buffer_length'].get_value(),
+            )),
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s),
+            )),
+            ('negotiate_context_list', ListField(
+                list_count=lambda s: s['negotiate_context_count'].get_value(),
+                unpack_func=lambda s, d:
+                self._negotiate_context_list(s, d),
+            )),
+        ])
+        super(SMB2NegotiateResponse, self).__init__()
+
+    def _negotiate_context_count_value(self, structure):
+        # If the dialect_revision is SMBv3.1.1, this field specifies the
+        # number of negotiate contexts in negotiate_context_list; otherwise
+        # this field must not be used and must be reserved (0).
+        if structure['dialect_revision'].get_value() == Dialects.SMB_3_1_1:
+            return len(structure['negotiate_context_list'].get_value())
+        else:
+            return None
+
+    def _negotiate_context_offset_value(self, structure):
+        # If the dialect_revision is SMBv3.1.1, this field specifies the offset
+        # from the beginning of the SMB2 header to the first 8-byte
+        # aligned negotiate context entry in negotiate_context_list; otherwise
+        # this field must not be used and must be reserved (0).
+        if structure['dialect_revision'].get_value() == Dialects.SMB_3_1_1:
+            buffer_offset = structure['security_buffer_offset'].get_value()
+            buffer_size = structure['security_buffer_length'].get_value()
+            padding_size = self._padding_size(structure)
+            return buffer_offset + buffer_size + padding_size
+        else:
+            return None
+
+    def _padding_size(self, structure):
+        # Padding between the end of the buffer value and the first Negotiate
+        # context value so that the first value is 8-byte aligned. Padding is
+        # not required if there are not negotiate contexts
+        if structure['negotiate_context_count'].get_value() == 0:
+            return 0
+
+        mod = structure['security_buffer_length'].get_value() % 8
+        return 0 if mod == 0 else 8 - mod
+
+    def _negotiate_context_list(self, structure, data):
+        context_count = structure['negotiate_context_count'].get_value()
+        context_list = []
+        for idx in range(0, context_count):
+            field, data = self._parse_negotiate_context_entry(data)
+            context_list.append(field)
+
+        return context_list
+
+    def _parse_negotiate_context_entry(self, data):
+        data_length = struct.unpack("<H", data[2:4])[0]
+        negotiate_context = SMB2NegotiateContextRequest()
+        negotiate_context.unpack(data[:data_length + 8])
+        padded_size = data_length % 8
+        if padded_size != 0:
+            padded_size = 8 - padded_size
+
+        return negotiate_context, data[8 + data_length + padded_size:]
+
+
+class SMB2TransformHeader(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.41 SMB@ TRANSFORM_HEADER
+    The SMB2 Transform Header is used by the client or server when sending
+    encrypted message. This is only valid for the SMB.x dialect family.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('protocol_id', BytesField(
+                size=4,
+                default=b"\xfdSMB"
+            )),
+            ('signature', BytesField(
+                size=16,
+                default=b"\x00" * 16
+            )),
+            ('nonce', BytesField(size=16)),
+            ('original_message_size', IntField(size=4)),
+            ('reserved', IntField(size=2, default=0)),
+            ('flags', IntField(
+                size=2,
+                default=1
+            )),
+            ('session_id', IntField(size=8)),
+            ('data', BytesField())  # not in spec
+        ])
+        super(SMB2TransformHeader, self).__init__()
 
 
 class Connection(object):
@@ -287,7 +1010,7 @@ class Connection(object):
         """
         while True:
             try:
-                message = self.transport.message_buffer.get(block=False)
+                message_bytes = self.transport.message_buffer.get(block=False)
             except Empty:
                 # raises Empty if wait=False and there are no messages, in this
                 # case we have nothing to parse and so break from the loop
@@ -295,11 +1018,16 @@ class Connection(object):
 
             # if bytes then it is an unknown message, if TransformHeader we
             # need to decrypt it
-            if isinstance(message, bytes):
-                raise Exception("Invalid header '%s' received from server"
-                                % message[:4])
-            elif isinstance(message, SMB2TransformHeader):
+            if message_bytes[:4] == b"\xfeSMB":
+                message = SMB2PacketHeader()
+                message.unpack(message_bytes)
+            elif message_bytes[:4] == b"\xfdSMB":
+                message = SMB2TransformHeader()
+                message.unpack(message_bytes)
                 message = self._decrypt(message)
+            else:
+                raise Exception("Invalid header '%s' received from server"
+                                % message_bytes[:4])
             self._verify(message)
 
             message_id = message['message_id'].get_value()

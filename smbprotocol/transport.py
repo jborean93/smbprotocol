@@ -4,10 +4,37 @@ import struct
 
 from multiprocessing.dummy import Process, Queue
 
-from smbprotocol.messages import DirectTCPPacket, SMB2PacketHeader, \
-    SMB2TransformHeader
+from smbprotocol.structure import BytesField, IntField, Structure
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
+
+
+class DirectTCPPacket(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.1 Transport
+    The Directory TCP transport packet header MUST have the following
+    structure.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('stream_protocol_length', IntField(
+                size=4,
+                little_endian=False,
+                default=lambda s: len(s['smb2_message']),
+            )),
+            ('smb2_message', BytesField(
+                size=lambda s: s['stream_protocol_length'].get_value(),
+            )),
+        ])
+        super(DirectTCPPacket, self).__init__()
 
 
 class Tcp(object):
@@ -79,15 +106,4 @@ class Tcp(object):
 
             packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
             buffer = sock.recv(packet_size_int)
-
-            if buffer[:4] == b"\xfeSMB":
-                header = SMB2PacketHeader()
-            elif buffer[:4] == b"\xfdSMB":
-                header = SMB2TransformHeader()
-            else:
-                # not a valid message so we need to break - validation happens
-                # when messages are read from the queue
-                message_buffer.put(buffer)
-                break
-            header.unpack(buffer)
-            message_buffer.put(header)
+            message_buffer.put(buffer)

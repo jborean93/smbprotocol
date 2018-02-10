@@ -9,9 +9,11 @@ from datetime import datetime, timedelta
 
 from six import with_metaclass, integer_types
 
-from smbprotocol.exceptions import InvalidFieldDefinition
-
 TAB = "    "  # Instead of displaying a tab on the print, use 4 spaces
+
+
+class InvalidFieldDefinition(Exception):
+    pass
 
 
 def _bytes_to_hex(bytes, pretty=False, hex_per_line=8):
@@ -821,3 +823,36 @@ class FlagField(IntField):
                 flags.append(flag)
         flags.sort()
         return "(%d) %s" % (field_value, ", ".join(flags))
+
+
+class BoolField(Field):
+
+    def __init__(self, **kwargs):
+        """
+        Used to store a boolean value in 1 byte. b"\x00" is False while b"\x01"
+        is True.
+
+        :param kwargs: Any other kwarg to be sent to Field()
+        """
+        super(BoolField, self).__init__(size=1, **kwargs)
+
+    def _pack_value(self, value):
+        return b"\x01" if value else b"\x00"
+
+    def _parse_value(self, value):
+        if value is None:
+            bool_value = False
+        elif isinstance(value, bool):
+            bool_value = value
+        elif isinstance(value, bytes):
+            bool_value = value == b"\x01"
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "bool" % (self.name, type(value).__name__))
+        return bool_value
+
+    def _get_packed_size(self):
+        return 1
+
+    def _to_string(self):
+        return str(self._get_calculated_value(self.value))
