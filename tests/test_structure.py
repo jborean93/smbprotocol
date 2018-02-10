@@ -982,6 +982,24 @@ class TestUuidField(object):
             UuidField(size=8)
         assert str(exc.value) == "UuidField type must have a size of 16 not 8"
 
+    def test_pack_uuid_field_big_endian(self):
+        field = self.StructureTest()['field']
+        field.little_endian = False
+        field.set_value(uuid.UUID("00000001-0001-0001-0001-000000000001"))
+        expected = b"\x01\x00\x00\x00\x01\x00\x01\x00" \
+                   b"\x00\x01\x00\x00\x00\x00\x00\x01"
+        actual = field.pack()
+        assert actual == expected
+
+    def test_unpack_uuid_field_big_endian(self):
+        field = self.StructureTest()['field']
+        field.little_endian = False
+        field.unpack(b"\x01\x00\x00\x00\x01\x00\x01\x00"
+                     b"\x00\x01\x00\x00\x00\x00\x00\x01")
+        expected = uuid.UUID("00000001-0001-0001-0001-000000000001")
+        actual = field.get_value()
+        assert actual == expected
+
 
 class TestDateTimeField(object):
 

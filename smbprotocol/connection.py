@@ -3,10 +3,10 @@ import hashlib
 import hmac
 import logging
 import os
+import sys
+
 from datetime import datetime
 from multiprocessing.dummy import Lock
-from queue import Empty
-
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
@@ -22,6 +22,11 @@ from smbprotocol.messages import SMB2PacketHeader, SMB3PacketHeader, \
     SMB2EncryptionCapabilities, SMB2NegotiateRequest, \
     SMB2TransformHeader
 from smbprotocol.transport import Tcp
+
+if sys.version[0] == '2':
+    from Queue import Empty
+else:
+    from queue import Empty
 
 log = logging.getLogger(__name__)
 

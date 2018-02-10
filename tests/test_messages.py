@@ -259,14 +259,33 @@ class TestSMB3PacketHeader(object):
         assert actual['data'].get_value() == b"\x01\x02\x03\x04"
 
 
-# TODO: Once I get proper responses from the server
 class TestSMB2ErrorResponse(object):
 
-    def test_create_message(self):
-        pass
+    def test_create_message_plain(self):
+        # This is a plain error response without the error context response
+        # data appended
+        message = SMB2ErrorResponse()
+        expected = b"\x09\x00" \
+                   b"\x00" \
+                   b"\x00" \
+                   b"\x00\x00\x00\x00"
+        actual = message.pack()
+        assert len(actual) == 8
+        assert actual == expected
 
-    def test_parse_message(self):
-        pass
+    def test_parse_message_plain(self):
+        actual = SMB2ErrorResponse()
+        data = b"\x09\x00" \
+               b"\x00" \
+               b"\x00" \
+               b"\x00\x00\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 8
+        assert actual['structure_size'].get_value() == 9
+        assert actual['error_context_count'].get_value() == 0
+        assert actual['reserved'].get_value() == 0
+        assert actual['byte_count'].get_value() == 0
+        assert actual['error_data'].get_value() == []
 
 
 # TODO: Once I get proper responses from the server
@@ -480,37 +499,6 @@ class TestSMB3NegotiateRequest(object):
                           SMB2EncryptionCapabilities)
         assert neg_con['data']['cipher_count'].get_value() == 1
         assert neg_con['data']['ciphers'].get_value() == [Ciphers.AES_128_GCM]
-
-
-class TestSMB2ErrorResponse(object):
-
-    # TODO: Add tests for context messages when I get one
-
-    def test_create_message_plain(self):
-        # This is a plain error response without the error context response
-        # data appended
-        message = SMB2ErrorResponse()
-        expected = b"\x09\x00" \
-                   b"\x00" \
-                   b"\x00" \
-                   b"\x00\x00\x00\x00"
-        actual = message.pack()
-        assert len(actual) == 8
-        assert actual == expected
-
-    def test_parse_message_plain(self):
-        actual = SMB2ErrorResponse()
-        data = b"\x09\x00" \
-               b"\x00" \
-               b"\x00" \
-               b"\x00\x00\x00\x00"
-        actual.unpack(data)
-        assert len(actual) == 8
-        assert actual['structure_size'].get_value() == 9
-        assert actual['error_context_count'].get_value() == 0
-        assert actual['reserved'].get_value() == 0
-        assert actual['byte_count'].get_value() == 0
-        assert actual['error_data'].get_value() == []
 
 
 class TestSMB2NegotiateContextRequest(object):
