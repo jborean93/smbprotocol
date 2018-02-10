@@ -3,11 +3,14 @@ from datetime import datetime
 
 import pytest
 
-from smbprotocol.constants import Commands, Ciphers, CtlCode, Dialects, \
+from smbprotocol.constants import Commands, Ciphers, CloseFlags, CtlCode, \
+    Dialects, \
     HashAlgorithms, IOCTLFlags, NegotiateContextType, SecurityMode, Smb1Flags2
 from smbprotocol.messages import DirectTCPPacket, SMB1NegotiateRequest, \
-    SMB1PacketHeader, SMB2EncryptionCapabilities, \
-    SMB2ErrorResponse, SMB2IOCTLRequest, SMB2IOCTLResponse, SMB2Logoff, \
+    SMB1PacketHeader, SMB2CloseRequest, SMB2CloseResponse, \
+    SMB2EncryptionCapabilities, \
+    SMB2ErrorResponse, SMB2FlushRequest, SMB2FlushResponse, SMB2IOCTLRequest, \
+    SMB2IOCTLResponse, SMB2Logoff, \
     SMB2NegotiateContextRequest, SMB2NegotiateRequest, SMB2NegotiateResponse, \
     SMB2PacketHeader, SMB2PreauthIntegrityCapabilities, \
     SMB2SessionSetupRequest, SMB2SessionSetupResponse, SMB2TransformHeader, \
@@ -1046,6 +1049,201 @@ class TestSMB2TreeDisconnect(object):
         assert len(actual) == 4
         assert actual['structure_size'].get_value() == 4
         assert actual['reserved'].get_value() == 0
+
+
+class TestSMB2CreateRequest(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
+
+
+class TestSMB2CreateContextRequest(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
+
+
+class TestSMB2CreateResponse(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
+
+
+class TestSMB2CloseRequest(object):
+
+    def test_create_message(self):
+        message = SMB2CloseRequest()
+        message['flags'].set_flag(CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB)
+        message['file_id'] = b"\xff" * 16
+        expected = b"\x18\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        actual = message.pack()
+        assert len(actual) == 24
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2CloseRequest()
+        data = b"\x18\x00" \
+               b"\x01\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        actual.unpack(data)
+        assert len(actual) == 24
+        assert actual['structure_size'].get_value() == 24
+        assert actual['flags'].get_value() == \
+            CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB
+        assert actual['reserved'].get_value() == 0
+        assert actual['file_id'].get_value().pack() == b"\xff" * 16
+
+
+class TestSMB2CloseResponse(object):
+
+    def test_create_message(self):
+        message = SMB2CloseResponse()
+        message['creation_time'] = datetime.utcfromtimestamp(0)
+        message['last_access_time'] = datetime.utcfromtimestamp(0)
+        message['last_write_time'] = datetime.utcfromtimestamp(0)
+        message['change_time'] = datetime.utcfromtimestamp(0)
+        expected = b"\x3c\x00" \
+                   b"\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+                   b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+                   b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+                   b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00"
+        actual = message.pack()
+        assert len(actual) == 60
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2CloseResponse()
+        data = b"\x3c\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+               b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+               b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+               b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 60
+        assert actual['structure_size'].get_value() == 60
+        assert actual['flags'].get_value() == 0
+        assert actual['reserved'].get_value() == 0
+        assert actual['creation_time'].get_value() == \
+            datetime.utcfromtimestamp(0)
+        assert actual['last_access_time'].get_value() == \
+            datetime.utcfromtimestamp(0)
+        assert actual['last_write_time'].get_value() == \
+            datetime.utcfromtimestamp(0)
+        assert actual['change_time'].get_value() == \
+            datetime.utcfromtimestamp(0)
+        assert actual['allocation_size'].get_value() == 0
+        assert actual['end_of_file'].get_value() == 0
+        assert actual['file_attributes'].get_value() == 0
+
+
+class TestSMB2FlushRequest(object):
+
+    def test_create_message(self):
+        message = SMB2FlushRequest()
+        message['file_id'] = b"\xff" * 16
+        expected = b"\x18\x00" \
+                   b"\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        actual = message.pack()
+        assert len(message) == 24
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2FlushRequest()
+        data = b"\x18\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        actual.unpack(data)
+        assert len(actual) == 24
+        assert actual['structure_size'].get_value() == 24
+        assert actual['reserved1'].get_value() == 0
+        assert actual['reserved2'].get_value() == 0
+        assert actual['file_id'].pack() == b"\xff" * 16
+
+
+class TestSMB2FlushResponse(object):
+
+    def test_create_message(self):
+        message = SMB2FlushResponse()
+        expected = b"\x04\x00" \
+                   b"\x00\x00"
+        actual = message.pack()
+        assert len(message) == 4
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2FlushResponse()
+        data = b"\x04\x00" \
+               b"\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 4
+        assert actual['structure_size'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+
+
+class TestSMB2ReadRequest(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
+
+
+class TestSMB2ReadResponse(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
+
+
+class TestSMB2WriteRequest(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
+
+
+class TestSMB2WriteResponse(object):
+
+    def test_create_message(self):
+        a = ""
+
+    def test_parse_message(self):
+        a = ""
 
 
 class TestSMB2IOCTLRequest(object):
