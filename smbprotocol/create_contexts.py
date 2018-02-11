@@ -1,3 +1,4 @@
+import smbprotocol.connection
 import smbprotocol.open
 from smbprotocol.structure import BoolField, BytesField, DateTimeField,\
     EnumField, FlagField, IntField, Structure, StructureField, UuidField
@@ -71,7 +72,7 @@ class LeaseState(object):
     SMB2_LEASE_WRITE_CACHING = 0x04
 
 
-class LeaseFlags(object):
+class LeaseRequestFlags(object):
     """
     [MS-SMB2]
 
@@ -79,6 +80,16 @@ class LeaseFlags(object):
     The flags to use on an SMB2CreateRequestLeaseV2 packet.
     """
     SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET = 0x00000004
+
+
+class LeaseResponseFlags(object):
+    """
+    [MS-SMB2]
+
+    2.2.14.2.10 SMB2_CREATE_RESPONSE_LEASE
+    """
+    SMB2_LEASE_FLAG_BREAK_IN_PROGRESS = 0x00000002
+    SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET = 0x00000004  # V2 Response
 
 
 class DurableHandleFlags(object):
@@ -240,6 +251,20 @@ class SMB2CreateDurableHandleRequest(Structure):
         super(SMB2CreateDurableHandleRequest, self).__init__()
 
 
+class SMB2CreateDurableHandleResponse(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.3 SMB2_CREATE_DURABLE_HANDLE_RESPONSE
+
+    Sent by the server in response to an SMB2CreateDurableHandleRequest packet.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('reserved', IntField(size=8))
+        ])
+        super(SMB2CreateDurableHandleResponse, self).__init__()
+
+
 class SMB2CreateDurableHandleReconnect(Structure):
     """
     [MS-SMB2] 2.2.13.2.4 SMB2_CREATE_DURABLE_HANDLE_RECONNECT
@@ -270,6 +295,27 @@ class SMB2CreateQueryMaximalAccessRequest(Structure):
             ('timestamp', DateTimeField())
         ])
         super(SMB2CreateQueryMaximalAccessRequest, self).__init__()
+
+
+class SMB2CreateQueryMaximalAccessResponse(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.5 SMB2_CREATE_QUERY_MAXIMAL_ACCESS_RESPONSE
+
+    Used by the server in response to an SMB2CreateQueryMaximalAccessRequest
+    packet.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('query_status', EnumField(
+                size=4,
+                enum_type=smbprotocol.connection.NtStatus,
+                enum_strict=False
+            )),
+            # either FilePipePrinterAccessMask or DirectoryAccessMask
+            ('maximal_access', IntField(size=4))
+        ])
+        super(SMB2CreateQueryMaximalAccessResponse, self).__init__()
 
 
 class SMB2CreateAllocationSize(Structure):
@@ -322,7 +368,30 @@ class SMB2CreateRequestLease(Structure):
         super(SMB2CreateRequestLease, self).__init__()
 
 
-class SMB2CreateQueryOnDiskID(Structure):
+class SMB2CreateResponseLease(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.10 SMB2_CREATE_RESPONSE_LEASE
+
+    Sent by the server in response to an SMB2CreateRequestLease
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('lease_key', BytesField(size=16)),
+            ('lease_state', FlagField(
+                size=4,
+                flag_type=LeaseState
+            )),
+            ('lease_flags', FlagField(
+                size=4,
+                flag_type=LeaseResponseFlags
+            )),
+            ('lease_duration', IntField(size=8))
+        ])
+        super(SMB2CreateResponseLease, self).__init__()
+
+
+class SMB2CreateQueryOnDiskIDRequest(Structure):
     """
     [MS-SMB2] 2.2.13.2.9 SMB2_CREATE_QUERY_ON_DISK_ID
     Used by the client when requesting that the server return an identifier
@@ -331,7 +400,26 @@ class SMB2CreateQueryOnDiskID(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([])
-        super(SMB2CreateQueryOnDiskID, self).__init__()
+        super(SMB2CreateQueryOnDiskIDRequest, self).__init__()
+
+
+class SMB2CreateQueryOnDiskIDResponse(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.9 SMB2_CREATE_QUERY_ON_DISK_ID
+
+    Sent by the server in response to an SMB2CreateQueryOnDiskIDRequest packet.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('disk_file_id', IntField(size=8)),
+            ('volume_id', IntField(size=8)),
+            ('reserved', BytesField(
+                size=16,
+                default=b"\x00" * 16
+            ))
+        ])
+        super(SMB2CreateQueryOnDiskIDResponse, self).__init__()
 
 
 class SMB2CreateRequestLeaseV2(Structure):
@@ -352,7 +440,7 @@ class SMB2CreateRequestLeaseV2(Structure):
             )),
             ('lease_flags', FlagField(
                 size=4,
-                flag_type=LeaseFlags
+                flag_type=LeaseRequestFlags
             )),
             ('lease_duration', IntField(size=8)),
             ('parent_lease_key', BytesField(size=16)),
@@ -360,6 +448,32 @@ class SMB2CreateRequestLeaseV2(Structure):
             ('reserved', IntField(size=2))
         ])
         super(SMB2CreateRequestLeaseV2, self).__init__()
+
+
+class SMB2CreateResponseLeaseV2(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.11 SMB2_CREATE_RESPONSE_LEASE_V2
+
+    Sent by the server in response to an SMB2CreateRequestLeaseV2 packet.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('lease_key', BytesField(size=16)),
+            ('lease_state', FlagField(
+                size=4,
+                flag_type=LeaseState
+            )),
+            ('flags', FlagField(
+                size=4,
+                flag_type=LeaseResponseFlags
+            )),
+            ('lease_duration', IntField(size=8)),
+            ('parent_lease_key', BytesField(size=16)),
+            ('epoch', IntField(size=2)),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2CreateResponseLeaseV2, self).__init__()
 
 
 class SMB2CreateDurableHandleRequestV2(Structure):
@@ -408,6 +522,25 @@ class SMB2CreateDurableHandleReconnectV2(Structure):
         super(SMB2CreateDurableHandleReconnectV2, self).__init__()
 
 
+class SMB2CreateDurableHandleResponseV2(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.12 SMB2_CREATE_DURABLE_HANDLE_RESPONSE_V2
+
+    Sent by the server in response to an SMB2CreateDurableHandleRequestV2
+    packet.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('timeout', IntField(size=4)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=DurableHandleFlags
+            ))
+        ])
+        super(SMB2CreateDurableHandleResponseV2, self).__init__()
+
+
 class SMB2CreateAppInstanceId(Structure):
     """
     [MS-SMB2] 2.2.13.2.13 SMB2_CREATE_APP_INSTANCE_ID
@@ -429,7 +562,7 @@ class SMB2CreateAppInstanceId(Structure):
         super(SMB2CreateAppInstanceId, self).__init__()
 
 
-class SMB2SVHDXOpenDeviceContext(Structure):
+class SMB2SVHDXOpenDeviceContextRequest(Structure):
     """
     [MS-SMB2] 2.2.13.2.14 SVHDX_OPEN_DEVICE_CONTEXT
     [MS-RSVD] 2.2.4.12 SVHDX_OPEN_DEVICE_CONTEXT
@@ -463,10 +596,49 @@ class SMB2SVHDXOpenDeviceContext(Structure):
                 size=lambda s: s['initiator_host_name_length'].get_value()
             ))
         ])
-        super(SMB2SVHDXOpenDeviceContext, self).__init__()
+        super(SMB2SVHDXOpenDeviceContextRequest, self).__init__()
 
 
-class SMB2SVHDXOpenDeviceContextV2(Structure):
+class SMB2SVHDXOpenDeviceContextResponse(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.14 SVHDX_OPEN_DEVICE_CONTEXT_RESPONSE
+    [MS-RSVD] 2.2.4.31  SVHDX_OPEN_DEVICE_CONTEXT_RESPONSE
+
+    The response packet sent by the server in response to an
+    SMB2VHDXOpenDeviceContextRequest
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('version', IntField(
+                size=4,
+                default=1
+            )),
+            ('has_initiator_id', BoolField(size=1)),
+            ('reserved', BytesField(
+                size=3,
+                default=b"\x00\x00\x00"
+            )),
+            ('initiator_id', UuidField(size=16)),
+            ('flags', IntField(size=4)),
+            ('originator_flags', EnumField(
+                size=4,
+                enum_type=SVHDXOriginatorFlags
+            )),
+            ('open_request_id', IntField(size=8)),
+            ('initiator_host_name_length', IntField(
+                size=2,
+                default=lambda s: len(s['initiator_host_name'])
+            )),
+            # utf-16-le encoded string
+            ('initiator_host_name', BytesField(
+                size=lambda s: s['initiator_host_name_length'].get_value()
+            ))
+        ])
+        super(SMB2SVHDXOpenDeviceContextResponse, self).__init__()
+
+
+class SMB2SVHDXOpenDeviceContextV2Request(Structure):
     """
     [MS-SMB2] 2.2.13.2.14 SVHDX_OPEN_DEVICE_CONTEXT
     [MS-RSVD] 2.2.4.32 SVHDX_OPEN_DEVICE_CONTEXT_V2
@@ -505,7 +677,51 @@ class SMB2SVHDXOpenDeviceContextV2(Structure):
             ('physical_sector_size', IntField(size=4)),
             ('virtual_size', IntField(size=8))
         ])
-        super(SMB2SVHDXOpenDeviceContextV2, self).__init__()
+        super(SMB2SVHDXOpenDeviceContextV2Request, self).__init__()
+
+
+class SMB2SVHDXOpenDeviceContextV2Response(Structure):
+    """
+    [MS-SMB2] 2.2.14.2.14 SVHDX_OPEN_DEVICE_CONTEXT_RESPONSE
+    [MS-RSVD] 2.2.4.32 SVHDX_OPEN_DEVICE_CONTEXT_V2_RESPONSE
+
+    The response packet sent by the server in response to an
+    SMB2VHDXOpenDeviceContextV2Request
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('version', IntField(
+                size=4,
+                default=2
+            )),
+            ('has_initiator_id', BoolField(size=1)),
+            ('reserved', BytesField(
+                size=3,
+                default=b"\x00\x00\x00"
+            )),
+            ('initiator_id', UuidField(size=16)),
+            ('flags', IntField(size=4)),
+            ('originator_flags', EnumField(
+                size=4,
+                enum_type=SVHDXOriginatorFlags
+            )),
+            ('open_request_id', IntField(size=8)),
+            ('initiator_host_name_length', IntField(
+                size=2,
+                default=lambda s: len(s['initiator_host_name'])
+            )),
+            # utf-16-le encoded string
+            ('initiator_host_name', BytesField(
+                size=lambda s: s['initiator_host_name_length'].get_value()
+            )),
+            ('virtual_disk_properties_initialized', IntField(size=4)),
+            ('server_service_version', IntField(size=4)),
+            ('virtual_sector_size', IntField(size=4)),
+            ('physical_sector_size', IntField(size=4)),
+            ('virtual_size', IntField(size=8))
+        ])
+        super(SMB2SVHDXOpenDeviceContextV2Response, self).__init__()
 
 
 class SMB2CreateAppInstanceVersion(Structure):

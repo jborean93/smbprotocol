@@ -116,6 +116,7 @@ class Structure(object):
     def unpack(self, data):
         for key, field in self.fields.items():
             data = field.unpack(data)
+        return data  # remaining data
 
     def _get_field(self, key):
         field = self.fields.get(key, None)
@@ -827,14 +828,17 @@ class FlagField(IntField):
 
 class BoolField(Field):
 
-    def __init__(self, **kwargs):
+    def __init__(self, size=1, **kwargs):
         """
         Used to store a boolean value in 1 byte. b"\x00" is False while b"\x01"
         is True.
 
         :param kwargs: Any other kwarg to be sent to Field()
         """
-        super(BoolField, self).__init__(size=1, **kwargs)
+        if size != 1:
+            raise InvalidFieldDefinition("BoolField size must have a value of "
+                                         "1, not %d" % size)
+        super(BoolField, self).__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
         return b"\x01" if value else b"\x00"

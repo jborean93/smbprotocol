@@ -215,7 +215,6 @@ class TreeConnect(object):
             ShareCapabilities.SMB2_SHARE_CAP_DFS)
         self.is_ca_share = capabilities.has_flag(
             ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY)
-        self.share_name = utf_share_name
 
         dialect = self.session.connection.dialect
         if dialect >= Dialects.SMB_3_0_0 and \

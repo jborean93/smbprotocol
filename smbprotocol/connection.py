@@ -1184,11 +1184,13 @@ class Connection(object):
 
         self._increment_sequence_windows(1)
         response = self.transport.message_buffer.get(block=True)
+        smb_header = SMB2PacketHeader()
+        smb_header.unpack(response)
         log.info("Receiving SMB1 Negotiate response")
-        log.debug(str(response))
+        log.debug(str(smb_header))
         smb_response = SMB2NegotiateResponse()
         try:
-            smb_response.unpack(response['data'].get_value())
+            smb_response.unpack(smb_header['data'].get_value())
         except Exception as exc:
             raise Exception("Expecting SMB2NegotiateResponse message type in "
                             "response but could not unpack data: %s"

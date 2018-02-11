@@ -12,7 +12,7 @@ except ImportError:
 from smbprotocol.connection import Capabilities, Commands, Dialects
 from smbprotocol.structure import Structure, IntField, BytesField, ListField, \
     UuidField, DateTimeField, StructureField, EnumField, FlagField, \
-    _bytes_to_hex, InvalidFieldDefinition
+    BoolField, _bytes_to_hex, InvalidFieldDefinition
 
 
 def test_bytes_to_hex_pretty_newline():
@@ -1318,3 +1318,109 @@ class TestFlagField(object):
         with pytest.raises(Exception) as exc:
             field.set_value(0x00000082)
         assert str(exc.value) == "Invalid flag value set 128"
+
+
+class TestBoolField(object):
+
+    class StructureTest(Structure):
+        def __init__(self):
+            self.fields = OrderedDict([
+                ('field', BoolField(size=1))
+            ])
+            super(TestBoolField.StructureTest, self).__init__()
+
+    def test_get_size(self):
+        field = self.StructureTest()['field']
+        expected = 1
+        actual = len(field)
+        assert actual == expected
+
+    def test_to_string(self):
+        field = self.StructureTest()['field']
+        expected = "False"
+        actual = str(field)
+        assert actual == expected
+
+    def test_to_string_true(self):
+        field = self.StructureTest()['field']
+        field.set_value(True)
+        expected = "True"
+        actual = str(field)
+        assert actual == expected
+
+    def test_get_value(self):
+        field = self.StructureTest()['field']
+        expected = False
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_get_value_true(self):
+        field = self.StructureTest()['field']
+        field.set_value(True)
+        expected = True
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_pack(self):
+        field = self.StructureTest()['field']
+        expected = b"\x00"
+        actual = field.pack()
+        assert actual == expected
+
+    def test_pack_true(self):
+        field = self.StructureTest()['field']
+        field.set_value(True)
+        expected = b"\x01"
+        actual = field.pack()
+        assert actual == expected
+
+    def test_unpack(self):
+        field = self.StructureTest()['field']
+        field.unpack(b"\x00")
+        expected = False
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_unpack_true(self):
+        field = self.StructureTest()['field']
+        field.unpack(b"\x01")
+        expected = True
+        actual = field.get_value()
+        assert actual == expected
+
+    def test_invalid_size_bad_int(self):
+        with pytest.raises(InvalidFieldDefinition) as exc:
+            BoolField(size=2)
+        assert str(exc.value) == "BoolField size must have a value of 1, not 2"
+
+    def test_set_none(self):
+        field = self.StructureTest()['field']
+        field.set_value(None)
+        expected = False
+        actual = field.get_value()
+        assert isinstance(field.value, bool)
+        assert actual == expected
+
+    def test_set_bytes(self):
+        field = self.StructureTest()['field']
+        field.set_value(b"\x01")
+        expected = True
+        actual = field.get_value()
+        assert isinstance(field.value, bool)
+        assert actual == expected
+
+    def test_set_bool(self):
+        field = self.StructureTest()['field']
+        field.set_value(True)
+        expected = True
+        actual = field.get_value()
+        assert isinstance(field.value, bool)
+        assert actual == expected
+
+    def test_set_invalid(self):
+        field = self.StructureTest()['field']
+        field.name = "field"
+        with pytest.raises(TypeError) as exc:
+            field.set_value([])
+        assert str(exc.value) == "Cannot parse value for field field of " \
+                                 "type list to a bool"
