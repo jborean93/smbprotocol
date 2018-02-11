@@ -19,7 +19,7 @@ from smbprotocol.transport import Tcp
 
 try:
     from collections import OrderedDict
-except ImportError:
+except ImportError:  # pragma: no cover
     from ordereddict import OrderedDict
 
 if sys.version[0] == '2':

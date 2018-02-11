@@ -5,7 +5,7 @@ from smbprotocol.structure import BoolField, BytesField, DateTimeField,\
 
 try:
     from collections import OrderedDict
-except ImportError:
+except ImportError:  # pragma: no cover
     from ordereddict import OrderedDict
 
 
