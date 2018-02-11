@@ -302,6 +302,9 @@ class Field(with_metaclass(ABCMeta, object)):
         :param size: The size as an int
         :return: The struct format specifier for the size specified
         """
+        if isinstance(size, types.LambdaType):
+            size = size(self.structure)
+
         struct_format = {
             1: 'B',
             2: 'H',
@@ -850,6 +853,8 @@ class BoolField(Field):
             bool_value = value
         elif isinstance(value, bytes):
             bool_value = value == b"\x01"
+        elif isinstance(value, types.LambdaType):
+            bool_value = value
         else:
             raise TypeError("Cannot parse value for field %s of type %s to a "
                             "bool" % (self.name, type(value).__name__))

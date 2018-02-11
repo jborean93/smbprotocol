@@ -279,6 +279,17 @@ class TestIntField(object):
         actual = field.pack()
         assert actual == expected
 
+    def test_pack_with_lambda_size(self):
+        structure = self.StructureTest()
+        field = structure['field']
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.size = lambda s: 2
+        field.set_value(4)
+        expected = b"\x04\x00"
+        actual = field.pack()
+        assert actual == expected
+
     def test_unpack(self):
         field = self.StructureTest()['field']
         field.unpack(b"\xd2\x05\x00\x00")
@@ -1416,6 +1427,18 @@ class TestBoolField(object):
         actual = field.get_value()
         assert isinstance(field.value, bool)
         assert actual == expected
+
+    def test_set_lambda(self):
+        structure = self.StructureTest()
+        field = structure['field']
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(lambda s: True)
+        expected = True
+        actual = field.get_value()
+        assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert len(field) == 1
 
     def test_set_invalid(self):
         field = self.StructureTest()['field']

@@ -16,21 +16,57 @@ class CreateContextName(object):
     2.2.13.2 SMB2_CREATE_CONTEXT Request Values
     Valid names for the name to set on a SMB2_CREATE_CONTEXT Request entry
     """
-    SMB2_CREATE_EA_BUFFER = 0x45787441
-    SMB2_CREATE_SD_BUFFER = 0x53656344
-    SMB2_CREATE_DURABLE_HANDLE_REQUEST = 0x44486e51
-    SMB2_CREATE_DURABLE_HANDLE_RECONNECT = 0x44486e43
-    SMB2_CREATE_ALLOCATION_SIZE = 0x416c5369
-    SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST = 0x4d784163
-    SMB2_CREATE_TIMEWARP_TOKEN = 0x54577270
-    SMB2_CREATE_QUERY_ON_DISK_ID = 0x51466964
-    SMB2_CREATE_REQUEST_LEASE = 0x52714c73
-    SMB2_CREATE_REQUEST_LEASE_V2 = 0x52714c73
-    SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2 = 0x44483251
-    SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2 = 0x44483243
-    SMB2_CREATE_APP_INSTANCE_ID = 0x45BCA66AEFA7F74A9008FA462E144D74
-    SMB2_CREATE_APP_INSTANCE_VERSION = 0xB982D0B73B56074FA07B524A8116A010
-    SVHDX_OPEN_DEVICE_CONTEXT = 0x9CCBCF9E04C1E643980E158DA1F6EC83
+    SMB2_CREATE_EA_BUFFER = b"\x45\x78\x74\x41"
+    SMB2_CREATE_SD_BUFFER = b"\x53\x65\x63\x44"
+    SMB2_CREATE_DURABLE_HANDLE_REQUEST = b"\x44\x48\x6e\x51"
+    SMB2_CREATE_DURABLE_HANDLE_RECONNECT = b"\x44\x48\x6e\x43"
+    SMB2_CREATE_ALLOCATION_SIZE = b"\x41\x6c\x53\x69"
+    SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST = b"\x4d\x78\x41\x63"
+    SMB2_CREATE_TIMEWARP_TOKEN = b"\x54\x57\x72\x70"
+    SMB2_CREATE_QUERY_ON_DISK_ID = b"\x51\x46\x69\x64"
+    SMB2_CREATE_REQUEST_LEASE = b"\x52\x71\x4c\x73"
+    SMB2_CREATE_REQUEST_LEASE_V2 = b"\x52\x71\x4c\x73"
+    SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2 = b"\x44\x48\x32\x51"
+    SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2 = b"\x44\x48\x32\x43"
+    SMB2_CREATE_APP_INSTANCE_ID = b"\x45\xBC\xA6\x6A\xEF\xA7\xF7\x4A" \
+                                  b"\x90\x08\xFA\x46\x2E\x14\x4D\x74"
+    SMB2_CREATE_APP_INSTANCE_VERSION = b"\xB9\x82\xD0\xB7\x3B\x56\x07\x4F" \
+                                       b"\xA0\x7B\x52\x4A\x81\x16\xA0\x10"
+    SVHDX_OPEN_DEVICE_CONTEXT = b"\x9C\xCB\xCF\x9E\x04\xC1\xE6\x43" \
+                                b"\x98\x0E\x15\x8D\xA1\xF6\xEC\x83"
+
+    @staticmethod
+    def get_response_structure(name):
+        """
+        Returns the response structure for a know list of create context
+        responses.
+
+        :param name: The constant value above
+        :return: The response structure or None if unknown
+        """
+        return {
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST:
+                SMB2CreateDurableHandleResponse(),
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT:
+                SMB2CreateDurableHandleReconnect(),
+            CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST:
+                SMB2CreateQueryMaximalAccessResponse(),
+            CreateContextName.SMB2_CREATE_REQUEST_LEASE:
+                SMB2CreateResponseLease(),
+            CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID:
+                SMB2CreateQueryOnDiskIDResponse(),
+            CreateContextName.SMB2_CREATE_REQUEST_LEASE_V2:
+                SMB2CreateResponseLeaseV2(),
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2:
+                SMB2CreateDurableHandleResponseV2(),
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2:
+                SMB2CreateDurableHandleReconnectV2,
+            CreateContextName.SMB2_CREATE_APP_INSTANCE_ID:
+                SMB2CreateAppInstanceId(),
+            CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION:
+                SMB2CreateAppInstanceVersion()
+
+        }.get(name, None)
 
 
 class EAFlags(object):
@@ -140,9 +176,8 @@ class SMB2CreateContextRequest(Structure):
                 size=4,
                 default=lambda s: len(s['buffer_data'])
             )),
-            ('buffer_name', EnumField(
-                size=lambda s: s['name_length'].get_value(),
-                enum_type=CreateContextName
+            ('buffer_name', BytesField(
+                size=lambda s: s['name_length'].get_value()
             )),
             ('padding', BytesField(
                 size=lambda s: self._padding_size(s),
@@ -150,6 +185,12 @@ class SMB2CreateContextRequest(Structure):
             )),
             ('buffer_data', BytesField(
                 size=lambda s: s['data_length'].get_value()
+            )),
+            # not actually a field but each list entry must start at the 8 byte
+            # alignment
+            ('padding2', BytesField(
+                size=lambda s: self._padding2_size(s),
+                default=lambda s: b"\x00" * self._padding2_size(s)
             ))
         ])
         super(SMB2CreateContextRequest, self).__init__()
@@ -159,14 +200,67 @@ class SMB2CreateContextRequest(Structure):
             return 0
         else:
             return structure['name_offset'].get_value() + \
-                   len(structure['padding'])
+                   len(structure['buffer_name']) + len(structure['padding'])
 
     def _padding_size(self, structure):
         if structure['data_length'].get_value() == 0:
             return 0
 
-        mod = structure['data_length'].get_value() % 8
-        return 0 if mod == 0 else 8 - mod
+        buffer_name_len = structure['name_length'].get_value()
+        mod = buffer_name_len % 8
+        return mod if mod == 0 else 8 - mod
+
+    def _padding2_size(self, structure):
+        if structure['next'].get_value() == 0:
+            return 0
+
+        data_length = len(structure['buffer_name']) + \
+            len(structure['padding']) + len(structure['buffer_data'])
+        mod = data_length % 8
+        return mod if mod == 0 else 8 - mod
+
+    def get_context_data(self):
+        """
+        Get the buffer_data value of a context response and try to convert it
+        to the relevant structure based on the buffer_name used. If it is an
+        unknown structure then the raw bytes are returned.
+
+        :return: relevant Structure of buffer_data or bytes if unknown name
+        """
+        buffer_name = self['buffer_name'].get_value()
+        structure = CreateContextName.get_response_structure(buffer_name)
+        if structure:
+            structure.unpack(self['buffer_data'].get_value())
+            return structure
+        else:
+            # unknown structure, just return the raw bytes
+            return self['buffer_data'].get_value()
+
+    @staticmethod
+    def pack_multiple(messages):
+        """
+        Converts a list of SMB2CreateContextRequest structures and packs them
+        as a bytes object used when setting to the SMB2CreateRequest
+        buffer_contexts field. This should be used as it would calculate the
+        correct next field value for each context entry.
+
+        :param messages: List of SMB2CreateContextRequest structures
+        :return: bytes object that is set on the SMB2CreateRequest
+            buffer_contexts field.
+        """
+        data = b""
+        msg_count = len(messages)
+        for i, msg in enumerate(messages):
+            if i == msg_count - 1:
+                msg['next'] = 0
+            else:
+                # because the end padding2 val won't be populated if the entry
+                # offset is 0, we set to 1 so the len calc is correct
+                msg['next'] = 1
+                msg['next'] = len(msg)
+
+            data += msg.pack()
+        return data
 
 
 class SMB2CreateEABuffer(Structure):
@@ -193,16 +287,55 @@ class SMB2CreateEABuffer(Structure):
                 size=2,
                 default=lambda s: len(s['ea_value'])
             )),
-            # ea_name is ASCII byte encoded
+            # ea_name is ASCII byte encoded and needs a null terminator '\x00'
             ('ea_name', BytesField(
                 size=lambda s: s['ea_name_length'].get_value() + 1
             )),
             ('ea_value', BytesField(
                 size=lambda s: s['ea_value_length'].get_value()
+            )),
+            # not actually a field but each list entry must start at the 4 byte
+            # alignment
+            ('padding', BytesField(
+                size=lambda s: self._padding_size(s),
+                default=lambda s: b"\x00" * self._padding_size(s)
             ))
-
         ])
         super(SMB2CreateEABuffer, self).__init__()
+
+    def _padding_size(self, structure):
+        if structure['next_entry_offset'].get_value() == 0:
+            return 0
+
+        data_length = len(structure['ea_name']) + len(structure['ea_value'])
+        mod = data_length % 4
+        return mod if mod == 0 else 4 - mod
+
+    @staticmethod
+    def pack_multiple(messages):
+        """
+        Converts a list of SMB2CreateEABuffer structures and packs them as a
+        bytes object used when setting to the SMB2CreateContextRequest
+        buffer_data field. This should be used as it would calculate the
+        correct next_entry_offset field value for each buffer entry.
+
+        :param messages: List of SMB2CreateEABuffer structures
+        :return: bytes object that is set on the SMB2CreateContextRequest
+            buffer_data field.
+        """
+        data = b""
+        msg_count = len(messages)
+        for i, msg in enumerate(messages):
+            if i == msg_count - 1:
+                msg['next_entry_offset'] = 0
+            else:
+                # because the end padding val won't be populated if the entry
+                # offset is 0, we set to 1 so the len calc is correct
+                msg['next_entry_offset'] = 1
+                msg['next_entry_offset'] = len(msg)
+            data += msg.pack()
+
+        return data
 
 
 class SMB2CreateSDBuffer(Structure):
@@ -391,18 +524,6 @@ class SMB2CreateResponseLease(Structure):
         super(SMB2CreateResponseLease, self).__init__()
 
 
-class SMB2CreateQueryOnDiskIDRequest(Structure):
-    """
-    [MS-SMB2] 2.2.13.2.9 SMB2_CREATE_QUERY_ON_DISK_ID
-    Used by the client when requesting that the server return an identifier
-    for an open file. This is an empty structure
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([])
-        super(SMB2CreateQueryOnDiskIDRequest, self).__init__()
-
-
 class SMB2CreateQueryOnDiskIDResponse(Structure):
     """
     [MS-SMB2] 2.2.14.2.9 SMB2_CREATE_QUERY_ON_DISK_ID
@@ -551,14 +672,14 @@ class SMB2CreateAppInstanceId(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict(
+        self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
                 default=20
             )),
             ('reserved', IntField(size=2)),
             ('app_instance_id', BytesField(size=16))
-        )
+        ])
         super(SMB2CreateAppInstanceId, self).__init__()
 
 
@@ -576,7 +697,10 @@ class SMB2SVHDXOpenDeviceContextRequest(Structure):
                 size=4,
                 default=1
             )),
-            ('has_initiator_id', BoolField(size=1)),
+            ('has_initiator_id', BoolField(
+                size=1,
+                default=lambda s: len(s['initiator_host_name']) > 0
+            )),
             ('reserved', BytesField(
                 size=3,
                 default=b"\x00\x00\x00"
@@ -614,7 +738,10 @@ class SMB2SVHDXOpenDeviceContextResponse(Structure):
                 size=4,
                 default=1
             )),
-            ('has_initiator_id', BoolField(size=1)),
+            ('has_initiator_id', BoolField(
+                size=1,
+                default=lambda s: len(s['initiator_host_name']) > 0
+            )),
             ('reserved', BytesField(
                 size=3,
                 default=b"\x00\x00\x00"
@@ -652,7 +779,10 @@ class SMB2SVHDXOpenDeviceContextV2Request(Structure):
                 size=4,
                 default=2
             )),
-            ('has_initiator_id', BoolField(size=1)),
+            ('has_initiator_id', BoolField(
+                size=1,
+                default=lambda s: len(s['initiator_host_name']) > 0
+            )),
             ('reserved', BytesField(
                 size=3,
                 default=b"\x00\x00\x00"
@@ -695,7 +825,10 @@ class SMB2SVHDXOpenDeviceContextV2Response(Structure):
                 size=4,
                 default=2
             )),
-            ('has_initiator_id', BoolField(size=1)),
+            ('has_initiator_id', BoolField(
+                size=1,
+                default=lambda s: len(s['initiator_host_name']) > 0
+            )),
             ('reserved', BytesField(
                 size=3,
                 default=b"\x00\x00\x00"

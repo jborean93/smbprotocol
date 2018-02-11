@@ -1,10 +1,10 @@
 import logging
 
+import smbprotocol.create_contexts
 from smbprotocol.exceptions import SMBResponseException
 from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
     FlagField, IntField, ListField, Structure, StructureField
 from smbprotocol.connection import Commands, Dialects, NtStatus
-from smbprotocol.create_contexts import SMB2CreateContextRequest
 
 try:
     from collections import OrderedDict
@@ -257,6 +257,8 @@ class SMB2CreateRequest(Structure):
     """
 
     def __init__(self):
+        # pep 80 char issues force me to define this here
+        create_con_req = smbprotocol.create_contexts.SMB2CreateContextRequest
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -301,7 +303,7 @@ class SMB2CreateRequest(Structure):
             )),
             ('create_contexts_length', IntField(
                 size=4,
-                default=lambda s: len(s['buffer_context'])
+                default=lambda s: len(s['buffer_contexts'])
             )),
             # Technically these are all under buffer but we split it to make
             # things easier
@@ -312,23 +314,26 @@ class SMB2CreateRequest(Structure):
                 size=lambda s: self._padding_size(s),
                 default=lambda s: b"\x00" * self._padding_size(s)
             )),
-            ('buffer_context', ListField(
+            ('buffer_contexts', ListField(
                 size=lambda s: s['create_contexts_length'].get_value(),
+                list_type=StructureField(
+                    structure_type=create_con_req
+                ),
                 unpack_func=lambda s, d: self._buffer_context_list(s, d)
             ))
         ])
         super(SMB2CreateRequest, self).__init__()
 
     def _create_contexts_offset(self, structure):
-        if len(structure['buffer_context']) == 0:
+        if len(structure['buffer_contexts']) == 0:
             return 0
         else:
             return structure['name_offset'].get_value() + \
-                   structure['padding'].get_value()
+                len(structure['padding']) + len(structure['buffer_path'])
 
     def _padding_size(self, structure):
         # no padding is needed if there are no contexts
-        if len(structure['buffer_context']) == 0:
+        if len(structure['buffer_contexts']) == 0:
             return 0
 
         mod = structure['name_length'].get_value() % 8
@@ -339,12 +344,13 @@ class SMB2CreateRequest(Structure):
         last_context = False
         while not last_context:
             field, data = self._parse_create_context_entry(data)
+            context_list.append(field)
             last_context = field['next'].get_value() == 0
 
         return context_list
 
     def _parse_create_context_entry(self, data):
-        create_context = SMB2CreateContextRequest()
+        create_context = smbprotocol.create_contexts.SMB2CreateContextRequest()
         create_context.unpack(data)
         return create_context, data[len(create_context):]
 
@@ -359,6 +365,7 @@ class SMB2CreateResponse(Structure):
     """
 
     def __init__(self):
+        create_con_req = smbprotocol.create_contexts.SMB2CreateContextRequest
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -393,9 +400,27 @@ class SMB2CreateResponse(Structure):
             )),
             ('create_contexts_offset', IntField(size=4)),
             ('create_contexts_length', IntField(size=4)),
-            ('buffer', BytesField())
+            ('buffer', ListField(
+                size=lambda s: s['create_contexts_length'].get_value(),
+                list_type=StructureField(
+                    structure_type=create_con_req
+                ),
+                unpack_func=lambda s, d: self._buffer_context_list(s, d)
+            ))
         ])
         super(SMB2CreateResponse, self).__init__()
+
+    def _buffer_context_list(self, structure, data):
+        context_list = []
+        last_context = data == b""
+        while not last_context:
+            create_context = \
+                smbprotocol.create_contexts.SMB2CreateContextRequest()
+            data = create_context.unpack(data)
+            context_list.append(create_context)
+            last_context = create_context['next'].get_value() == 0
+
+        return context_list
 
 
 class SMB2FileId(Structure):
@@ -752,7 +777,8 @@ class Open(object):
         self.create_disposition = None
 
     def open(self, impersonation_level, desired_access, file_attributes,
-             share_access, create_disposition, create_options):
+             share_access, create_disposition, create_options,
+             create_contexts=None):
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
                         self.tree_connect.tree_connect_id)
@@ -765,6 +791,7 @@ class Open(object):
         create['create_disposition'] = create_disposition
         create['create_options'] = create_options
         create['buffer_path'] = self.file_name.encode('utf-16-le')
+        create['buffer_contexts'] = create_contexts
 
         log.info("%s - sending SMB2 Create Request for file %s"
                  % (log_header, self.file_name))
@@ -800,6 +827,14 @@ class Open(object):
         self.end_of_file = create_response['end_of_file'].get_value()
         self.file_attributes = create_response['file_attributes'].get_value()
         self.opened = True
+
+        create_contexts_response = None
+        if create_response['create_contexts_length'].get_value() > 0:
+            create_contexts_response = []
+            for context in create_response['buffer'].get_value():
+                create_contexts_response.append(context.get_context_data())
+
+        return create_contexts_response
 
     def read(self, offset, length, min_length=0, unbuffered=False, wait=False):
         log_header = "Session: %s, Tree Connect ID: %s" \
