@@ -333,7 +333,7 @@ class SMB2CreateRequest(Structure):
 
     def _padding_size(self, structure):
         # no padding is needed if there are no contexts
-        if len(structure['buffer_contexts']) == 0:
+        if structure['create_contexts_length'].get_value() == 0:
             return 0
 
         mod = structure['name_length'].get_value() % 8
@@ -341,18 +341,15 @@ class SMB2CreateRequest(Structure):
 
     def _buffer_context_list(self, structure, data):
         context_list = []
-        last_context = False
+        last_context = data == b""
         while not last_context:
-            field, data = self._parse_create_context_entry(data)
-            context_list.append(field)
-            last_context = field['next'].get_value() == 0
+            create_context = \
+                smbprotocol.create_contexts.SMB2CreateContextRequest()
+            data = create_context.unpack(data)
+            context_list.append(create_context)
+            last_context = create_context['next'].get_value() == 0
 
         return context_list
-
-    def _parse_create_context_entry(self, data):
-        create_context = smbprotocol.create_contexts.SMB2CreateContextRequest()
-        create_context.unpack(data)
-        return create_context, data[len(create_context):]
 
 
 class SMB2CreateResponse(Structure):
@@ -383,10 +380,10 @@ class SMB2CreateResponse(Structure):
                 size=4,
                 enum_type=CreateAction
             )),
-            ('creation_time', DateTimeField()),
-            ('last_access_time', DateTimeField()),
-            ('last_write_time', DateTimeField()),
-            ('change_time', DateTimeField()),
+            ('creation_time', DateTimeField(size=8)),
+            ('last_access_time', DateTimeField(size=8)),
+            ('last_write_time', DateTimeField(size=8)),
+            ('change_time', DateTimeField(size=8)),
             ('allocation_size', IntField(size=8)),
             ('end_of_file', IntField(size=8)),
             ('file_attributes', FlagField(
@@ -398,8 +395,14 @@ class SMB2CreateResponse(Structure):
                 size=16,
                 structure_type=SMB2FileId
             )),
-            ('create_contexts_offset', IntField(size=4)),
-            ('create_contexts_length', IntField(size=4)),
+            ('create_contexts_offset', IntField(
+                size=4,
+                default=lambda s: self._create_contexts_offset(s)
+            )),
+            ('create_contexts_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer'])
+            )),
             ('buffer', ListField(
                 size=lambda s: s['create_contexts_length'].get_value(),
                 list_type=StructureField(
@@ -409,6 +412,12 @@ class SMB2CreateResponse(Structure):
             ))
         ])
         super(SMB2CreateResponse, self).__init__()
+
+    def _create_contexts_offset(self, structure):
+        if len(structure['buffer']) == 0:
+            return 0
+        else:
+            return 152
 
     def _buffer_context_list(self, structure, data):
         context_list = []
