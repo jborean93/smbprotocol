@@ -1,11 +1,7 @@
-import time
-
 import pytest
 
 from smbprotocol.connection import Request
 from smbprotocol.transport import DirectTCPPacket, Tcp
-
-from .runner import socket_fake
 
 
 class TestDirectTcpPacket(object):
@@ -36,29 +32,6 @@ class TestDirectTcpPacket(object):
 
 
 class TestTcp(object):
-
-    def test_normal_send_receive(self, socket_fake):
-        request = Request(b"\x01\x02\x03\x04")
-
-        tcp = Tcp(socket_fake[0], socket_fake[1])
-        tcp.connect()
-        tcp.send(request)
-        try:
-            resp = tcp.message_buffer.get(timeout=10)
-            assert resp == b"\x05\x06\x07\x08"
-        finally:
-            tcp.disconnect()
-
-    def test_broken_socket(self, socket_fake):
-        # by sending a mismatched request the fake socket with shutdown their
-        # end to replicate this scenario
-        request = Request(b"\x11")
-
-        tcp = Tcp(socket_fake[0], socket_fake[1])
-        tcp.connect()
-        tcp.send(request)
-        time.sleep(1)  # give it some time before disconnecting
-        tcp.disconnect()
 
     def test_normal_fail_message_too_big(self):
         request = Request(b"\x00" * 16777216)
