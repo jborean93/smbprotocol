@@ -12,7 +12,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
 
-from smbprotocol.exceptions import SMBResponseException
+import smbprotocol.exceptions
 from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
     FlagField, IntField, ListField, Structure, StructureField, UuidField
 from smbprotocol.transport import Tcp
@@ -196,10 +196,12 @@ class NtStatus(object):
     STATUS_SUCCESS = 0x00000000
     STATUS_PENDING = 0x00000103
     STATUS_EA_LIST_INCONSISTENT = 0x80000014
+    STATUS_STOPPED_ON_SYMLINK = 0x8000002D
     STATUS_INVALID_PARAMETER = 0xC000000D
     STATUS_END_OF_FILE = 0xC0000011
     STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
     STATUS_ACCESS_DENIED = 0xC0000022
+    STATUS_BUFFER_TOO_SMALL = 0xC0000023
     STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
     STATUS_SHARING_VIOLATION = 0xC0000043
     STATUS_LOGON_FAILURE = 0xC000006D
@@ -993,7 +995,8 @@ class Connection(object):
             self.outstanding_requests[message_id] = request
 
         if status != NtStatus.STATUS_SUCCESS:
-            raise SMBResponseException(response, status, message_id)
+            raise smbprotocol.exceptions.SMBResponseException(response, status,
+                                                              message_id)
 
         # now we have a retrieval request for the response, we can delete the
         # request from the outstanding requests

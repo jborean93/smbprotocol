@@ -126,7 +126,6 @@ class TestSMB2CreateRequest(object):
                b"\x00\x00\x00\x00" \
                b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         data = actual.unpack(data)
-        print(str(actual))
         assert len(actual) == 120
         assert data == b""
         assert actual['structure_size'].get_value() == 57
@@ -333,7 +332,6 @@ class TestSMB2CreateResponse(object):
                b"\x00\x00\x00\x00" \
                b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         data = actual.unpack(data)
-        print(str(actual))
         assert len(actual) == 120
         assert data == b""
         assert actual['structure_size'].get_value() == 89

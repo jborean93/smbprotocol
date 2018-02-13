@@ -350,15 +350,6 @@ class TestSMB2CreateEABuffer(object):
         assert actual2['padding'].get_value() == b""
 
 
-class TestSMB2SDBuffer(object):
-
-    def test_create_message(self):
-        a = ""
-
-    def test_parse_message(self):
-        a = ""
-
-
 class TestSMB2CreateDurableHandleRequest(object):
 
     def test_create_message(self):

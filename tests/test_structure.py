@@ -1328,7 +1328,7 @@ class TestFlagField(object):
         field = self.StructureTest()['field']
         with pytest.raises(Exception) as exc:
             field.set_value(0x00000082)
-        assert str(exc.value) == "Invalid flag value set 128"
+        assert str(exc.value) == "Invalid flag for field field value set 128"
 
 
 class TestBoolField(object):

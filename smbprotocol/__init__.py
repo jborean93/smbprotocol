@@ -2,7 +2,7 @@ import logging
 
 try:
     from logging import NullHandler
-except ImportError:
+except ImportError:  # pragma: no cover
     class NullHandler(logging.Handler):
         def emit(self, record):
             pass

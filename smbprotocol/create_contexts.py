@@ -1,3 +1,5 @@
+import struct
+
 import smbprotocol.connection
 import smbprotocol.open
 from smbprotocol.structure import BoolField, BytesField, DateTimeField,\
@@ -17,6 +19,8 @@ class CreateContextName(object):
     Valid names for the name to set on a SMB2_CREATE_CONTEXT Request entry
     """
     SMB2_CREATE_EA_BUFFER = b"\x45\x78\x74\x41"
+
+    # note: the structures for this are located in security_descriptor.py
     SMB2_CREATE_SD_BUFFER = b"\x53\x65\x63\x44"
     SMB2_CREATE_DURABLE_HANDLE_REQUEST = b"\x44\x48\x6e\x51"
     SMB2_CREATE_DURABLE_HANDLE_RECONNECT = b"\x44\x48\x6e\x43"
@@ -70,28 +74,14 @@ class CreateContextName(object):
 
 
 class EAFlags(object):
+    """
+    [MS-FSCC]
+
+    2.4.15 FileFullEaInformation Flags
+    Specifies the flag used when setting extended attributes.
+    """
     NONE = 0x0000000
     FILE_NEED_EA = 0x00000080
-
-
-class SDControl(object):
-    SELF_RELATIVE = 0x8000
-    RM_CONTROL_VALID = 0x4000
-    SACL_PROTECTED = 0x2000
-    DACL_PROTECTED = 0x1000
-    SACL_AUTO_INHERITED = 0x0800
-    DACL_AUTO_INHERITED = 0x0400
-    SACL_COMPUTED_INHERITANCE_REQUIRED = 0x0200
-    DACL_COMPUTED_INHERITANCE_REQUIRED = 0x0100
-    SERVER_SECURITY = 0x0080
-    DACL_TRUSTED = 0x0040
-    SACL_DEFAULTED = 0x0020
-    SACL_PRESENT = 0x0010
-    DACL_DEFAULTED = 0x0008
-    DACL_PRESENT = 0x0004
-    GROUP_DEFAULTED = 0x0002
-    OWNER_DEFAULTED = 0x0001
-    NONE = 0x0000
 
 
 class LeaseState(object):
@@ -336,38 +326,6 @@ class SMB2CreateEABuffer(Structure):
             data += msg.pack()
 
         return data
-
-
-class SMB2CreateSDBuffer(Structure):
-    """
-    [MS-SMB2] 2.2.13.2.2 SMB2_CREATE_SD_BUFFER
-    [MS-DTYP] 2.4.6 SECURITY_DESCRIPTOR
-
-    Used to apply a security descriptor to a newly created file.
-    """
-
-    def __init__(self):
-        # TODO: auto calculate offset and add ACL field type
-        self.fields = OrderedDict([
-            ('revision', IntField(
-                size=1,
-                default=1
-            )),
-            ('sbz1', IntField(size=1)),
-            ('control', FlagField(
-                size=2,
-                flag_type=SDControl
-            )),
-            ('offset_owner', IntField(size=4)),
-            ('offset_group', IntField(size=4)),
-            ('offset_sacl', IntField(size=4)),
-            ('offset_dacl', IntField(size=4)),
-            ('owner_size', BytesField()),
-            ('group_sid', BytesField()),
-            ('sacl', BytesField()),
-            ('dacl', BytesField())
-        ])
-        super(SMB2CreateSDBuffer, self).__init__()
 
 
 class SMB2CreateDurableHandleRequest(Structure):

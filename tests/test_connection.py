@@ -150,7 +150,6 @@ class TestSMB2PacketHeader(object):
                    b"\x00\x00\x00\x00\x00\x00\x00\x00"
         actual = header.pack()
         assert len(header) == 64
-        print(str(header))
         assert actual == expected
 
     def test_parse_message(self):

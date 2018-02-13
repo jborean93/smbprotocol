@@ -787,8 +787,9 @@ class EnumField(IntField):
 
 class FlagField(IntField):
 
-    def __init__(self, flag_type, **kwargs):
+    def __init__(self, flag_type, flag_strict=True, **kwargs):
         self.flag_type = flag_type
+        self.flag_strict = flag_strict
         super(FlagField, self).__init__(**kwargs)
 
     def set_flag(self, flag):
@@ -798,7 +799,7 @@ class FlagField(IntField):
                 valid = True
                 break
 
-        if not valid:
+        if not valid and self.flag_strict:
             raise Exception("Flag value does not exist in flag type %s"
                             % self.flag_type)
         self.set_value(self.value | flag)
@@ -812,8 +813,9 @@ class FlagField(IntField):
         for value in vars(self.flag_type).values():
             if isinstance(value, int):
                 current_val &= ~value
-        if current_val != 0:
-            raise Exception("Invalid flag value set %d" % current_val)
+        if current_val != 0 and self.flag_strict:
+            raise Exception("Invalid flag for field %s value set %d"
+                            % (self.name, current_val))
 
         return int_value
 
@@ -836,7 +838,7 @@ class BoolField(Field):
         Used to store a boolean value in 1 byte. b"\x00" is False while b"\x01"
         is True.
 
-        :param kwargs: Any other kwarg to be sent to Field()
+        :param kwargs: Any other kwargs to be sent to Field()
         """
         if size != 1:
             raise InvalidFieldDefinition("BoolField size must have a value of "

@@ -67,7 +67,7 @@ class Tcp(object):
             log.info("Disconnecting DirectTcp socket")
             try:
                 self._sock.shutdown(socket.SHUT_RDWR)
-            except OSError:
+            except socket.error:
                 # socket has already been shutdown
                 pass
             self._listener.join()
@@ -77,8 +77,8 @@ class Tcp(object):
     def send(self, request):
         data_length = len(request.message)
         if data_length > self.MAX_SIZE:
-            raise ValueError("Data to be sent over Direct TCP %d exceeds max "
-                             "length allowed %d"
+            raise ValueError("Data to be sent over Direct TCP size %d exceeds "
+                             "the max length allowed %d"
                              % (data_length, self.MAX_SIZE))
 
         tcp_packet = DirectTCPPacket()
