@@ -74,8 +74,9 @@ class SMBResponseException(Exception):
             else:
                 error_details_msg = "%s, %s" % (error_details_msg, detail_msg)
 
-        error_message = "%s: %s%s" % (str(self.header['status']),
-                                      hex(self.status), error_details_msg)
+        status_hex = format(self.status, 'x')
+        error_message = "%s: 0x%s%s" % (str(self.header['status']),
+                                        status_hex, error_details_msg)
         return "Received unexpected status from the server: %s" % error_message
 
     def __str__(self):
