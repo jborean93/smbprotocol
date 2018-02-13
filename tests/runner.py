@@ -46,7 +46,7 @@ class MockSocket(object):
         self._listener.join()
 
     def _listen(self):
-        self._sock.listen(1)
+        self._sock.listen(5)
         while True:
             connection, client_address = self._sock.accept()
             packet_size_bytes = connection.recv(4)
