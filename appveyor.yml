@@ -1,9 +1,16 @@
+# Windows Server 2016
+image: Visual Studio 2017
+
 environment:
   global:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
     WITH_COMPILER: "cmd /E:ON /V:ON /C .\\build-scripts\\run_with_compiler.cmd"
+    SMB_SERVER: 127.0.0.1
+    SMB_SHARE: share
+    SMB_ENCRYPTED_SHARE: encrypted_share
+    SMB_PORT: 445
   matrix:
   # https://www.appveyor.com/docs/installed-software/#python
   # NOTE Python 2.6 for Windows is no longer supported by the Python core team
@@ -22,6 +29,12 @@ init:
     # Override default Python version/architecture
     $env:Path="C:\$env:PYTHON;C:\$env:PYTHON\Scripts;$env:PATH"
     python -c "import platform; print('Python', platform.python_version(), platform.architecture()[0])"
+    New-Item -Path C:\share -ItemType Directory > $null
+    New-Item -Path C:\encrypted_share -ItemType Directory > $null
+    New-SmbShare -Name $env:SMB_SHARE -Path C:\share -EncryptData $false
+    New-SmbShare -Name $env:SMB_ENCRYPTED_SHARE -Path C:\encrypted_share -EncryptData $false
+    $env:SMB_USER=$($env:USERNAME)
+    $env:SMB_PASSWORD=[Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 
 install:
 - ps: |

@@ -18,6 +18,7 @@ env:
   - SMB_PASSWORD: smbpassword
   - SMB_SERVER: 127.0.0.1
   - SMB_SHARE: share
+  - SMB_ENCRYPTED_SHARE: encrypted_share
   - SMB_PORT: 445
 
 install:

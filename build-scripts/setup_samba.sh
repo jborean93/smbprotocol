@@ -14,6 +14,13 @@ browsable = yes
 guest ok = no
 read only = no
 create mask = 0755
+
+[$SMB_ENCRYPTED_SHARE]
+command = Test Encrypted Samba Share
+path = /srv/samba/$SMB_ENCRYPTED_SHARE
+browsable = no
+create mask = 0755
+smb encrypt = required
 EOL
 
 # create smb user
@@ -25,6 +32,10 @@ useradd $SMB_USER -G smbgroup
 mkdir -p /srv/samba/$SMB_SHARE
 chmod -R 0755 /srv/samba/$SMB_SHARE
 chown -R $SMB_USER:smbgroup /srv/samba/$SMB_SHARE
+
+mkdir -p /srv/samba/$SMB_ENCRYPTED_SHARE
+chmod -R 0755 /srv/samba/$SMB_ENCRYPTED_SHARE
+chown -R $SMB_USER:smbgroup /srv/samba/$SMB_ENCRYPTED_SHARE
 
 # run smb service
 /usr/sbin/smbd -F -S < /dev/null
