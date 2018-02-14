@@ -21,7 +21,7 @@ env:
   - SMB_PORT: 445
 
 install:
-- docker run -d -p $SMB_PORT:445 -cp ./build-scripts/setup_samba.sh:/setup_samba.sh -e SMB_USER=$SMB_USER -e SMB_PASSWORD=$SMB_PASSWORD -e SMB_SHARE=$SMB_SHARE centos:7 /bin/bash /setup_sambda.sh
+- docker run -d -p $SMB_PORT:445 -v $(pwd)/build-scripts:/app -w /app -e SMB_USER=$SMB_USER -e SMB_PASSWORD=$SMB_PASSWORD -e SMB_SHARE=$SMB_SHARE centos:7 /bin/bash /app/setup_samba.sh
 - pip install -U pip setuptools
 - pip install .
 - pip install -r requirements-test.txt
