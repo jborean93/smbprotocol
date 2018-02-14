@@ -13,11 +13,12 @@ services:
 - docker
 
 env:
-- SMB_USER: smbuser
-- SMB_PASSWORD: smbpassword
-- SMB_SERVER: 127.0.0.1
-- SMB_PORT: 1445
-- SMB_SHARE: share
+  global:
+  - SMB_USER: smbuser
+  - SMB_PASSWORD: smbpassword
+  - SMB_SERVER: 127.0.0.1
+  - SMB_PORT: 1445
+  - SMB_SHARE: share
 
 install:
 - pip install -U pip setuptools
