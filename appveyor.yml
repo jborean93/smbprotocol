@@ -33,8 +33,8 @@ init:
     New-Item -Path C:\encrypted_share -ItemType Directory > $null
     New-SmbShare -Name $env:SMB_SHARE -Path C:\share -EncryptData $false
     New-SmbShare -Name $env:SMB_ENCRYPTED_SHARE -Path C:\encrypted_share -EncryptData $false
-    $env:SMB_USER=$($env:USERNAME)
-    $env:SMB_PASSWORD=[Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
+    $env:SMB_USER = $($env:USERNAME)
+    $env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 
 install:
 - ps: |

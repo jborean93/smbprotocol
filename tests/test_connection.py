@@ -864,11 +864,54 @@ class TestSMB2TransformHeader(object):
 
 class TestConnection(object):
 
-    def test_dialect_3_1_1_require_signing(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
-        connection.connect()
+    def test_dialect_2_0_2(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_0_2)
         try:
-            assert connection.dialect == Dialects.SMB_3_1_1
+            assert connection.dialect == Dialects.SMB_2_0_2
+            assert connection.negotiated_dialects == [Dialects.SMB_2_0_2]
+            assert connection.gss_negotiate_token is not None
+            assert len(connection.preauth_integrity_hash_value) == 0
+            assert connection.salt is None
+            assert connection.sequence_window['low'] == 1
+            assert connection.sequence_window['high'] == 1
+            assert connection.client_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+
+            # server settings override the require signing
+            assert connection.server_security_mode is None
+            assert not connection.supports_encryption
+            assert connection.require_signing
+        finally:
+            connection.disconnect()
+
+    def test_dialect_2_1_0(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_1_0)
+        try:
+            assert connection.dialect == Dialects.SMB_2_1_0
+            assert connection.negotiated_dialects == [Dialects.SMB_2_1_0]
+            assert connection.gss_negotiate_token is not None
+            assert len(connection.preauth_integrity_hash_value) == 2
+            assert len(connection.salt) == 32
+            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['high'] == 2
+            assert connection.client_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+
+            # server settings override the require signing
+            assert connection.server_security_mode is None
+            assert not connection.supports_encryption
+            assert connection.require_signing
+        finally:
+            connection.disconnect()
+
+    def test_dialect_3_0_0(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_0)
+        try:
+            assert connection.dialect == Dialects.SMB_3_0_0
+            assert connection.negotiated_dialects == [Dialects.SMB_3_0_0]
             assert connection.gss_negotiate_token is not None
             assert len(connection.preauth_integrity_hash_value) == 2
             assert len(connection.salt) == 32
@@ -881,5 +924,78 @@ class TestConnection(object):
             assert connection.server_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
             assert connection.supports_encryption
+            assert connection.require_signing
+        finally:
+            connection.disconnect()
+
+    def test_dialect_3_0_2(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        try:
+            assert connection.dialect == Dialects.SMB_3_0_2
+            assert connection.negotiated_dialects == [Dialects.SMB_3_0_2]
+            assert connection.gss_negotiate_token is not None
+            assert len(connection.preauth_integrity_hash_value) == 2
+            assert len(connection.salt) == 32
+            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['high'] == 2
+            assert connection.client_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+
+            # server settings override the require signing
+            assert connection.server_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.supports_encryption
+            assert connection.require_signing
+        finally:
+            connection.disconnect()
+
+    def test_dialect_3_1_1_not_require_signing(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], False)
+        connection.connect(Dialects.SMB_3_1_1)
+        try:
+            assert connection.dialect == Dialects.SMB_3_1_1
+            assert connection.negotiated_dialects == [Dialects.SMB_3_1_1]
+            assert connection.gss_negotiate_token is not None
+            assert len(connection.preauth_integrity_hash_value) == 2
+            assert len(connection.salt) == 32
+            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['high'] == 2
+            assert connection.client_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+
+            # server settings override the require signing
+            assert connection.server_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.supports_encryption
+            assert not connection.require_signing
+        finally:
+            connection.disconnect()
+
+    def test_dialect_implicit_require_signing(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            assert connection.dialect == Dialects.SMB_3_1_1
+            assert connection.negotiated_dialects == [
+                Dialects.SMB_2_0_2,
+                Dialects.SMB_2_1_0,
+                Dialects.SMB_3_0_0,
+                Dialects.SMB_3_0_2,
+                Dialects.SMB_3_1_1
+            ]
+            assert connection.gss_negotiate_token is not None
+            assert len(connection.preauth_integrity_hash_value) == 2
+            assert len(connection.salt) == 32
+            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['high'] == 2
+            assert connection.client_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+
+            # server settings override the require signing
+            assert connection.server_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.supports_encryption
+            assert connection.require_signing
         finally:
             connection.disconnect()

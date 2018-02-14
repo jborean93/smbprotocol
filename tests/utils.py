@@ -5,6 +5,9 @@ import pytest
 
 @pytest.fixture(scope='module')
 def smb_real():
+    # for these tests to work the server at SMB_SERVER must support dialect
+    # 3.1.1, without this some checks will fail as we test 3.1.1 specific
+    # features
     username = os.environ.get('SMB_USER', None)
     password = os.environ.get('SMB_PASSWORD', None)
     server = os.environ.get('SMB_SERVER', None)

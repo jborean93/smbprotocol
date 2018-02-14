@@ -810,7 +810,7 @@ class Connection(object):
         self.max_transact_size = None
         self.max_read_size = None
         self.max_write_size = None
-        self.require_signing = None
+        self.require_signing = require_signing
 
         # SMB 2.1+
         self.dialect = None
@@ -819,10 +819,14 @@ class Connection(object):
         self.client_guid = guid
 
         # SMB 3.x+
+        self.salt = None
         self.supports_directory_leasing = None
         self.supports_multi_channel = None
         self.supports_persistent_handles = None
         self.supports_encryption = None
+
+        # used for SMB 3.x for secure negotiate verification on tree connect
+        self.negotiated_dialects = []
 
         # TODO: Add more capabilities
         self.client_capabilities = Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
@@ -866,7 +870,7 @@ class Connection(object):
         # Renegotiate with SMB2NegotiateRequest if 2.??? was received back
         if smb_response['dialect_revision'].get_value() == \
                 Dialects.SMB_2_WILDCARD:
-            smb_response = self._send_smb2_negotiate()
+            smb_response = self._send_smb2_negotiate(dialect)
 
         log.info("Negotiated dialect: %s"
                  % str(smb_response['dialect_revision']))
@@ -1195,6 +1199,8 @@ class Connection(object):
         dialects = b"\x02SMB 2.002\x00"
         if dialect != Dialects.SMB_2_0_2:
             dialects += b"\x02SMB 2.???\x00"
+        else:
+            self.negotiated_dialects = [Dialects.SMB_2_0_2]
         header['data']['dialects'] = dialects
         request = Request(header)
 
@@ -1219,10 +1225,10 @@ class Connection(object):
 
         return smb_response
 
-    def _send_smb2_negotiate(self):
+    def _send_smb2_negotiate(self, dialect):
         self.salt = os.urandom(32)
 
-        if self.dialect is None:
+        if dialect is None:
             neg_req = SMB3NegotiateRequest()
             self.negotiated_dialects = [
                 Dialects.SMB_2_0_2,
@@ -1233,14 +1239,14 @@ class Connection(object):
             ]
             highest_dialect = Dialects.SMB_3_1_1
         else:
-            if self.dialect >= Dialects.SMB_3_1_1:
+            if dialect >= Dialects.SMB_3_1_1:
                 neg_req = SMB3NegotiateRequest()
             else:
                 neg_req = SMB2NegotiateRequest()
             self.negotiated_dialects = [
-                self.dialect
+                dialect
             ]
-            highest_dialect = self.dialect
+            highest_dialect = dialect
         neg_req['dialects'] = self.negotiated_dialects
         log.info("Negotiating with SMB2 protocol with highest client dialect "
                  "of: %s" % [dialect for dialect, v in vars(Dialects).items()
