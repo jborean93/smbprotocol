@@ -1,7 +1,7 @@
 import logging
 
 import smbprotocol.create_contexts
-from smbprotocol.exceptions import SMBResponseException
+from smbprotocol.exceptions import SMBResponseException, SMBUnsupportedFeature
 from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
     FlagField, IntField, ListField, Structure, StructureField
 from smbprotocol.connection import Commands, Dialects, NtStatus
@@ -853,9 +853,10 @@ class Open(object):
 
         if unbuffered:
             if self.connection.dialect < Dialects.SMB_3_0_2:
-                raise Exception("Unbuffered read is not available on the "
-                                "negotiated dialect, requires SMB 3.0.2 or "
-                                "newer")
+                raise SMBUnsupportedFeature(self.connection.dialect,
+                                            Dialects.SMB_3_0_2,
+                                            "SMB2_READFLAG_READ_UNBUFFERED",
+                                            True)
             read['flags'].set_flag(ReadFlags.SMB2_READFLAG_READ_UNBUFFERED)
 
         read['length'] = length
@@ -908,16 +909,18 @@ class Open(object):
         write['buffer'] = data
         if write_through:
             if self.connection.dialect < Dialects.SMB_2_1_0:
-                raise Exception("Write through is not available on the "
-                                "negotiated dialect, required SMB 2.1.0 or "
-                                "newer")
+                raise SMBUnsupportedFeature(self.connection.dialect,
+                                            Dialects.SMB_2_1_0,
+                                            "SMB2_WRITEFLAG_WRITE_THROUGH",
+                                            True)
             write['flags'].set_flag(WriteFlags.SMB2_WRITEFLAG_WRITE_THROUGH)
 
         if unbuffered:
             if self.connection.dialect < Dialects.SMB_3_0_2:
-                raise Exception("Unbuffered write is not available on the "
-                                "negotiated dialect, requires SMB 3.0.2 or "
-                                "newer")
+                raise SMBUnsupportedFeature(self.connection.dialect,
+                                            Dialects.SMB_3_0_2,
+                                            "SMB2_WRITEFLAG_WRITE_UNBUFFERED",
+                                            True)
             write['flags'].set_flag(WriteFlags.SMB2_WRITEFLAG_WRITE_UNBUFFERED)
 
         log.info("%s - sending SMB2 Write Request for file %s"

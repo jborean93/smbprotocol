@@ -10,7 +10,8 @@ from pyasn1.codec.der import decoder
 
 from smbprotocol.connection import Capabilities, Commands, Dialects, \
     NtStatus, SecurityMode, Smb2Flags
-from smbprotocol.exceptions import SMBResponseException
+from smbprotocol.exceptions import SMBAuthenticationError, SMBException, \
+    SMBResponseException
 from smbprotocol.spnego import InitialContextToken, MechTypes, ObjectIdentifier
 from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
     Structure
@@ -224,16 +225,16 @@ class Session(object):
                 pass
 
         if response is None:
-            raise Exception("Failed to authenticated with server: %s"
-                            % str(errors))
+            raise SMBException("Failed to authenticated with server: %s"
+                               % str(errors))
 
         log.info("Setting session id to %s" % self.session_id)
         setup_response = SMB2SessionSetupResponse()
         setup_response.unpack(response['data'].get_value())
-        if self.connection.dialect >= Dialects.SMB_3_1_1:
-            if not response['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
-                raise Exception("SMB2_FLAGS_SIGNED must be set in SMB2 "
-                                "SESSION_SETUP Response when on Dialect 3.1.1")
+        if self.connection.dialect >= Dialects.SMB_3_1_1 and not \
+                response['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
+            raise SMBException("SMB2_FLAGS_SIGNED must be set in SMB2 "
+                               "SESSION_SETUP Response when on Dialect 3.1.1")
 
         # TODO: remove from preauth session table and move to session_table
         self.connection.session_table[self.session_id] = self
@@ -280,8 +281,8 @@ class Session(object):
         flags = setup_response['session_flags']
         if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_GUEST) \
                 and self.signing_required:
-            raise Exception("SMB Signing is required but could only auth as "
-                            "guest")
+            raise SMBException("SMB Signing is required but could only auth "
+                               "as guest")
         if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA):
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
@@ -480,12 +481,14 @@ class GSSAPIContext(object):
                 creds = gssapi.raw.acquire_cred_with_password(user, bpass,
                                                               usage='initiate')
             except AttributeError:
-                raise Exception("Cannot get GSSAPI credential with password as"
-                                " the necessary GSSAPI extensions are not "
-                                "available")
+                raise SMBAuthenticationError("Cannot get GSSAPI credential "
+                                             "with password as the necessary "
+                                             "GSSAPI extensions are not "
+                                             "available")
             except gssapi.exceptions.GSSError as er:
-                raise Exception("Failed to acquire GSSAPI credential with "
-                                "password: %s" % str(er))
+                raise SMBAuthenticationError("Failed to acquire GSSAPI "
+                                             "credential with password: %s"
+                                             % str(er))
             # acquire_cred_with_password returns a wrapper, we want the creds
             # object inside this wrapper
             creds = creds.creds
@@ -498,17 +501,19 @@ class GSSAPIContext(object):
             try:
                 creds = gssapi.Credentials(name=user, usage='initiate')
             except gssapi.exceptions.MissingCredentialsError as er:
-                raise Exception("Failed to acquire GSSAPI credential for user "
-                                "%s from the exisiting cache: %s"
-                                % (str(user), str(er)))
+                raise SMBAuthenticationError("Failed to acquire GSSAPI "
+                                             "credential for user %s from the "
+                                             "exisiting cache: %s"
+                                             % (str(user), str(er)))
         else:
             log.debug("GSSAPI: Acquiring credentials handle for default user "
                       "in cache")
             try:
                 creds = gssapi.Credentials(name=None, usage='initiate')
             except gssapi.exceptions.GSSError as er:
-                raise Exception("Failed to acquire default GSSAPI credential "
-                                "from the existing cache: %s" % str(er))
+                raise SMBAuthenticationError("Failed to acquire default "
+                                             "GSSAPI credential from the "
+                                             "existing cache: %s" % str(er))
             user = creds.name
 
         log.info("GSSAPI: Acquired credentials for user %s" % str(user))

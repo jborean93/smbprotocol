@@ -1,6 +1,7 @@
 import logging
 
 from smbprotocol.connection import Commands, Dialects
+from smbprotocol.exceptions import SMBException
 from smbprotocol.ioctl import CtlCode, IOCTLFlags, SMB2IOCTLRequest, \
     SMB2IOCTLResponse, SMB2ValidateNegotiateInfoRequest, \
     SMB2ValidateNegotiateInfoResponse
@@ -308,6 +309,6 @@ class TreeConnect(object):
         log_header = "Session: %d, Tree: %d"\
                      % (self.session.session_id, self.tree_connect_id)
         if actual != expected:
-            raise Exception("%s - Secure negotiate failed to verify %s, "
-                            "Actual: %s, Expected: %s"
-                            % (log_header, check, actual, expected))
+            raise SMBException("%s - Secure negotiate failed to verify %s, "
+                               "Actual: %s, Expected: %s"
+                               % (log_header, check, actual, expected))

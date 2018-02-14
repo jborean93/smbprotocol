@@ -121,7 +121,7 @@ class Structure(object):
     def _get_field(self, key):
         field = self.fields.get(key, None)
         if field is None:
-            raise Exception("Structure does not contain field %s" % key)
+            raise ValueError("Structure does not contain field %s" % key)
         return field
 
 
@@ -620,8 +620,8 @@ class StructureField(Field):
     def _get_field(self, key):
         structure_value = self._get_calculated_value(self.value)
         if isinstance(structure_value, bytes):
-            raise Exception("Cannot get field %s when structure is defined as "
-                            "a byte string" % key)
+            raise ValueError("Cannot get field %s when structure is defined "
+                             "as a byte string" % key)
         field = structure_value._get_field(key)
         return field
 
@@ -768,8 +768,8 @@ class EnumField(IntField):
                 break
 
         if not valid and int_value != 0 and self.enum_strict:
-            raise Exception("Enum value %d does not exist in enum type %s"
-                            % (int_value, self.enum_type))
+            raise ValueError("Enum value %d does not exist in enum type %s"
+                             % (int_value, self.enum_type))
         return int_value
 
     def _to_string(self):
@@ -800,8 +800,8 @@ class FlagField(IntField):
                 break
 
         if not valid and self.flag_strict:
-            raise Exception("Flag value does not exist in flag type %s"
-                            % self.flag_type)
+            raise ValueError("Flag value does not exist in flag type %s"
+                             % self.flag_type)
         self.set_value(self.value | flag)
 
     def has_flag(self, flag):
@@ -814,8 +814,8 @@ class FlagField(IntField):
             if isinstance(value, int):
                 current_val &= ~value
         if current_val != 0 and self.flag_strict:
-            raise Exception("Invalid flag for field %s value set %d"
-                            % (self.name, current_val))
+            raise ValueError("Invalid flag for field %s value set %d"
+                             % (self.name, current_val))
 
         return int_value
 

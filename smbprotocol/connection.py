@@ -974,8 +974,9 @@ class Connection(object):
         """
         request = self.outstanding_requests.get(message_id, None)
         if not request:
-            raise Exception("No request with the ID %d is expecting a response"
-                            % message_id)
+            error_msg = "No request with the ID %d is expecting a response"\
+                        % message_id
+            raise smbprotocol.exceptions.SMBException(error_msg)
 
         # check if we have received a response
         response = None
@@ -1030,15 +1031,18 @@ class Connection(object):
                 message.unpack(message_bytes)
                 message = self._decrypt(message)
             else:
-                raise Exception("Invalid header '%s' received from server"
-                                % message_bytes[:4])
+                error_msg = "Invalid header '%s' received from the server"\
+                            % message_bytes[:4]
+                raise smbprotocol.exceptions.SMBException(error_msg)
             self._verify(message)
 
             message_id = message['message_id'].get_value()
             request = self.outstanding_requests.get(message_id, None)
             if not request:
-                raise Exception("Received request with an unknown message ID: "
-                                "%d" % message_id)
+                raise smbprotocol.exceptions.SMBException("Received request "
+                                                          "with an unknown"
+                                                          " message ID: %d"
+                                                          % message_id)
             request.response = message
             self.outstanding_requests[message_id] = request
 
@@ -1059,13 +1063,15 @@ class Connection(object):
         session_id = message['session_id'].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
-            raise Exception("Failed to find session %d for message "
-                            "verification" % session_id)
+            error_msg = "Failed to find session %d for message verification"\
+                        % session_id
+            raise smbprotocol.exceptions.SMBException(error_msg)
         expected = self._generate_signature(message, session)
         actual = message['signature'].get_value()
         if actual != expected:
-            raise Exception("Server message signature could not be verified: "
-                            "%s != %s" % (actual, expected))
+            error_msg = "Server message signature could not be verified: " \
+                        "%s != %s" % (actual, expected)
+            raise smbprotocol.exceptions.SMBException(error_msg)
 
     def _generate_signature(self, message, session):
         msg = copy.deepcopy(message)
@@ -1138,14 +1144,17 @@ class Connection(object):
         :return: The decrypted message including the header
         """
         if message['flags'].get_value() != 0x0001:
-            raise Exception("Expecting flag of 0x0001 in SMB Transform Header "
-                            "Response")
+            error_msg = "Expecting flag of 0x0001 but got %s in the SMB " \
+                        "Transform Header Response"\
+                        % format(message['flags'].get_value(), 'x')
+            raise smbprotocol.exceptions.SMBException(error_msg)
 
         session_id = message['session_id'].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
-            raise Exception("Failed to find session %s for message decryption"
-                            % session_id)
+            error_msg = "Failed to find valid session %s for message " \
+                        "decryption" % session_id
+            raise smbprotocol.exceptions.SMBException(error_msg)
 
         if self.dialect >= Dialects.SMB_3_1_1:
             cipher = self.cipher_id
@@ -1195,10 +1204,11 @@ class Connection(object):
         smb_response = SMB2NegotiateResponse()
         try:
             smb_response.unpack(smb_header['data'].get_value())
-        except Exception as exc:
-            raise Exception("Expecting SMB2NegotiateResponse message type in "
-                            "response but could not unpack data: %s"
-                            % str(exc))
+        except ValueError as exc:
+            error_msg = "Expecting SMB2NegotiateResponse message in " \
+                        "response but could not unpack data for structure: " \
+                        "%s" % str(exc)
+            raise smbprotocol.exceptions.SMBException(error_msg)
 
         return smb_response
 

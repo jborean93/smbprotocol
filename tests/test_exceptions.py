@@ -1,10 +1,59 @@
 import pytest
 
-from smbprotocol.connection import SMB2PacketHeader, NtStatus
+from smbprotocol.connection import SMB2PacketHeader, NtStatus, Dialects
 from smbprotocol.exceptions import ErrorContextId, IpAddrType, \
-    SMBResponseException, SMB2ErrorContextResponse, SMB2ErrorResponse, \
+    SMBAuthenticationError, SMBException, SMBResponseException, \
+    SMBUnsupportedFeature, SMB2ErrorContextResponse, SMB2ErrorResponse, \
     SMB2MoveDstIpAddrStructure, SMB2ShareRedirectErrorContext, \
     SMB2SymbolicLinkErrorResponse, SymbolicLinkErrorFlags
+
+
+class TestSMBException(object):
+
+    def test_exception(self):
+        with pytest.raises(SMBException) as exc:
+            raise SMBException("smb error")
+        assert str(exc.value) == "smb error"
+
+
+class TestSMBAuthenticationError(object):
+
+    def test_exception(self):
+        with pytest.raises(SMBAuthenticationError) as exc:
+            raise SMBAuthenticationError("auth error")
+        assert str(exc.value) == "auth error"
+
+    def test_caught_with_smbexception(self):
+        with pytest.raises(SMBException) as exc:
+            raise SMBAuthenticationError("auth error")
+        assert str(exc.value) == "auth error"
+
+
+class TestSMBUnsupportedFeature(object):
+
+    def test_exception_needs_newer(self):
+        with pytest.raises(SMBUnsupportedFeature) as exc:
+            raise SMBUnsupportedFeature(Dialects.SMB_3_0_0, Dialects.SMB_3_1_1,
+                                        "feature", True)
+        assert str(exc.value) == "feature is not available on the " \
+                                 "negotiated dialect (768) SMB_3_0_0, " \
+                                 "requires dialect (785) SMB_3_1_1 or newer"
+
+    def test_exception_needs_older(self):
+        with pytest.raises(SMBUnsupportedFeature) as exc:
+            raise SMBUnsupportedFeature(Dialects.SMB_3_0_0, Dialects.SMB_3_1_1,
+                                        "feature", False)
+        assert str(exc.value) == "feature is not available on the " \
+                                 "negotiated dialect (768) SMB_3_0_0, " \
+                                 "requires dialect (785) SMB_3_1_1 or older"
+
+    def test_exception_no_suffix(self):
+        with pytest.raises(SMBUnsupportedFeature) as exc:
+            raise SMBUnsupportedFeature(Dialects.SMB_3_0_0, Dialects.SMB_3_1_1,
+                                        "feature")
+        assert str(exc.value) == "feature is not available on the " \
+                                 "negotiated dialect (768) SMB_3_0_0, " \
+                                 "requires dialect (785) SMB_3_1_1"
 
 
 class TestSMBResponseException(object):

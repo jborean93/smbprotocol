@@ -11,7 +11,68 @@ except ImportError:  # pragma: no cover
     from ordereddict import OrderedDict
 
 
-class SMBResponseException(Exception):
+class SMBException(Exception):
+    # Generic SMB Exception with a message
+    pass
+
+
+class SMBAuthenticationError(SMBException):
+    # Used for authentication specific errors
+    pass
+
+
+class SMBUnsupportedFeature(SMBException):
+
+    @property
+    def negotiated_dialect(self):
+        return self.args[0]
+
+    @property
+    def required_dialect(self):
+        return self.args[1]
+
+    @property
+    def feature_name(self):
+        return self.args[2]
+
+    @property
+    def requires_newer(self):
+        if len(self.args) > 3:
+            return self.args[3]
+        else:
+            return None
+
+    @property
+    def message(self):
+        if self.requires_newer is None:
+            msg_suffix = ""
+        elif self.requires_newer:
+            msg_suffix = " or newer"
+        else:
+            msg_suffix = " or older"
+
+        required_dialect = self._get_dialect_name(self.required_dialect)
+        negotiated_dialect = self._get_dialect_name(self.negotiated_dialect)
+
+        msg = "%s is not available on the negotiated dialect %s, " \
+              "requires dialect %s%s"\
+              % (self.feature_name, negotiated_dialect, required_dialect,
+                 msg_suffix)
+        return msg
+
+    def __str__(self):
+        return self.message
+
+    def _get_dialect_name(self, dialect):
+        dialect_field = EnumField(
+            enum_type=smbprotocol.connection.Dialects,
+            enum_strict=False,
+            size=2)
+        dialect_field.set_value(dialect)
+        return str(dialect_field)
+
+
+class SMBResponseException(SMBException):
 
     @property
     def header(self):

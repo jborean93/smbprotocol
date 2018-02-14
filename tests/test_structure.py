@@ -120,7 +120,7 @@ class TestStructure(object):
         assert len(structure.fields) == 7
         del structure['int_field']
         assert len(structure.fields) == 6
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(ValueError) as exc:
             value = structure['int_field']
         assert str(exc.value) == "Structure does not contain field int_field"
 
@@ -872,7 +872,7 @@ class TestStructureField(object):
 
     def test_fail_get_structure_field_missing(self):
         field = self.StructureTest()['field']
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(ValueError) as exc:
             field['fake']
         assert str(exc.value) == "Structure does not contain field fake"
 
@@ -880,7 +880,7 @@ class TestStructureField(object):
         field = self.StructureTest()['field']
         field.structure_type = None
         field.set_value(b"\x7d\x00\x00\x00\x14\x15\x16\x17")
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(ValueError) as exc:
             field['field']
         assert str(exc.value) == "Cannot get field field when structure is " \
                                  "defined as a byte string"
@@ -1220,7 +1220,7 @@ class TestEnumField(object):
 
     def test_set_invalid_value(self):
         field = self.StructureTest()['field']
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(ValueError) as exc:
             field.set_value(0x13)
         assert str(exc.value) == "Enum value 19 does not exist in enum type " \
                                  "<class 'smbprotocol.connection.Commands'>"
@@ -1319,14 +1319,14 @@ class TestFlagField(object):
 
     def test_set_invalid_flag(self):
         field = self.StructureTest()['field']
-        with pytest.raises(Exception) as ex:
+        with pytest.raises(ValueError) as ex:
             field.set_flag(10)
         assert str(ex.value) == "Flag value does not exist in flag type " \
                                 "<class 'smbprotocol.connection.Capabilities'>"
 
     def test_set_invalid_value(self):
         field = self.StructureTest()['field']
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(ValueError) as exc:
             field.set_value(0x00000082)
         assert str(exc.value) == "Invalid flag for field field value set 128"
 
