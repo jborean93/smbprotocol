@@ -4,12 +4,14 @@ import uuid
 import pytest
 from cryptography.hazmat.primitives.ciphers import aead
 from datetime import datetime
-from smbprotocol.connection import Ciphers, Commands, Dialects, \
+from smbprotocol.connection import Ciphers, Commands, Connection, Dialects, \
     HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2, \
     SMB1NegotiateRequest, SMB1PacketHeader, SMB2EncryptionCapabilities, \
     SMB2NegotiateContextRequest, SMB2NegotiateRequest, SMB2NegotiateResponse, \
     SMB2PacketHeader, SMB2PreauthIntegrityCapabilities, SMB2TransformHeader, \
     SMB3NegotiateRequest, SMB3PacketHeader
+
+from .utils import smb_real
 
 
 def test_valid_hash_algorithm():
@@ -858,3 +860,26 @@ class TestSMB2TransformHeader(object):
         assert actual['flags'].get_value() == 1
         assert actual['session_id'].get_value() == 1
         assert actual['data'].get_value() == b"\x01\x02\x03\x04"
+
+
+class TestConnection(object):
+
+    def test_dialect_3_1_1_require_signing(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            assert connection.dialect == Dialects.SMB_3_1_1
+            assert connection.gss_negotiate_token is not None
+            assert len(connection.preauth_integrity_hash_value) == 2
+            assert len(connection.salt) == 32
+            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['high'] == 2
+            assert connection.client_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+
+            # server settings override the require signing
+            assert connection.server_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.supports_encryption
+        finally:
+            connection.disconnect()

@@ -204,6 +204,11 @@ class NtStatus(object):
     STATUS_BUFFER_TOO_SMALL = 0xC0000023
     STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
     STATUS_SHARING_VIOLATION = 0xC0000043
+    STATUS_EAS_NOT_SUPPORTED = 0xC000004F
+    STATUS_EA_TOO_LARGE = 0xC0000050
+    STATUS_NONEXISTENT_EA_ENTRY = 0xC0000051
+    STATUS_NO_EAS_ON_FILE = 0xC0000052
+    STATUS_EA_CORRUPT_ERROR = 0xC0000053
     STATUS_LOGON_FAILURE = 0xC000006D
     STATUS_PASSWORD_EXPIRED = 0xC0000071
     STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
@@ -872,8 +877,10 @@ class Connection(object):
         self.server_guid = smb_response['server_guid'].get_value()
         self.gss_negotiate_token = smb_response['buffer'].get_value()
 
-        self.require_signing = smb_response['security_mode'].get_value() == \
-            SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+        if not self.require_signing and \
+                smb_response['security_mode'].get_value() == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED:
+            self.require_signing = True
         log.info("Connection require signing: %s" % self.require_signing)
         capabilities = smb_response['capabilities']
 
