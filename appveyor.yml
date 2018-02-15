@@ -31,8 +31,8 @@ init:
     python -c "import platform; print('Python', platform.python_version(), platform.architecture()[0])"
     New-Item -Path C:\share -ItemType Directory > $null
     New-Item -Path C:\encrypted_share -ItemType Directory > $null
-    New-SmbShare -Name $env:SMB_SHARE -Path C:\share -EncryptData $false
-    New-SmbShare -Name $env:SMB_ENCRYPTED_SHARE -Path C:\encrypted_share -EncryptData $false
+    New-SmbShare -Name $env:SMB_SHARE -Path C:\share -EncryptData $false -FullAccess Everyone > $null
+    New-SmbShare -Name $env:SMB_ENCRYPTED_SHARE -Path C:\encrypted_share -EncryptData $true -FullAccess Everyone > $null
     $env:SMB_USER = $($env:USERNAME)
     $env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 

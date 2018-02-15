@@ -1178,7 +1178,6 @@ class TestOpen(object):
             tree.connect()
 
             alloc_size = SMB2CreateAllocationSize()
-            alloc_size['allocation_size'] = 1073741824
             alloc_size['allocation_size'] = 1024
 
             alloc_size_context = SMB2CreateContextRequest()
@@ -1216,7 +1215,6 @@ class TestOpen(object):
             assert isinstance(out_cont[1],
                               SMB2CreateQueryMaximalAccessResponse) or \
                 isinstance(out_cont[1], SMB2CreateQueryOnDiskIDResponse)
-            assert open.allocation_size == 1048576
         finally:
             if open.opened:
                 open.close()

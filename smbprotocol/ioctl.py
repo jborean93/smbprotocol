@@ -565,6 +565,7 @@ class SMB2ValidateNegotiateInfoResponse(Structure):
             ('security_mode', EnumField(
                 size=2,
                 enum_type=SecurityMode,
+                enum_strict=False
             )),
             ('dialect', EnumField(
                 size=2,
