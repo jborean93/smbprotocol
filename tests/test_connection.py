@@ -1060,3 +1060,43 @@ class TestConnection(object):
             if session.session_id:
                 session.disconnect()
             connection.disconnect()
+
+    def test_decrypt_invalid_flag(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        session = Session(connection, smb_real[0], smb_real[1])
+        connection.connect()
+        try:
+            session.connect()
+            # just get some random message
+            header = connection.preauth_integrity_hash_value[-1]
+            enc_header = connection._encrypt(header, session)
+            assert isinstance(enc_header, SMB2TransformHeader)
+            enc_header['flags'] = 5
+            with pytest.raises(SMBException) as exc:
+                connection._decrypt(enc_header)
+            assert str(exc.value) == "Expecting flag of 0x0001 but got 5 in " \
+                                     "the SMB Transform Header Response"
+        finally:
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_decrypt_invalid_session_id(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        session = Session(connection, smb_real[0], smb_real[1])
+        connection.connect()
+        try:
+            session.connect()
+            # just get some random message
+            header = connection.preauth_integrity_hash_value[-1]
+            enc_header = connection._encrypt(header, session)
+            assert isinstance(enc_header, SMB2TransformHeader)
+            enc_header['session_id'] = 100
+            with pytest.raises(SMBException) as exc:
+                connection._decrypt(enc_header)
+            assert str(exc.value) == "Failed to find valid session 100 for " \
+                                     "message decryption"
+        finally:
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()

@@ -243,8 +243,8 @@ class WriteFlags(object):
     2.2.21 SMB2 WRITE Request Flags
     Flags to indicate how to process the operation
     """
-    SMB2_WRITEFLAG_WRITE_THROUGH = 0x1
-    SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x2
+    SMB2_WRITEFLAG_WRITE_THROUGH = 0x00000001
+    SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x00000002
 
 
 class SMB2CreateRequest(Structure):

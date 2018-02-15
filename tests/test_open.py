@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from datetime import datetime
@@ -1410,6 +1411,8 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
+    @pytest.mark.skipif(os.name == "nt",
+                        reason="write-through writes don't work on windows?")
     def test_write_file_write_through(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
@@ -1425,7 +1428,8 @@ class TestOpen(object):
                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
                       0,
                       CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+                      CreateOptions.FILE_NON_DIRECTORY_FILE |
+                      CreateOptions.FILE_WRITE_THROUGH)
 
             open.write(b"\x01", write_through=True)
             actual = open.read(0, 1)
@@ -1454,7 +1458,8 @@ class TestOpen(object):
                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
                       0,
                       CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+                      CreateOptions.FILE_NON_DIRECTORY_FILE |
+                      CreateOptions.FILE_WRITE_THROUGH)
 
             with pytest.raises(SMBUnsupportedFeature) as exc:
                 open.write(b"\x01", write_through=True)
@@ -1475,6 +1480,8 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
+    @pytest.mark.skipif(os.name == "nt",
+                        reason="unbufferred writes don't work on windows?")
     def test_write_file_unbuffered(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
@@ -1490,7 +1497,8 @@ class TestOpen(object):
                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
                       0,
                       CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+                      CreateOptions.FILE_NON_DIRECTORY_FILE |
+                      CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
 
             open.write(b"\x01", unbuffered=True)
             actual = open.read(0, 1)
@@ -1519,7 +1527,8 @@ class TestOpen(object):
                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
                       0,
                       CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+                      CreateOptions.FILE_NON_DIRECTORY_FILE |
+                      CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
 
             with pytest.raises(SMBUnsupportedFeature) as exc:
                 open.write(b"\x01", unbuffered=True)
