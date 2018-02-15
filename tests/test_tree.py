@@ -1,5 +1,14 @@
+import uuid
+
+import pytest
+
+from smbprotocol.connection import Connection, Dialects
+from smbprotocol.exceptions import SMBException, SMBResponseException
+from smbprotocol.session import Session
 from smbprotocol.tree import SMB2TreeConnectRequest, SMB2TreeConnectResponse, \
-    SMB2TreeDisconnect
+    SMB2TreeDisconnect, TreeConnect
+
+from .utils import smb_real
 
 
 class TestSMB2TreeConnectRequest(object):
@@ -94,3 +103,183 @@ class TestSMB2TreeDisconnect(object):
         assert len(actual) == 4
         assert actual['structure_size'].get_value() == 4
         assert actual['reserved'].get_value() == 0
+
+
+class TestTreeConnect(object):
+
+    def test_dialect_2_0_2(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            tree.connect()
+            assert tree.encrypt_data is None
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_2_1_0(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_1_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            tree.connect()
+            assert tree.encrypt_data is None
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_0_0(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            tree.connect()
+            assert not tree.encrypt_data
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_0_2(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            tree.connect()
+            assert not tree.encrypt_data
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_1_1(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_1_1)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            tree.connect()
+            assert not tree.encrypt_data
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_2_encrypted_share(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_1_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        try:
+            session.connect()
+            with pytest.raises(SMBResponseException) as exc:
+                tree.connect()
+            assert str(exc.value) == "Received unexpected status from the " \
+                                     "server: (3221225506) " \
+                                     "STATUS_ACCESS_DENIED: 0xc0000022"
+        finally:
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_encrypted_share(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_1_1)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        try:
+            session.connect()
+            tree.connect()
+            assert tree.encrypt_data
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_secure_negotiation_verification_failed(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        connection.dialect = Dialects.SMB_3_0_0
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            with pytest.raises(SMBException) as exc:
+                tree.connect()
+            assert "Secure negotiate failed to verify server dialect, " \
+                   "Actual: 770, Expected: 768" in str(exc.value)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_secure_ignore_negotiation_verification_failed(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        connection.dialect = Dialects.SMB_3_0_0
+        tree = TreeConnect(session, smb_real[4])
+        try:
+            session.connect()
+            tree.connect(False)
+            assert not tree.encrypt_data
+            assert not tree.is_ca_share
+            assert not tree.is_dfs_share
+            assert not tree.is_scaleout_share
+            assert isinstance(tree.tree_connect_id, int)
+        finally:
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()

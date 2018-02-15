@@ -1,13 +1,27 @@
+import uuid
+
 from datetime import datetime
+
+import pytest
+
+from smbprotocol.connection import Connection, Dialects
+from smbprotocol.session import Session
+from smbprotocol.tree import TreeConnect
 from smbprotocol.open import CloseFlags, CreateAction, CreateDisposition, \
-    CreateOptions, FileAttributes, FileFlags, \
+    CreateOptions, DirectoryAccessMask, FileAttributes, FileFlags, \
     FilePipePrinterAccessMask, ImpersonationLevel, ReadWriteChannel, \
     ShareAccess, SMB2CloseRequest, \
-    SMB2CloseResponse, SMB2CreateRequest, SMB2CreateResponse, \
+    SMB2CloseResponse, SMB2CreateRequest, SMB2CreateResponse, SMB2FileId, \
     SMB2FlushRequest, SMB2FlushResponse, SMB2ReadRequest, SMB2ReadResponse, \
-    SMB2WriteRequest, SMB2WriteResponse
+    SMB2WriteRequest, SMB2WriteResponse, Open
 from smbprotocol.create_contexts import CreateContextName, \
-    SMB2CreateContextRequest, SMB2CreateTimewarpToken
+    SMB2CreateAllocationSize, SMB2CreateContextRequest, \
+    SMB2CreateQueryMaximalAccessRequest, \
+    SMB2CreateQueryMaximalAccessResponse, SMB2CreateQueryOnDiskIDResponse, \
+    SMB2CreateTimewarpToken
+from smbprotocol.exceptions import SMBUnsupportedFeature
+
+from .utils import smb_real
 
 
 class TestSMB2CreateRequest(object):
@@ -156,18 +170,18 @@ class TestSMB2CreateRequest(object):
         contexts = actual['buffer_contexts'].get_value()
         assert isinstance(contexts, list)
         timewarp_context = contexts[0]
-        timewarp_context['next'].get_value() == 0
-        timewarp_context['name_offset'].get_value() == 16
-        timewarp_context['name_length'].get_value() == 4
-        timewarp_context['reserved'].get_value() == 0
-        timewarp_context['data_offset'].get_value() == 24
-        timewarp_context['data_length'].get_value() == 8
-        timewarp_context['buffer_name'].get_value() == \
+        assert timewarp_context['next'].get_value() == 0
+        assert timewarp_context['name_offset'].get_value() == 16
+        assert timewarp_context['name_length'].get_value() == 4
+        assert timewarp_context['reserved'].get_value() == 0
+        assert timewarp_context['data_offset'].get_value() == 24
+        assert timewarp_context['data_length'].get_value() == 8
+        assert timewarp_context['buffer_name'].get_value() == \
             CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
-        timewarp_context['padding'].get_value() == b"\x00\x00\x00\x00"
-        timewarp_context['buffer_data'].get_value() == \
+        assert timewarp_context['padding'].get_value() == b"\x00\x00\x00\x00"
+        assert timewarp_context['buffer_data'].get_value() == \
             b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
-        timewarp_context['padding2'].get_value() == b""
+        assert timewarp_context['padding2'].get_value() == b""
 
     def test_parse_message_no_contexts(self):
         actual = SMB2CreateRequest()
@@ -359,18 +373,18 @@ class TestSMB2CreateResponse(object):
         contexts = actual['buffer'].get_value()
         assert isinstance(contexts, list)
         timewarp_context = contexts[0]
-        timewarp_context['next'].get_value() == 0
-        timewarp_context['name_offset'].get_value() == 16
-        timewarp_context['name_length'].get_value() == 4
-        timewarp_context['reserved'].get_value() == 0
-        timewarp_context['data_offset'].get_value() == 24
-        timewarp_context['data_length'].get_value() == 8
-        timewarp_context['buffer_name'].get_value() == \
+        assert timewarp_context['next'].get_value() == 0
+        assert timewarp_context['name_offset'].get_value() == 16
+        assert timewarp_context['name_length'].get_value() == 4
+        assert timewarp_context['reserved'].get_value() == 0
+        assert timewarp_context['data_offset'].get_value() == 24
+        assert timewarp_context['data_length'].get_value() == 8
+        assert timewarp_context['buffer_name'].get_value() == \
             CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
-        timewarp_context['padding'].get_value() == b"\x00\x00\x00\x00"
-        timewarp_context['buffer_data'].get_value() == \
+        assert timewarp_context['padding'].get_value() == b"\x00\x00\x00\x00"
+        assert timewarp_context['buffer_data'].get_value() == \
             b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
-        timewarp_context['padding2'].get_value() == b""
+        assert timewarp_context['padding2'].get_value() == b""
 
     def test_parse_message_no_contexts(self):
         actual = SMB2CreateResponse()
@@ -850,3 +864,680 @@ class TestSMB2WriteResponse(object):
         assert actual['remaining'].get_value() == 0
         assert actual['write_channel_info_offset'].get_value() == 0
         assert actual['write_channel_info_length'].get_value() == 0
+
+
+class TestOpen(object):
+
+    # basic file open tests for each dialect
+    def test_dialect_2_0_2(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                 0,
+                                 CreateDisposition.FILE_OVERWRITE_IF,
+                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            assert out_cont is None
+            assert open.allocation_size == 0
+            assert isinstance(open.change_time, datetime)
+            assert open.create_disposition is None
+            assert open.create_options is None
+            assert isinstance(open.creation_time, datetime)
+            assert open.desired_access is None
+            assert not open.durable
+            assert open.durable_timeout is None
+            assert open.end_of_file == 0
+            assert open.file_attributes == 32
+            assert isinstance(open.file_id, SMB2FileId)
+            assert open.file_name == "file.txt"
+            assert open.is_persistent is None
+            assert isinstance(open.last_access_time, datetime)
+            assert open.last_disconnect_time == 0
+            assert isinstance(open.last_write_time, datetime)
+            assert open.opened
+            assert open.operation_buckets == []
+            assert open.oplock_level == 0
+            assert not open.resilient_handle
+            assert not open.resilient_timeout
+            assert open.share_mode is None
+        finally:
+            if open.opened:
+                open.close(False)
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_2_1_0(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_1_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                 0,
+                                 CreateDisposition.FILE_OVERWRITE_IF,
+                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            assert out_cont is None
+            assert open.allocation_size == 0
+            assert isinstance(open.change_time, datetime)
+            assert open.create_disposition is None
+            assert open.create_options is None
+            assert isinstance(open.creation_time, datetime)
+            assert open.desired_access is None
+            assert not open.durable
+            assert open.durable_timeout is None
+            assert open.end_of_file == 0
+            assert open.file_attributes == 32
+            assert isinstance(open.file_id, SMB2FileId)
+            assert open.file_name == "file.txt"
+            assert open.is_persistent is None
+            assert isinstance(open.last_access_time, datetime)
+            assert open.last_disconnect_time == 0
+            assert isinstance(open.last_write_time, datetime)
+            assert open.opened
+            assert open.operation_buckets == []
+            assert open.oplock_level == 0
+            assert not open.resilient_handle
+            assert not open.resilient_timeout
+            assert open.share_mode is None
+        finally:
+            if open.opened:
+                open.close(False)
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_0_0(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                 0,
+                                 CreateDisposition.FILE_OVERWRITE_IF,
+                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            assert out_cont is None
+            assert open.allocation_size == 0
+            assert isinstance(open.change_time, datetime)
+            assert open.create_disposition is \
+                CreateDisposition.FILE_OVERWRITE_IF
+            assert open.create_options is CreateOptions.FILE_NON_DIRECTORY_FILE
+            assert isinstance(open.creation_time, datetime)
+            assert open.desired_access is \
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED
+            assert not open.durable
+            assert open.durable_timeout is None
+            assert open.end_of_file == 0
+            assert open.file_attributes == 32
+            assert isinstance(open.file_id, SMB2FileId)
+            assert open.file_name == "file.txt"
+            assert open.is_persistent is None
+            assert isinstance(open.last_access_time, datetime)
+            assert open.last_disconnect_time == 0
+            assert isinstance(open.last_write_time, datetime)
+            assert open.opened
+            assert open.operation_buckets == []
+            assert open.oplock_level == 0
+            assert not open.resilient_handle
+            assert not open.resilient_timeout
+            assert open.share_mode == 0
+        finally:
+            if open.opened:
+                open.close(False)
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_0_2(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                 0,
+                                 CreateDisposition.FILE_OVERWRITE_IF,
+                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            assert out_cont is None
+            assert open.allocation_size == 0
+            assert isinstance(open.change_time, datetime)
+            assert open.create_disposition is \
+                CreateDisposition.FILE_OVERWRITE_IF
+            assert open.create_options is CreateOptions.FILE_NON_DIRECTORY_FILE
+            assert isinstance(open.creation_time, datetime)
+            assert open.desired_access is \
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED
+            assert not open.durable
+            assert open.durable_timeout is None
+            assert open.end_of_file == 0
+            assert open.file_attributes == 32
+            assert isinstance(open.file_id, SMB2FileId)
+            assert open.file_name == "file.txt"
+            assert open.is_persistent is None
+            assert isinstance(open.last_access_time, datetime)
+            assert open.last_disconnect_time == 0
+            assert isinstance(open.last_write_time, datetime)
+            assert open.opened
+            assert open.operation_buckets == []
+            assert open.oplock_level == 0
+            assert not open.resilient_handle
+            assert not open.resilient_timeout
+            assert open.share_mode == 0
+        finally:
+            if open.opened:
+                open.close(False)
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_dialect_3_1_1(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_1_1)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                 0,
+                                 CreateDisposition.FILE_OVERWRITE_IF,
+                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            assert out_cont is None
+            assert open.allocation_size == 0
+            assert isinstance(open.change_time, datetime)
+            assert open.create_disposition is \
+                CreateDisposition.FILE_OVERWRITE_IF
+            assert open.create_options is CreateOptions.FILE_NON_DIRECTORY_FILE
+            assert isinstance(open.creation_time, datetime)
+            assert open.desired_access is \
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED
+            assert not open.durable
+            assert open.durable_timeout is None
+            assert open.end_of_file == 0
+            assert open.file_attributes == 32
+            assert isinstance(open.file_id, SMB2FileId)
+            assert open.file_name == "file.txt"
+            assert open.is_persistent is None
+            assert isinstance(open.last_access_time, datetime)
+            assert open.last_disconnect_time == 0
+            assert isinstance(open.last_write_time, datetime)
+            assert open.opened
+            assert open.operation_buckets == []
+            assert open.oplock_level == 0
+            assert not open.resilient_handle
+            assert not open.resilient_timeout
+            assert open.share_mode == 0
+        finally:
+            if open.opened:
+                open.close(False)
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    # test more file operations here
+    def test_create_directory(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        open = Open(tree, "folder")
+        try:
+            session.connect()
+            tree.connect()
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 DirectoryAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                                 0,
+                                 CreateDisposition.FILE_OPEN_IF,
+                                 CreateOptions.FILE_DIRECTORY_FILE)
+            assert out_cont is None
+            assert open.allocation_size == 0
+            assert isinstance(open.change_time, datetime)
+            assert open.create_disposition is \
+                CreateDisposition.FILE_OPEN_IF
+            assert open.create_options is CreateOptions.FILE_DIRECTORY_FILE
+            assert isinstance(open.creation_time, datetime)
+            assert open.desired_access is \
+                DirectoryAccessMask.MAXIMUM_ALLOWED
+            assert not open.durable
+            assert open.durable_timeout is None
+            assert open.end_of_file == 0
+            assert open.file_attributes == \
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+            assert isinstance(open.file_id, SMB2FileId)
+            assert open.file_name == "folder"
+            assert open.is_persistent is None
+            assert isinstance(open.last_access_time, datetime)
+            assert open.last_disconnect_time == 0
+            assert isinstance(open.last_write_time, datetime)
+            assert open.opened
+            assert open.operation_buckets == []
+            assert open.oplock_level == 0
+            assert not open.resilient_handle
+            assert not open.resilient_timeout
+            assert open.share_mode == 0
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_create_file_create_contexts(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        open = Open(tree, "file-cont.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            alloc_size = SMB2CreateAllocationSize()
+            alloc_size['allocation_size'] = 1073741824
+            alloc_size['allocation_size'] = 1024
+
+            alloc_size_context = SMB2CreateContextRequest()
+            alloc_size_context['buffer_name'] = \
+                CreateContextName.SMB2_CREATE_ALLOCATION_SIZE
+            alloc_size_context['buffer_data'] = alloc_size
+
+            query_disk = SMB2CreateContextRequest()
+            query_disk['buffer_name'] = \
+                CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID
+
+            max_req_data = SMB2CreateQueryMaximalAccessRequest()
+            max_req = SMB2CreateContextRequest()
+            max_req['buffer_name'] = \
+                CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST
+            max_req['buffer_data'] = max_req_data
+
+            create_contexts = SMB2CreateContextRequest.pack_multiple([
+                alloc_size_context,
+                query_disk,
+                max_req
+            ])
+
+            out_cont = open.open(ImpersonationLevel.Impersonation,
+                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                 0,
+                                 CreateDisposition.FILE_OVERWRITE_IF,
+                                 CreateOptions.FILE_NON_DIRECTORY_FILE,
+                                 create_contexts)
+            assert len(out_cont) == 2
+            assert isinstance(out_cont[0],
+                              SMB2CreateQueryMaximalAccessResponse) or \
+                isinstance(out_cont[0], SMB2CreateQueryOnDiskIDResponse)
+            assert isinstance(out_cont[1],
+                              SMB2CreateQueryMaximalAccessResponse) or \
+                isinstance(out_cont[1], SMB2CreateQueryOnDiskIDResponse)
+            assert open.allocation_size == 1048576
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_create_read_write_from_file(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            open.write(b"\x01\x02\x03\x04")
+            actual = open.read(0, 4)
+            assert actual == b"\x01\x02\x03\x04"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_flush_file(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        open = Open(tree, "file-cont.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.flush()
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_close_file_dont_get_attributes(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            old_last_write_time = open.last_write_time
+            old_end_of_file = open.end_of_file
+            open.write(b"\x01")
+            open.close(False)
+            assert open.last_write_time == old_last_write_time
+            assert open.end_of_file == old_end_of_file
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_close_file_get_attributes(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            old_last_write_time = open.last_write_time
+            old_end_of_file = open.end_of_file
+            open.write(b"\x01")
+            open.close(True)
+            assert open.last_write_time != old_last_write_time
+            assert open.end_of_file != old_end_of_file
+            assert open.end_of_file == 1
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_read_file_unbuffered(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            open.write(b"\x01")
+            actual = open.read(0, 1, unbuffered=True)
+            assert actual == b"\x01"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_read_file_unbuffered_unsupported(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            open.write(b"\x01")
+            with pytest.raises(SMBUnsupportedFeature) as exc:
+                open.read(0, 1, unbuffered=True)
+            assert exc.value.feature_name == "SMB2_READFLAG_READ_UNBUFFERED"
+            assert exc.value.negotiated_dialect == Dialects.SMB_3_0_0
+            assert exc.value.required_dialect == Dialects.SMB_3_0_2
+            assert exc.value.requires_newer
+            assert str(exc.value) == \
+                "SMB2_READFLAG_READ_UNBUFFERED is not available on the " \
+                "negotiated dialect (768) SMB_3_0_0, requires dialect (770) " \
+                "SMB_3_0_2 or newer"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_write_file_write_through(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            open.write(b"\x01", write_through=True)
+            actual = open.read(0, 1)
+            assert actual == b"\x01"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_write_file_write_through_unsupported(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            with pytest.raises(SMBUnsupportedFeature) as exc:
+                open.write(b"\x01", write_through=True)
+            assert exc.value.feature_name == "SMB2_WRITEFLAG_WRITE_THROUGH"
+            assert exc.value.negotiated_dialect == Dialects.SMB_2_0_2
+            assert exc.value.required_dialect == Dialects.SMB_2_1_0
+            assert exc.value.requires_newer
+            assert str(exc.value) == \
+                "SMB2_WRITEFLAG_WRITE_THROUGH is not available on the " \
+                "negotiated dialect (514) SMB_2_0_2, requires dialect (528) " \
+                "SMB_2_1_0 or newer"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_write_file_unbuffered(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            open.write(b"\x01", unbuffered=True)
+            actual = open.read(0, 1)
+            assert actual == b"\x01"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()
+
+    def test_write_file_unbuffered_unsupported(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_1_0)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            with pytest.raises(SMBUnsupportedFeature) as exc:
+                open.write(b"\x01", unbuffered=True)
+            assert exc.value.feature_name == "SMB2_WRITEFLAG_WRITE_UNBUFFERED"
+            assert exc.value.negotiated_dialect == Dialects.SMB_2_1_0
+            assert exc.value.required_dialect == Dialects.SMB_3_0_2
+            assert exc.value.requires_newer
+            assert str(exc.value) == \
+                "SMB2_WRITEFLAG_WRITE_UNBUFFERED is not available on the " \
+                "negotiated dialect (528) SMB_2_1_0, requires dialect (770) " \
+                "SMB_3_0_2 or newer"
+        finally:
+            if open.opened:
+                open.close()
+            if tree.tree_connect_id:
+                tree.disconnect()
+            if session.session_id:
+                session.disconnect()
+            connection.disconnect()

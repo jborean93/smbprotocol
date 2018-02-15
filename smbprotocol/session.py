@@ -225,8 +225,8 @@ class Session(object):
                 pass
 
         if response is None:
-            raise SMBException("Failed to authenticated with server: %s"
-                               % str(errors))
+            raise SMBAuthenticationError("Failed to authenticate with server: "
+                                         "%s" % str(errors))
 
         log.info("Setting session id to %s" % self.session_id)
         setup_response = SMB2SessionSetupResponse()
@@ -286,9 +286,12 @@ class Session(object):
         if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA):
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
-        elif self.require_encryption:
+        elif self.connection.supports_encryption and self.require_encryption:
             self.encrypt_data = True
             self.signing_required = False
+        elif self.require_encryption:
+            raise SMBException("SMB encryption is required but server does "
+                               "not support it")
         else:
             self.encrypt_data = False
             self.signing_required = True
@@ -297,10 +300,6 @@ class Session(object):
         self.connection._verify(response, True)
 
     def disconnect(self):
-        if not self.session_id:
-            log.info("No need to log off when session is already set up")
-            return
-
         log.info("Session: %d - Logging off of SMB Session" % self.session_id)
         logoff = SMB2Logoff()
         log.info("Session: %d - Sending Logoff message" % self.session_id)

@@ -7,9 +7,12 @@ from datetime import datetime
 from smbprotocol.connection import Ciphers, Commands, Connection, Dialects, \
     HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2, \
     SMB1NegotiateRequest, SMB1PacketHeader, SMB2EncryptionCapabilities, \
-    SMB2NegotiateContextRequest, SMB2NegotiateRequest, SMB2NegotiateResponse, \
-    SMB2PacketHeader, SMB2PreauthIntegrityCapabilities, SMB2TransformHeader, \
+    Smb2Flags, SMB2NegotiateContextRequest, SMB2NegotiateRequest, \
+    SMB2NegotiateResponse, SMB2PacketHeader, \
+    SMB2PreauthIntegrityCapabilities, SMB2TransformHeader, \
     SMB3NegotiateRequest, SMB3PacketHeader
+from smbprotocol.exceptions import SMBException
+from smbprotocol.session import Session
 
 from .utils import smb_real
 
@@ -998,4 +1001,62 @@ class TestConnection(object):
             assert connection.supports_encryption
             assert connection.require_signing
         finally:
+            connection.disconnect()
+
+    def test_receive_invalid_message_id(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            with pytest.raises(SMBException) as exc:
+                connection.receive(100)
+            assert str(exc.value) == "No request with the ID 100 is " \
+                                     "expecting a response"
+        finally:
+            connection.disconnect()
+
+    def test_verify_message_skip(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            header = SMB2PacketHeader()
+            header['message_id'] = 0xFFFFFFFFFFFFFFFF
+            expected = header.pack()
+            connection._verify(header)
+            actual = header.pack()
+            assert actual == expected
+        finally:
+            connection.disconnect()
+
+    def test_verify_fail_no_session(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            header = SMB2PacketHeader()
+            header['message_id'] = 1
+            header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
+            header['session_id'] = 100
+            with pytest.raises(SMBException) as exc:
+                connection._verify(header)
+            assert str(exc.value) == "Failed to find session 100 for " \
+                                     "message verification"
+        finally:
+            connection.disconnect()
+
+    def test_verify_mistmatch(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        session = Session(connection, smb_real[0], smb_real[1])
+        connection.connect()
+        try:
+            session.connect()
+            header = connection.preauth_integrity_hash_value[-1]
+            # just set some random values for verifiation failure
+            header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
+            header['signature'] = b"\xff" * 16
+            with pytest.raises(SMBException) as exc:
+                connection._verify(header, verify_session=True)
+            assert "Server message signature could not be verified:" in \
+                str(exc.value)
+        finally:
+            if session.session_id:
+                session.disconnect()
             connection.disconnect()

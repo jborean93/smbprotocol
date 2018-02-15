@@ -292,7 +292,7 @@ class TreeConnect(object):
 
         self._verify("server capabilities",
                      val_resp['capabilities'].get_value(),
-                     self.session.connection.server_capabilities)
+                     self.session.connection.server_capabilities.get_value())
         self._verify("server guid",
                      val_resp['guid'].get_value(),
                      self.session.connection.server_guid)

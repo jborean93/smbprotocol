@@ -963,7 +963,7 @@ class Open(object):
         flush_response.unpack(response['data'].get_value())
         log.debug(str(flush_response))
 
-    def close(self, get_attributes):
+    def close(self, get_attributes=False):
         # if connection is NULL and durable is True, the client SHOULD attempt
         # to reconnect this open and the close retried
         # if connection is NULL and durable is False the client MUST fail the

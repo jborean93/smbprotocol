@@ -203,6 +203,7 @@ class NtStatus(object):
     STATUS_ACCESS_DENIED = 0xC0000022
     STATUS_BUFFER_TOO_SMALL = 0xC0000023
     STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
+    STATUS_OBJECT_NAME_COLLISION = 0xC0000035
     STATUS_SHARING_VIOLATION = 0xC0000043
     STATUS_EAS_NOT_SUPPORTED = 0xC000004F
     STATUS_EA_TOO_LARGE = 0xC0000050
@@ -943,7 +944,6 @@ class Connection(object):
             header = SMB3PacketHeader()
 
         header['command'] = command
-        header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_PRIORITY_MASK)
 
         if session:
             header['session_id'] = session.session_id
@@ -966,12 +966,15 @@ class Connection(object):
         # now add the actual data so we don't pollute the logs too much
         header['data'] = message
 
-        if session and session.encrypt_data and session.encryption_key:
-            header = self._encrypt(header, session)
+        if (session and session.encrypt_data) or (tree and tree.encrypt_data):
+            final_header = self._encrypt(header, session)
         elif session and session.signing_required and session.signing_key:
             self._sign(header, session)
+            final_header = header
+        else:
+            final_header = header
 
-        request = Request(header)
+        request = Request(final_header)
         self.outstanding_requests[message_id] = request
         self.transport.send(request)
         self.lock.release()
@@ -1074,7 +1077,7 @@ class Connection(object):
         session_id = message['session_id'].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
-            error_msg = "Failed to find session %d for message verification"\
+            error_msg = "Failed to find session %d for message verification" \
                         % session_id
             raise smbprotocol.exceptions.SMBException(error_msg)
         expected = self._generate_signature(message, session)

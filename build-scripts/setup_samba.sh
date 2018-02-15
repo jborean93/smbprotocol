@@ -19,6 +19,8 @@ create mask = 0755
 command = Test Encrypted Samba Share
 path = /srv/samba/$SMB_ENCRYPTED_SHARE
 browsable = no
+guest ok = no
+read only = no
 create mask = 0755
 smb encrypt = required
 EOL
