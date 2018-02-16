@@ -1,5 +1,3 @@
-import os
-import sys
 import uuid
 
 import pytest
@@ -189,10 +187,6 @@ class TestTreeConnect(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_dialect_3_1_1(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)
@@ -230,10 +224,6 @@ class TestTreeConnect(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_dialect_3_encrypted_share(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)

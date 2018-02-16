@@ -1,5 +1,4 @@
 import os
-import sys
 import uuid
 
 from datetime import datetime
@@ -967,10 +966,6 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_dialect_3_0_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
@@ -1021,10 +1016,6 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_dialect_3_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -1075,10 +1066,6 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_dialect_3_1_1(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)
@@ -1293,10 +1280,6 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_close_file_dont_get_attributes(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
@@ -1329,10 +1312,6 @@ class TestOpen(object):
                 session.disconnect()
             connection.disconnect()
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS", "false") == "true" and
-                        sys.version_info[0] == 2 and sys.version_info[1] == 6,
-                        reason="Python 2.6 on Travis has issues with enc on "
-                               "3.1.1")
     def test_close_file_get_attributes(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
