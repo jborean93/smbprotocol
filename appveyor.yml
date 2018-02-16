@@ -12,10 +12,9 @@ environment:
     SMB_PORT: 445
   matrix:
   # https://www.appveyor.com/docs/installed-software/#python
-  # NOTE Python 2.6 for Windows is no longer supported by the Python core team
+  - PYTHON: Python26-x64
   - PYTHON: Python27
   - PYTHON: Python27-x64
-  - PYTHON: Python34
   - PYTHON: Python34-x64
   - PYTHON: Python35
   - PYTHON: Python35-x64
