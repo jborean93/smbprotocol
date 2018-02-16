@@ -9,6 +9,7 @@ from datetime import datetime
 from multiprocessing.dummy import Lock
 
 from cryptography.hazmat.backends import default_backend
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
 
@@ -183,6 +184,15 @@ class Ciphers(object):
             Ciphers.AES_128_CCM: aead.AESCCM,
             Ciphers.AES_128_GCM: aead.AESGCM
         }[cipher]
+
+    @staticmethod
+    def get_supported_ciphers():
+        supported_ciphers = []
+        if default_backend().aead_cipher_supported(aead.AESGCM):
+            supported_ciphers.append(Ciphers.AES_128_GCM)
+        if default_backend().aead_cipher_supported(aead.AESCCM):
+            supported_ciphers.append(Ciphers.AES_128_CCM)
+        return supported_ciphers
 
 
 class NtStatus(object):
@@ -1280,10 +1290,8 @@ class Connection(object):
             enc_cap['context_type'] = \
                 NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
             enc_cap['data'] = SMB2EncryptionCapabilities()
-            enc_cap['data']['ciphers'] = [
-                Ciphers.AES_128_GCM,
-                Ciphers.AES_128_CCM
-            ]
+            supported_ciphers = Ciphers.get_supported_ciphers()
+            enc_cap['data']['ciphers'] = supported_ciphers
             # remove extra padding for last list entry
             enc_cap['padding'].size = 0
             enc_cap['padding'] = b""
