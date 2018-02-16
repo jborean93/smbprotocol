@@ -1,9 +1,7 @@
-import struct
-
 import smbprotocol.connection
 import smbprotocol.open
-from smbprotocol.structure import BoolField, BytesField, DateTimeField,\
-    EnumField, FlagField, IntField, Structure, StructureField, UuidField
+from smbprotocol.structure import BoolField, BytesField, DateTimeField, \
+    EnumField, FlagField, IntField, Structure, UuidField
 
 try:
     from collections import OrderedDict
@@ -365,10 +363,7 @@ class SMB2CreateDurableHandleReconnect(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([
-            ('data', StructureField(
-                size=16,
-                structure_type=smbprotocol.open.SMB2FileId
-            ))
+            ('data', BytesField(size=16))
         ])
         super(SMB2CreateDurableHandleReconnect, self).__init__()
 
@@ -588,10 +583,7 @@ class SMB2CreateDurableHandleReconnectV2(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([
-            ('file_id', StructureField(
-                size=16,
-                structure_type=smbprotocol.open.SMB2FileId
-            )),
+            ('file_id', BytesField(size=16)),
             ('create_guid', UuidField(size=16)),
             ('flags', FlagField(
                 size=4,

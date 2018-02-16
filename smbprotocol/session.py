@@ -184,6 +184,7 @@ class Session(object):
             needs to be set to False for older dialects.
         """
         log.info("Initialising session with username: %s" % username)
+        self._connected = False
         self.session_id = None
         self.require_encryption = require_encryption
 
@@ -262,6 +263,7 @@ class Session(object):
         log.info("Setting session id to %s" % self.session_id)
         setup_response = SMB2SessionSetupResponse()
         setup_response.unpack(response['data'].get_value())
+        self._connected = True
 
         # TODO: remove from preauth session table and move to session_table
         self.connection.session_table[self.session_id] = self
@@ -336,7 +338,24 @@ class Session(object):
                      "successful")
             self.connection._verify(response, True)
 
-    def disconnect(self):
+    def disconnect(self, close=True):
+        """
+        Logs off the session
+
+        :param close: Will close all tree connects in a session
+        """
+        import copy
+        if not self._connected:
+            # already disconnected so let's return
+            return
+
+        if close:
+            for open in list(self.open_table.values()):
+                open.close(False)
+
+            for tree in list(self.tree_connect_table.values()):
+                tree.disconnect()
+
         log.info("Session: %d - Logging off of SMB Session" % self.session_id)
         logoff = SMB2Logoff()
         log.info("Session: %d - Sending Logoff message" % self.session_id)
@@ -348,6 +367,8 @@ class Session(object):
         res_logoff = SMB2Logoff()
         res_logoff.unpack(res['data'].get_value())
         log.debug(str(res_logoff))
+        self._connected = False
+        del self.connection.session_table[self.session_id]
 
     def _authenticate_session(self, mech):
         if mech in [MechTypes.KRB5, MechTypes.MS_KRB5] and HAVE_GSSAPI:

@@ -12,7 +12,7 @@ from smbprotocol.open import CloseFlags, CreateAction, CreateDisposition, \
     CreateOptions, DirectoryAccessMask, FileAttributes, FileFlags, \
     FilePipePrinterAccessMask, ImpersonationLevel, ReadWriteChannel, \
     ShareAccess, SMB2CloseRequest, \
-    SMB2CloseResponse, SMB2CreateRequest, SMB2CreateResponse, SMB2FileId, \
+    SMB2CloseResponse, SMB2CreateRequest, SMB2CreateResponse, \
     SMB2FlushRequest, SMB2FlushResponse, SMB2ReadRequest, SMB2ReadResponse, \
     SMB2WriteRequest, SMB2WriteResponse, Open
 from smbprotocol.create_contexts import CreateContextName, \
@@ -460,7 +460,7 @@ class TestSMB2CloseRequest(object):
         assert actual['flags'].get_value() == \
             CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB
         assert actual['reserved'].get_value() == 0
-        assert actual['file_id'].get_value().pack() == b"\xff" * 16
+        assert actual['file_id'].get_value() == b"\xff" * 16
 
 
 class TestSMB2CloseResponse(object):
@@ -897,26 +897,19 @@ class TestOpen(object):
             assert open.durable_timeout is None
             assert open.end_of_file == 0
             assert open.file_attributes == 32
-            assert isinstance(open.file_id, SMB2FileId)
+            assert isinstance(open.file_id, bytes)
             assert open.file_name == "file.txt"
             assert open.is_persistent is None
             assert isinstance(open.last_access_time, datetime)
             assert open.last_disconnect_time == 0
             assert isinstance(open.last_write_time, datetime)
-            assert open.opened
             assert open.operation_buckets == []
             assert open.oplock_level == 0
             assert not open.resilient_handle
             assert not open.resilient_timeout
             assert open.share_mode is None
         finally:
-            if open.opened:
-                open.close(False)
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_2_1_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -945,26 +938,19 @@ class TestOpen(object):
             assert open.durable_timeout is None
             assert open.end_of_file == 0
             assert open.file_attributes == 32
-            assert isinstance(open.file_id, SMB2FileId)
+            assert isinstance(open.file_id, bytes)
             assert open.file_name == "file.txt"
             assert open.is_persistent is None
             assert isinstance(open.last_access_time, datetime)
             assert open.last_disconnect_time == 0
             assert isinstance(open.last_write_time, datetime)
-            assert open.opened
             assert open.operation_buckets == []
             assert open.oplock_level == 0
             assert not open.resilient_handle
             assert not open.resilient_timeout
             assert open.share_mode is None
         finally:
-            if open.opened:
-                open.close(False)
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_0_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -995,26 +981,19 @@ class TestOpen(object):
             assert open.durable_timeout is None
             assert open.end_of_file == 0
             assert open.file_attributes == 32
-            assert isinstance(open.file_id, SMB2FileId)
+            assert isinstance(open.file_id, bytes)
             assert open.file_name == "file.txt"
             assert open.is_persistent is None
             assert isinstance(open.last_access_time, datetime)
             assert open.last_disconnect_time == 0
             assert isinstance(open.last_write_time, datetime)
-            assert open.opened
             assert open.operation_buckets == []
             assert open.oplock_level == 0
             assert not open.resilient_handle
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            if open.opened:
-                open.close(False)
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1045,26 +1024,19 @@ class TestOpen(object):
             assert open.durable_timeout is None
             assert open.end_of_file == 0
             assert open.file_attributes == 32
-            assert isinstance(open.file_id, SMB2FileId)
+            assert isinstance(open.file_id, bytes)
             assert open.file_name == "file.txt"
             assert open.is_persistent is None
             assert isinstance(open.last_access_time, datetime)
             assert open.last_disconnect_time == 0
             assert isinstance(open.last_write_time, datetime)
-            assert open.opened
             assert open.operation_buckets == []
             assert open.oplock_level == 0
             assert not open.resilient_handle
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            if open.opened:
-                open.close(False)
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_1_1(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1095,26 +1067,19 @@ class TestOpen(object):
             assert open.durable_timeout is None
             assert open.end_of_file == 0
             assert open.file_attributes == 32
-            assert isinstance(open.file_id, SMB2FileId)
+            assert isinstance(open.file_id, bytes)
             assert open.file_name == "file.txt"
             assert open.is_persistent is None
             assert isinstance(open.last_access_time, datetime)
             assert open.last_disconnect_time == 0
             assert isinstance(open.last_write_time, datetime)
-            assert open.opened
             assert open.operation_buckets == []
             assert open.oplock_level == 0
             assert not open.resilient_handle
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            if open.opened:
-                open.close(False)
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     # test more file operations here
     def test_create_directory(self, smb_real):
@@ -1147,26 +1112,19 @@ class TestOpen(object):
             assert open.end_of_file == 0
             assert open.file_attributes == \
                 FileAttributes.FILE_ATTRIBUTE_DIRECTORY
-            assert isinstance(open.file_id, SMB2FileId)
+            assert isinstance(open.file_id, bytes)
             assert open.file_name == "folder"
             assert open.is_persistent is None
             assert isinstance(open.last_access_time, datetime)
             assert open.last_disconnect_time == 0
             assert isinstance(open.last_write_time, datetime)
-            assert open.opened
             assert open.operation_buckets == []
             assert open.oplock_level == 0
             assert not open.resilient_handle
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_create_file_create_contexts(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1216,13 +1174,7 @@ class TestOpen(object):
                               SMB2CreateQueryMaximalAccessResponse) or \
                 isinstance(out_cont[1], SMB2CreateQueryOnDiskIDResponse)
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_create_read_write_from_file(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1246,13 +1198,7 @@ class TestOpen(object):
             actual = open.read(0, 4)
             assert actual == b"\x01\x02\x03\x04"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_flush_file(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1272,13 +1218,7 @@ class TestOpen(object):
                       CreateOptions.FILE_NON_DIRECTORY_FILE)
             open.flush()
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_close_file_dont_get_attributes(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1304,13 +1244,8 @@ class TestOpen(object):
             assert open.last_write_time == old_last_write_time
             assert open.end_of_file == old_end_of_file
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            open.close(False)  # test close when it has already been closed
+            connection.disconnect(True)
 
     def test_close_file_get_attributes(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1337,13 +1272,7 @@ class TestOpen(object):
             assert open.end_of_file != old_end_of_file
             assert open.end_of_file == 1
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_read_file_unbuffered(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1366,13 +1295,7 @@ class TestOpen(object):
             actual = open.read(0, 1, unbuffered=True)
             assert actual == b"\x01"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_read_file_unbuffered_unsupported(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1403,13 +1326,7 @@ class TestOpen(object):
                 "negotiated dialect (768) SMB_3_0_0, requires dialect (770) " \
                 "SMB_3_0_2 or newer"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     @pytest.mark.skipif(os.name == "nt",
                         reason="write-through writes don't work on windows?")
@@ -1436,13 +1353,7 @@ class TestOpen(object):
             actual = open.read(0, 1)
             assert actual == b"\x01"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_write_file_write_through_unsupported(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1473,13 +1384,7 @@ class TestOpen(object):
                 "negotiated dialect (514) SMB_2_0_2, requires dialect (528) " \
                 "SMB_2_1_0 or newer"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     @pytest.mark.skipif(os.name == "nt",
                         reason="unbufferred writes don't work on windows?")
@@ -1506,13 +1411,7 @@ class TestOpen(object):
             actual = open.read(0, 1)
             assert actual == b"\x01"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_write_file_unbuffered_unsupported(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -1543,10 +1442,4 @@ class TestOpen(object):
                 "negotiated dialect (528) SMB_2_1_0, requires dialect (770) " \
                 "SMB_3_0_2 or newer"
         finally:
-            if open.opened:
-                open.close()
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)

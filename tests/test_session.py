@@ -123,9 +123,7 @@ class TestSession(object):
             assert session.signing_key == session.signing_key
             assert session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_2_1_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -145,9 +143,7 @@ class TestSession(object):
             assert session.signing_key == session.signing_key
             assert session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_0_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -170,9 +166,7 @@ class TestSession(object):
             assert session.signing_key != session.session_key
             assert not session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -195,9 +189,7 @@ class TestSession(object):
             assert session.signing_key != session.session_key
             assert not session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_1_1(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -220,9 +212,9 @@ class TestSession(object):
             assert session.signing_key != session.session_key
             assert not session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
+            # test that disconnect can be run mutliple times
+            session.disconnect()
 
     def test_require_encryption(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -245,9 +237,7 @@ class TestSession(object):
             assert session.signing_key != session.session_key
             assert not session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_require_encryption_not_supported(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -260,9 +250,7 @@ class TestSession(object):
             assert str(exc.value) == "SMB encryption is required but the " \
                                      "connection does not support it"
         finally:
-            if session:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_setup_session_with_ms_gss_token(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -300,9 +288,7 @@ class TestSession(object):
             assert session.signing_key != session.session_key
             assert session.signing_required
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_invalid_user(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -313,4 +299,4 @@ class TestSession(object):
                 session.connect()
             assert "Failed to authenticate with server: " in str(exc.value)
         finally:
-            connection.disconnect()
+            connection.disconnect(True)

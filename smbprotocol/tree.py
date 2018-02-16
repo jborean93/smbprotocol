@@ -176,6 +176,9 @@ class TreeConnect(object):
         :param share_name: The name of the share, including the server name,
             e.g. \\server\share
         """
+        self._connected = False
+        self.open_table = {}
+
         self.share_name = share_name
         self.tree_connect_id = None
         self.session = session
@@ -220,6 +223,7 @@ class TreeConnect(object):
         self.tree_connect_id = response['tree_id'].get_value()
         log.info("Session: %d - Created tree connection with ID %d"
                  % (self.session.session_id, self.tree_connect_id))
+        self._connected = True
         self.session.tree_connect_table[self.tree_connect_id] = self
 
         capabilities = tree_response['capabilities']
@@ -242,6 +246,12 @@ class TreeConnect(object):
                 self._verify_dialect_negotiate()
 
     def disconnect(self):
+        """
+        Disconnects the tree connection.
+        """
+        if not self._connected:
+            return
+
         log_header = "Session: %d, Tree: %d"\
                      % (self.session.session_id, self.tree_connect_id)
         log.info("%s - Disconnecting from Tree Connect %s"
@@ -258,6 +268,8 @@ class TreeConnect(object):
         res_disconnect = SMB2TreeDisconnect()
         res_disconnect.unpack(res['data'].get_value())
         log.debug(str(res_disconnect))
+        self._connected = False
+        del self.session.tree_connect_table[self.tree_connect_id]
 
     def _verify_dialect_negotiate(self):
         log_header = "Session: %d, Tree: %d"\

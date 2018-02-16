@@ -948,11 +948,19 @@ class Connection(object):
                     self.preauth_integrity_hash_id = \
                         HashAlgorithms.get_algorithm(hash_id)
 
-    def disconnect(self):
+    def disconnect(self, close=True):
         """
+        Closes the connection as well as logs off any of the
         Disconnects the TCP connection and shuts down the socket listener
         running in a thread.
+
+        :param close: Will close all sessions in the connection as well as the
+            tree connections of each session.
         """
+        if close:
+            for session in list(self.session_table.values()):
+                session.disconnect(True)
+
         log.info("Disconnecting transport connection")
         self.transport.disconnect()
 

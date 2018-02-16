@@ -391,9 +391,8 @@ class SMB2CreateResponse(Structure):
                 flag_type=FileAttributes
             )),
             ('reserved2', IntField(size=4)),
-            ('file_id', StructureField(
-                size=16,
-                structure_type=SMB2FileId
+            ('file_id', BytesField(
+                size=16
             )),
             ('create_contexts_offset', IntField(
                 size=4,
@@ -432,22 +431,6 @@ class SMB2CreateResponse(Structure):
         return context_list
 
 
-class SMB2FileId(Structure):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.14.1 SMB2_FILEID
-    Used to represent an open to a file
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('persistent', BytesField(size=8)),
-            ('volatile', BytesField(size=8)),
-        ])
-        super(SMB2FileId, self).__init__()
-
-
 class SMB2CloseRequest(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -467,10 +450,7 @@ class SMB2CloseRequest(Structure):
                 flag_type=CloseFlags
             )),
             ('reserved', IntField(size=4)),
-            ('file_id', StructureField(
-                size=16,
-                structure_type=SMB2FileId
-            ))
+            ('file_id', BytesField(size=16))
         ])
         super(SMB2CloseRequest, self).__init__()
 
@@ -525,9 +505,7 @@ class SMB2FlushRequest(Structure):
             )),
             ('reserved1', IntField(size=2)),
             ('reserved2', IntField(size=4)),
-            ('file_id', StructureField(
-                structure_type=SMB2FileId
-            ))
+            ('file_id', BytesField(size=16))
         ])
         super(SMB2FlushRequest, self).__init__()
 
@@ -576,9 +554,7 @@ class SMB2ReadRequest(Structure):
             ('offset', IntField(
                 size=8
             )),
-            ('file_id', StructureField(
-                structure_type=SMB2FileId
-            )),
+            ('file_id', BytesField(size=16)),
             ('minimum_count', IntField(
                 size=4
             )),
@@ -672,9 +648,7 @@ class SMB2WriteRequest(Structure):
                 default=lambda s: len(s['buffer'])
             )),
             ('offset', IntField(size=8)),  # the offset in the file of the data
-            ('file_id', StructureField(
-                structure_type=SMB2FileId
-            )),
+            ('file_id', BytesField(size=16)),
             ('channel', FlagField(
                 size=4,
                 flag_type=ReadWriteChannel
@@ -749,7 +723,7 @@ class Open(object):
             \\server\share\folder\file.txt would be folder\file.txt
         """
         # properties available based on the file itself
-        self.opened = False
+        self._connected = False
         self.creation_time = None
         self.last_access_time = None
         self.last_write_time = None
@@ -851,9 +825,11 @@ class Open(object):
         response = self.connection.receive(header['message_id'].get_value())
         create_response = SMB2CreateResponse()
         create_response.unpack(response['data'].get_value())
+        self._connected = True
         log.debug(str(create_response))
 
         self.file_id = create_response['file_id'].get_value()
+        self.tree_connect.session.open_table[self.file_id] = self
         self.oplock_level = create_response['oplock_level'].get_value()
         self.durable = False
         self.resilient_handle = False
@@ -873,7 +849,6 @@ class Open(object):
         self.allocation_size = create_response['allocation_size'].get_value()
         self.end_of_file = create_response['end_of_file'].get_value()
         self.file_attributes = create_response['file_attributes'].get_value()
-        self.opened = True
 
         create_contexts_response = None
         if create_response['create_contexts_length'].get_value() > 0:
@@ -1036,6 +1011,9 @@ class Open(object):
         :param get_attributes: (Bool) whether to get the latest attributes on
             the close and set them on the Open object.
         """
+        if not self._connected:
+            return
+
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
                         self.tree_connect.tree_connect_id)
@@ -1059,6 +1037,8 @@ class Open(object):
         c_resp = SMB2CloseResponse()
         c_resp.unpack(response['data'].get_value())
         log.debug(str(c_resp))
+        self._connected = False
+        del self.tree_connect.session.open_table[self.file_id]
 
         # update the attributes if requested
         if get_attributes:
@@ -1069,4 +1049,3 @@ class Open(object):
             self.allocation_size = c_resp['allocation_size'].get_value()
             self.end_of_file = c_resp['end_of_file'].get_value()
             self.file_attributes = c_resp['file_attributes'].get_value()
-        self.opened = False

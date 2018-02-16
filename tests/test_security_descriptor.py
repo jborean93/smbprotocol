@@ -119,6 +119,7 @@ class TestAccessAllowedAce(object):
                    b"\x00\x00\x00\x01" \
                    b"\x00\x00\x00\x00"
         actual = message.pack()
+        print(str(message))
         assert len(message) == 20
         assert actual == expected
 

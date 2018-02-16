@@ -1,11 +1,9 @@
 import binascii
 import socket
-import struct
 
 from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
     ListField, Structure, StructureField, UuidField
 from smbprotocol.connection import Capabilities, Dialects, SecurityMode
-from smbprotocol.open import SMB2FileId
 
 try:
     from collections import OrderedDict
@@ -110,10 +108,7 @@ class SMB2IOCTLRequest(Structure):
                 size=4,
                 enum_type=CtlCode,
             )),
-            ('file_id', StructureField(
-                size=16,
-                structure_type=SMB2FileId
-            )),
+            ('file_id', BytesField(size=16)),
             ('input_offset', IntField(
                 size=4,
                 default=lambda s: self._buffer_offset_value(s)
@@ -297,10 +292,7 @@ class SMB2IOCTLResponse(Structure):
                 size=4,
                 enum_type=CtlCode,
             )),
-            ('file_id', StructureField(
-                size=16,
-                structure_type=SMB2FileId
-            )),
+            ('file_id', BytesField(size=16)),
             ('input_offset', IntField(size=4)),
             ('input_count', IntField(size=4)),
             ('output_offset', IntField(size=4)),

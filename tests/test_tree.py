@@ -121,11 +121,7 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_2_1_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -141,11 +137,7 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_0_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -161,11 +153,7 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -181,11 +169,7 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_1_1(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -201,11 +185,7 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_2_encrypted_share(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -220,9 +200,7 @@ class TestTreeConnect(object):
                                      "server: (3221225506) " \
                                      "STATUS_ACCESS_DENIED: 0xc0000022"
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_dialect_3_encrypted_share(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -238,11 +216,7 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_secure_negotiation_verification_failed(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -257,11 +231,7 @@ class TestTreeConnect(object):
             assert "Secure negotiate failed to verify server dialect, " \
                    "Actual: 770, Expected: 768" in str(exc.value)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_secure_ignore_negotiation_verification_failed(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
@@ -278,8 +248,5 @@ class TestTreeConnect(object):
             assert not tree.is_scaleout_share
             assert isinstance(tree.tree_connect_id, int)
         finally:
-            if tree.tree_connect_id:
-                tree.disconnect()
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
+            tree.disconnect()  # test that disconnect can be run mutliple times
