@@ -28,7 +28,7 @@ install:
 - pip install python-coveralls
 
 script:
-- py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+- py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing
 
 after_success:
 - coveralls
