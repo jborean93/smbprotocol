@@ -15,10 +15,10 @@ guest ok = no
 read only = no
 create mask = 0755
 
-[$SMB_ENCRYPTED_SHARE]
+[${SMB_SHARE}-encrypted]
 command = Test Encrypted Samba Share
-path = /srv/samba/$SMB_ENCRYPTED_SHARE
-browsable = no
+path = /srv/samba/${SMB_SHARE}-encrypted
+browsable = yes
 guest ok = no
 read only = no
 create mask = 0755
@@ -35,9 +35,9 @@ mkdir -p /srv/samba/$SMB_SHARE
 chmod -R 0755 /srv/samba/$SMB_SHARE
 chown -R $SMB_USER:smbgroup /srv/samba/$SMB_SHARE
 
-mkdir -p /srv/samba/$SMB_ENCRYPTED_SHARE
-chmod -R 0755 /srv/samba/$SMB_ENCRYPTED_SHARE
-chown -R $SMB_USER:smbgroup /srv/samba/$SMB_ENCRYPTED_SHARE
+mkdir -p /srv/samba/${SMB_SHARE}-encrypted
+chmod -R 0755 /srv/samba/${SMB_SHARE}-encrypted
+chown -R $SMB_USER:smbgroup /srv/samba/${SMB_SHARE}-encrypted
 
 # run smb service
 /usr/sbin/smbd -F -S < /dev/null

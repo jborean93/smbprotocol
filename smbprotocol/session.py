@@ -9,7 +9,7 @@ from ntlm_auth.ntlm import Ntlm
 from pyasn1.codec.der import decoder
 
 from smbprotocol.connection import Capabilities, Commands, Dialects, \
-    NtStatus, SecurityMode, Smb2Flags
+    NtStatus, SecurityMode
 from smbprotocol.exceptions import SMBAuthenticationError, SMBException, \
     SMBResponseException
 from smbprotocol.spnego import InitialContextToken, MechTypes, ObjectIdentifier
@@ -19,12 +19,12 @@ from smbprotocol.structure import _bytes_to_hex
 
 HAVE_SSPI = False  # TODO: add support for Windows and SSPI
 HAVE_GSSAPI = False
-try:
+try:  # pragma: no cover
     import gssapi
     # Needed to get the session key for signing and encryption
     from gssapi.raw import inquire_sec_context_by_oid
     HAVE_GSSAPI = True
-except ImportError:
+except ImportError:  # pragma: no cover
     pass
 
 try:
@@ -144,13 +144,44 @@ class SMB2Logoff(Structure):
 
 class Session(object):
 
-    def __init__(self, connection, username, password,
-                 require_encryption=False):
+    def __init__(self, connection, username=None, password=None,
+                 require_encryption=True):
         """
         [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.3 Per Session
-        List of attributes that are set per session
+        The Session object that is used to store the details for an
+        authenticated SMB session. There are 3 forms of authentication that are
+        supported;
+
+        1. NTLM Auth, requires the username and password
+        2. Kerberos Auth, only available in certain circumstances
+        3. Guest Auth, the credentials were rejected but the server allows a
+            fallback to guest authentication (insecure and non-default)
+
+        NTLM Auth is the fallback as it should be available in most scenarios
+        while Kerberos only works on a system where python-gssapi is installed
+        and the GGF extension for inquire_sec_context_by_oid is available.
+
+        If using Kerberos Auth, the username and password can be omitted which
+        means the default user kerb ticket (if available) is used. If the
+        username is specified and not the password then it will get the kerb
+        ticket for the principal specified (kinit must be used to get this
+        ticket beforehand). If both the user and password are specified then
+        it will get a ticket for the user instead of relying on the default
+        store.
+
+        If guest auth was negotiated based on a bad credential then signing
+        and encryption is not allowed, for this to ultimately work the user
+        must set require_signing=False when creating the Connection and
+        require_encryption=False when creating the Session.
+
+        :param connection: The Connection object that the session will use
+        :param username: The username of the user to authenticate with
+        :param password: The password of the user to authenticate with
+        :param require_encryption: Whether any messages sent over the session
+            require encryption regardless of the server settings (Dialects 3+),
+            needs to be set to False for older dialects.
         """
         log.info("Initialising session with username: %s" % username)
         self.session_id = None
@@ -231,10 +262,6 @@ class Session(object):
         log.info("Setting session id to %s" % self.session_id)
         setup_response = SMB2SessionSetupResponse()
         setup_response.unpack(response['data'].get_value())
-        if self.connection.dialect >= Dialects.SMB_3_1_1 and not \
-                response['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
-            raise SMBException("SMB2_FLAGS_SIGNED must be set in SMB2 "
-                               "SESSION_SETUP Response when on Dialect 3.1.1")
 
         # TODO: remove from preauth session table and move to session_table
         self.connection.session_table[self.session_id] = self
@@ -279,25 +306,35 @@ class Session(object):
             self.application_key = self.session_key
 
         flags = setup_response['session_flags']
-        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_GUEST) \
-                and self.signing_required:
-            raise SMBException("SMB Signing is required but could only auth "
-                               "as guest")
-        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA):
+        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA) or \
+                self.require_encryption:
+            # make sure the connection actually supports encryption
+            if not self.connection.supports_encryption:
+                raise SMBException("SMB encryption is required but the "
+                                   "connection does not support it")
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
-        elif self.connection.supports_encryption and self.require_encryption:
-            self.encrypt_data = True
-            self.signing_required = False
-        elif self.require_encryption:
-            raise SMBException("SMB encryption is required but server does "
-                               "not support it")
         else:
             self.encrypt_data = False
-            self.signing_required = True
-        log.info("Verifying the SMB Setup Session signature as auth is "
-                 "successful")
-        self.connection._verify(response, True)
+
+        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_GUEST) or \
+                flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_NULL):
+            self.session_key = None
+            self.signing_key = None
+            self.application_key = None
+            self.encryption_key = None
+            self.decryption_key = None
+            if self.signing_required or self.encrypt_data:
+                self.session_id = None
+                raise SMBException("SMB encryption or signing was required "
+                                   "but session was authenticated as a guest "
+                                   "which does not support encryption or "
+                                   "signing")
+
+        if self.signing_required:
+            log.info("Verifying the SMB Setup Session signature as auth is "
+                     "successful")
+            self.connection._verify(response, True)
 
     def disconnect(self):
         log.info("Session: %d - Logging off of SMB Session" % self.session_id)

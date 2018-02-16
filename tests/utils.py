@@ -13,11 +13,10 @@ def smb_real():
     server = os.environ.get('SMB_SERVER', None)
     port = os.environ.get('SMB_PORT', None)
     share = os.environ.get('SMB_SHARE', None)
-    encrypted_share = os.environ.get('SMB_ENCRYPTED_SHARE', None)
 
-    if username and password and server and port and share and encrypted_share:
+    if username and password and server and port and share:
         share = r"\\%s\%s" % (server, share)
-        encrypted_share = r"\\%s\%s" % (server, encrypted_share)
+        encrypted_share = "%s-encrypted" % share
         return username, password, server, int(port), share, encrypted_share
     else:
         pytest.skip("SMB_USER, SMB_PASSWORD, SMB_PORT, SMB_SHARE, "

@@ -9,7 +9,6 @@ environment:
     WITH_COMPILER: "cmd /E:ON /V:ON /C .\\build-scripts\\run_with_compiler.cmd"
     SMB_SERVER: 127.0.0.1
     SMB_SHARE: share
-    SMB_ENCRYPTED_SHARE: encrypted_share
     SMB_PORT: 445
   matrix:
   # https://www.appveyor.com/docs/installed-software/#python
@@ -30,9 +29,10 @@ init:
     $env:Path="C:\$env:PYTHON;C:\$env:PYTHON\Scripts;$env:PATH"
     python -c "import platform; print('Python', platform.python_version(), platform.architecture()[0])"
     New-Item -Path C:\share -ItemType Directory > $null
-    New-Item -Path C:\encrypted_share -ItemType Directory > $null
+    New-Item -Path C:\share-encrypted -ItemType Directory > $null
     New-SmbShare -Name $env:SMB_SHARE -Path C:\share -EncryptData $false -FullAccess Everyone > $null
-    New-SmbShare -Name $env:SMB_ENCRYPTED_SHARE -Path C:\encrypted_share -EncryptData $true -FullAccess Everyone > $null
+    New-SmbShare -Name "$($env:SMB_SHARE)-encrypted" -Path C:\share-encrypted -EncryptData $true -FullAccess Everyone > $null
+
     $env:SMB_USER = $($env:USERNAME)
     $env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 

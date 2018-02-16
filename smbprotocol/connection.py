@@ -777,10 +777,11 @@ class Connection(object):
         omitted as they can be retrieved by the Server object stored in
         self.server
 
-        :param guid: The client guid generated in Client
+        :param guid: A uniqure guid that represents the client
         :param server_name: The server to start the connection
         :param port: The port to use for the transport
         :param require_signing: Whether signing is required on SMB messages
+            sent over this connection
         """
         log.info("Initialising connection, guid: %s, require_singing: %s, "
                  "server_name: %s, port: %d"
@@ -857,13 +858,15 @@ class Connection(object):
 
     def connect(self, dialect=None):
         """
-        [MS-SMB2] v53.0 2017-09-15
+        Will connect to the target server and negotiate the capabilities
+        with the client. Once setup, the client MUST call the disconnect()
+        function to close the listener thread. This function will populate
+        various connection properties that denote the capabilities of the
+        server.
 
-        3.2.4.2.1 Connecting to the Target Server
-        Will connect to the target server using the connection specified. Once
-        connected will negotiate that capabilities with the SMB service, it
-        does this by sending an SMB1 negotiate message then finally an SMB2
-        negotiate message.
+        :param dialect: If specified, forces the dialect that is negotiated
+            with the server, if not set, then the newest dialect supported by
+            the server is used up to SMB 3.1.1
         """
         log.info("Setting up transport connection")
         self.transport.connect()
@@ -931,13 +934,23 @@ class Connection(object):
                         HashAlgorithms.get_algorithm(hash_id)
 
     def disconnect(self):
+        """
+        Disconnects the TCP connection and shuts down the socket listener
+        running in a thread.
+        """
         log.info("Disconnecting transport connection")
         self.transport.disconnect()
 
     def send(self, message, command, session=None, tree=None):
         """
-        Sends a message
-        :return:
+        Will send a message to the server that is passed in. The final
+        unencrypted header is returned to the function that called this.
+
+        :param message: An SMB message structure to send
+        :param command: The Commands value that is set on the SMB Header
+        :param session: A Session object that the message is sent for
+        :param tree: A TreeConnect object that the message is sent for
+        :return: SMB2PacketHeader or SMB3PacketHeader of the final message sent
         """
         if command == Commands.SMB2_NEGOTIATE:
             header = SMB2PacketHeader()
@@ -986,8 +999,11 @@ class Connection(object):
 
     def receive(self, message_id):
         """
-        # 3.2.5.1 - Receiving Any Message
-        :return:
+        Polls the message buffer of the TCP connection and waits until a valid
+        message is received based on the message_id passed in.
+
+        :param message_id: The message id to wait for
+        :return: SMB2PacketHeader or SMB3PacketHeader of the received message
         """
         request = self.outstanding_requests.get(message_id, None)
         if not request:
@@ -1028,7 +1044,6 @@ class Connection(object):
         left in the queue. Each response is assigned to the Request object
         based on the message_id which are then available in
         self.outstanding_requests
-        :return: None
         """
         while True:
             try:
@@ -1112,17 +1127,6 @@ class Connection(object):
         return signature
 
     def _encrypt(self, message, session):
-        """
-        [MS-SMB2] v53.0 2017-09-15
-
-        3.1.4.3 Encrypting the Message
-        Encrypts the message usinig the encryption keys negotiated with.
-
-        :param message: The message to encrypt
-        :param session: The session associated with the message
-        :return: The encrypted message in a SMB2 TRANSFORM_HEADER
-        """
-
         header = SMB2TransformHeader()
         header['original_message_size'] = len(message)
         header['session_id'] = message['session_id'].get_value()
@@ -1150,16 +1154,6 @@ class Connection(object):
         return header
 
     def _decrypt(self, message):
-        """
-        [MS-SMB2] v53.0 2017-09-15
-
-        3.2.5.1.1 Decrypting the Message
-        This will decrypt the message and convert the raw bytes value returned
-        by direct_tcp to a SMB Header structure
-
-        :param message: The message to decrypt
-        :return: The decrypted message including the header
-        """
         if message['flags'].get_value() != 0x0001:
             error_msg = "Expecting flag of 0x0001 but got %s in the SMB " \
                         "Transform Header Response"\

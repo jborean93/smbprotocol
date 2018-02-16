@@ -108,7 +108,8 @@ class TestSession(object):
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real[0], smb_real[1],
+                          require_encryption=False)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -129,7 +130,8 @@ class TestSession(object):
     def test_dialect_2_1_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real[0], smb_real[1],
+                          require_encryption=False)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -157,16 +159,16 @@ class TestSession(object):
             assert session.application_key != session.session_key
             assert len(session.decryption_key) == 16
             assert session.decryption_key != session.session_key
-            assert not session.encrypt_data
+            assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
             assert len(session.preauth_integrity_hash_value) == 5
-            assert not session.require_encryption
+            assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
             assert len(session.signing_key) == 16
             assert session.signing_key != session.session_key
-            assert session.signing_required
+            assert not session.signing_required
         finally:
             if session.session_id:
                 session.disconnect()
@@ -182,16 +184,16 @@ class TestSession(object):
             assert session.application_key != session.session_key
             assert len(session.decryption_key) == 16
             assert session.decryption_key != session.session_key
-            assert not session.encrypt_data
+            assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
             assert len(session.preauth_integrity_hash_value) == 5
-            assert not session.require_encryption
+            assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
             assert len(session.signing_key) == 16
             assert session.signing_key != session.session_key
-            assert session.signing_required
+            assert not session.signing_required
         finally:
             if session.session_id:
                 session.disconnect()
@@ -207,16 +209,16 @@ class TestSession(object):
             assert session.application_key != session.session_key
             assert len(session.decryption_key) == 16
             assert session.decryption_key != session.session_key
-            assert not session.encrypt_data
+            assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
             assert len(session.preauth_integrity_hash_value) == 5
-            assert not session.require_encryption
+            assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
             assert len(session.signing_key) == 16
             assert session.signing_key != session.session_key
-            assert session.signing_required
+            assert not session.signing_required
         finally:
             if session.session_id:
                 session.disconnect()
@@ -252,11 +254,11 @@ class TestSession(object):
         connection.connect(Dialects.SMB_2_1_0)
         session = None
         try:
-            session = Session(connection, smb_real[0], smb_real[1], True)
+            session = Session(connection, smb_real[0], smb_real[1])
             with pytest.raises(SMBException) as exc:
                 session.connect()
-            assert str(exc.value) == "SMB encryption is required but server " \
-                                     "does not support it"
+            assert str(exc.value) == "SMB encryption is required but the " \
+                                     "connection does not support it"
         finally:
             if session:
                 session.disconnect()
@@ -280,7 +282,7 @@ class TestSession(object):
                                          b"\x69\x6e\x5f\x52\x46\x43\x34\x31" \
                                          b"\x37\x38\x40\x70\x6c\x65\x61\x73" \
                                          b"\x65\x5f\x69\x67\x6e\x6f\x72\x65"
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real[0], smb_real[1], False)
         try:
             session.connect()
             assert len(session.application_key) == 16

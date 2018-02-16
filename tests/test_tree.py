@@ -110,7 +110,7 @@ class TestTreeConnect(object):
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real[0], smb_real[1], False)
         tree = TreeConnect(session, smb_real[4])
         try:
             session.connect()
@@ -130,7 +130,7 @@ class TestTreeConnect(object):
     def test_dialect_2_1_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real[0], smb_real[1], False)
         tree = TreeConnect(session, smb_real[4])
         try:
             session.connect()
@@ -210,7 +210,7 @@ class TestTreeConnect(object):
     def test_dialect_2_encrypted_share(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real[0], smb_real[1], False)
         tree = TreeConnect(session, smb_real[5])
         try:
             session.connect()
