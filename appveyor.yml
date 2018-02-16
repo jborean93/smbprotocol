@@ -23,7 +23,6 @@ environment:
 
 init:
 - ps: |
-    $ErrorActionPreference = "Stop"
     # Override default Python version/architecture
     $env:Path="C:\$env:PYTHON;C:\$env:PYTHON\Scripts;$env:PATH"
     python -c "import platform; print('Python', platform.python_version(), platform.architecture()[0])"
