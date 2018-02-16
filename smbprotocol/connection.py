@@ -188,10 +188,15 @@ class Ciphers(object):
     @staticmethod
     def get_supported_ciphers():
         supported_ciphers = []
-        if default_backend().aead_cipher_supported(aead.AESGCM):
+        try:
+            aead.AESGCM(b"\x00" * 16)
             supported_ciphers.append(Ciphers.AES_128_GCM)
-        if default_backend().aead_cipher_supported(aead.AESCCM):
-            supported_ciphers.append(Ciphers.AES_128_CCM)
+        except UnsupportedAlgorithm:  # pragma: no cover
+            pass
+        try:
+            aead.AESCCM(b"\x00" * 16)
+        except UnsupportedAlgorithm:  # pragma: no cover
+            pass
         return supported_ciphers
 
 
