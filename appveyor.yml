@@ -12,9 +12,9 @@ environment:
     SMB_PORT: 445
   matrix:
   # https://www.appveyor.com/docs/installed-software/#python
-  - PYTHON: Python26-x64
   - PYTHON: Python27
   - PYTHON: Python27-x64
+  - PYTHON: Python34
   - PYTHON: Python34-x64
   - PYTHON: Python35
   - PYTHON: Python35-x64
@@ -23,6 +23,7 @@ environment:
 
 init:
 - ps: |
+    $ErrorActionPreference = "Stop"
     # Override default Python version/architecture
     $env:Path="C:\$env:PYTHON;C:\$env:PYTHON\Scripts;$env:PATH"
     python -c "import platform; print('Python', platform.python_version(), platform.architecture()[0])"
