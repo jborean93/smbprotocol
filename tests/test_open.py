@@ -1196,12 +1196,11 @@ class TestOpen(object):
                 CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST
             max_req['buffer_data'] = max_req_data
 
-            create_contexts = SMB2CreateContextRequest.pack_multiple([
+            create_contexts = [
                 alloc_size_context,
                 query_disk,
                 max_req
-            ])
-
+            ]
             out_cont = open.open(ImpersonationLevel.Impersonation,
                                  FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                                  FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -1242,7 +1241,8 @@ class TestOpen(object):
                       CreateDisposition.FILE_OVERWRITE_IF,
                       CreateOptions.FILE_NON_DIRECTORY_FILE)
 
-            open.write(b"\x01\x02\x03\x04")
+            actual = open.write(b"\x01\x02\x03\x04")
+            assert actual == 4
             actual = open.read(0, 4)
             assert actual == b"\x01\x02\x03\x04"
         finally:
@@ -1431,7 +1431,8 @@ class TestOpen(object):
                       CreateOptions.FILE_NON_DIRECTORY_FILE |
                       CreateOptions.FILE_WRITE_THROUGH)
 
-            open.write(b"\x01", write_through=True)
+            actual = open.write(b"\x01", write_through=True)
+            assert actual == 1
             actual = open.read(0, 1)
             assert actual == b"\x01"
         finally:
@@ -1500,7 +1501,8 @@ class TestOpen(object):
                       CreateOptions.FILE_NON_DIRECTORY_FILE |
                       CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
 
-            open.write(b"\x01", unbuffered=True)
+            actual = open.write(b"\x01", unbuffered=True)
+            assert actual == 1
             actual = open.read(0, 1)
             assert actual == b"\x01"
         finally:

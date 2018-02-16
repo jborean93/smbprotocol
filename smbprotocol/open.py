@@ -741,7 +741,12 @@ class Open(object):
         [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.6 Per Application Open of a File
-        Attributes per each open of a file of an application
+        Attributes per each open of a file. A file can be a File, Pipe,
+        Directory, or Printer
+
+        :param tree: The Tree (share) the file is located in.
+        :param name: The name of the file, excluding the share path, e.g.
+            \\server\share\folder\file.txt would be folder\file.txt
         """
         # properties available based on the file itself
         self.opened = False
@@ -787,7 +792,39 @@ class Open(object):
 
     def open(self, impersonation_level, desired_access, file_attributes,
              share_access, create_disposition, create_options,
-             create_contexts=None):
+             create_contexts=list()):
+        """
+        This will open the file based on the input parameters supplied. Any
+        file open should also be called with Open.close() when it is finished.
+
+        More details on how each option affects the open process can be found
+        here https://msdn.microsoft.com/en-us/library/cc246502.aspx.
+
+        :param impersonation_level: (ImpersonationLevel) The type of
+            impersonation level that is issuing the create request.
+        :param desired_access: The level of access that is required of the
+            open. FilePipePrinterAccessMask or DirectoryAccessMask should be
+            used depending on the type of file being opened.
+        :param file_attributes: (FileAttributes) attributes to set on the file
+            being opened, this usually is for opens that creates a file.
+        :param share_access: (ShareAccess) Specifies the sharing mode for the
+            open.
+        :param create_disposition: (CreateDisposition) Defines the action the
+            server MUST take if the file already exists.
+        :param create_options: (CreateOptions) Specifies the options to be
+            applied when creating or opening the file.
+        :param create_contexts: (List<SMB2CreateContextRequest>) List of
+            context request values to be applied to the create.
+
+        Create Contexts are used to encode additional flags and attributes when
+        opening files. More details on create context request values can be
+        found here https://msdn.microsoft.com/en-us/library/cc246504.aspx.
+
+        :return: List of context response values or None if there are no
+            context response values. If the context response value is not known
+            to smbprotocol then the list value would be raw bytes otherwise
+            it is a Structure defined in create_contexts.py
+        """
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
                         self.tree_connect.tree_connect_id)
@@ -800,7 +837,8 @@ class Open(object):
         create['create_disposition'] = create_disposition
         create['create_options'] = create_options
         create['buffer_path'] = self.file_name.encode('utf-16-le')
-        create['buffer_contexts'] = create_contexts
+        create['buffer_contexts'] = smbprotocol.create_contexts.\
+            SMB2CreateContextRequest.pack_multiple(create_contexts)
 
         log.info("%s - sending SMB2 Create Request for file %s"
                  % (log_header, self.file_name))
@@ -846,6 +884,19 @@ class Open(object):
         return create_contexts_response
 
     def read(self, offset, length, min_length=0, unbuffered=False, wait=False):
+        """
+        Reads from an opened file or pipe
+
+        :param offset: The offset to start the read of the file.
+        :param length: The number of bytes to read from the offset.
+        :param min_length: The minimum number of bytes to be read for a
+            successful operation.
+        :param unbuffered: Whether to the server should cache the read data at
+            intermediate layers, only value for SMB 3.0.2 or newer
+        :param wait: Whether to wait for a response if STATUS_PENDING was
+            received from the server or fail.
+        :return: A byte string of the bytes read
+        """
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
                         self.tree_connect.tree_connect_id)
@@ -897,6 +948,17 @@ class Open(object):
         return read_response['buffer'].get_value()
 
     def write(self, data, offset=0, write_through=False, unbuffered=False):
+        """
+        Writes data to an opened file.
+
+        :param data: The bytes data to write.
+        :param offset: The offset in the file to write the bytes at
+        :param write_through: Whether written data is persisted to the
+            underlying storage, not valid for SMB 2.0.2.
+        :param unbuffered: Whether to the server should cache the write data at
+            intermediate layers, only value for SMB 3.0.2 or newer
+        :return: The number of bytes written
+        """
         # handle data over max write size
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
@@ -941,6 +1003,10 @@ class Open(object):
         return write_response['count'].get_value()
 
     def flush(self):
+        """
+        A command sent by the client to request that a server flush all cached
+        file information for the opened file.
+        """
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
                         self.tree_connect.tree_connect_id)
@@ -964,10 +1030,12 @@ class Open(object):
         log.debug(str(flush_response))
 
     def close(self, get_attributes=False):
-        # if connection is NULL and durable is True, the client SHOULD attempt
-        # to reconnect this open and the close retried
-        # if connection is NULL and durable is False the client MUST fail the
-        # close operation
+        """
+        Closes an opened file.
+
+        :param get_attributes: (Bool) whether to get the latest attributes on
+            the close and set them on the Open object.
+        """
         log_header = "Session: %s, Tree Connect ID: %s" \
                      % (self.tree_connect.session.session_id,
                         self.tree_connect.tree_connect_id)

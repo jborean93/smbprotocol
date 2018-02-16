@@ -171,6 +171,10 @@ class TreeConnect(object):
 
         3.2.1.4 Per Tree Connect
         Attributes per Tree Connect (share connections)
+
+        :param session: The Session to connect to the tree with
+        :param share_name: The name of the share, including the server name,
+            e.g. \\server\share
         """
         self.share_name = share_name
         self.tree_connect_id = None
@@ -183,6 +187,13 @@ class TreeConnect(object):
         self.is_scaleout_share = None
 
     def connect(self, require_secure_negotiate=True):
+        """
+        Connect to the share.
+
+        :param require_secure_negotiate: For Dialects 3.0 and 3.0.2, will
+            verify the negotiation parameters with the server to prevent
+            SMB downgrade attacks
+        """
         log.info("Session: %d - Creating connection to share %s"
                  % (self.session.session_id, self.share_name))
         utf_share_name = self.share_name.encode('utf-16-le')
