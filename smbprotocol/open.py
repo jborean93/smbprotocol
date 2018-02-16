@@ -1031,9 +1031,18 @@ class Open(object):
                                       self.tree_connect)
 
         log.info("%s - receiving SMB2 Close Response" % log_header)
-        response = self.connection.receive(
-            header['message_id'].get_value()
-        )
+        try:
+            response = self.connection.receive(
+                header['message_id'].get_value()
+            )
+        except SMBResponseException as exc:
+            # check if it was already closed
+            if exc.status == NtStatus.STATUS_FILE_CLOSED:
+                self._connected = False
+                self.tree_connect.session.open_table.pop(self.file_id, None)
+                return
+            # else raise the exception
+            raise exc
         c_resp = SMB2CloseResponse()
         c_resp.unpack(response['data'].get_value())
         log.debug(str(c_resp))

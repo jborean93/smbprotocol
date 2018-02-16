@@ -1443,3 +1443,28 @@ class TestOpen(object):
                 "SMB_3_0_2 or newer"
         finally:
             connection.disconnect(True)
+
+    def test_close_file_already_closed(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-read-write.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.close()
+
+            # we will just manually say it is still connected so we get the
+            # proper error msg
+            open._connected = True
+            open.close()
+        finally:
+            connection.disconnect(True)

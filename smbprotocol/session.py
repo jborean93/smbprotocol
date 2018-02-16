@@ -344,7 +344,6 @@ class Session(object):
 
         :param close: Will close all tree connects in a session
         """
-        import copy
         if not self._connected:
             # already disconnected so let's return
             return
