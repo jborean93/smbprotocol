@@ -1595,6 +1595,8 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.name == "nt",
+                        reason="something about this an appveyor is wrong")
     def test_compounding_open_requests(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -1689,6 +1691,8 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.name == "nt",
+                        reason="something about this an appveyor is wrong")
     def test_compounding_open_requests_unencrypted(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
