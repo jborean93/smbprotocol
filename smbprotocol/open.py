@@ -1,7 +1,9 @@
 import logging
 
 import smbprotocol.create_contexts
-from smbprotocol.exceptions import SMBResponseException, SMBUnsupportedFeature
+import smbprotocol.query_info
+from smbprotocol.exceptions import SMBException, SMBResponseException, \
+    SMBUnsupportedFeature
 from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
     FlagField, IntField, ListField, Structure, StructureField
 from smbprotocol.connection import Commands, Dialects, NtStatus
@@ -247,6 +249,35 @@ class WriteFlags(object):
     SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x00000002
 
 
+class FileInformationClass(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.33 SMB2 QUERY_DIRECTORY Request FileInformationClass
+    Describe the format the data MUST be returned in. The format structure must
+    is specified in https://msdn.microsoft.com/en-us/library/cc232064.aspx
+    """
+    FILE_DIRECTORY_INFORMATION = 0x01
+    FILE_FULL_DIRECTORY_INFORMATION = 0x02
+    FILE_ID_FULL_DIRECTORY_INFORMATION = 0x26
+    FILE_BOTH_DIRECTORY_INFORMATION = 0x03
+    FILE_ID_BOTH_DIRECTORY_INFORMATION = 0x25
+    FILE_NAMES_INFORMATION = 0x0C
+
+
+class QueryDirectoryFlags(object):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.33 SMB2 QUERY_DIRECTORY Request Flags
+    Indicates how the query directory operation MUST be processed.
+    """
+    SMB2_RESTART_SCANS = 0x01
+    SMB2_RETURN_SINGLE_ENTRY = 0x02
+    SMB2_INDEX_SPECIFIED = 0x04
+    SMB2_REOPEN = 0x10
+
+
 class SMB2CreateRequest(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -255,6 +286,7 @@ class SMB2CreateRequest(Structure):
     The SMB2 Create Request packet is sent by a client to request either
     creation of or access to a file.
     """
+    COMMAND = Commands.SMB2_CREATE
 
     def __init__(self):
         # pep 80 char issues force me to define this here
@@ -360,6 +392,7 @@ class SMB2CreateResponse(Structure):
     The SMB2 Create Response packet is sent by the server to an SMB2 CREATE
     Request.
     """
+    COMMAND = Commands.SMB2_CREATE
 
     def __init__(self):
         create_con_req = smbprotocol.create_contexts.SMB2CreateContextRequest
@@ -438,6 +471,7 @@ class SMB2CloseRequest(Structure):
     2.2.15 SMB2 CLOSE Request
     Used by the client to close an instance of a file
     """
+    COMMAND = Commands.SMB2_CLOSE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -462,6 +496,7 @@ class SMB2CloseResponse(Structure):
     2.2.16 SMB2 CLOSE Response
     The response of a SMB2 CLOSE Request
     """
+    COMMAND = Commands.SMB2_CLOSE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -496,6 +531,7 @@ class SMB2FlushRequest(Structure):
     Flush all cached file information for a specified open of a file to the
     persistent store that backs the file.
     """
+    COMMAND = Commands.SMB2_FLUSH
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -517,6 +553,7 @@ class SMB2FlushResponse(Structure):
     2.2.18 SMB2 FLUSH Response
     SMB2 FLUSH Response packet sent by the server.
     """
+    COMMAND = Commands.SMB2_FLUSH
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -536,6 +573,7 @@ class SMB2ReadRequest(Structure):
     2.2.19 SMB2 READ Request
     The request is used to run a read operation on the file specified.
     """
+    COMMAND = Commands.SMB2_READ
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -605,6 +643,7 @@ class SMB2ReadResponse(Structure):
     2.2.20 SMB2 READ Response
     Response to an SMB2 READ Request.
     """
+    COMMAND = Commands.SMB2_READ
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -620,7 +659,9 @@ class SMB2ReadResponse(Structure):
             )),
             ('data_remaining', IntField(size=4)),
             ('reserved2', IntField(size=4)),
-            ('buffer', BytesField())
+            ('buffer', BytesField(
+                size=lambda s: s['data_length'].get_value()
+            ))
         ])
         super(SMB2ReadResponse, self).__init__()
 
@@ -632,6 +673,7 @@ class SMB2WriteRequest(Structure):
     2.2.21 SMB2 WRITE Request
     A write packet to sent to an open file or named pipe on the server
     """
+    COMMAND = Commands.SMB2_WRITE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -692,6 +734,7 @@ class SMB2WriteResponse(Structure):
     2.2.22 SMB2 WRITE Response
     The response to the SMB2 WRITE Request sent by the server
     """
+    COMMAND = Commands.SMB2_WRITE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -706,6 +749,119 @@ class SMB2WriteResponse(Structure):
             ('write_channel_info_length', IntField(size=2))
         ])
         super(SMB2WriteResponse, self).__init__()
+
+
+class SMB2QueryDirectoryRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.33 QUERY_DIRECTORY Request
+    Used by the client to obtain a directory enumeration on a directory open.
+    """
+    COMMAND = Commands.SMB2_QUERY_DIRECTORY
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=33
+            )),
+            ('file_information_class', EnumField(
+                size=1,
+                enum_type=FileInformationClass
+            )),
+            ('flags', FlagField(
+                size=1,
+                flag_type=QueryDirectoryFlags
+            )),
+            ('file_index', IntField(size=4)),
+            ('file_id', BytesField(size=16)),
+            ('file_name_offset', IntField(
+                size=2,
+                default=lambda s: 0 if len(s['buffer']) == 0 else 96
+            )),
+            ('file_name_length', IntField(
+                size=2,
+                default=lambda s: len(s['buffer'])
+            )),
+            ('output_buffer_length', IntField(size=4)),
+            # UTF-16-LE encoded search pattern
+            ('buffer', BytesField(
+                size=lambda s: s['file_name_length'].get_value()
+            ))
+        ])
+        super(SMB2QueryDirectoryRequest, self).__init__()
+
+    @staticmethod
+    def unpack_response(file_information_class, buffer):
+        """
+        Pass in the buffer value from the response object to unpack it and
+        return a list of query response structures for the request.
+
+        :param buffer: The raw bytes value of the SMB2QueryDirectoryResponse
+            buffer field.
+        :return: List of query_info.* structures based on the
+            FileInformationClass used in the initial query request.
+        """
+        structs = smbprotocol.query_info
+        resp_structure = {
+            FileInformationClass.FILE_DIRECTORY_INFORMATION:
+                structs.FileDirectoryInformation,
+            FileInformationClass.FILE_NAMES_INFORMATION:
+                structs.FileNamesInformation,
+            FileInformationClass.FILE_BOTH_DIRECTORY_INFORMATION:
+                structs.FileBothDirectoryInformation,
+            FileInformationClass.FILE_ID_BOTH_DIRECTORY_INFORMATION:
+                structs.FileIdBothDirectoryInformation,
+            FileInformationClass.FILE_FULL_DIRECTORY_INFORMATION:
+                structs.FileFullDirectoryInformation,
+            FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION:
+                structs.FileIdFullDirectoryInformation,
+        }[file_information_class]
+        query_results = []
+
+        current_offset = 0
+        is_next = True
+        while is_next:
+            result = resp_structure()
+            result.unpack(buffer[current_offset:])
+            query_results.append(result)
+            current_offset += result['next_entry_offset'].get_value()
+            is_next = result['next_entry_offset'].get_value() != 0
+
+        return query_results
+
+
+class SMB2QueryDirectoryResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.34 SMB2 QUERY_DIRECTORY Response
+    Response to an SMB2 QUERY_DIRECTORY Request.
+    """
+
+    COMMAND = Commands.SMB2_QUERY_DIRECTORY
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=9
+            )),
+            ('output_buffer_offset', IntField(
+                size=2,
+                default=72
+            )),
+            ('output_buffer_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer'])
+            )),
+            # this structure varies based on the requested information class
+            ('buffer', BytesField(
+                size=lambda s: s['output_buffer_length'].get_value()
+            ))
+        ])
+        super(SMB2QueryDirectoryResponse, self).__init__()
 
 
 class Open(object):
@@ -766,7 +922,7 @@ class Open(object):
 
     def open(self, impersonation_level, desired_access, file_attributes,
              share_access, create_disposition, create_options,
-             create_contexts=list()):
+             create_contexts=None):
         """
         This will open the file based on the input parameters supplied. Any
         file open should also be called with Open.close() when it is finished.
@@ -799,10 +955,6 @@ class Open(object):
             to smbprotocol then the list value would be raw bytes otherwise
             it is a Structure defined in create_contexts.py
         """
-        log_header = "Session: %s, Tree Connect ID: %s" \
-                     % (self.tree_connect.session.session_id,
-                        self.tree_connect.tree_connect_id)
-
         create = SMB2CreateRequest()
         create['impersonation_level'] = impersonation_level
         create['desired_access'] = desired_access
@@ -811,18 +963,23 @@ class Open(object):
         create['create_disposition'] = create_disposition
         create['create_options'] = create_options
         create['buffer_path'] = self.file_name.encode('utf-16-le')
-        create['buffer_contexts'] = smbprotocol.create_contexts.\
-            SMB2CreateContextRequest.pack_multiple(create_contexts)
+        if create_contexts:
+            create['buffer_contexts'] = smbprotocol.create_contexts.\
+                SMB2CreateContextRequest.pack_multiple(create_contexts)
 
-        log.info("%s - sending SMB2 Create Request for file %s"
-                 % (log_header, self.file_name))
+        log.info("Session: %s, Tree Connect: %s - sending SMB2 Create Request "
+                 "for file %s" % (self.tree_connect.session.username,
+                                  self.tree_connect.share_name,
+                                  self.file_name))
         log.debug(str(create))
-        header = self.connection.send(create, Commands.SMB2_CREATE,
-                                      self.tree_connect.session,
-                                      self.tree_connect)
+        request = self.connection.send(create,
+                                       self.tree_connect.session.session_id,
+                                       self.tree_connect.tree_connect_id)
 
-        log.info("%s - receiving SMB2 Create Response" % log_header)
-        response = self.connection.receive(header['message_id'].get_value())
+        log.info("Session: %s, Tree Connect: %s - receiving SMB2 Create "
+                 "Response" % (self.tree_connect.session.username,
+                               self.tree_connect.share_name))
+        response = self.connection.receive(request)
         create_response = SMB2CreateResponse()
         create_response.unpack(response['data'].get_value())
         self._connected = True
@@ -858,9 +1015,16 @@ class Open(object):
 
         return create_contexts_response
 
-    def read(self, offset, length, min_length=0, unbuffered=False, wait=False):
+    def read(self, offset, length, min_length=0, unbuffered=False, wait=False,
+             send=True):
         """
         Reads from an opened file or pipe
+
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMB2ReadRequest, receive_func) instead of
+        sending the the request and waiting for the response. The receive_func
+        can be used to get the response from the server by passing in the
+        Request that was used to sent it out of band.
 
         :param offset: The offset to start the read of the file.
         :param length: The number of bytes to read from the offset.
@@ -868,14 +1032,23 @@ class Open(object):
             successful operation.
         :param unbuffered: Whether to the server should cache the read data at
             intermediate layers, only value for SMB 3.0.2 or newer
-        :param wait: Whether to wait for a response if STATUS_PENDING was
-            received from the server or fail.
+        :param wait: If send=True, whether to wait for a response if
+            STATUS_PENDING was received from the server or fail.
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
         :return: A byte string of the bytes read
         """
-        log_header = "Session: %s, Tree Connect ID: %s" \
-                     % (self.tree_connect.session.session_id,
-                        self.tree_connect.tree_connect_id)
+        if length > self.connection.max_read_size:
+            raise SMBException("The requested read length %d is greater than "
+                               "the maximum negotiated read size %d"
+                               % (length, self.connection.max_read_size))
+
         read = SMB2ReadRequest()
+        read['length'] = length
+        read['offset'] = offset
+        read['minimum_count'] = min_length
+        read['file_id'] = self.file_id
+        read['padding'] = b"\x50"
 
         if unbuffered:
             if self.connection.dialect < Dialects.SMB_3_0_2:
@@ -885,31 +1058,28 @@ class Open(object):
                                             True)
             read['flags'].set_flag(ReadFlags.SMB2_READFLAG_READ_UNBUFFERED)
 
-        read['length'] = length
-        read['offset'] = offset
-        read['minimum_count'] = min_length
-        read['file_id'] = self.file_id
-        read['padding'] = b"\x50"
+        if not send:
+            return read, self._read_response
 
-        # deal with length greater than connection max size
-        log.info("%s - sending SMB2 Read Request for file %s"
-                 % (log_header, self.file_name))
+        log.info("Session: %s, Tree Connect ID: %s - sending SMB2 Read "
+                 "Request for file %s" % (self.tree_connect.session.username,
+                                          self.tree_connect.share_name,
+                                          self.file_name))
         log.debug(str(read))
-        header = self.connection.send(read, Commands.SMB2_READ,
-                                      self.tree_connect.session,
-                                      self.tree_connect)
+        request = self.connection.send(read,
+                                       self.tree_connect.session.session_id,
+                                       self.tree_connect.tree_connect_id)
+        return self._read_response(request, wait)
 
-        status = NtStatus.STATUS_PENDING
-        log.info("%s - receiving SMB2 Read Response" % log_header)
+    def _read_response(self, request, wait=False):
+        log.info("Session: %s, Tree Connect ID: %s - receiving SMB2 Read "
+                 "Response" % (self.tree_connect.session.username,
+                               self.tree_connect.share_name))
         while True:
             try:
-                response = self.connection.receive(
-                    header['message_id'].get_value()
-                )
+                response = self.connection.receive(request)
             except SMBResponseException as exc:
-                if not wait:
-                    raise exc
-                elif status != NtStatus.STATUS_PENDING:
+                if not wait or exc.status != NtStatus.STATUS_PENDING:
                     raise exc
                 else:
                     pass
@@ -922,9 +1092,16 @@ class Open(object):
 
         return read_response['buffer'].get_value()
 
-    def write(self, data, offset=0, write_through=False, unbuffered=False):
+    def write(self, data, offset=0, write_through=False, unbuffered=False,
+              send=True):
         """
         Writes data to an opened file.
+
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMBWriteRequest, receive_func) instead of
+        sending the the request and waiting for the response. The receive_func
+        can be used to get the response from the server by passing in the
+        Request that was used to sent it out of band.
 
         :param data: The bytes data to write.
         :param offset: The offset in the file to write the bytes at
@@ -932,18 +1109,22 @@ class Open(object):
             underlying storage, not valid for SMB 2.0.2.
         :param unbuffered: Whether to the server should cache the write data at
             intermediate layers, only value for SMB 3.0.2 or newer
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
         :return: The number of bytes written
         """
-        # handle data over max write size
-        log_header = "Session: %s, Tree Connect ID: %s" \
-                     % (self.tree_connect.session.session_id,
-                        self.tree_connect.tree_connect_id)
-        write = SMB2WriteRequest()
+        data_len = len(data)
+        if data_len > self.connection.max_write_size:
+            raise SMBException("The requested write length %d is greater than "
+                               "the maximum negotiated write size %d"
+                               % (data_len, self.connection.max_write_size))
 
+        write = SMB2WriteRequest()
         write['length'] = len(data)
         write['offset'] = offset
         write['file_id'] = self.file_id
         write['buffer'] = data
+
         if write_through:
             if self.connection.dialect < Dialects.SMB_2_1_0:
                 raise SMBUnsupportedFeature(self.connection.dialect,
@@ -960,81 +1141,179 @@ class Open(object):
                                             True)
             write['flags'].set_flag(WriteFlags.SMB2_WRITEFLAG_WRITE_UNBUFFERED)
 
-        log.info("%s - sending SMB2 Write Request for file %s"
-                 % (log_header, self.file_name))
-        log.debug(str(write))
-        header = self.connection.send(write, Commands.SMB2_WRITE,
-                                      self.tree_connect.session,
-                                      self.tree_connect)
+        if not send:
+            return write, self._write_response
 
-        log.info("%s - receiving SMB2 Write Response" % log_header)
-        response = self.connection.receive(
-            header['message_id'].get_value()
-        )
+        log.info("Session: %s, Tree Connect: %s - sending SMB2 Write Request "
+                 "for file %s" % (self.tree_connect.session.username,
+                                  self.tree_connect.share_name,
+                                  self.file_name))
+        log.debug(str(write))
+        request = self.connection.send(write,
+                                       self.tree_connect.session.session_id,
+                                       self.tree_connect.tree_connect_id)
+        return self._write_response(request)
+
+    def _write_response(self, request):
+        log.info("Session: %s, Tree Connect: %s - receiving SMB2 Write "
+                 "Response" % (self.tree_connect.session.username,
+                               self.tree_connect.share_name))
+        response = self.connection.receive(request)
         write_response = SMB2WriteResponse()
         write_response.unpack(response['data'].get_value())
         log.debug(str(write_response))
 
         return write_response['count'].get_value()
 
-    def flush(self):
+    def flush(self, send=True):
         """
         A command sent by the client to request that a server flush all cached
         file information for the opened file.
-        """
-        log_header = "Session: %s, Tree Connect ID: %s" \
-                     % (self.tree_connect.session.session_id,
-                        self.tree_connect.tree_connect_id)
-        flush = SMB2FlushRequest()
 
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMB2FlushRequest, receive_func) instead of
+        sending the the request and waiting for the response. The receive_func
+        can be used to get the response from the server by passing in the
+        Request that was used to sent it out of band.
+
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
+        :return: The SMB2FlushResponse received from the server
+        """
+        flush = SMB2FlushRequest()
         flush['file_id'] = self.file_id
 
-        log.info("%s - sending SMB2 Flush Request for file %s"
-                 % (log_header, self.file_name))
-        log.debug(str(flush))
-        header = self.connection.send(flush, Commands.SMB2_FLUSH,
-                                      self.tree_connect.session,
-                                      self.tree_connect)
+        if not send:
+            return flush, self._flush_response
 
-        log.info("%s - receiving SMB2 Flush Response" % log_header)
-        response = self.connection.receive(
-            header['message_id'].get_value()
-        )
+        log.info("Session: %s, Tree Connect: %s - sending SMB2 Flush Request "
+                 "for file %s" % (self.tree_connect.session.username,
+                                  self.tree_connect.share_name,
+                                  self.file_name))
+        log.debug(str(flush))
+        request = self.connection.send(flush,
+                                       self.tree_connect.session.session_id,
+                                       self.tree_connect.tree_connect_id)
+        return self._flush_response(request)
+
+    def _flush_response(self, request):
+        log.info("Session: %s, Tree Connect: %s - receiving SMB2 Flush "
+                 "Response" % (self.tree_connect.session.username,
+                               self.tree_connect.share_name))
+        response = self.connection.receive(request)
         flush_response = SMB2FlushResponse()
         flush_response.unpack(response['data'].get_value())
         log.debug(str(flush_response))
+        return flush_response
 
-    def close(self, get_attributes=False):
+    def query_directory(self, pattern, file_information_class, flags=None,
+                        file_index=0, max_output=65536, send=True):
+        """
+        Run a Query/Find on an opened directory based on the params passed in.
+
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMB2QueryDirectoryRequest, receive_func) instead
+        of sending the the request and waiting for the response. The
+        receive_func can be used to get the response from the server by passing
+        in the Request that was used to sent it out of band.
+
+        :param pattern: The string pattern to use for the query, this pattern
+            format is based on the SMB server but * is usually a wildcard
+        :param file_information_class: FileInformationClass that defines the
+            format of the result that is returned
+        :param flags: QueryDirectoryFlags that control how the operation must
+            be processed.
+        :param file_index: If the flags SMB2_INDEX_SPECIFIED, this is the index
+            the query should resume on, otherwise should be 0
+        :param max_output: The maximum output size, defaulted to the max credit
+            size but can be increased to reduced round trip operations.
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
+        :return: A list of structures defined in query_info.py, the list entry
+            structure is based on the value of file_information_class in the
+            request message
+        """
+        query = SMB2QueryDirectoryRequest()
+        query['file_information_class'] = file_information_class
+        query['flags'] = flags
+        query['file_index'] = file_index
+        query['file_id'] = self.file_id
+        query['output_buffer_length'] = max_output
+        query['buffer'] = pattern.encode('utf-16-le')
+
+        if not send:
+            return query, self._query_directory_response
+
+        log.info("Session: %s, Tree Connect: %s - sending SMB2 Query "
+                 "Directory Request for directory %s"
+                 % (self.tree_connect.session.username,
+                    self.tree_connect.share_name, self.file_name))
+        log.debug(str(query))
+        request = self.connection.send(query,
+                                       self.tree_connect.session.session_id,
+                                       self.tree_connect.tree_connect_id)
+        return self._query_directory_response(request)
+
+    def _query_directory_response(self, request):
+        log.info("Session: %s, Tree Connect: %s - receiving SMB2 Query "
+                 "Response" % (self.tree_connect.session.username,
+                               self.tree_connect.share_name))
+        response = self.connection.receive(request)
+        query_response = SMB2QueryDirectoryResponse()
+        query_response.unpack(response['data'].get_value())
+        log.debug(str(query_response))
+
+        query_request = SMB2QueryDirectoryRequest()
+        query_request.unpack(request.message['data'].get_value())
+        file_cl = query_request['file_information_class'].get_value()
+        data = query_response['buffer'].get_value()
+        results = SMB2QueryDirectoryRequest.unpack_response(file_cl, data)
+        return results
+
+    def close(self, get_attributes=False, send=True):
         """
         Closes an opened file.
 
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMB2CloseRequest, receive_func) instead of
+        sending the the request and waiting for the response. The receive_func
+        can be used to get the response from the server by passing in the
+        Request that was used to sent it out of band.
+
         :param get_attributes: (Bool) whether to get the latest attributes on
-            the close and set them on the Open object.
+            the close and set them on the Open object
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
+        :return: SMB2CloseResponse message received from the server
         """
         if not self._connected:
             return
 
-        log_header = "Session: %s, Tree Connect ID: %s" \
-                     % (self.tree_connect.session.session_id,
-                        self.tree_connect.tree_connect_id)
         close = SMB2CloseRequest()
 
         close['file_id'] = self.file_id
         if get_attributes:
             close['flags'] = CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB
 
-        log.info("%s - sending SMB2 Close Request for file %s"
-                 % (log_header, self.file_name))
-        log.debug(str(close))
-        header = self.connection.send(close, Commands.SMB2_CLOSE,
-                                      self.tree_connect.session,
-                                      self.tree_connect)
+        if not send:
+            return close, self._close_response
 
-        log.info("%s - receiving SMB2 Close Response" % log_header)
+        log.info("Session: %s, Tree Connect: %s - sending SMB2 Close Request "
+                 "for file %s" % (self.tree_connect.session.username,
+                                  self.tree_connect.share_name,
+                                  self.file_name))
+        log.debug(str(close))
+        request = self.connection.send(close,
+                                       self.tree_connect.session.session_id,
+                                       self.tree_connect.tree_connect_id)
+        return self._close_response(request)
+
+    def _close_response(self, request):
+        log.info("Session: %s, Tree Connect: %s - receiving SMB2 Close "
+                 "Response" % (self.tree_connect.session.username,
+                               self.tree_connect.share_name))
         try:
-            response = self.connection.receive(
-                header['message_id'].get_value()
-            )
+            response = self.connection.receive(request)
         except SMBResponseException as exc:
             # check if it was already closed
             if exc.status == NtStatus.STATUS_FILE_CLOSED:
@@ -1043,6 +1322,7 @@ class Open(object):
                 return
             # else raise the exception
             raise exc
+
         c_resp = SMB2CloseResponse()
         c_resp.unpack(response['data'].get_value())
         log.debug(str(c_resp))
@@ -1050,7 +1330,10 @@ class Open(object):
         del self.tree_connect.session.open_table[self.file_id]
 
         # update the attributes if requested
-        if get_attributes:
+        close_request = SMB2CloseRequest()
+        close_request.unpack(request.message['data'].get_value())
+        if close_request['flags'].has_flag(
+                CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB):
             self.creation_time = c_resp['creation_time'].get_value()
             self.last_access_time = c_resp['last_access_time'].get_value()
             self.last_write_time = c_resp['last_write_time'].get_value()
@@ -1058,3 +1341,4 @@ class Open(object):
             self.allocation_size = c_resp['allocation_size'].get_value()
             self.end_of_file = c_resp['end_of_file'].get_value()
             self.file_attributes = c_resp['file_attributes'].get_value()
+        return c_resp

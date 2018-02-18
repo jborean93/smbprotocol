@@ -22,6 +22,7 @@ years. This library implements the SMBv2 and SMBv3 protocol based on the
 * Set create contexts when opening files
 * Read and writing of files and pipes
 * Sending IOCTL commands
+* Sending of multiple messages in one packet (compounding)
 
 This is definitely not feature complete as SMB is quite a complex protocol, see
 backlog for features that would be nice to have in this library.
@@ -33,21 +34,9 @@ backlog for features that would be nice to have in this library.
 * For Kerberos auth, the [python-gssapi](https://github.com/pythongssapi/python-gssapi) package (see below)
 
 The python-gssapi library is required to support Kerberos authentication but
-the latest release `v1.3.0` does not support a GSSAPI extension required by
-smbprotocol. If you would like to use Kerberos auth you can install the latest
-changes by running
-
-```
-# cython is required to create the python-gssapi wheels
-pip install cython
-
-git clone https://github.com/pythongssapi/python-gssapi.git
-cd python-gssapi
-pip install .
-```
-
-From there you can verify that the required GSSAPI extensions are present
-by running the following Python script
+`smbprotocol` requires the GSSAPI GGF extension to support things like
+message encryption. To test out if the installed version of python-gsspapi
+can be used you can run the python commands in a Python console;
 
 ```
 try:
@@ -195,8 +184,6 @@ docker run -d -p $SMB_PORT:445 -v $(pwd)/build-scripts:/app -w /app -e SMB_USER=
 Here is a list of features that I would like to incorporate, PRs are welcome
 if you want to implement them yourself;
 
-* Sending multiple message (compound) in one request
-* Support for credit charges and credit calculations
 * SSPI integration for Windows and Kerberos authentication
 * Test and support DFS mounts and not just server shares
 * Multiple channel support to speed up large data transfers

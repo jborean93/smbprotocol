@@ -3,7 +3,8 @@ import socket
 
 from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
     ListField, Structure, StructureField, UuidField
-from smbprotocol.connection import Capabilities, Dialects, SecurityMode
+from smbprotocol.connection import Capabilities, Commands, Dialects, \
+    SecurityMode
 
 try:
     from collections import OrderedDict
@@ -99,6 +100,7 @@ class SMB2IOCTLRequest(Structure):
     Send by the client to issue an implementation-specific file system control
     or device control command across the network.
     """
+    COMMAND = Commands.SMB2_IOCTL
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -283,6 +285,7 @@ class SMB2IOCTLResponse(Structure):
     2.2.32 SMB2 IOCTL Response
     Sent by the server to transmit the results of a client SMB2 IOCTL Request.
     """
+    COMMAND = Commands.SMB2_IOCTL
 
     def __init__(self):
         self.fields = OrderedDict([

@@ -1,6 +1,6 @@
 import pytest
 
-from smbprotocol.connection import SMB2PacketHeader, NtStatus, Dialects
+from smbprotocol.connection import SMB2HeaderResponse, NtStatus, Dialects
 from smbprotocol.exceptions import ErrorContextId, IpAddrType, \
     SMBAuthenticationError, SMBException, SMBResponseException, \
     SMBUnsupportedFeature, SMB2ErrorContextResponse, SMB2ErrorResponse, \
@@ -70,7 +70,6 @@ class TestSMBResponseException(object):
                        "(3221225485) STATUS_INVALID_PARAMETER: 0xc000000d"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
-            assert exc.message_id == 10
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
 
     def test_throw_exception_with_symlink_redir(self):
@@ -98,7 +97,6 @@ class TestSMBResponseException(object):
                        r"Substitute Name: \??\C:\temp\folder"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
-            assert exc.message_id == 10
             assert exc.status == NtStatus.STATUS_STOPPED_ON_SYMLINK
 
     def test_throw_exception_with_share_redir(self):
@@ -130,7 +128,6 @@ class TestSMBResponseException(object):
                        "IP Addresses: '192.168.1.100', Resource Name: resource"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
-            assert exc.message_id == 10
             assert exc.status == NtStatus.STATUS_BAD_NETWORK_NAME
 
     def test_throw_exception_with_raw_context(self):
@@ -150,7 +147,6 @@ class TestSMBResponseException(object):
                        "Raw: 01020304"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
-            assert exc.message_id == 10
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
 
     def test_throw_exception_with_multiple_contexts(self):
@@ -175,11 +171,11 @@ class TestSMBResponseException(object):
                        "Raw: 01020304, Raw: 05060708"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
-            assert exc.message_id == 10
+
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
 
     def _get_header(self, data, status=NtStatus.STATUS_INVALID_PARAMETER):
-        header = SMB2PacketHeader()
+        header = SMB2HeaderResponse()
         header['status'] = status
         header['message_id'] = 10
         header['data'] = data

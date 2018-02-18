@@ -44,4 +44,4 @@ install:
 build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:
-- ps: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+- ps: py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing

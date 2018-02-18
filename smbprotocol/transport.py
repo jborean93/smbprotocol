@@ -75,16 +75,16 @@ class Tcp(object):
             self._connected = False
 
     def send(self, request):
-        data_length = len(request.message)
+        data_length = len(request)
         if data_length > self.MAX_SIZE:
             raise ValueError("Data to be sent over Direct TCP size %d exceeds "
                              "the max length allowed %d"
                              % (data_length, self.MAX_SIZE))
 
         tcp_packet = DirectTCPPacket()
-        tcp_packet['smb2_message'] = request.message
+        tcp_packet['smb2_message'] = request
         data = tcp_packet.pack()
-        self._sock.send(data)
+        self._sock.sendall(data)
 
     @staticmethod
     def _listen(sock, message_buffer):

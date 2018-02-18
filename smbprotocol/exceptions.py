@@ -86,11 +86,6 @@ class SMBResponseException(SMBException):
         return self.args[1]
 
     @property
-    def message_id(self):
-        # the message id of the message returned by the server
-        return self.args[2]
-
-    @property
     def error_details(self):
         # list of error_details returned by the server, currently used in
         # the SMB 3.1.1 error response for certain situations

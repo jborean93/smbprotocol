@@ -6,15 +6,18 @@ from datetime import datetime
 import pytest
 
 from smbprotocol.connection import Connection, Dialects
+from smbprotocol.exceptions import SMBException
 from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
 from smbprotocol.open import CloseFlags, CreateAction, CreateDisposition, \
-    CreateOptions, DirectoryAccessMask, FileAttributes, FileFlags, \
-    FilePipePrinterAccessMask, ImpersonationLevel, ReadWriteChannel, \
-    ShareAccess, SMB2CloseRequest, \
-    SMB2CloseResponse, SMB2CreateRequest, SMB2CreateResponse, \
-    SMB2FlushRequest, SMB2FlushResponse, SMB2ReadRequest, SMB2ReadResponse, \
-    SMB2WriteRequest, SMB2WriteResponse, Open
+    CreateOptions, DirectoryAccessMask, FileAttributes, FileInformationClass, \
+    FileFlags, FilePipePrinterAccessMask, ImpersonationLevel, \
+    ReadWriteChannel, ShareAccess, SMB2CloseRequest, SMB2CloseResponse, \
+    SMB2CreateRequest, SMB2CreateResponse, SMB2FlushRequest, \
+    SMB2FlushResponse, SMB2QueryDirectoryRequest, SMB2QueryDirectoryResponse, \
+    SMB2ReadRequest, SMB2ReadResponse, SMB2WriteRequest, SMB2WriteResponse, \
+    Open
+from smbprotocol.query_info import FileNamesInformation
 from smbprotocol.create_contexts import CreateContextName, \
     SMB2CreateAllocationSize, SMB2CreateContextRequest, \
     SMB2CreateQueryMaximalAccessRequest, \
@@ -867,6 +870,92 @@ class TestSMB2WriteResponse(object):
         assert actual['write_channel_info_length'].get_value() == 0
 
 
+class TestSMB2QueryDirectoryRequest(object):
+
+    def test_create_message(self):
+        message = SMB2QueryDirectoryRequest()
+        message['file_information_class'] = \
+            FileInformationClass.FILE_NAMES_INFORMATION
+        message['file_id'] = b"\xB6\x73\xE4\x65\x00\x00\x00\x00" \
+            b"\x68\xBD\xA1\xCE\x00\x00\x00\x00"
+        message['output_buffer_length'] = 65536
+        message['buffer'] = "*".encode('utf-16-le')
+        expected = b"\x21\x00" \
+                   b"\x0C" \
+                   b"\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\xB6\x73\xE4\x65\x00\x00\x00\x00" \
+                   b"\x68\xBD\xA1\xCE\x00\x00\x00\x00" \
+                   b"\x60\x00" \
+                   b"\x02\x00" \
+                   b"\x00\x00\x01\x00" \
+                   b"\x2A\x00"
+        actual = message.pack()
+        assert len(message) == 34
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2QueryDirectoryRequest()
+        data = b"\x21\x00" \
+               b"\x0C" \
+               b"\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\xB6\x73\xE4\x65\x00\x00\x00\x00" \
+               b"\x68\xBD\xA1\xCE\x00\x00\x00\x00" \
+               b"\x60\x00" \
+               b"\x02\x00" \
+               b"\x00\x00\x01\x00" \
+               b"\x2A\x00"
+        data = actual.unpack(data)
+        assert len(actual) == 34
+        assert data == b""
+        assert actual['structure_size'].get_value() == 33
+        assert actual['file_information_class'].get_value() == \
+            FileInformationClass.FILE_NAMES_INFORMATION
+        assert actual['flags'].get_value() == 0
+        assert actual['file_index'].get_value() == 0
+        assert actual['file_id'].get_value() == \
+            b"\xB6\x73\xE4\x65\x00\x00\x00\x00" \
+            b"\x68\xBD\xA1\xCE\x00\x00\x00\x00"
+        assert actual['file_name_offset'].get_value() == 96
+        assert actual['file_name_length'].get_value() == 2
+        assert actual['output_buffer_length'].get_value() == 65536
+        assert actual['buffer'].get_value().decode('utf-16-le') == "*"
+
+
+class TestSMB2QueryDirectoryResponse(object):
+
+    def test_create_message(self):
+        message = SMB2QueryDirectoryResponse()
+        message['buffer'] = b"\x10\x00\x00\x00\x00\x00\x00\x00" \
+            b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+        expected = b"\x09\x00" \
+                   b"\x48\x00" \
+                   b"\x10\x00\x00\x00" \
+                   b"\x10\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+        actual = message.pack()
+        assert len(message) == 24
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2QueryDirectoryResponse()
+        data = b"\x09\x00" \
+               b"\x48\x00" \
+               b"\x10\x00\x00\x00" \
+               b"\x10\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+        data = actual.unpack(data)
+        assert len(actual) == 24
+        assert data == b""
+        assert actual['structure_size'].get_value() == 9
+        assert actual['output_buffer_offset'].get_value() == 72
+        assert actual['output_buffer_length'].get_value() == 16
+        assert actual['buffer'].get_value() == \
+            b"\x10\x00\x00\x00\x00\x00\x00\x00" \
+            b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+
+
 class TestOpen(object):
 
     # basic file open tests for each dialect
@@ -1444,6 +1533,249 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    def test_query_directory(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "directory")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      DirectoryAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                      ShareAccess.FILE_SHARE_READ |
+                      ShareAccess.FILE_SHARE_WRITE |
+                      ShareAccess.FILE_SHARE_DELETE,
+                      CreateDisposition.FILE_OPEN_IF,
+                      CreateOptions.FILE_DIRECTORY_FILE)
+
+            file1 = Open(tree, r"directory\\file1.txt")
+            file1.open(ImpersonationLevel.Impersonation,
+                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                       ShareAccess.FILE_SHARE_READ,
+                       CreateDisposition.FILE_OVERWRITE_IF,
+                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file1.write(b"\x01\x02\x03\x04", 0)
+
+            file2 = Open(tree, r"directory\\file2.log")
+            file2.open(ImpersonationLevel.Impersonation,
+                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                       ShareAccess.FILE_SHARE_READ,
+                       CreateDisposition.FILE_OVERWRITE_IF,
+                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file2.write(b"\x05\x06", 0)
+
+            actual = open.query_directory("*",
+                                          FileInformationClass.
+                                          FILE_NAMES_INFORMATION)
+
+            assert len(actual) == 4
+            assert isinstance(actual[0], FileNamesInformation)
+            assert actual[0]['file_name'].get_value().decode('utf-16-le') == \
+                "."
+            assert isinstance(actual[1], FileNamesInformation)
+            assert actual[1]['file_name'].get_value().decode('utf-16-le') == \
+                ".."
+            assert isinstance(actual[2], FileNamesInformation)
+            assert actual[2]['file_name'].get_value().decode('utf-16-le') == \
+                "file2.log"
+            assert isinstance(actual[3], FileNamesInformation)
+            assert actual[3]['file_name'].get_value().decode('utf-16-le') == \
+                "file1.txt"
+
+            open.close()
+        finally:
+            connection.disconnect(True)
+
+    def test_compounding_open_requests(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_0_2)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "directory")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      DirectoryAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                      ShareAccess.FILE_SHARE_READ |
+                      ShareAccess.FILE_SHARE_WRITE |
+                      ShareAccess.FILE_SHARE_DELETE,
+                      CreateDisposition.FILE_OPEN_IF,
+                      CreateOptions.FILE_DIRECTORY_FILE)
+
+            file1 = Open(tree, r"directory\\file1.txt")
+            file1.open(ImpersonationLevel.Impersonation,
+                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                       ShareAccess.FILE_SHARE_READ,
+                       CreateDisposition.FILE_OVERWRITE_IF,
+                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file2 = Open(tree, r"directory\\file2.log")
+            file2.open(ImpersonationLevel.Impersonation,
+                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                       ShareAccess.FILE_SHARE_READ,
+                       CreateDisposition.FILE_OVERWRITE_IF,
+                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            # create messages for each operation
+            messages = [
+                file1.write(b"\x01\x02\x03\x04", 0, send=False),
+                file2.write(b"\x05\x06", 0, send=False),
+                file1.flush(send=False),
+                file1.read(0, 4, send=False),
+                open.query_directory("*",
+                                     FileInformationClass.
+                                     FILE_ID_BOTH_DIRECTORY_INFORMATION,
+                                     send=False),
+                file1.close(send=False),
+                file2.close(send=False)
+            ]
+
+            # send each message as a compound request
+            requests = connection.send_compound([x[0] for x in messages],
+                                                session.session_id,
+                                                tree.tree_connect_id)
+
+            # get responses and run unpack function
+            responses = []
+            for i, request in enumerate(requests):
+                response = messages[i][1](request)
+                responses.append(response)
+
+            # assert each response
+            assert len(responses) == 7
+            assert isinstance(responses[0], int)
+            assert isinstance(responses[1], int)
+            assert isinstance(responses[2], SMB2FlushResponse)
+            assert isinstance(responses[3], bytes)
+            assert isinstance(responses[4], list)
+            assert isinstance(responses[5], SMB2CloseResponse)
+            assert isinstance(responses[6], SMB2CloseResponse)
+
+            write1 = responses[0]
+            assert write1 == 4
+
+            write2 = responses[1]
+            assert write2 == 2
+
+            read1 = responses[3]
+            assert read1 == b"\x01\x02\x03\x04"
+
+            query1 = responses[4]
+            assert query1[0]['file_name'].get_value() == \
+                ".".encode('utf-16-le')
+            assert query1[1]['file_name'].get_value() == \
+                "..".encode('utf-16-le')
+            assert query1[2]['file_name'].get_value() == \
+                "file2.log".encode('utf-16-le')
+            assert query1[3]['file_name'].get_value() == \
+                "file1.txt".encode('utf-16-le')
+
+            open.close()
+        finally:
+            connection.disconnect(True)
+
+    def test_compounding_open_requests_unencrypted(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_1_0)
+        session = Session(connection, smb_real[0], smb_real[1], False)
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "directory")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      DirectoryAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                      ShareAccess.FILE_SHARE_READ |
+                      ShareAccess.FILE_SHARE_WRITE |
+                      ShareAccess.FILE_SHARE_DELETE,
+                      CreateDisposition.FILE_OPEN_IF,
+                      CreateOptions.FILE_DIRECTORY_FILE)
+
+            file1 = Open(tree, r"directory\\file1.txt")
+            file1.open(ImpersonationLevel.Impersonation,
+                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                       ShareAccess.FILE_SHARE_READ,
+                       CreateDisposition.FILE_OVERWRITE_IF,
+                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file2 = Open(tree, r"directory\\file2.log")
+            file2.open(ImpersonationLevel.Impersonation,
+                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                       ShareAccess.FILE_SHARE_READ,
+                       CreateDisposition.FILE_OVERWRITE_IF,
+                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            # create messages for each operation
+            messages = [
+                file1.write(b"\x01\x02\x03\x04", 0, send=False),
+                file2.write(b"\x05\x06", 0, send=False),
+                file1.flush(send=False),
+                file1.read(0, 4, send=False),
+                open.query_directory("*",
+                                     FileInformationClass.
+                                     FILE_ID_BOTH_DIRECTORY_INFORMATION,
+                                     send=False),
+                file1.close(send=False),
+                file2.close(send=False)
+            ]
+
+            # send each message as a compound request
+            requests = connection.send_compound([x[0] for x in messages],
+                                                session.session_id,
+                                                tree.tree_connect_id)
+
+            # get responses and run unpack function
+            responses = []
+            for i, request in enumerate(requests):
+                response = messages[i][1](request)
+                responses.append(response)
+
+            # assert each response
+            assert len(responses) == 7
+            assert isinstance(responses[0], int)
+            assert isinstance(responses[1], int)
+            assert isinstance(responses[2], SMB2FlushResponse)
+            assert isinstance(responses[3], bytes)
+            assert isinstance(responses[4], list)
+            assert isinstance(responses[5], SMB2CloseResponse)
+            assert isinstance(responses[6], SMB2CloseResponse)
+
+            write1 = responses[0]
+            assert write1 == 4
+
+            write2 = responses[1]
+            assert write2 == 2
+
+            read1 = responses[3]
+            assert read1 == b"\x01\x02\x03\x04"
+
+            query1 = responses[4]
+            assert query1[0]['file_name'].get_value() == \
+                ".".encode('utf-16-le')
+            assert query1[1]['file_name'].get_value() == \
+                "..".encode('utf-16-le')
+            assert query1[2]['file_name'].get_value() == \
+                "file2.log".encode('utf-16-le')
+            assert query1[3]['file_name'].get_value() == \
+                "file1.txt".encode('utf-16-le')
+
+            open.close()
+        finally:
+            connection.disconnect(True)
+
     def test_close_file_already_closed(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -1466,5 +1798,79 @@ class TestOpen(object):
             # proper error msg
             open._connected = True
             open.close()
+        finally:
+            connection.disconnect(True)
+
+    def test_read_greater_than_max_size(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            with pytest.raises(SMBException) as exc:
+                open.read(0, connection.max_read_size + 1)
+            assert str(exc.value) == "The requested read length %d is " \
+                                     "greater than the maximum negotiated " \
+                                     "read size %d"\
+                % (connection.max_read_size + 1, connection.max_read_size)
+        finally:
+            connection.disconnect(True)
+
+    def test_write_greater_than_max_size(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            with pytest.raises(SMBException) as exc:
+                open.write(b"\x00" * (connection.max_write_size + 1), 0)
+            assert str(exc.value) == "The requested write length %d is " \
+                                     "greater than the maximum negotiated " \
+                                     "write size %d"\
+                % (connection.max_write_size + 1, connection.max_write_size)
+        finally:
+            connection.disconnect(True)
+
+    def test_read_file_multi_credits(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.write(b"\x01\x02\x03\x04", 0)
+            actual = open.read(0, 65538)
+            assert actual == b"\x01\x02\x03\x04"
         finally:
             connection.disconnect(True)

@@ -1,15 +1,18 @@
+from __future__ import division
+
 import copy
 import hashlib
 import hmac
 import logging
+import math
 import os
 import struct
 import sys
 from datetime import datetime
 from multiprocessing.dummy import Lock
 
-from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import aead, algorithms
 
@@ -29,28 +32,6 @@ else:
     from queue import Empty
 
 log = logging.getLogger(__name__)
-
-
-class Smb1Flags2(object):
-    """
-    [MS-CIFS] and [MS-SMB]
-
-    Various flags that are used in an SMBv1 message. Only a small amount of
-    these flags are used in the initial SMBv1 negotiate message and are mostly
-    irrevalent.
-    """
-    SMB_FLAGS2_LONG_NAME = 0x0001
-    SMB_FLAGS2_EAS = 0x0002
-    SMB_FLAGS2_SMB_SECURITY_SIGNATURE = 0x0004
-    SMB_FLAGS2_COMPRESSES = 0x0008
-    SMB_FLAGS2_SMB_SECURITY_SIGNATURE_REQUIRED = 0x0010
-    SMB_FLAGS2_IS_LONG_NAME = 0x0040
-    SMB_FLAGS2_REPARSE_PATH = 0x0400
-    SMB_FLAGS2_EXTENDED_SECURITY = 0x0800
-    SMB_FLAGS2_DFS = 0x1000
-    SMB_FLAGS2_PAGING_IO = 0x2000
-    SMB_FLAGS2_NT_STATUS = 0x4000
-    SMB_FLAGS2_UNICODE = 0x8000
 
 
 class Commands(object):
@@ -242,52 +223,58 @@ class NtStatus(object):
     STATUS_USER_SESSION_DELETED = 0xC0000203
 
 
-class SMB1PacketHeader(Structure):
-    """
-    [MS-SMB] v46.0 2017-0-01
-
-    2.2.3.1 SMB Header Extensions
-    Used in the initial negotiation process, the SMBv1 header must be sent
-    with the SMBv1 Negotiate Request packet in order to determine if the server
-    supports SMBv2+.
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol', BytesField(
-                size=4,
-                default=b'\xffSMB',
-            )),
-            ('command', IntField(size=1)),
-            ('status', IntField(size=4)),
-            ('flags', IntField(size=1)),
-            ('flags2', FlagField(
-                size=2,
-                flag_type=Smb1Flags2,
-            )),
-            ('pid_high', IntField(size=2)),
-            ('security_features', IntField(size=8)),
-            ('reserved', IntField(size=2)),
-            ('tid', IntField(size=2)),
-            ('pid_low', IntField(size=2)),
-            ('uid', IntField(size=2)),
-            ('mid', IntField(size=2)),
-            ('data', StructureField(
-                structure_type=SMB1NegotiateRequest
-            ))
-        ])
-        super(SMB1PacketHeader, self).__init__()
-
-
-class SMB2PacketHeader(Structure):
+class SMB2HeaderRequest(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
 
     2.2.1.2 SMB2 Packet Header - SYNC
-    The header of all SMBv2 Protocol requests and responses. This is the SYNC
-    form of the header is is used for all server responses and on client
-    requests if SMBv2 was negotiated. If SMBv3 was negotiated then
-    SMB3PacketHeader is used on all client requests.
+    This is the header definition that contains the ChannelSequence/Reserved
+    instead of the Status field used for a Packet request.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('protocol_id', BytesField(
+                size=4,
+                default=b"\xfeSMB",
+            )),
+            ('structure_size', IntField(
+                size=2,
+                default=64,
+            )),
+            ('credit_charge', IntField(size=2)),
+            ('channel_sequence', IntField(size=2)),
+            ('reserved', IntField(size=2)),
+            ('command', EnumField(
+                size=2,
+                enum_type=Commands
+            )),
+            ('credit_request', IntField(size=2)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=Smb2Flags,
+            )),
+            ('next_command', IntField(size=4)),
+            ('message_id', IntField(size=8)),
+            ('process_id', IntField(size=4)),
+            ('tree_id', IntField(size=4)),
+            ('session_id', IntField(size=8)),
+            ('signature', BytesField(
+                size=16,
+                default=b"\x00" * 16,
+            )),
+            ('data', BytesField())
+        ])
+        super(SMB2HeaderRequest, self).__init__()
+
+
+class SMB2HeaderResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.1.2 SMB2 Packet Header - SYNC
+    The header definition for an SMB Response that contains the Status field
+    instead of the ChannelSequence/Reserved used for a Packet response.
     """
 
     def __init__(self):
@@ -310,7 +297,7 @@ class SMB2PacketHeader(Structure):
                 size=2,
                 enum_type=Commands
             )),
-            ('credit', IntField(size=2)),
+            ('credit_response', IntField(size=2)),
             ('flags', FlagField(
                 size=4,
                 flag_type=Smb2Flags,
@@ -326,77 +313,7 @@ class SMB2PacketHeader(Structure):
             )),
             ('data', BytesField()),
         ])
-        super(SMB2PacketHeader, self).__init__()
-
-
-class SMB3PacketHeader(Structure):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.1.2 SMB2 Packet Header - SYNC
-    This is the same as SMB2PacketHeader except it contains the
-    channel_sequence + reserved fields instead of status. This is used on all
-    client requests if the Dialect negotiated is v3.
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b"\xfeSMB",
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('channel_sequence', IntField(size=2)),
-            ('reserved', IntField(size=2)),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands
-            )),
-            ('credit', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('process_id', IntField(size=4)),
-            ('tree_id', IntField(size=4)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField()),
-        ])
-        super(SMB3PacketHeader, self).__init__()
-
-
-class SMB1NegotiateRequest(Structure):
-    """
-    [MS-CIFS] v27.0 2017-06-01
-
-    2.2.4.52 SMB_COM_NEGOTIATE (0x72)
-    The command is used to initial an SMB connection between the client and
-    the server. This is used only in the initial negotiation process to
-    determine whether SMBv2+ is supported on the server.
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('word_count', IntField(size=1)),
-            ('byte_count', IntField(
-                size=2,
-                default=lambda s: len(s['dialects']),
-            )),
-            ('dialects', BytesField(
-                size=lambda s: s['byte_count'].get_value(),
-            )),
-        ])
-        super(SMB1NegotiateRequest, self).__init__()
+        super(SMB2HeaderResponse, self).__init__()
 
 
 class SMB2NegotiateRequest(Structure):
@@ -410,6 +327,7 @@ class SMB2NegotiateRequest(Structure):
     less than 3.1.1. Dialect 3.1.1 added support for negotiate_context and
     SMB3NegotiateRequest should be used to support that.
     """
+    COMMAND = Commands.SMB2_NEGOTIATE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -451,6 +369,7 @@ class SMB3NegotiateRequest(Structure):
     Negotiate Context values. This is used by default and is for Dialects 3.1.1
     or greater.
     """
+    COMMAND = Commands.SMB2_NEGOTIATE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -537,6 +456,7 @@ class SMB2NegotiateContextRequest(Structure):
     The SMB2_NEGOTIATE_CONTEXT structure is used by the SMB2 NEGOTIATE Request
     and the SMB2 NEGOTIATE Response to encode additional properties.
     """
+    COMMAND = Commands.SMB2_NEGOTIATE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -641,6 +561,7 @@ class SMB2NegotiateResponse(Structure):
     The SMB2 NEGOTIATE Response packet is sent by the server to notify the
     client of the preferred common dialect.
     """
+    COMMAND = Commands.SMB2_NEGOTIATE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -753,7 +674,7 @@ class SMB2TransformHeader(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
 
-    2.2.41 SMB@ TRANSFORM_HEADER
+    2.2.41 SMB2 TRANSFORM_HEADER
     The SMB2 Transform Header is used by the client or server when sending
     encrypted message. This is only valid for the SMB.x dialect family.
     """
@@ -819,7 +740,7 @@ class Connection(object):
         # Table of available sequence numbers
         self.sequence_window = dict(
             low=0,
-            high=0
+            high=1
         )
 
         # Byte array containing the negotiate token and remembered for
@@ -835,7 +756,8 @@ class Connection(object):
         # SMB 2.1+
         self.dialect = None
         self.supports_file_leasing = None
-        self.supports_multi_credit = None
+        # just go with False as a default for Dialect 2.0.2
+        self.supports_multi_credit = False
         self.client_guid = guid
 
         # SMB 3.x+
@@ -887,13 +809,7 @@ class Connection(object):
         self.transport.connect()
 
         log.info("Starting negotiation with SMB server")
-        smb_response = self._send_smb1_negotiate(dialect)
-
-        # Renegotiate with SMB2NegotiateRequest if 2.??? was received back
-        if smb_response['dialect_revision'].get_value() == \
-                Dialects.SMB_2_WILDCARD:
-            smb_response = self._send_smb2_negotiate(dialect)
-
+        smb_response = self._send_smb2_negotiate(dialect)
         log.info("Negotiated dialect: %s"
                  % str(smb_response['dialect_revision']))
         self.dialect = smb_response['dialect_revision'].get_value()
@@ -964,102 +880,154 @@ class Connection(object):
         log.info("Disconnecting transport connection")
         self.transport.disconnect()
 
-    def send(self, message, command, session=None, tree=None):
+    def send(self, message, sid=None, tid=None, credit_request=None):
         """
         Will send a message to the server that is passed in. The final
         unencrypted header is returned to the function that called this.
 
         :param message: An SMB message structure to send
-        :param command: The Commands value that is set on the SMB Header
-        :param session: A Session object that the message is sent for
-        :param tree: A TreeConnect object that the message is sent for
-        :return: SMB2PacketHeader or SMB3PacketHeader of the final message sent
+        :param sid: A session_id that the message is sent for
+        :param tid: A tree_id object that the message is sent for
+        :param credit_request: Specifies extra credits to be requested with the
+            SMB header
+        :return: Request of the message that was sent
         """
-        if command == Commands.SMB2_NEGOTIATE:
-            header = SMB2PacketHeader()
-        elif self.dialect < Dialects.SMB_3_0_0:
-            header = SMB2PacketHeader()
-        else:
-            header = SMB3PacketHeader()
+        header = self._generate_packet_header(message, sid, tid,
+                                              credit_request)
 
-        header['command'] = command
+        # get the actual Session and TreeConnect object instead of the IDs
+        session = self.session_table.get(sid, None) if sid else None
+        tree = session.tree_connect_table[tid] if session and tid else None
 
-        if session:
-            header['session_id'] = session.session_id
-        if tree:
-            header['tree_id'] = tree.tree_connect_id
-
-        # when run in a thread or subprocess, getting the message id and
-        # sending the messages in order are important
-        self.lock.acquire()
-        # TODO: pass through the message id to cancel
-        message_id = 0
-        if command != Commands.SMB2_CANCEL:
-            message_id = self.sequence_window['low']
-            self._increment_sequence_windows(1)
-
-        header['message_id'] = message_id
-        log.info("Sending SMB Header for %s request" % str(header['command']))
-        log.debug(str(header))
-
-        # now add the actual data so we don't pollute the logs too much
-        header['data'] = message
-
-        if (session and session.encrypt_data) or (tree and tree.encrypt_data):
-            final_header = self._encrypt(header, session)
-        elif session and session.signing_required and session.signing_key:
+        if session and session.signing_required and session.signing_key:
             self._sign(header, session)
-            final_header = header
-        else:
-            final_header = header
+        request = Request(header)
+        self.outstanding_requests[header['message_id'].get_value()] = request
 
-        request = Request(final_header)
-        self.outstanding_requests[message_id] = request
-        self.transport.send(request)
-        self.lock.release()
+        send_data = header.pack()
+        if (session and session.encrypt_data) or (tree and tree.encrypt_data):
+            send_data = self._encrypt(send_data, session)
 
-        return header
+        self.transport.send(send_data)
 
-    def receive(self, message_id):
+        return request
+
+    def send_compound(self, messages, sid, tid):
+        """
+        Sends multiple messages within 1 TCP request, will fail if the size
+        of the total length exceeds the maximum of the transport max.
+
+        :param messages: A list of messages to send to the server
+        :param sid: The session_id that the request is sent for
+        :param tid: A tree_id object that the message is sent for
+        :return: List<Request> for each request that was sent, each entry in
+            the list is in the same order of the message list that was passed
+            in
+        """
+        send_data = b""
+        session = self.session_table[sid]
+        tree = session.tree_connect_table[tid]
+        requests = []
+
+        total_requests = len(messages)
+        for i, message in enumerate(messages):
+            if i == total_requests - 1:
+                next_command = 0
+                padding = b""
+            else:
+                msg_length = 64 + len(message)
+
+                # each compound message must start at the 8-byte boundary
+                mod = msg_length % 8
+                padding_length = 8 - mod if mod > 0 else 0
+                padding = b"\x00" * padding_length
+                next_command = msg_length + padding_length
+
+            header = self._generate_packet_header(message, sid, tid, None)
+            header['next_command'] = next_command
+            if session.signing_required and session.signing_key:
+                self._sign(header, session, padding=padding)
+            send_data += header.pack() + padding
+
+            request = Request(header)
+            requests.append(request)
+            self.outstanding_requests[header['message_id'].get_value()] = \
+                request
+
+        if session.encrypt_data or tree.encrypt_data:
+            send_data = self._encrypt(send_data, session)
+        self.transport.send(send_data)
+
+        return requests
+
+    def receive(self, request):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
 
-        :param message_id: The message id to wait for
-        :return: SMB2PacketHeader or SMB3PacketHeader of the received message
+        :param request: The Request object to wait get the response for
+        :return: SMB2HeaderResponse of the received message
         """
-        request = self.outstanding_requests.get(message_id, None)
-        if not request:
-            error_msg = "No request with the ID %d is expecting a response"\
-                        % message_id
-            raise smbprotocol.exceptions.SMBException(error_msg)
-
         # check if we have received a response
-        response = None
-        if request.response:
-            response = request.response
-        else:
-            # otherwise wait until we receive a response
-            while not response:
-                self._flush_message_buffer()
-                request = self.outstanding_requests[message_id]
-                response = request.response
+        while not request.response:
+            self._flush_message_buffer()
 
+        response = request.response
         status = response['status'].get_value()
 
         if status == NtStatus.STATUS_PENDING:
             request.response = None
-            self.outstanding_requests[message_id] = request
 
         if status != NtStatus.STATUS_SUCCESS:
-            raise smbprotocol.exceptions.SMBResponseException(response, status,
-                                                              message_id)
+            raise smbprotocol.exceptions.SMBResponseException(response, status)
 
         # now we have a retrieval request for the response, we can delete the
         # request from the outstanding requests
+        message_id = request.message['message_id'].get_value()
         del self.outstanding_requests[message_id]
 
         return response
+
+    def _generate_packet_header(self, message, session_id, tree_id,
+                                credit_request):
+        # when run in a thread or subprocess, getting the message id and
+        # adjusting the sequence window is important so we acquire a lock to
+        # ensure only one is run at a point in time
+        self.lock.acquire()
+        sequence_window_low = self.sequence_window['low']
+        sequence_window_high = self.sequence_window['high']
+        credit_charge = self._calculate_credit_charge(message)
+        credits_available = sequence_window_high - sequence_window_low
+        if credit_charge > credits_available:
+            error_msg = "Request requires %d credits but only %d credits " \
+                        "are available" \
+                        % (credit_charge, credits_available)
+            raise smbprotocol.exceptions.SMBException(error_msg)
+
+        message_id = sequence_window_low
+        self.sequence_window['low'] += \
+            credit_charge if credit_charge > 0 else 1
+        self.lock.release()
+
+        header = SMB2HeaderRequest()
+        header['credit_charge'] = credit_charge
+        header['command'] = message.COMMAND
+        header['credit_request'] = \
+            credit_request if credit_request else credit_charge
+        header['message_id'] = message_id
+        header['process_id'] = os.getpid()
+        header['tree_id'] = tree_id if tree_id else 0
+        header['session_id'] = session_id if session_id else 0
+
+        # we log before adding the data to avoid polluting the logs with
+        # too much info
+        log.info("Created SMB Packet Header for %s request"
+                 % str(header['command']))
+        log.debug(str(header))
+
+        header['data'] = message
+
+        return header
 
     def _flush_message_buffer(self):
         """
@@ -1076,34 +1044,44 @@ class Connection(object):
                 # case we have nothing to parse and so break from the loop
                 break
 
-            # if bytes then it is an unknown message, if TransformHeader we
-            # need to decrypt it
-            if message_bytes[:4] == b"\xfeSMB":
-                message = SMB2PacketHeader()
-                message.unpack(message_bytes)
-            elif message_bytes[:4] == b"\xfdSMB":
+            # check if the message is encrypted and decrypt if necessary
+            if message_bytes[:4] == b"\xfdSMB":
                 message = SMB2TransformHeader()
                 message.unpack(message_bytes)
-                message = self._decrypt(message)
-            else:
-                error_msg = "Invalid header '%s' received from the server"\
-                            % message_bytes[:4]
-                raise smbprotocol.exceptions.SMBException(error_msg)
-            self._verify(message)
+                message_bytes = self._decrypt(message)
 
-            message_id = message['message_id'].get_value()
-            request = self.outstanding_requests.get(message_id, None)
-            if not request:
-                raise smbprotocol.exceptions.SMBException("Received request "
-                                                          "with an unknown"
-                                                          " message ID: %d"
-                                                          % message_id)
-            request.response = message
-            self.outstanding_requests[message_id] = request
+            # now retrieve message(s) from response
+            is_last = False
+            while not is_last:
+                next_command = struct.unpack("<L", message_bytes[20:24])[0]
+                header_length = \
+                    next_command if next_command != 0 else len(message_bytes)
+                header_bytes = message_bytes[:header_length]
+                message = SMB2HeaderResponse()
+                message.unpack(header_bytes)
+                self._verify(message)
+                message_id = message['message_id'].get_value()
+                request = self.outstanding_requests.get(message_id, None)
+                if not request:
+                    error_msg = "Received response with an unknown message " \
+                                "ID: %d" % message_id
+                    raise smbprotocol.exceptions.SMBException(error_msg)
 
-    def _sign(self, message, session):
+                # add the upper credit limit based on the credits granted by
+                # the server
+                credit_response = message['credit_response'].get_value()
+                self.sequence_window['high'] += \
+                    credit_response if credit_response > 0 else 1
+
+                request.response = message
+                self.outstanding_requests[message_id] = request
+
+                message_bytes = message_bytes[header_length:]
+                is_last = next_command == 0
+
+    def _sign(self, message, session, padding=None):
         message['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
-        signature = self._generate_signature(message, session)
+        signature = self._generate_signature(message, session, padding)
         message['signature'] = signature
 
     def _verify(self, message, verify_session=False):
@@ -1128,10 +1106,10 @@ class Connection(object):
                         "%s != %s" % (actual, expected)
             raise smbprotocol.exceptions.SMBException(error_msg)
 
-    def _generate_signature(self, message, session):
+    def _generate_signature(self, message, session, padding=None):
         msg = copy.deepcopy(message)
         msg['signature'] = b"\x00" * 16
-        msg_data = msg.pack()
+        msg_data = msg.pack() + (padding if padding else b"")
 
         if self.dialect >= Dialects.SMB_3_0_0:
             # TODO: work out when to get channel.signing_key
@@ -1149,10 +1127,10 @@ class Connection(object):
 
         return signature
 
-    def _encrypt(self, message, session):
+    def _encrypt(self, data, session):
         header = SMB2TransformHeader()
-        header['original_message_size'] = len(message)
-        header['session_id'] = message['session_id'].get_value()
+        header['original_message_size'] = len(data)
+        header['session_id'] = session.session_id
 
         encryption_key = session.encryption_key
         if self.dialect >= Dialects.SMB_3_1_1:
@@ -1166,7 +1144,7 @@ class Connection(object):
             nonce = os.urandom(11)
             header['nonce'] = nonce + (b"\x00" * 5)
 
-        cipher_text = cipher(encryption_key).encrypt(nonce, message.pack(),
+        cipher_text = cipher(encryption_key).encrypt(nonce, data,
                                                      header.pack()[20:])
         signature = cipher_text[-16:]
         enc_message = cipher_text[:-16]
@@ -1195,58 +1173,15 @@ class Connection(object):
         else:
             cipher = Ciphers.get_cipher(Ciphers.AES_128_CCM)
 
-        if cipher == aead.AESGCM:
-            nonce = message['nonce'].get_value()[:12]
-        else:
-            nonce = message['nonce'].get_value()[:11]
+        nonce_length = 12 if cipher == aead.AESGCM else 11
+        nonce = message['nonce'].get_value()[:nonce_length]
 
         signature = message['signature'].get_value()
         enc_message = message['data'].get_value() + signature
 
         c = cipher(session.decryption_key)
         dec_message = c.decrypt(nonce, enc_message, message.pack()[20:52])
-
-        packet = SMB2PacketHeader()
-        packet.unpack(dec_message)
-
-        return packet
-
-    def _send_smb1_negotiate(self, dialect):
-        header = SMB1PacketHeader()
-        header['command'] = 0x72  # SMBv1 Negotiate Protocol
-        header['flags2'] = Smb1Flags2.SMB_FLAGS2_LONG_NAME | \
-            Smb1Flags2.SMB_FLAGS2_EXTENDED_SECURITY | \
-            Smb1Flags2.SMB_FLAGS2_NT_STATUS | \
-            Smb1Flags2.SMB_FLAGS2_UNICODE
-        header['data'] = SMB1NegotiateRequest()
-        dialects = b"\x02SMB 2.002\x00"
-        if dialect != Dialects.SMB_2_0_2:
-            dialects += b"\x02SMB 2.???\x00"
-        else:
-            self.negotiated_dialects = [Dialects.SMB_2_0_2]
-        header['data']['dialects'] = dialects
-        request = Request(header)
-
-        log.info("Sending SMB1 Negotiate message with dialects: %s" % dialects)
-        log.debug(str(header))
-        self.transport.send(request)
-
-        self._increment_sequence_windows(1)
-        response = self.transport.message_buffer.get(block=True)
-        smb_header = SMB2PacketHeader()
-        smb_header.unpack(response)
-        log.info("Receiving SMB1 Negotiate response")
-        log.debug(str(smb_header))
-        smb_response = SMB2NegotiateResponse()
-        try:
-            smb_response.unpack(smb_header['data'].get_value())
-        except ValueError as exc:
-            error_msg = "Expecting SMB2NegotiateResponse message in " \
-                        "response but could not unpack data for structure: " \
-                        "%s" % str(exc)
-            raise smbprotocol.exceptions.SMBException(error_msg)
-
-        return smb_response
+        return dec_message
 
     def _send_smb2_negotiate(self, dialect):
         self.salt = os.urandom(32)
@@ -1318,10 +1253,10 @@ class Connection(object):
 
         log.info("Sending SMB2 Negotiate message")
         log.debug(str(neg_req))
-        header = self.send(neg_req, Commands.SMB2_NEGOTIATE)
-        self.preauth_integrity_hash_value.append(header)
+        request = self.send(neg_req)
+        self.preauth_integrity_hash_value.append(request.message)
 
-        response = self.receive(header['message_id'].get_value())
+        response = self.receive(request)
         log.info("Receiving SMB2 Negotiate response")
         log.debug(str(response))
         self.preauth_integrity_hash_value.append(response)
@@ -1331,10 +1266,51 @@ class Connection(object):
 
         return smb_response
 
-    def _increment_sequence_windows(self, credit_charge):
-        high_value = self.sequence_window['high']
-        self.sequence_window['low'] = high_value + credit_charge
-        self.sequence_window['high'] = high_value + credit_charge
+    def _calculate_credit_charge(self, message):
+        """
+        Calculates the credit charge for a request based on the command. If
+        connection.supports_multi_credit is not True then the credit charge
+        isn't valid so it returns 0.
+
+        The credit charge is the number of credits that are required for
+        sending/receiving data over 64 kilobytes, in the existing messages only
+        the Read, Write, Query Directory or IOCTL commands will end in this
+        scenario and each require their own calculation to get the proper
+        value. The generic formula for calculating the credit charge is
+
+        https://msdn.microsoft.com/en-us/library/dn529312.aspx
+        (max(SendPayloadSize, Expected ResponsePayloadSize) - 1) / 65536 + 1
+
+        :param message: The message being sent
+        :return: The credit charge to set on the header
+        """
+        credit_size = 65536
+
+        if not self.supports_multi_credit:
+            credit_charge = 0
+        elif message.COMMAND == Commands.SMB2_READ:
+            max_size = message['length'].get_value() + \
+                       message['read_channel_info_length'].get_value() - 1
+            credit_charge = math.ceil(max_size / credit_size)
+        elif message.COMMAND == Commands.SMB2_WRITE:
+            max_size = message['length'].get_value() + \
+                       message['write_channel_info_length'].get_value() - 1
+            credit_charge = math.ceil(max_size / credit_size)
+        elif message.COMMAND == Commands.SMB2_IOCTL:
+            max_in_size = len(message['buffer'])
+            max_out_size = message['max_output_response'].get_value()
+            max_size = max(max_in_size, max_out_size) - 1
+            credit_charge = math.ceil(max_size / credit_size)
+        elif message.COMMAND == Commands.SMB2_QUERY_DIRECTORY:
+            max_in_size = len(message['buffer'])
+            max_out_size = message['output_buffer_length'].get_value()
+            max_size = max(max_in_size, max_out_size) - 1
+            credit_charge = math.ceil(max_size / credit_size)
+        else:
+            credit_charge = 1
+
+        # python 2 returns a float where we need an integer
+        return int(credit_charge)
 
 
 class Request(object):

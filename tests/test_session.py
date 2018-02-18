@@ -116,7 +116,7 @@ class TestSession(object):
             assert session.decryption_key is None
             assert not session.encrypt_data
             assert session.encryption_key is None
-            assert len(session.preauth_integrity_hash_value) == 3
+            assert len(session.preauth_integrity_hash_value) == 5
             assert not session.require_encryption
             assert session.session_id is not None
             assert session.session_key == session.application_key

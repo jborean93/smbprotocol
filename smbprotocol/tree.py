@@ -86,6 +86,7 @@ class SMB2TreeConnectRequest(Structure):
     2.2.9 SMB2 TREE_CONNECT Request
     Sent by the client to request access to a particular share on the server
     """
+    COMMAND = Commands.SMB2_TREE_CONNECT
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -105,7 +106,9 @@ class SMB2TreeConnectRequest(Structure):
                 size=2,
                 default=lambda s: len(s['buffer']),
             )),
-            ('buffer', BytesField())
+            ('buffer', BytesField(
+                size=lambda s: s['path_length'].get_value()
+            ))
         ])
         super(SMB2TreeConnectRequest, self).__init__()
 
@@ -118,6 +121,7 @@ class SMB2TreeConnectResponse(Structure):
     Sent by the server when an SMB2 TREE_CONNECT request is processed
     successfully.
     """
+    COMMAND = Commands.SMB2_TREE_CONNECT
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -151,6 +155,7 @@ class SMB2TreeDisconnect(Structure):
     Sent by the client to request that the tree connect specific by tree_id in
     the header is disconnected.
     """
+    COMMAND = Commands.SMB2_TREE_DISCONNECT
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -197,32 +202,29 @@ class TreeConnect(object):
             verify the negotiation parameters with the server to prevent
             SMB downgrade attacks
         """
-        log.info("Session: %d - Creating connection to share %s"
-                 % (self.session.session_id, self.share_name))
+        log.info("Session: %s - Creating connection to share %s"
+                 % (self.session.username, self.share_name))
         utf_share_name = self.share_name.encode('utf-16-le')
         connect = SMB2TreeConnectRequest()
         connect['buffer'] = utf_share_name
 
-        log.info("Session: %d - Sending Tree Connect message"
-                 % self.session.session_id)
+        log.info("Session: %s - Sending Tree Connect message"
+                 % self.session.username)
         log.debug(str(connect))
-        header = self.session.connection.send(connect,
-                                              Commands.SMB2_TREE_CONNECT,
-                                              self.session)
+        request = self.session.connection.send(connect,
+                                               sid=self.session.session_id)
 
-        log.info("Session: %d - Receiving Tree Connect response"
-                 % self.session.session_id)
-        response = self.session.connection.receive(
-            header['message_id'].get_value()
-        )
+        log.info("Session: %s - Receiving Tree Connect response"
+                 % self.session.username)
+        response = self.session.connection.receive(request)
         tree_response = SMB2TreeConnectResponse()
         tree_response.unpack(response['data'].get_value())
         log.debug(str(tree_response))
 
         # https://msdn.microsoft.com/en-us/library/cc246687.aspx
         self.tree_connect_id = response['tree_id'].get_value()
-        log.info("Session: %d - Created tree connection with ID %d"
-                 % (self.session.session_id, self.tree_connect_id))
+        log.info("Session: %s - Created tree connection with ID %d"
+                 % (self.session.username, self.tree_connect_id))
         self._connected = True
         self.session.tree_connect_table[self.tree_connect_id] = self
 
@@ -252,19 +254,20 @@ class TreeConnect(object):
         if not self._connected:
             return
 
-        log_header = "Session: %d, Tree: %d"\
-                     % (self.session.session_id, self.tree_connect_id)
-        log.info("%s - Disconnecting from Tree Connect %s"
-                 % (log_header, self.share_name))
+        log.info("Session: %s, Tree: %s - Disconnecting from Tree Connect"
+                 % (self.session.username, self.share_name))
 
         req = SMB2TreeDisconnect()
-        log.info("%s - Sending Tree Disconnect message")
+        log.info("Session: %s, Tree: %s - Sending Tree Disconnect message"
+                 % (self.session.username, self.share_name))
         log.debug(str(req))
-        header = self.session.connection.send(req,
-                                              Commands.SMB2_TREE_DISCONNECT,
-                                              self.session, self)
-        log.info("%s - Receiving Tree Disconnect response")
-        res = self.session.connection.receive(header['message_id'].get_value())
+        request = self.session.connection.send(req,
+                                               sid=self.session.session_id,
+                                               tid=self.tree_connect_id)
+
+        log.info("Session: %s, Tree: %s - Receiving Tree Disconnect response"
+                 % (self.session.username, self.share_name))
+        res = self.session.connection.receive(request)
         res_disconnect = SMB2TreeDisconnect()
         res_disconnect.unpack(res['data'].get_value())
         log.debug(str(res_disconnect))
@@ -272,8 +275,8 @@ class TreeConnect(object):
         del self.session.tree_connect_table[self.tree_connect_id]
 
     def _verify_dialect_negotiate(self):
-        log_header = "Session: %d, Tree: %d"\
-                     % (self.session.session_id, self.tree_connect_id)
+        log_header = "Session: %s, Tree: %s" \
+                     % (self.session.username, self.share_name)
         log.info("%s - Running secure negotiate process" % log_header)
         ioctl_request = SMB2IOCTLRequest()
         ioctl_request['ctl_code'] = \
@@ -295,15 +298,12 @@ class TreeConnect(object):
         log.info("%s - Sending Secure Negotiate Validation message"
                  % log_header)
         log.debug(str(ioctl_request))
-        header = self.session.connection.send(ioctl_request,
-                                              Commands.SMB2_IOCTL,
-                                              self.session,
-                                              self)
+        request = self.session.connection.send(ioctl_request,
+                                               sid=self.session.session_id,
+                                               tid=self.tree_connect_id)
 
         log.info("%s - Receiving secure negotiation response" % log_header)
-        response = self.session.connection.receive(
-            header['message_id'].get_value()
-        )
+        response = self.session.connection.receive(request)
         ioctl_resp = SMB2IOCTLResponse()
         ioctl_resp.unpack(response['data'].get_value())
         log.debug(str(ioctl_resp))

@@ -1,6 +1,5 @@
 import pytest
 
-from smbprotocol.connection import Request
 from smbprotocol.transport import DirectTCPPacket, Tcp
 
 
@@ -34,10 +33,9 @@ class TestDirectTcpPacket(object):
 class TestTcp(object):
 
     def test_normal_fail_message_too_big(self):
-        request = Request(b"\x00" * 16777216)
         tcp = Tcp("0.0.0.0", 0)
         with pytest.raises(ValueError) as exc:
-            tcp.send(request)
+            tcp.send(b"\x00" * 16777216)
         assert str(exc.value) == "Data to be sent over Direct TCP size " \
                                  "16777216 exceeds the max length allowed " \
                                  "16777215"

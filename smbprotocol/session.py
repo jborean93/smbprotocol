@@ -55,6 +55,7 @@ class SMB2SessionSetupRequest(Structure):
     The SMB2 SESSION_SETUP Request packet is sent by the client to request a
     new authenticated session within a new or existing SMB 2 connection.
     """
+    COMMAND = Commands.SMB2_SESSION_SETUP
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -96,6 +97,7 @@ class SMB2SessionSetupResponse(Structure):
     The SMB2 SESSION_SETUP Response packet is sent by the server in response to
     an SMB2 SESSION_SETUP Request.
     """
+    COMMAND = Commands.SMB2_SESSION_SETUP
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -130,6 +132,7 @@ class SMB2Logoff(Structure):
     Request and response to request the termination of a particular session as
     specified by the header.
     """
+    COMMAND = Commands.SMB2_LOGOFF
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -359,10 +362,10 @@ class Session(object):
         logoff = SMB2Logoff()
         log.info("Session: %d - Sending Logoff message" % self.session_id)
         log.debug(str(logoff))
-        header = self.connection.send(logoff, Commands.SMB2_LOGOFF, self)
+        request = self.connection.send(logoff, sid=self.session_id)
 
         log.info("Session: %d - Receiving Logoff response" % self.session_id)
-        res = self.connection.receive(header['message_id'].get_value())
+        res = self.connection.receive(request)
         res_logoff = SMB2Logoff()
         res_logoff.unpack(res['data'].get_value())
         log.debug(str(res_logoff))
@@ -392,18 +395,19 @@ class Session(object):
             session_setup['buffer'] = out_token
 
             log.info("Sending SMB2_SESSION_SETUP request message")
-            header = self.connection.send(session_setup,
-                                          Commands.SMB2_SESSION_SETUP, self)
-            message_id = header['message_id'].get_value()
-            self.preauth_integrity_hash_value.append(header)
+            request = self.connection.send(session_setup,
+                                           sid=self.session_id,
+                                           credit_request=256)
+            self.preauth_integrity_hash_value.append(request.message)
 
             log.info("Receiving SMB2_SESSION_SETUP response message")
             try:
-                response = self.connection.receive(message_id)
+                response = self.connection.receive(request)
             except SMBResponseException as exc:
                 if exc.status != NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
                     raise exc
-                del self.connection.outstanding_requests[message_id]
+                mid = request.message['message_id'].get_value()
+                del self.connection.outstanding_requests[mid]
                 response = exc.header
 
             self.session_id = response['session_id'].get_value()

@@ -5,12 +5,12 @@ import pytest
 from cryptography.hazmat.primitives.ciphers import aead
 from datetime import datetime
 from smbprotocol.connection import Ciphers, Commands, Connection, Dialects, \
-    HashAlgorithms, NegotiateContextType, SecurityMode, Smb1Flags2, \
-    SMB1NegotiateRequest, SMB1PacketHeader, SMB2EncryptionCapabilities, \
-    Smb2Flags, SMB2NegotiateContextRequest, SMB2NegotiateRequest, \
-    SMB2NegotiateResponse, SMB2PacketHeader, \
-    SMB2PreauthIntegrityCapabilities, SMB2TransformHeader, \
-    SMB3NegotiateRequest, SMB3PacketHeader
+    HashAlgorithms, NegotiateContextType, SecurityMode, \
+    SMB2EncryptionCapabilities, Smb2Flags, SMB2HeaderRequest, \
+    SMB2HeaderResponse, SMB2NegotiateContextRequest, SMB2NegotiateRequest, \
+    SMB2NegotiateResponse, SMB2PreauthIntegrityCapabilities, \
+    SMB2TransformHeader, SMB3NegotiateRequest
+from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.exceptions import SMBException
 from smbprotocol.session import Session
 
@@ -41,161 +41,10 @@ def test_invalid_cipher():
         assert False  # shouldn't be reached
 
 
-class TestSMB1PacketHeader(object):
+class TestSMB2HeaderRequest(object):
 
     def test_create_message(self):
-        request = SMB1NegotiateRequest()
-        request['dialects'] = b"\x02NT LM 0.12\x00" \
-                              b"\x02SMB 2.002\x00" \
-                              b"\x02SMB 2.???\x00"
-
-        header = SMB1PacketHeader()
-        header['command'] = 0x10
-        header['flags2'] = Smb1Flags2.SMB_FLAGS2_UNICODE | \
-            Smb1Flags2.SMB_FLAGS2_EXTENDED_SECURITY
-        header['data'] = request
-        expected = b"\xff\x53\x4d\x42" \
-                   b"\x10" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x00" \
-                   b"\x00\x88" \
-                   b"\x00\x00" \
-                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00" \
-                   b"\x00" \
-                   b"\x22\x00" \
-                   b"\x02\x4e\x54\x20\x4c\x4d\x20\x30" \
-                   b"\x2e\x31\x32\x00\x02\x53\x4d\x42" \
-                   b"\x20\x32\x2e\x30\x30\x32\x00\x02" \
-                   b"\x53\x4d\x42\x20\x32\x2e\x3f\x3f" \
-                   b"\x3f\x00"
-        actual = header.pack()
-        assert len(header) == 69
-        assert header['command'].get_value() == 16
-        assert header['flags2'].get_value() == 34816
-        assert isinstance(header['data'].get_value(), SMB1NegotiateRequest)
-        assert len(request) == 37
-        assert request['word_count'].get_value() == 0
-        assert request['byte_count'].get_value() == 34
-        assert request['dialects'].get_value() == b"\x02NT LM 0.12\x00" \
-                                                  b"\x02SMB 2.002\x00" \
-                                                  b"\x02SMB 2.???\x00"
-        assert actual == expected
-
-    def test_parse_message(self):
-        actual = SMB1PacketHeader()
-        data = b"\xff\x53\x4d\x42" \
-               b"\x10" \
-               b"\x00\x00\x00\x00" \
-               b"\x00" \
-               b"\x00\x88" \
-               b"\x00\x00" \
-               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00" \
-               b"\x00\x00" \
-               b"\x00\x00" \
-               b"\x00\x00" \
-               b"\x00\x00" \
-               b"\x00" \
-               b"\x22\x00" \
-               b"\x02\x4e\x54\x20\x4c\x4d\x20\x30" \
-               b"\x2e\x31\x32\x00\x02\x53\x4d\x42" \
-               b"\x20\x32\x2e\x30\x30\x32\x00\x02" \
-               b"\x53\x4d\x42\x20\x32\x2e\x3f\x3f" \
-               b"\x3f\x00"
-        actual.unpack(data)
-
-        assert len(actual) == 69
-        assert actual['protocol'].get_value() == b"\xff\x53\x4d\x42"
-        assert actual['command'].get_value() == 16
-        assert actual['status'].get_value() == 0
-        assert actual['flags'].get_value() == 0
-        assert actual['flags2'].get_value() == 34816
-        assert actual['security_features'].get_value() == 0
-        assert actual['reserved'].get_value() == 0
-        assert actual['tid'].get_value() == 0
-        assert actual['pid_low'].get_value() == 0
-        assert actual['uid'].get_value() == 0
-        assert actual['mid'].get_value() == 0
-        assert isinstance(actual['data'].get_value(), SMB1NegotiateRequest)
-
-        actual_req = actual['data']
-        assert len(actual_req) == 37
-        assert actual_req['word_count'].get_value() == 0
-        assert actual_req['byte_count'].get_value() == 34
-        assert actual_req['dialects'].get_value() == b"\x02NT LM 0.12\x00" \
-                                                     b"\x02SMB 2.002\x00" \
-                                                     b"\x02SMB 2.???\x00"
-
-
-class TestSMB2PacketHeader(object):
-
-    def test_create_message(self):
-        header = SMB2PacketHeader()
-        header['command'] = Commands.SMB2_SESSION_SETUP
-        header['message_id'] = 1
-        header['session_id'] = 10
-        expected = b"\xfe\x53\x4d\x42" \
-                   b"\x40\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x01\x00" \
-                   b"\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x01\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00" \
-                   b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-                   b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        actual = header.pack()
-        assert len(header) == 64
-        assert actual == expected
-
-    def test_parse_message(self):
-        actual = SMB2PacketHeader()
-        data = b"\xfe\x53\x4d\x42" \
-               b"\x40\x00" \
-               b"\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x01\x00" \
-               b"\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x01\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00" \
-               b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
-               b"\x01\x02\x03\x04"
-        actual.unpack(data)
-        assert len(actual) == 68
-        assert actual['protocol_id'].get_value() == b"\xfeSMB"
-        assert actual['structure_size'].get_value() == 64
-        assert actual['credit_charge'].get_value() == 0
-        assert actual['status'].get_value() == 0
-        assert actual['command'].get_value() == Commands.SMB2_SESSION_SETUP
-        assert actual['credit'].get_value() == 0
-        assert actual['flags'].get_value() == 0
-        assert actual['next_command'].get_value() == 0
-        assert actual['message_id'].get_value() == 1
-        assert actual['reserved'].get_value() == 0
-        assert actual['tree_id'].get_value() == 0
-        assert actual['session_id'].get_value() == 10
-        assert actual['signature'].get_value() == b"\x00" * 16
-        assert actual['data'].get_value() == b"\x01\x02\x03\x04"
-
-
-class TestSMB3PacketHeader(object):
-
-    def test_create_message(self):
-        header = SMB3PacketHeader()
+        header = SMB2HeaderRequest()
         header['command'] = Commands.SMB2_SESSION_SETUP
         header['message_id'] = 1
         header['process_id'] = 15
@@ -220,7 +69,7 @@ class TestSMB3PacketHeader(object):
         assert actual == expected
 
     def test_parse_message(self):
-        actual = SMB3PacketHeader()
+        actual = SMB2HeaderRequest()
         data = b"\xfe\x53\x4d\x42" \
                b"\x40\x00" \
                b"\x00\x00" \
@@ -245,11 +94,71 @@ class TestSMB3PacketHeader(object):
         assert actual['channel_sequence'].get_value() == 0
         assert actual['reserved'].get_value() == 0
         assert actual['command'].get_value() == Commands.SMB2_SESSION_SETUP
-        assert actual['credit'].get_value() == 0
+        assert actual['credit_request'].get_value() == 0
         assert actual['flags'].get_value() == 0
         assert actual['next_command'].get_value() == 0
         assert actual['message_id'].get_value() == 1
         assert actual['process_id'].get_value() == 15
+        assert actual['tree_id'].get_value() == 0
+        assert actual['session_id'].get_value() == 10
+        assert actual['signature'].get_value() == b"\x00" * 16
+        assert actual['data'].get_value() == b"\x01\x02\x03\x04"
+
+
+class TestSMB2HeaderResponse(object):
+
+    def test_create_message(self):
+        header = SMB2HeaderResponse()
+        header['command'] = Commands.SMB2_SESSION_SETUP
+        header['message_id'] = 1
+        header['session_id'] = 10
+        expected = b"\xfe\x53\x4d\x42" \
+                   b"\x40\x00" \
+                   b"\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x01\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+                   b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        actual = header.pack()
+        assert len(header) == 64
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2HeaderResponse()
+        data = b"\xfe\x53\x4d\x42" \
+               b"\x40\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x01\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x01\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+               b"\x01\x02\x03\x04"
+        actual.unpack(data)
+        assert len(actual) == 68
+        assert actual['protocol_id'].get_value() == b"\xfeSMB"
+        assert actual['structure_size'].get_value() == 64
+        assert actual['credit_charge'].get_value() == 0
+        assert actual['status'].get_value() == 0
+        assert actual['command'].get_value() == Commands.SMB2_SESSION_SETUP
+        assert actual['credit_response'].get_value() == 0
+        assert actual['flags'].get_value() == 0
+        assert actual['next_command'].get_value() == 0
+        assert actual['message_id'].get_value() == 1
+        assert actual['reserved'].get_value() == 0
         assert actual['tree_id'].get_value() == 0
         assert actual['session_id'].get_value() == 10
         assert actual['signature'].get_value() == b"\x00" * 16
@@ -874,10 +783,10 @@ class TestConnection(object):
             assert connection.dialect == Dialects.SMB_2_0_2
             assert connection.negotiated_dialects == [Dialects.SMB_2_0_2]
             assert connection.gss_negotiate_token is not None
-            assert len(connection.preauth_integrity_hash_value) == 0
-            assert connection.salt is None
+            assert len(connection.preauth_integrity_hash_value) == 2
+            assert len(connection.salt) == 32
             assert connection.sequence_window['low'] == 1
-            assert connection.sequence_window['high'] == 1
+            assert connection.sequence_window['high'] == 2
             assert connection.client_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
 
@@ -897,7 +806,7 @@ class TestConnection(object):
             assert connection.gss_negotiate_token is not None
             assert len(connection.preauth_integrity_hash_value) == 2
             assert len(connection.salt) == 32
-            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['low'] == 1
             assert connection.sequence_window['high'] == 2
             assert connection.client_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
@@ -918,7 +827,7 @@ class TestConnection(object):
             assert connection.gss_negotiate_token is not None
             assert len(connection.preauth_integrity_hash_value) == 2
             assert len(connection.salt) == 32
-            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['low'] == 1
             assert connection.sequence_window['high'] == 2
             assert connection.client_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
@@ -940,7 +849,7 @@ class TestConnection(object):
             assert connection.gss_negotiate_token is not None
             assert len(connection.preauth_integrity_hash_value) == 2
             assert len(connection.salt) == 32
-            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['low'] == 1
             assert connection.sequence_window['high'] == 2
             assert connection.client_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
@@ -962,7 +871,7 @@ class TestConnection(object):
             assert connection.gss_negotiate_token is not None
             assert len(connection.preauth_integrity_hash_value) == 2
             assert len(connection.salt) == 32
-            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['low'] == 1
             assert connection.sequence_window['high'] == 2
             assert connection.client_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
@@ -990,7 +899,7 @@ class TestConnection(object):
             assert connection.gss_negotiate_token is not None
             assert len(connection.preauth_integrity_hash_value) == 2
             assert len(connection.salt) == 32
-            assert connection.sequence_window['low'] == 2
+            assert connection.sequence_window['low'] == 1
             assert connection.sequence_window['high'] == 2
             assert connection.client_security_mode == \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
@@ -1003,22 +912,11 @@ class TestConnection(object):
         finally:
             connection.disconnect()
 
-    def test_receive_invalid_message_id(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
-        connection.connect()
-        try:
-            with pytest.raises(SMBException) as exc:
-                connection.receive(100)
-            assert str(exc.value) == "No request with the ID 100 is " \
-                                     "expecting a response"
-        finally:
-            connection.disconnect()
-
     def test_verify_message_skip(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
         connection.connect()
         try:
-            header = SMB2PacketHeader()
+            header = SMB2HeaderRequest()
             header['message_id'] = 0xFFFFFFFFFFFFFFFF
             expected = header.pack()
             connection._verify(header)
@@ -1031,7 +929,7 @@ class TestConnection(object):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
         connection.connect()
         try:
-            header = SMB2PacketHeader()
+            header = SMB2HeaderRequest()
             header['message_id'] = 1
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['session_id'] = 100
@@ -1057,9 +955,7 @@ class TestConnection(object):
             assert "Server message signature could not be verified:" in \
                 str(exc.value)
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_decrypt_invalid_flag(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
@@ -1069,7 +965,7 @@ class TestConnection(object):
             session.connect()
             # just get some random message
             header = connection.preauth_integrity_hash_value[-1]
-            enc_header = connection._encrypt(header, session)
+            enc_header = connection._encrypt(header.pack(), session)
             assert isinstance(enc_header, SMB2TransformHeader)
             enc_header['flags'] = 5
             with pytest.raises(SMBException) as exc:
@@ -1077,9 +973,7 @@ class TestConnection(object):
             assert str(exc.value) == "Expecting flag of 0x0001 but got 5 in " \
                                      "the SMB Transform Header Response"
         finally:
-            if session.session_id:
-                session.disconnect()
-            connection.disconnect()
+            connection.disconnect(True)
 
     def test_decrypt_invalid_session_id(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
@@ -1089,7 +983,7 @@ class TestConnection(object):
             session.connect()
             # just get some random message
             header = connection.preauth_integrity_hash_value[-1]
-            enc_header = connection._encrypt(header, session)
+            enc_header = connection._encrypt(header.pack(), session)
             assert isinstance(enc_header, SMB2TransformHeader)
             enc_header['session_id'] = 100
             with pytest.raises(SMBException) as exc:
@@ -1097,6 +991,17 @@ class TestConnection(object):
             assert str(exc.value) == "Failed to find valid session 100 for " \
                                      "message decryption"
         finally:
-            if session.session_id:
-                session.disconnect()
+            connection.disconnect(True)
+
+    def test_requested_credits_greater_than_available(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            msg = SMB2IOCTLRequest()
+            msg['max_output_response'] = 65538  # results in 2 credits required
+            with pytest.raises(SMBException) as exc:
+                connection._generate_packet_header(msg, None, None, 0)
+            assert str(exc.value) == "Request requires 2 credits but only 1 " \
+                                     "credits are available"
+        finally:
             connection.disconnect()
