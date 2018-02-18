@@ -1581,12 +1581,15 @@ class TestOpen(object):
             assert isinstance(actual[1], FileNamesInformation)
             assert actual[1]['file_name'].get_value().decode('utf-16-le') == \
                 ".."
+
+            file1_name = "file1.txt".encode('utf-16-le')
+            file2_name = "file2.log".encode('utf-16-le')
             assert isinstance(actual[2], FileNamesInformation)
-            assert actual[2]['file_name'].get_value().decode('utf-16-le') == \
-                "file2.log"
+            assert actual[2]['file_name'].get_value() in \
+                [file1_name, file2_name]
             assert isinstance(actual[3], FileNamesInformation)
-            assert actual[3]['file_name'].get_value().decode('utf-16-le') == \
-                "file1.txt"
+            assert actual[3]['file_name'].get_value() in \
+                [file1_name, file2_name]
 
             open.close()
         finally:
@@ -1675,10 +1678,12 @@ class TestOpen(object):
                 ".".encode('utf-16-le')
             assert query1[1]['file_name'].get_value() == \
                 "..".encode('utf-16-le')
-            assert query1[2]['file_name'].get_value() == \
-                "file2.log".encode('utf-16-le')
-            assert query1[3]['file_name'].get_value() == \
-                "file1.txt".encode('utf-16-le')
+            file1_name = "file1.txt".encode('utf-16-le')
+            file2_name = "file2.log".encode('utf-16-le')
+            assert query1[2]['file_name'].get_value() \
+                in [file1_name, file2_name]
+            assert query1[3]['file_name'].get_value() \
+                in [file1_name, file2_name]
 
             open.close()
         finally:
@@ -1767,10 +1772,12 @@ class TestOpen(object):
                 ".".encode('utf-16-le')
             assert query1[1]['file_name'].get_value() == \
                 "..".encode('utf-16-le')
-            assert query1[2]['file_name'].get_value() == \
-                "file2.log".encode('utf-16-le')
-            assert query1[3]['file_name'].get_value() == \
-                "file1.txt".encode('utf-16-le')
+            file1_name = "file1.txt".encode('utf-16-le')
+            file2_name = "file2.log".encode('utf-16-le')
+            assert query1[2]['file_name'].get_value() \
+                in [file1_name, file2_name]
+            assert query1[3]['file_name'].get_value() \
+                in [file1_name, file2_name]
 
             open.close()
         finally:
