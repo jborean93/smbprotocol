@@ -1005,3 +1005,18 @@ class TestConnection(object):
                                      "credits are available"
         finally:
             connection.disconnect()
+
+    def test_send_invalid_tree_id(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        session = Session(connection, smb_real[0], smb_real[1])
+        connection.connect()
+        try:
+            session.connect()
+            msg = SMB2IOCTLRequest()
+            msg['file_id'] = b"\xff" * 16
+            with pytest.raises(SMBException) as exc:
+                connection.send(msg, session.session_id, 10)
+            assert str(exc.value) == "Cannot find Tree with the ID 10 in " \
+                                     "the session tree table"
+        finally:
+            connection.disconnect()

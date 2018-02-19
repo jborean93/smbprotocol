@@ -219,6 +219,7 @@ class NtStatus(object):
     STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
     STATUS_INTERNAL_ERROR = 0xC00000E5
     STATUS_NOT_A_DIRECTORY = 0xC0000103
+    STATUS_CANNOT_DELETE = 0xC0000121
     STATUS_FILE_CLOSED = 0xC0000128
     STATUS_PIPE_BROKEN = 0xC000014B
     STATUS_USER_SESSION_DELETED = 0xC0000203
@@ -898,7 +899,14 @@ class Connection(object):
 
         # get the actual Session and TreeConnect object instead of the IDs
         session = self.session_table.get(sid, None) if sid else None
-        tree = session.tree_connect_table[tid] if session and tid else None
+
+        tree = None
+        if tid and session:
+            if tid not in session.tree_connect_table.keys():
+                error_msg = "Cannot find Tree with the ID %d in the session " \
+                            "tree table" % tid
+                raise smbprotocol.exceptions.SMBException(error_msg)
+            tree = session.tree_connect_table[tid]
 
         if session and session.signing_required and session.signing_key:
             self._sign(header, session)

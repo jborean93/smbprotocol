@@ -1075,17 +1075,7 @@ class Open(object):
         log.info("Session: %s, Tree Connect ID: %s - receiving SMB2 Read "
                  "Response" % (self.tree_connect.session.username,
                                self.tree_connect.share_name))
-        while True:
-            try:
-                response = self.connection.receive(request)
-            except SMBResponseException as exc:
-                if not wait or exc.status != NtStatus.STATUS_PENDING:
-                    raise exc
-                else:
-                    pass
-            else:
-                break
-
+        response = self._get_read_write_response(request, wait)
         read_response = SMB2ReadResponse()
         read_response.unpack(response['data'].get_value())
         log.debug(str(read_response))
@@ -1093,7 +1083,7 @@ class Open(object):
         return read_response['buffer'].get_value()
 
     def write(self, data, offset=0, write_through=False, unbuffered=False,
-              send=True):
+              wait=False, send=True):
         """
         Writes data to an opened file.
 
@@ -1109,6 +1099,8 @@ class Open(object):
             underlying storage, not valid for SMB 2.0.2.
         :param unbuffered: Whether to the server should cache the write data at
             intermediate layers, only value for SMB 3.0.2 or newer
+        :param wait: If send=True, whether to wait for a response if
+            STATUS_PENDING was received from the server or fail.
         :param send: Whether to send the request in the same call or return the
             message to the caller and the unpack function
         :return: The number of bytes written
@@ -1152,13 +1144,13 @@ class Open(object):
         request = self.connection.send(write,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
-        return self._write_response(request)
+        return self._write_response(request, wait)
 
-    def _write_response(self, request):
+    def _write_response(self, request, wait=False):
         log.info("Session: %s, Tree Connect: %s - receiving SMB2 Write "
                  "Response" % (self.tree_connect.session.username,
                                self.tree_connect.share_name))
-        response = self.connection.receive(request)
+        response = self._get_read_write_response(request, wait)
         write_response = SMB2WriteResponse()
         write_response.unpack(response['data'].get_value())
         log.debug(str(write_response))
@@ -1342,3 +1334,18 @@ class Open(object):
             self.end_of_file = c_resp['end_of_file'].get_value()
             self.file_attributes = c_resp['file_attributes'].get_value()
         return c_resp
+
+    def _get_read_write_response(self, request, wait=False):
+        # used by read and write to handle STATUS_PENDING on a read/write
+        # request
+        while True:
+            try:
+                response = self.connection.receive(request)
+            except SMBResponseException as exc:
+                if not wait or exc.status != NtStatus.STATUS_PENDING:
+                    raise exc
+                else:
+                    pass
+            else:
+                break
+        return response
