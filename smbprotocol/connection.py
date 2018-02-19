@@ -706,7 +706,7 @@ class SMB2TransformHeader(Structure):
 
 class Connection(object):
 
-    def __init__(self, guid, server_name, port, require_signing=True):
+    def __init__(self, guid, server_name, port=445, require_signing=True):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -717,7 +717,7 @@ class Connection(object):
 
         :param guid: A uniqure guid that represents the client
         :param server_name: The server to start the connection
-        :param port: The port to use for the transport
+        :param port: The port to use for the transport, default is 445
         :param require_signing: Whether signing is required on SMB messages
             sent over this connection
         """

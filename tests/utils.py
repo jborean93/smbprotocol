@@ -21,5 +21,5 @@ def smb_real():
         return username, password, server, int(port), share, encrypted_share
     else:
         pytest.skip("SMB_USER, SMB_PASSWORD, SMB_PORT, SMB_SHARE, "
-                    "SMB_ENCRYPTED_SHARE environment variable was not set. "
-                    "Integration tests will be skipped")
+                    "environment variables were not set, integration tests "
+                    "will be skipped")
