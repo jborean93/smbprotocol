@@ -551,7 +551,7 @@ class TestListField(object):
 
     def test_unpack(self):
         field = self.StructureTest()['field']
-        field.unpack(b"\x7a\x00\x79\x00")
+        data = field.unpack(b"\x7a\x00\x79\x00")
         expected = [b"\x7a\x00", b"\x79\x00"]
         actual = field.get_value()
         assert actual == expected

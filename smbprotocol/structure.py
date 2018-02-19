@@ -210,7 +210,7 @@ class Field(with_metaclass(ABCMeta, object)):
         """
         size = self._get_calculated_size(self.size, data)
         self.set_value(data[0:size])
-        return data[self._get_calculated_size(self.size, self.value):]
+        return data[len(self):]
 
     @abstractmethod
     def _pack_value(self, value):
