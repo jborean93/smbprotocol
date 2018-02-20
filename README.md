@@ -1,7 +1,7 @@
 # smbprotocol
 SMBv2 and v3 Client for both Python 2 and 3.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/diyan/pywinrm/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jborean93/smbprotocol/blob/master/LICENSE)
 [![Travis Build](https://travis-ci.org/jborean93/smbprotocol.svg)](https://travis-ci.org/jborean93/smbprotocol)
 [![AppVeyor Build](https://ci.appveyor.com/api/projects/status/github/jborean93/smbprotocol?svg=true)](https://ci.appveyor.com/project/jborean93/smbprotocol)
 [![Coverage](https://coveralls.io/repos/jborean93/smbprotocol/badge.svg)](https://coveralls.io/r/jborean93/smbprotocol)
