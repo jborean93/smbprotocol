@@ -916,7 +916,7 @@ class TestConnection(object):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
         connection.connect()
         try:
-            header = SMB2HeaderRequest()
+            header = SMB2HeaderResponse()
             header['message_id'] = 0xFFFFFFFFFFFFFFFF
             expected = header.pack()
             connection._verify(header)
@@ -929,7 +929,7 @@ class TestConnection(object):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
         connection.connect()
         try:
-            header = SMB2HeaderRequest()
+            header = SMB2HeaderResponse()
             header['message_id'] = 1
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['session_id'] = 100
@@ -946,7 +946,7 @@ class TestConnection(object):
         connection.connect()
         try:
             session.connect()
-            header = connection.preauth_integrity_hash_value[-1]
+            header = connection.preauth_integrity_hash_value[-2]
             # just set some random values for verifiation failure
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['signature'] = b"\xff" * 16

@@ -1094,15 +1094,18 @@ class Connection(object):
         message['signature'] = signature
 
     def _verify(self, message, verify_session=False):
-        if message['message_id'].get_value() == 0xFFFFFFFFFFFFFFFF:
-            return
-        elif not message['flags'].has_flag(Smb2Flags.SMB2_FLAGS_SIGNED):
-            return
-        elif message['command'].get_value() == Commands.SMB2_SESSION_SETUP \
-                and not verify_session:
+        message_id = message['message_id'].get_value()
+        flags = message['flags']
+        status = message['status'].get_value()
+        command = message['command'].get_value()
+        session_id = message['session_id'].get_value()
+        if message_id == 0xFFFFFFFFFFFFFFFF or \
+                not flags.has_flag(Smb2Flags.SMB2_FLAGS_SIGNED) or \
+                status == NtStatus.STATUS_PENDING or \
+                (command == Commands.SMB2_SESSION_SETUP and
+                 not verify_session):
             return
 
-        session_id = message['session_id'].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
             error_msg = "Failed to find session %d for message verification" \
