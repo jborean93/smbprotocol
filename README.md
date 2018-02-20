@@ -30,7 +30,7 @@ backlog for features that would be nice to have in this library.
 
 ## Requirements
 
-* Python 2.6, 2.7, 3.4-2.6
+* Python 2.6, 2.7, 3.4-3.6
 * For Kerberos auth, the [python-gssapi](https://github.com/pythongssapi/python-gssapi) package (see below)
 
 The python-gssapi library is required to support Kerberos authentication but
@@ -120,27 +120,27 @@ is sent out from the client so it can get very verbose.
 
 ## Testing
 
-To test these modules you need to install some pre-requisites first, this can
-be done by running
+To this module, you need to install some pre-requisites first. This can be done
+by running;
 
 ```
 pip install -r requirements-test.txt
 
-# you can also run tox by install tox as well
+# you can also run tox by installing tox
 pip install tox
 ```
 
-From there to run the basic tests run
+From there to run the basic tests run;
 
 ```
-commands=py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+py.test -v --pep8 --cov smbprotocol --cov-report term-missing
 
-# or with tox to test python 2.6, 2.7, 3.4, 3.5, and 3.6
+# or with tox 2.7, 2.7, 3.4, 3.5, and 3.6
 tox
 ```
 
-There are extra tests that only run on the presense of environment variables,
-to run these set the following variables
+There are extra tests that only run when certain environment variables are set.
+To run these tests set the following variables;
 
 * `SMB_USER`: The username to authenticate with
 * `SMB_PASSWORD`: The password to authenticate with
