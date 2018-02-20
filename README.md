@@ -31,12 +31,27 @@ backlog for features that would be nice to have in this library.
 ## Requirements
 
 * Python 2.6, 2.7, 3.4-3.6
-* For Kerberos auth, the [python-gssapi](https://github.com/pythongssapi/python-gssapi) package (see below)
+* For Kerberos auth [python-gssapi](https://github.com/pythongssapi/python-gssapi)
 
-The python-gssapi library is required to support Kerberos authentication but
-`smbprotocol` requires the GSSAPI GGF extension to support things like
-message encryption. To test out if the installed version of python-gsspapi
-can be used you can run the python commands in a Python console;
+To use Kerberos authentication, further dependencies are required, to install
+these dependencies run
+
+```
+# for Debian/Ubuntu/etc:
+sudo apt-get install gcc python-dev libkrb5-dev
+pip install smbprotocol[kerberos]
+
+# for RHEL/CentOS/etc:
+sudo yum install gcc python-devel krb5-devel krb5-workstation python-devel
+pip install smbprotocol[kerberos]
+```
+
+Currently Kerberos authentication is not supported on Windows. As part of this
+optional extra, the python-gssapi library is installed and smbprotocol requires
+a particular GSSAPI extension to be available to work. This extension should
+be installed on the majority of MIT or Heimdall Kerberos installs but it isn't
+guaranteed. To verify that Kerberos is available you can run the following
+check in a Python console
 
 ```
 try:
@@ -55,7 +70,12 @@ version.
 
 To install smbprotocol, simply run
 
-`pip install smbprotocol`
+```
+pip install smbprotocol
+
+# on a non Windows host, to install with Kerberos support
+pip install smbprotocol[kerberos]
+```
 
 This will download the required packages that are used in this package and get
 your Python environment ready to go.

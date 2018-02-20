@@ -27,7 +27,8 @@ setup(
         ':python_version<"2.7"': [
             'ordereddict'
         ],
-        ':sys_platform!="win32"': [
+        'kerberos:sys_platform=="win32"': [],
+        'kerberos:sys_platform!="win32"': [
             'gssapi>=1.4.1'
         ]
     },
