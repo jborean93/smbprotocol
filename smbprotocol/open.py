@@ -1015,7 +1015,7 @@ class Open(object):
 
         return create_contexts_response
 
-    def read(self, offset, length, min_length=0, unbuffered=False, wait=False,
+    def read(self, offset, length, min_length=0, unbuffered=False, wait=True,
              send=True):
         """
         Reads from an opened file or pipe
@@ -1071,11 +1071,11 @@ class Open(object):
                                        self.tree_connect.tree_connect_id)
         return self._read_response(request, wait)
 
-    def _read_response(self, request, wait=False):
+    def _read_response(self, request, wait=True):
         log.info("Session: %s, Tree Connect ID: %s - receiving SMB2 Read "
                  "Response" % (self.tree_connect.session.username,
                                self.tree_connect.share_name))
-        response = self._get_read_write_response(request, wait)
+        response = self.connection.receive(request, wait=wait)
         read_response = SMB2ReadResponse()
         read_response.unpack(response['data'].get_value())
         log.debug(str(read_response))
@@ -1083,7 +1083,7 @@ class Open(object):
         return read_response['buffer'].get_value()
 
     def write(self, data, offset=0, write_through=False, unbuffered=False,
-              wait=False, send=True):
+              wait=True, send=True):
         """
         Writes data to an opened file.
 
@@ -1146,11 +1146,11 @@ class Open(object):
                                        self.tree_connect.tree_connect_id)
         return self._write_response(request, wait)
 
-    def _write_response(self, request, wait=False):
+    def _write_response(self, request, wait=True):
         log.info("Session: %s, Tree Connect: %s - receiving SMB2 Write "
                  "Response" % (self.tree_connect.session.username,
                                self.tree_connect.share_name))
-        response = self._get_read_write_response(request, wait)
+        response = self.connection.receive(request, wait=wait)
         write_response = SMB2WriteResponse()
         write_response.unpack(response['data'].get_value())
         log.debug(str(write_response))
@@ -1334,18 +1334,3 @@ class Open(object):
             self.end_of_file = c_resp['end_of_file'].get_value()
             self.file_attributes = c_resp['file_attributes'].get_value()
         return c_resp
-
-    def _get_read_write_response(self, request, wait=False):
-        # used by read and write to handle STATUS_PENDING on a read/write
-        # request
-        while True:
-            try:
-                response = self.connection.receive(request)
-            except SMBResponseException as exc:
-                if not wait or exc.status != NtStatus.STATUS_PENDING:
-                    raise exc
-                else:
-                    pass
-            else:
-                break
-        return response

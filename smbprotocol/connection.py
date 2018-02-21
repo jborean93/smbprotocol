@@ -969,29 +969,33 @@ class Connection(object):
 
         return requests
 
-    def receive(self, request):
+    def receive(self, request, wait=True):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
 
         :param request: The Request object to wait get the response for
+        :param wait: Wait for the final response in the case of a
+            STATUS_PENDING response, the pending response is returned in the
+            case of wait=False
         :return: SMB2HeaderResponse of the received message
         """
         # check if we have received a response
-        while not request.response:
+        while True:
             self._flush_message_buffer()
+            status = request.response['status'].get_value() if \
+                request.response else None
+            if status is not None and (wait and
+                                       status != NtStatus.STATUS_PENDING):
+                break
 
         response = request.response
         status = response['status'].get_value()
-
-        if status == NtStatus.STATUS_PENDING:
-            request.response = None
-
-        if status != NtStatus.STATUS_SUCCESS:
+        if status not in [NtStatus.STATUS_SUCCESS, NtStatus.STATUS_PENDING]:
             raise smbprotocol.exceptions.SMBResponseException(response, status)
 
-        # now we have a retrieval request for the response, we can delete the
-        # request from the outstanding requests
+        # now we have a retrieval request for the response, we can delete
+        # the request from the outstanding requests
         message_id = request.message['message_id'].get_value()
         del self.outstanding_requests[message_id]
 
@@ -1024,7 +1028,6 @@ class Connection(object):
         header['credit_request'] = \
             credit_request if credit_request else credit_charge
         header['message_id'] = message_id
-        header['process_id'] = os.getpid()
         header['tree_id'] = tree_id if tree_id else 0
         header['session_id'] = session_id if session_id else 0
 
@@ -1049,8 +1052,8 @@ class Connection(object):
             try:
                 message_bytes = self.transport.message_buffer.get(block=False)
             except Empty:
-                # raises Empty if wait=False and there are no messages, in this
-                # case we have nothing to parse and so break from the loop
+                # raises Empty if there are no messages, in this case we have
+                # nothing to parse and so break from the loop
                 break
 
             # check if the message is encrypted and decrypt if necessary
