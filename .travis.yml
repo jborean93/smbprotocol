@@ -21,12 +21,7 @@ env:
   - SMB_PORT: 445
 
 install:
-- |
-  if [[ $TRAVIS_PYTHON_VERSION == '2.6' ]]; then
-      export SMB_SKIP="True";
-  else
-      docker run -d -p $SMB_PORT:445 -v $(pwd)/build-scripts:/app -w /app -e SMB_USER=$SMB_USER -e SMB_PASSWORD=$SMB_PASSWORD -e SMB_SHARE=$SMB_SHARE centos:7 /bin/bash /app/setup_samba.sh;
-  fi
+- docker run -d -p $SMB_PORT:445 -v $(pwd)/build-scripts:/app -w /app -e SMB_USER=$SMB_USER -e SMB_PASSWORD=$SMB_PASSWORD -e SMB_SHARE=$SMB_SHARE centos:7 /bin/bash /app/setup_samba.sh;
 - pip install -U pip setuptools
 - pip install .
 - pip install -r requirements-test.txt
