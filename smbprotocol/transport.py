@@ -1,3 +1,4 @@
+import errno
 import logging
 import socket
 import struct
@@ -76,8 +77,7 @@ class Tcp(object):
             try:
                 sent = self._sock.send(data)
             except socket.error as err:
-                # errno: 35 == Resource temporarily unavailable, try again
-                if err.errno != 35:
+                if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
                     raise err
             data = data[sent:]
 
@@ -101,11 +101,11 @@ class Tcp(object):
                 data = self._sock.recv(buffer - len(bytes))
                 bytes += data
             except socket.error as err:
-                # errno: 35 == Resource temporarily unavailable
-                if err.errno != 35:
+                if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
                     raise err
-                # we didn't get any bytes so return None
+                # this was the first request so return None
                 elif bytes == b"":
                     return None
-                # there is still data remaining so continue trying ot read
+                # we started getting data and there is still some remaining
+                # so try again
         return bytes
