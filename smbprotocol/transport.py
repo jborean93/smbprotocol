@@ -84,18 +84,28 @@ class Tcp(object):
     def receive(self):
         # receive first 4 bytes that contain the size of the packet, return
         # None if no data is available, Connection handles this scenario
-        try:
-            packet_size_bytes = self._sock.recv(4)
-        except socket.error as err:
-            # errno: 35 == Resource temporarily unavailable
-            if err.errno != 35:
-                raise err
+        packet_size_bytes = self._recv(4)
+        if packet_size_bytes is None:
             return
 
         packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
-        buffer = b""
-        while len(buffer) < packet_size_int:
-            data = self._sock.recv(packet_size_int - len(buffer))
-            buffer += data
-
+        buffer = self._recv(packet_size_int)
         return buffer
+
+    def _recv(self, buffer):
+        # will attempt to retrieve the data in the recv buffer based on the
+        # buffer size or return None if nothing available
+        bytes = b""
+        while len(bytes) < buffer:
+            try:
+                data = self._sock.recv(buffer - len(bytes))
+                bytes += data
+            except socket.error as err:
+                # errno: 35 == Resource temporarily unavailable
+                if err.errno != 35:
+                    raise err
+                # we didn't get any bytes so return None
+                elif bytes == b"":
+                    return None
+                # there is still data remaining so continue trying ot read
+        return bytes
