@@ -7,7 +7,6 @@ import logging
 import math
 import os
 import struct
-import sys
 from datetime import datetime
 from multiprocessing.dummy import Lock
 
@@ -25,11 +24,6 @@ try:
     from collections import OrderedDict
 except ImportError:  # pragma: no cover
     from ordereddict import OrderedDict
-
-if sys.version[0] == '2':
-    from Queue import Empty
-else:
-    from queue import Empty
 
 log = logging.getLogger(__name__)
 
@@ -795,6 +789,10 @@ class Connection(object):
         # same order if running in multiple threads
         self.lock = Lock()
 
+        # used to ensure only 1 call to transport.receive is called to avoid
+        # data being read in multiple locations
+        self.rec_lock = Lock()
+
     def connect(self, dialect=None):
         """
         Will connect to the target server and negotiate the capabilities
@@ -1049,11 +1047,10 @@ class Connection(object):
         self.outstanding_requests
         """
         while True:
-            try:
-                message_bytes = self.transport.message_buffer.get(block=False)
-            except Empty:
-                # raises Empty if there are no messages, in this case we have
-                # nothing to parse and so break from the loop
+            self.rec_lock.acquire()
+            message_bytes = self.transport.receive()
+            self.rec_lock.release()
+            if message_bytes is None:
                 break
 
             # check if the message is encrypted and decrypt if necessary

@@ -2,8 +2,6 @@ import logging
 import socket
 import struct
 
-from multiprocessing.dummy import Process, Queue
-
 from smbprotocol.structure import BytesField, IntField, Structure
 
 try:
@@ -43,34 +41,22 @@ class Tcp(object):
 
     def __init__(self, server, port):
         log.info("Setting up DirectTcp connection on %s:%d" % (server, port))
-        self.message_buffer = Queue()
         self.server = server
         self.port = port
 
         self._connected = False
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._listener = Process(target=self._listen,
-                                 args=(self._sock, self.message_buffer))
 
     def connect(self):
         if not self._connected:
             log.info("Connecting to DirectTcp socket")
             self._sock.connect((self.server, self.port))
+            self._sock.setblocking(0)
             self._connected = True
-
-        if not self._listener.is_alive():
-            log.info("Setting up DirectTcp listener")
-            self._listener.start()
 
     def disconnect(self):
         if self._connected:
             log.info("Disconnecting DirectTcp socket")
-            try:
-                self._sock.shutdown(socket.SHUT_RDWR)
-            except socket.error:
-                # socket has already been shutdown
-                pass
-            self._listener.join()
             self._sock.close()
             self._connected = False
 
@@ -84,26 +70,32 @@ class Tcp(object):
         tcp_packet = DirectTCPPacket()
         tcp_packet['smb2_message'] = request
         data = tcp_packet.pack()
-        self._sock.sendall(data)
 
-    @staticmethod
-    def _listen(sock, message_buffer):
-        """
-        Runs in a thread and is constantly reading from the socket receive
-        buffer and adding each message to the queue. Very little error handling
-        and message parsing is done in this process as it happens
-        asynchronously to the main process
+        while data:
+            sent = 0
+            try:
+                sent = self._sock.send(data)
+            except socket.error as err:
+                # errno: 35 == Resource temporarily unavailable, try again
+                if err.errno != 35:
+                    raise err
+            data = data[sent:]
 
-        :param sock: The socket to read from
-        :param message_buffer: A queue used to store the incoming messages for
-            Connection to read from
-        """
-        while True:
-            packet_size_bytes = sock.recv(4)
-            # the socket was closed so exit the loop
-            if not packet_size_bytes:
-                break
+    def receive(self):
+        # receive first 4 bytes that contain the size of the packet, return
+        # None if no data is available, Connection handles this scenario
+        try:
+            packet_size_bytes = self._sock.recv(4)
+        except socket.error as err:
+            # errno: 35 == Resource temporarily unavailable
+            if err.errno != 35:
+                raise err
+            return
 
-            packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
-            buffer = sock.recv(packet_size_int)
-            message_buffer.put(buffer)
+        packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
+        buffer = b""
+        while len(buffer) < packet_size_int:
+            data = self._sock.recv(packet_size_int - len(buffer))
+            buffer += data
+
+        return buffer
