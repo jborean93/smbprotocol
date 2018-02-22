@@ -170,6 +170,7 @@ class Ciphers(object):
             pass
         try:
             aead.AESCCM(b"\x00" * 16)
+            supported_ciphers.append(Ciphers.AES_128_CCM)
         except UnsupportedAlgorithm:  # pragma: no cover
             pass
         return supported_ciphers
