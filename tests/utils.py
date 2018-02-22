@@ -13,9 +13,8 @@ def smb_real():
     server = os.environ.get('SMB_SERVER', None)
     port = os.environ.get('SMB_PORT', None)
     share = os.environ.get('SMB_SHARE', None)
-    skip = os.environ.get('SMB_SKIP', "False") == "True"
 
-    if username and password and server and port and share and not skip:
+    if username and password and server and port and share:
         share = r"\\%s\%s" % (server, share)
         encrypted_share = "%s-encrypted" % share
         return username, password, server, int(port), share, encrypted_share

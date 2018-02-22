@@ -1041,6 +1041,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_dialect_3_0_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
@@ -1084,6 +1087,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_dialect_3_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -1170,7 +1176,33 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.name == "nt",
+                        reason="Sharing violation occurs when running with "
+                               "Windows")
+    def test_open_root_directory(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_1_1)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        dir_open = Open(tree, "")
+        try:
+            session.connect()
+            tree.connect()
+
+            dir_open.open(ImpersonationLevel.Impersonation,
+                          DirectoryAccessMask.MAXIMUM_ALLOWED,
+                          FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                          0,
+                          CreateDisposition.FILE_OPEN_IF,
+                          CreateOptions.FILE_DIRECTORY_FILE)
+            dir_open.close(get_attributes=False)
+        finally:
+            connection.disconnect(True)
+
     # test more file operations here
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_create_directory(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
@@ -1215,6 +1247,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_create_file_create_contexts(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
@@ -1267,7 +1302,7 @@ class TestOpen(object):
 
     def test_create_read_write_from_file(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
+        connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
         open = Open(tree, "file-read-write.txt")
@@ -1289,6 +1324,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_flush_file(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -1363,6 +1401,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_read_file_unbuffered(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -1386,6 +1427,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_read_file_unbuffered_unsupported(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
@@ -1421,7 +1465,7 @@ class TestOpen(object):
                         reason="write-through writes don't work on windows?")
     def test_write_file_write_through(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
+        connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
         open = Open(tree, "file-read-write.txt")
@@ -1479,7 +1523,7 @@ class TestOpen(object):
                         reason="unbufferred writes don't work on windows?")
     def test_write_file_unbuffered(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
+        connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
         open = Open(tree, "file-read-write.txt")
@@ -1535,7 +1579,7 @@ class TestOpen(object):
 
     def test_query_directory(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
+        connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
         open = Open(tree, "directory")
@@ -1599,7 +1643,7 @@ class TestOpen(object):
                         reason="flush in compound does't work on windows")
     def test_compounding_open_requests(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
+        connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
         open = Open(tree, "directory")
@@ -1787,6 +1831,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_close_file_already_closed(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)

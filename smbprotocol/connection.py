@@ -170,6 +170,7 @@ class Ciphers(object):
             pass
         try:
             aead.AESCCM(b"\x00" * 16)
+            supported_ciphers.append(Ciphers.AES_128_CCM)
         except UnsupportedAlgorithm:  # pragma: no cover
             pass
         return supported_ciphers
@@ -185,13 +186,16 @@ class NtStatus(object):
     """
     STATUS_SUCCESS = 0x00000000
     STATUS_PENDING = 0x00000103
+    STATUS_BUFFER_OVERFLOW = 0x80000005
     STATUS_EA_LIST_INCONSISTENT = 0x80000014
     STATUS_STOPPED_ON_SYMLINK = 0x8000002D
     STATUS_INVALID_PARAMETER = 0xC000000D
+    STATUS_NO_SUCH_FILE = 0xC000000F
     STATUS_END_OF_FILE = 0xC0000011
     STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
     STATUS_ACCESS_DENIED = 0xC0000022
     STATUS_BUFFER_TOO_SMALL = 0xC0000023
+    STATUS_OBJECT_NAME_INVALID = 0xC0000033
     STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
     STATUS_OBJECT_NAME_COLLISION = 0xC0000035
     STATUS_OBJECT_PATH_INVALID = 0xC0000039

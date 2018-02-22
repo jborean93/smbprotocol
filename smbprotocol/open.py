@@ -327,7 +327,7 @@ class SMB2CreateRequest(Structure):
             )),
             ('name_length', IntField(
                 size=2,
-                default=lambda s: len(s['buffer_path'])
+                default=lambda s: self._name_length(s)
             )),
             ('create_contexts_offset', IntField(
                 size=4,
@@ -340,7 +340,7 @@ class SMB2CreateRequest(Structure):
             # Technically these are all under buffer but we split it to make
             # things easier
             ('buffer_path', BytesField(
-                size=lambda s: s['name_length'].get_value(),
+                size=lambda s: self._buffer_path_size(s),
             )),
             ('padding', BytesField(
                 size=lambda s: self._padding_size(s),
@@ -356,12 +356,20 @@ class SMB2CreateRequest(Structure):
         ])
         super(SMB2CreateRequest, self).__init__()
 
+    def _name_length(self, structure):
+        buffer_path = structure['buffer_path'].get_value()
+        return len(buffer_path) if buffer_path != b"\x00\x00" else 0
+
     def _create_contexts_offset(self, structure):
         if len(structure['buffer_contexts']) == 0:
             return 0
         else:
             return structure['name_offset'].get_value() + \
                 len(structure['padding']) + len(structure['buffer_path'])
+
+    def _buffer_path_size(self, structure):
+        name_length = structure['name_length'].get_value()
+        return name_length if name_length != 0 else 2
 
     def _padding_size(self, structure):
         # no padding is needed if there are no contexts
@@ -962,7 +970,10 @@ class Open(object):
         create['share_access'] = share_access
         create['create_disposition'] = create_disposition
         create['create_options'] = create_options
-        create['buffer_path'] = self.file_name.encode('utf-16-le')
+        if self.file_name == "":
+            create['buffer_path'] = b"\x00\x00"
+        else:
+            create['buffer_path'] = self.file_name.encode('utf-16-le')
         if create_contexts:
             create['buffer_contexts'] = smbprotocol.create_contexts.\
                 SMB2CreateContextRequest.pack_multiple(create_contexts)

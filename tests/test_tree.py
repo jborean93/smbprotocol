@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import pytest
@@ -139,6 +140,9 @@ class TestTreeConnect(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_dialect_3_0_0(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
@@ -155,6 +159,9 @@ class TestTreeConnect(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_dialect_3_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -218,6 +225,9 @@ class TestTreeConnect(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_secure_negotiation_verification_failed(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
@@ -233,6 +243,9 @@ class TestTreeConnect(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM "
+                               "required for Dialect 3.0.0 and 3.0.2 enc")
     def test_secure_ignore_negotiation_verification_failed(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
