@@ -1176,6 +1176,26 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    def test_open_root_directory(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_3_1_1)
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[5])
+        dir_open = Open(tree, "")
+        try:
+            session.connect()
+            tree.connect()
+
+            dir_open.open(ImpersonationLevel.Impersonation,
+                          DirectoryAccessMask.MAXIMUM_ALLOWED,
+                          FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                          0,
+                          CreateDisposition.FILE_OPEN_IF,
+                          CreateOptions.FILE_DIRECTORY_FILE)
+            dir_open.close(get_attributes=False)
+        finally:
+            connection.disconnect(True)
+
     # test more file operations here
     @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
                         reason="Travis-CI Python 2.6 does not support AES CCM "
