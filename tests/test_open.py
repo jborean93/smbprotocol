@@ -1176,6 +1176,9 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    @pytest.mark.skipif(os.name == "nt",
+                        reason="Sharing violation occurs when running with "
+                               "Windows")
     def test_open_root_directory(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)
