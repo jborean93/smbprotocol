@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import struct
+import time
 from datetime import datetime
 from multiprocessing.dummy import Lock
 
@@ -704,7 +705,8 @@ class SMB2TransformHeader(Structure):
 
 class Connection(object):
 
-    def __init__(self, guid, server_name, port=445, require_signing=True):
+    def __init__(self, guid, server_name, port=445, require_signing=True,
+                 timeout=60):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -718,12 +720,15 @@ class Connection(object):
         :param port: The port to use for the transport, default is 445
         :param require_signing: Whether signing is required on SMB messages
             sent over this connection
+        :param timeout: The default connection timeout used when waiting for
+            a response from the server
         """
         log.info("Initialising connection, guid: %s, require_singing: %s, "
                  "server_name: %s, port: %d"
                  % (guid, require_signing, server_name, port))
         self.server_name = server_name
         self.port = port
+        self.timeout = timeout
         self.transport = Tcp(server_name, port)
 
         # Table of Session entries
@@ -824,8 +829,8 @@ class Connection(object):
         self.gss_negotiate_token = smb_response['buffer'].get_value()
 
         if not self.require_signing and \
-                smb_response['security_mode'].get_value() == \
-                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED:
+                smb_response['security_mode'].has_flag(
+                    SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED):
             self.require_signing = True
         log.info("Connection require signing: %s" % self.require_signing)
         capabilities = smb_response['capabilities']
@@ -971,7 +976,7 @@ class Connection(object):
 
         return requests
 
-    def receive(self, request, wait=True):
+    def receive(self, request, wait=True, timeout=None):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
@@ -980,8 +985,15 @@ class Connection(object):
         :param wait: Wait for the final response in the case of a
             STATUS_PENDING response, the pending response is returned in the
             case of wait=False
+        :param timeout: Override the default timeout used to setup the
+            Connection, will raise an SMBException if the timeout is reached.
         :return: SMB2HeaderResponse of the received message
         """
+        rec_timeout = self.timeout
+        if timeout:
+            rec_timeout = timeout
+        start_time = time.time()
+
         # check if we have received a response
         while True:
             self._flush_message_buffer()
@@ -990,6 +1002,12 @@ class Connection(object):
             if status is not None and (wait and
                                        status != NtStatus.STATUS_PENDING):
                 break
+            current_time = time.time() - start_time
+            if current_time > rec_timeout:
+                error_msg = "Connection timeout of %d seconds exceeded while" \
+                            " waiting for a response from the server" \
+                            % rec_timeout
+                raise smbprotocol.exceptions.SMBException(error_msg)
 
         response = request.response
         status = response['status'].get_value()

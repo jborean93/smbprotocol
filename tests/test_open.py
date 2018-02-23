@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 
 from datetime import datetime
@@ -1930,5 +1931,72 @@ class TestOpen(object):
             open.write(b"\x01\x02\x03\x04", 0)
             actual = open.read(0, 65538)
             assert actual == b"\x01\x02\x03\x04"
+        finally:
+            connection.disconnect(True)
+
+    def test_receive_message_without_request(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            read_req, unpack_func = open.write(b"\x00", 0, send=False)
+            req = connection.send(read_req, sid=session.session_id,
+                                  tid=tree.tree_connect_id)
+
+            # delete the outstanding request so we throw the exception
+            message_id = req.message['message_id'].get_value()
+            del connection.outstanding_requests[message_id]
+            with pytest.raises(SMBException) as exc:
+                connection.receive(request=req)
+            assert str(exc.value) == "Received response with an unknown " \
+                                     "message ID: %d" % message_id
+        finally:
+            connection.disconnect(True)
+
+    def test_receive_with_timeout(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            read_req, unpack_func = open.write(b"\x00", 0, send=False)
+            req = connection.send(read_req, sid=session.session_id,
+                                  tid=tree.tree_connect_id)
+            # get the response so we know the timeout will fail next as there
+            # is no response to get
+            connection.receive(request=req)
+            req.response = None
+
+            start_time = time.time()
+            with pytest.raises(SMBException) as exc:
+                connection.receive(request=req, timeout=2)
+            end_time = int(time.time() - start_time)
+            assert end_time < 5
+            assert str(exc.value) == "Connection timeout of 2 seconds " \
+                                     "exceeded while waiting for a response " \
+                                     "from the server"
         finally:
             connection.disconnect(True)

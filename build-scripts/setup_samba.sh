@@ -6,6 +6,7 @@ cat > /etc/samba/smb.conf << EOL
 [global]
 workgroup = WORKGROUP
 valid users = @smbgroup
+server signing = mandatory
 
 [$SMB_SHARE]
 comment = Test Samba Share

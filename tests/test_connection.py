@@ -833,8 +833,9 @@ class TestConnection(object):
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
 
             # server settings override the require signing
-            assert connection.server_security_mode == \
-                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.server_security_mode & \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
             assert connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -855,8 +856,9 @@ class TestConnection(object):
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
 
             # server settings override the require signing
-            assert connection.server_security_mode == \
-                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.server_security_mode & \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
             assert connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -877,10 +879,13 @@ class TestConnection(object):
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
 
             # server settings override the require signing
-            assert connection.server_security_mode == \
-                SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
+            assert connection.server_security_mode & \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
             assert connection.supports_encryption
-            assert not connection.require_signing
+            # for tests we set that server requires signing so that overrides
+            # the client setting
+            assert connection.require_signing
         finally:
             connection.disconnect()
 
@@ -906,6 +911,7 @@ class TestConnection(object):
 
             # server settings override the require signing
             assert connection.server_security_mode == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED | \
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
             assert connection.supports_encryption
             assert connection.require_signing

@@ -1,3 +1,5 @@
+import socket
+
 import pytest
 
 from smbprotocol.transport import DirectTCPPacket, Tcp
@@ -39,3 +41,10 @@ class TestTcp(object):
         assert str(exc.value) == "Data to be sent over Direct TCP size " \
                                  "16777216 exceeds the max length allowed " \
                                  "16777215"
+
+    def test_recv_fail_non_blocking(self):
+        # ensure it doesn't loop when a non blocking error is raised
+        tcp = Tcp("0.0.0.0", 0)
+        with pytest.raises(socket.error) as err:
+            tcp._recv(10)
+        assert "Socket is not connect" in str(err.value)

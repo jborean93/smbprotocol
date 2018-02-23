@@ -35,6 +35,8 @@ init:
     $env:SMB_USER = $($env:USERNAME)
     $env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 
+    Set-SmbServerConfiguration -RequireSecuritySignature
+
 install:
 - ps: |
     pip install -U pip setuptools
