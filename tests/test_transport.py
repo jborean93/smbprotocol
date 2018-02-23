@@ -1,3 +1,4 @@
+import errno
 import socket
 
 import pytest
@@ -47,4 +48,4 @@ class TestTcp(object):
         tcp = Tcp("0.0.0.0", 0)
         with pytest.raises(socket.error) as err:
             tcp._recv(10)
-        assert "Socket is not connect" in str(err.value)
+        assert err.value.errno == errno.ENOTCONN
