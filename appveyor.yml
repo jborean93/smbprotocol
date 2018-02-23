@@ -35,7 +35,7 @@ init:
     $env:SMB_USER = $($env:USERNAME)
     $env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 
-    Set-SmbServerConfiguration -RequireSecuritySignature
+    Set-SmbServerConfiguration -RequireSecuritySignature $true
 
 install:
 - ps: |
