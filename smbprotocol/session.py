@@ -455,6 +455,13 @@ class Session(object):
 class NtlmContext(object):
 
     def __init__(self, username, password):
+        if username is None:
+            raise SMBAuthenticationError("The username must be set when using "
+                                         "NTLM authentication")
+        if password is None:
+            raise SMBAuthenticationError("The password must be set when using "
+                                         "NTLM authentication")
+
         # try and get the domain part from the username
         log.info("Setting up NTLM Security Context for user %s" % username)
         try:

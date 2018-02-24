@@ -5,8 +5,8 @@ import pytest
 
 from smbprotocol.connection import Connection, Dialects, SecurityMode
 from smbprotocol.exceptions import SMBAuthenticationError, SMBException
-from smbprotocol.session import Session, SMB2Logoff, SMB2SessionSetupRequest, \
-    SMB2SessionSetupResponse
+from smbprotocol.session import NtlmContext, Session, SMB2Logoff, \
+    SMB2SessionSetupRequest, SMB2SessionSetupResponse
 
 from .utils import smb_real
 
@@ -102,6 +102,39 @@ class TestSMB2Logoff(object):
         assert len(actual) == 4
         assert actual['structure_size'].get_value() == 4
         assert actual['reserved'].get_value() == 0
+
+
+class TestNtlmContext(object):
+
+    def test_no_username_fail(self):
+        with pytest.raises(SMBException) as exc:
+            NtlmContext(None, None)
+        assert str(exc.value) == "The username must be set when using NTLM " \
+                                 "authentication"
+
+    def test_no_password_fail(self):
+        with pytest.raises(SMBException) as exc:
+            NtlmContext("username", None)
+        assert str(exc.value) == "The password must be set when using NTLM " \
+                                 "authentication"
+
+    def test_username_without_domain(self):
+        actual = NtlmContext("username", "password")
+        assert actual.domain == ""
+        assert actual.username == "username"
+        assert actual.password == "password"
+
+    def test_username_in_netlogon_form(self):
+        actual = NtlmContext("DOMAIN\\username", "password")
+        assert actual.domain == "DOMAIN"
+        assert actual.username == "username"
+        assert actual.password == "password"
+
+    def test_username_in_upn_form(self):
+        actual = NtlmContext("username@DOMAIN.LOCAL", "password")
+        assert actual.domain == ""
+        assert actual.username == "username@DOMAIN.LOCAL"
+        assert actual.password == "password"
 
 
 class TestSession(object):

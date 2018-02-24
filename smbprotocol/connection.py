@@ -705,8 +705,7 @@ class SMB2TransformHeader(Structure):
 
 class Connection(object):
 
-    def __init__(self, guid, server_name, port=445, require_signing=True,
-                 timeout=60):
+    def __init__(self, guid, server_name, port=445, require_signing=True):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -720,15 +719,12 @@ class Connection(object):
         :param port: The port to use for the transport, default is 445
         :param require_signing: Whether signing is required on SMB messages
             sent over this connection
-        :param timeout: The default connection timeout used when waiting for
-            a response from the server
         """
         log.info("Initialising connection, guid: %s, require_singing: %s, "
                  "server_name: %s, port: %d"
                  % (guid, require_signing, server_name, port))
         self.server_name = server_name
         self.port = port
-        self.timeout = timeout
         self.transport = Tcp(server_name, port)
 
         # Table of Session entries
@@ -802,7 +798,7 @@ class Connection(object):
         # data being read in multiple locations
         self.rec_lock = Lock()
 
-    def connect(self, dialect=None):
+    def connect(self, dialect=None, timeout=60):
         """
         Will connect to the target server and negotiate the capabilities
         with the client. Once setup, the client MUST call the disconnect()
@@ -813,12 +809,14 @@ class Connection(object):
         :param dialect: If specified, forces the dialect that is negotiated
             with the server, if not set, then the newest dialect supported by
             the server is used up to SMB 3.1.1
+        :param timeout: The timeout in seconds to wait for the initial
+            negotiation process to complete
         """
         log.info("Setting up transport connection")
         self.transport.connect()
 
         log.info("Starting negotiation with SMB server")
-        smb_response = self._send_smb2_negotiate(dialect)
+        smb_response = self._send_smb2_negotiate(dialect, timeout)
         log.info("Negotiated dialect: %s"
                  % str(smb_response['dialect_revision']))
         self.dialect = smb_response['dialect_revision'].get_value()
@@ -985,13 +983,10 @@ class Connection(object):
         :param wait: Wait for the final response in the case of a
             STATUS_PENDING response, the pending response is returned in the
             case of wait=False
-        :param timeout: Override the default timeout used to setup the
-            Connection, will raise an SMBException if the timeout is reached.
+        :param timeout: Set a timeout used while waiting for a response from
+            the server
         :return: SMB2HeaderResponse of the received message
         """
-        rec_timeout = self.timeout
-        if timeout:
-            rec_timeout = timeout
         start_time = time.time()
 
         # check if we have received a response
@@ -1003,10 +998,10 @@ class Connection(object):
                                        status != NtStatus.STATUS_PENDING):
                 break
             current_time = time.time() - start_time
-            if current_time > rec_timeout:
+            if timeout and (current_time > timeout):
                 error_msg = "Connection timeout of %d seconds exceeded while" \
                             " waiting for a response from the server" \
-                            % rec_timeout
+                            % timeout
                 raise smbprotocol.exceptions.SMBException(error_msg)
 
         response = request.response
@@ -1217,7 +1212,7 @@ class Connection(object):
         dec_message = c.decrypt(nonce, enc_message, message.pack()[20:52])
         return dec_message
 
-    def _send_smb2_negotiate(self, dialect):
+    def _send_smb2_negotiate(self, dialect, timeout):
         self.salt = os.urandom(32)
 
         if dialect is None:
@@ -1290,7 +1285,7 @@ class Connection(object):
         request = self.send(neg_req)
         self.preauth_integrity_hash_value.append(request.message)
 
-        response = self.receive(request)
+        response = self.receive(request, timeout)
         log.info("Receiving SMB2 Negotiate response")
         log.debug(str(response))
         self.preauth_integrity_hash_value.append(response)
