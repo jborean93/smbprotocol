@@ -48,7 +48,6 @@ class TestTcp(object):
         tcp = Tcp("0.0.0.0", 0)
         with pytest.raises(socket.error) as err:
             tcp.send(b"\x01\x02\x03\x04")
-        assert err.value.errno == errno.ENOTCONN
 
     def test_recv_fail_non_blocking(self):
         # ensure it doesn't loop when a non blocking error is raised
