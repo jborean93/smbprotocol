@@ -2,6 +2,7 @@ import errno
 import logging
 import socket
 import struct
+import threading
 
 from smbprotocol.structure import BytesField, IntField, Structure
 
@@ -45,6 +46,11 @@ class Tcp(object):
         self.server = server
         self.port = port
 
+        # used in multithreading processes to ensure send and recv isn't run at
+        # the same time
+        self.send_lock = threading.Lock()
+        self.recv_lock = threading.Lock()
+
         self._connected = False
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -72,27 +78,37 @@ class Tcp(object):
         tcp_packet['smb2_message'] = request
         data = tcp_packet.pack()
 
-        while data:
-            sent = 0
-            try:
-                sent = self._sock.send(data)
-            except socket.error as err:
-                if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                    raise err
-            data = data[sent:]
+        self.send_lock.acquire()
+        try:
+            while data:
+                sent = 0
+                try:
+                    sent = self._sock.send(data)
+                except socket.error as err:
+                    if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
+                        raise err
+                data = data[sent:]
+        finally:
+            self.send_lock.release()
 
     def receive(self):
         # receive first 4 bytes that contain the size of the packet, return
         # None if no data is available, Connection handles this scenario
-        packet_size_bytes = self._recv(4)
-        if packet_size_bytes is None:
-            return
+        self.recv_lock.acquire()
+        try:
+            packet_size_bytes = self._recv(4)
+            if packet_size_bytes is None:
+                return
 
-        packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
-        buffer = self._recv(packet_size_int)
+            packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
+            # we know there is 4 bytes so need to wait for the full stream to
+            # return before releasing the lock
+            buffer = self._recv(packet_size_int, wait=True)
+        finally:
+            self.recv_lock.release()
         return buffer
 
-    def _recv(self, buffer):
+    def _recv(self, buffer, wait=False):
         # will attempt to retrieve the data in the recv buffer based on the
         # buffer size or return None if nothing available
         bytes = b""
@@ -104,7 +120,7 @@ class Tcp(object):
                 if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
                     raise err
                 # this was the first request so return None
-                elif bytes == b"":
+                elif bytes == b"" and not wait:
                     return None
                 # we started getting data and there is still some remaining
                 # so try again

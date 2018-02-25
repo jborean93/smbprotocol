@@ -9,7 +9,7 @@ import os
 import struct
 import time
 from datetime import datetime
-from multiprocessing.dummy import Lock
+from threading import Lock
 
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
@@ -672,6 +672,26 @@ class SMB2NegotiateResponse(Structure):
         return negotiate_context, data[8 + data_length + padded_size:]
 
 
+class SMB2Echo(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.28 SMB2 Echo Request/Response
+    Request and response for an SMB ECHO message.
+    """
+    COMMAND = Commands.SMB2_ECHO
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=4
+            )),
+            ('reserved', IntField(size=2))
+        ])
+        super(SMB2Echo, self).__init__()
+
+
 class SMB2TransformHeader(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -794,10 +814,6 @@ class Connection(object):
         # used to ensure sequence num/message id's are gathered/sent in the
         # same order if running in multiple threads
         self.lock = Lock()
-
-        # used to ensure only 1 call to transport.receive is called to avoid
-        # data being read in multiple locations
-        self.rec_lock = Lock()
 
     def connect(self, dialect=None, timeout=60):
         """
@@ -971,6 +987,7 @@ class Connection(object):
 
         if session.encrypt_data or tree.encrypt_data:
             send_data = self._encrypt(send_data, session)
+
         self.transport.send(send_data)
 
         return requests
@@ -1016,6 +1033,22 @@ class Connection(object):
         del self.outstanding_requests[message_id]
 
         return response
+
+    def echo(self, timeout=60, credit_request=1):
+        log.info("Sending Echo request with a timeout of %d and credit "
+                 "request of %d" % (timeout, credit_request))
+
+        echo_msg = SMB2Echo()
+        log.debug(str(echo_msg))
+        req = self.send(echo_msg, credit_request=credit_request)
+
+        log.info("Receiving Echo response")
+        response = self.receive(req, timeout=timeout)
+        log.info("Credits granted from the server echo response: %d"
+                 % response['credit_response'].get_value())
+        echo_resp = SMB2Echo()
+        echo_resp.unpack(response['data'].get_value())
+        log.debug(str(echo_resp))
 
     def _generate_packet_header(self, message, session_id, tree_id,
                                 credit_request):
@@ -1065,9 +1098,9 @@ class Connection(object):
         self.outstanding_requests
         """
         while True:
-            self.rec_lock.acquire()
             message_bytes = self.transport.receive()
-            self.rec_lock.release()
+
+            # there were no messages receives, so break from the loop
             if message_bytes is None:
                 break
 

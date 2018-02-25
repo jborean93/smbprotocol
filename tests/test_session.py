@@ -253,7 +253,7 @@ class TestSession(object):
             assert not session.signing_required
         finally:
             connection.disconnect(True)
-            # test that disconnect can be run mutliple times
+            # test that disconnect can be run multiple times
             session.disconnect()
 
     def test_require_encryption(self, smb_real):
@@ -282,7 +282,6 @@ class TestSession(object):
     def test_require_encryption_not_supported(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
-        session = None
         try:
             session = Session(connection, smb_real[0], smb_real[1])
             with pytest.raises(SMBException) as exc:

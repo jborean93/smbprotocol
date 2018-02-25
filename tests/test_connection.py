@@ -1,12 +1,14 @@
 import hashlib
+import os
 import uuid
 
 import pytest
+
 from cryptography.hazmat.primitives.ciphers import aead
 from datetime import datetime
 from smbprotocol.connection import Ciphers, Commands, Connection, Dialects, \
     HashAlgorithms, NegotiateContextType, SecurityMode, \
-    SMB2EncryptionCapabilities, Smb2Flags, SMB2HeaderRequest, \
+    SMB2EncryptionCapabilities, Smb2Flags, SMB2Echo, SMB2HeaderRequest, \
     SMB2HeaderResponse, SMB2NegotiateContextRequest, SMB2NegotiateRequest, \
     SMB2NegotiateResponse, SMB2PreauthIntegrityCapabilities, \
     SMB2TransformHeader, SMB3NegotiateRequest
@@ -728,6 +730,27 @@ class TestSMB2NegotiateResponse(object):
         assert preauth_cap['salt'].get_value() == b"\x22" * 32
 
 
+class TestSMB2Echo(object):
+
+    def test_create_message(self):
+        message = SMB2Echo()
+        expected = b"\x04\x00" \
+                   b"\x00\x00"
+        actual = message.pack()
+        assert len(message) == 4
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2Echo()
+        data = b"\x04\x00" \
+               b"\x00\x00"
+        data = actual.unpack(data)
+        assert len(actual) == 4
+        assert data == b""
+        assert actual['structure_size'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+
+
 class TestSMB2TransformHeader(object):
 
     def test_create_message(self):
@@ -886,6 +909,7 @@ class TestConnection(object):
             # for tests we set that server requires signing so that overrides
             # the client setting
             assert connection.require_signing
+            connection.echo(credit_request=10)
         finally:
             connection.disconnect()
 
@@ -1026,3 +1050,63 @@ class TestConnection(object):
                                      "the session tree table"
         finally:
             connection.disconnect()
+
+    def test_connection_echo(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        try:
+            connection.echo()
+        finally:
+            connection.disconnect(True)
+
+    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
+                        reason="Travis-CI Python 2.6 does not support AES CCM")
+    def test_encrypt_ccm(self, monkeypatch):
+        def mockurandom(length):
+            return b"\xff" * length
+        monkeypatch.setattr(os, 'urandom', mockurandom)
+
+        connection = Connection(uuid.uuid4(), "server", 445)
+        connection.dialect = Dialects.SMB_3_1_1
+        connection.cipher_id = Ciphers.get_cipher(Ciphers.AES_128_CCM)
+        session = Session(connection, "user", "pass")
+        session.session_id = 1
+        session.encryption_key = b"\xff" * 16
+
+        expected = SMB2TransformHeader()
+        expected['signature'] = b"\xc8\x73\x0c\x9b\xa7\xe5\x9f\x1c" \
+            b"\xfd\x37\x51\xa1\x95\xf2\xb3\xac"
+        expected['nonce'] = b"\xff" * 11 + b"\x00" * 5
+        expected['original_message_size'] = 4
+        expected['flags'] = 1
+        expected['session_id'] = 1
+        expected['data'] = b"\x21\x91\xe3\x0e"
+
+        actual = connection._encrypt(b"\x01\x02\x03\x04", session)
+        assert isinstance(actual, SMB2TransformHeader)
+        assert actual.pack() == expected.pack()
+
+    def test_encrypt_gcm(self, monkeypatch):
+        def mockurandom(length):
+            return b"\xff" * length
+        monkeypatch.setattr(os, 'urandom', mockurandom)
+
+        connection = Connection(uuid.uuid4(), "server", 445)
+        connection.dialect = Dialects.SMB_3_1_1
+        connection.cipher_id = Ciphers.get_cipher(Ciphers.AES_128_GCM)
+        session = Session(connection, "user", "pass")
+        session.session_id = 1
+        session.encryption_key = b"\xff" * 16
+
+        expected = SMB2TransformHeader()
+        expected['signature'] = b"\x39\xd8\x32\x34\xd7\x53\xd0\x8e" \
+            b"\xc0\xfc\xbe\x33\x01\x5f\x19\xbd"
+        expected['nonce'] = b"\xff" * 12 + b"\x00" * 4
+        expected['original_message_size'] = 4
+        expected['flags'] = 1
+        expected['session_id'] = 1
+        expected['data'] = b"\xda\x26\x57\x33"
+
+        actual = connection._encrypt(b"\x01\x02\x03\x04", session)
+        assert isinstance(actual, SMB2TransformHeader)
+        assert actual.pack() == expected.pack()

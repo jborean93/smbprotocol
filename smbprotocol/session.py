@@ -271,9 +271,9 @@ class Session(object):
         # TODO: remove from preauth session table and move to session_table
         self.connection.session_table[self.session_id] = self
 
-        # session_key is the first 16 bytes, left padded 0 if less than 16
-        if len(session_key) < 16:
-            session_key += b"\x00" * (16 - len(session_key))
+        # session_key is the first 16 bytes, padded 0 if less than 16
+        padding_len = 16 - len(session_key) if len(session_key) < 16 else 0
+        session_key += b"\x00" * padding_len
         self.session_key = session_key[:16]
 
         if self.connection.dialect >= Dialects.SMB_3_1_1:
@@ -358,13 +358,13 @@ class Session(object):
             for tree in list(self.tree_connect_table.values()):
                 tree.disconnect()
 
-        log.info("Session: %d - Logging off of SMB Session" % self.session_id)
+        log.info("Session: %s - Logging off of SMB Session" % self.username)
         logoff = SMB2Logoff()
-        log.info("Session: %d - Sending Logoff message" % self.session_id)
+        log.info("Session: %s - Sending Logoff message" % self.username)
         log.debug(str(logoff))
         request = self.connection.send(logoff, sid=self.session_id)
 
-        log.info("Session: %d - Receiving Logoff response" % self.session_id)
+        log.info("Session: %s - Receiving Logoff response" % self.username)
         res = self.connection.receive(request)
         res_logoff = SMB2Logoff()
         res_logoff.unpack(res['data'].get_value())

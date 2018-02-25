@@ -2000,3 +2000,36 @@ class TestOpen(object):
                                      "from the server"
         finally:
             connection.disconnect(True)
+
+    def test_close_file_invalid_id(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file.txt")
+
+        try:
+            session.connect()
+            tree.connect()
+
+            open.open(ImpersonationLevel.Impersonation,
+                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                      0,
+                      CreateDisposition.FILE_OVERWRITE_IF,
+                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+
+            # create a request for a known failure and pass that into the
+            # _close_response to ensure the exception is thrown
+            read_msg = open.read(10, 0, min_length=1024,
+                                 send=False)[0]
+            req = connection.send(read_msg, sid=session.session_id,
+                                  tid=tree.tree_connect_id)
+
+            with pytest.raises(SMBException) as exc:
+                open._close_response(req)
+            assert str(exc.value) == "Received unexpected status from the " \
+                                     "server: (3221225489) " \
+                                     "STATUS_END_OF_FILE: 0xc0000011"
+        finally:
+            connection.disconnect(True)
