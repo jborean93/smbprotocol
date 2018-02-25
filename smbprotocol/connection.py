@@ -1034,13 +1034,27 @@ class Connection(object):
 
         return response
 
-    def echo(self, timeout=60, credit_request=1):
+    def echo(self, sid=0, timeout=60, credit_request=1):
+        """
+        Sends an SMB2 Echo request to the server. This can be used to request
+        more credits from the server with the credit_request param.
+
+        On a Samba server, the sid can be 0 but for a Windows SMB Server, the
+        sid of an authenticated session must be passed into this function or
+        else the socket will close.
+
+        :param sid: When talking to a Windows host this must be populated with
+            a valid session_id from a negotiated session
+        :param timeout: The timeout in seconds to wait for the Echo Response
+        :param credit_request: The number of credits to request
+        :return: the credits that were granted by the server
+        """
         log.info("Sending Echo request with a timeout of %d and credit "
                  "request of %d" % (timeout, credit_request))
 
         echo_msg = SMB2Echo()
         log.debug(str(echo_msg))
-        req = self.send(echo_msg, credit_request=credit_request)
+        req = self.send(echo_msg, sid=sid, credit_request=credit_request)
 
         log.info("Receiving Echo response")
         response = self.receive(req, timeout=timeout)
@@ -1049,6 +1063,8 @@ class Connection(object):
         echo_resp = SMB2Echo()
         echo_resp.unpack(response['data'].get_value())
         log.debug(str(echo_resp))
+
+        return response['credit_response'].get_value()
 
     def _generate_packet_header(self, message, session_id, tree_id,
                                 credit_request):

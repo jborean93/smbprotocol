@@ -909,7 +909,6 @@ class TestConnection(object):
             # for tests we set that server requires signing so that overrides
             # the client setting
             assert connection.require_signing
-            connection.echo(credit_request=10)
         finally:
             connection.disconnect()
 
@@ -1054,8 +1053,11 @@ class TestConnection(object):
     def test_connection_echo(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        session.connect()
         try:
-            connection.echo()
+            actual = connection.echo(sid=session.session_id, credit_request=2)
+            assert actual == 2
         finally:
             connection.disconnect(True)
 
