@@ -1079,20 +1079,22 @@ class Connection(object):
         # adjusting the sequence window is important so we acquire a lock to
         # ensure only one is run at a point in time
         self.lock.acquire()
-        sequence_window_low = self.sequence_window['low']
-        sequence_window_high = self.sequence_window['high']
-        credit_charge = self._calculate_credit_charge(message)
-        credits_available = sequence_window_high - sequence_window_low
-        if credit_charge > credits_available:
-            error_msg = "Request requires %d credits but only %d credits " \
-                        "are available" \
-                        % (credit_charge, credits_available)
-            raise smbprotocol.exceptions.SMBException(error_msg)
+        try:
+            sequence_window_low = self.sequence_window['low']
+            sequence_window_high = self.sequence_window['high']
+            credit_charge = self._calculate_credit_charge(message)
+            credits_available = sequence_window_high - sequence_window_low
+            if credit_charge > credits_available:
+                error_msg = "Request requires %d credits but only %d " \
+                            "credits are available" \
+                            % (credit_charge, credits_available)
+                raise smbprotocol.exceptions.SMBException(error_msg)
 
-        message_id = sequence_window_low
-        self.sequence_window['low'] += \
-            credit_charge if credit_charge > 0 else 1
-        self.lock.release()
+            message_id = sequence_window_low
+            self.sequence_window['low'] += \
+                credit_charge if credit_charge > 0 else 1
+        finally:
+            self.lock.release()
 
         header = SMB2HeaderRequest()
         header['credit_charge'] = credit_charge
