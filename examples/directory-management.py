@@ -25,7 +25,7 @@ try:
 
     # ensure directory is created
     dir_open = Open(tree, dir_name)
-    dir_open.open(
+    dir_open.create(
         ImpersonationLevel.Impersonation,
         DirectoryAccessMask.GENERIC_READ | DirectoryAccessMask.GENERIC_WRITE,
         FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
@@ -37,14 +37,14 @@ try:
     # create some files in dir and query the contents as part of a compound
     # request
     directory_file = Open(tree, r"%s\file.txt" % dir_name)
-    directory_file.open(ImpersonationLevel.Impersonation,
-                        FilePipePrinterAccessMask.GENERIC_WRITE |
-                        FilePipePrinterAccessMask.DELETE,
-                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                        ShareAccess.FILE_SHARE_READ,
-                        CreateDisposition.FILE_OVERWRITE_IF,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE |
-                        CreateOptions.FILE_DELETE_ON_CLOSE)
+    directory_file.create(ImpersonationLevel.Impersonation,
+                          FilePipePrinterAccessMask.GENERIC_WRITE |
+                          FilePipePrinterAccessMask.DELETE,
+                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                          ShareAccess.FILE_SHARE_READ,
+                          CreateDisposition.FILE_OVERWRITE_IF,
+                          CreateOptions.FILE_NON_DIRECTORY_FILE |
+                          CreateOptions.FILE_DELETE_ON_CLOSE)
 
     compound_messages = [
         directory_file.write("Hello World".encode('utf-8'), 0, send=False),
@@ -72,7 +72,7 @@ try:
     # delete a directory (note the dir needs to be empty to delete on close)
     dir_open = Open(tree, dir_name)
     delete_msgs = [
-        dir_open.open(
+        dir_open.create(
             ImpersonationLevel.Impersonation,
             DirectoryAccessMask.DELETE,
             FileAttributes.FILE_ATTRIBUTE_DIRECTORY,

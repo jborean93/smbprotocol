@@ -970,12 +970,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                                 0,
-                                 CreateDisposition.FILE_OVERWRITE_IF,
-                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
             assert isinstance(open.change_time, datetime)
@@ -1011,12 +1011,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                                 0,
-                                 CreateDisposition.FILE_OVERWRITE_IF,
-                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
             assert isinstance(open.change_time, datetime)
@@ -1055,12 +1055,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                                 0,
-                                 CreateDisposition.FILE_OVERWRITE_IF,
-                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
             assert isinstance(open.change_time, datetime)
@@ -1101,12 +1101,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                                 0,
-                                 CreateDisposition.FILE_OVERWRITE_IF,
-                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
             assert isinstance(open.change_time, datetime)
@@ -1144,12 +1144,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                                 0,
-                                 CreateDisposition.FILE_OVERWRITE_IF,
-                                 CreateOptions.FILE_NON_DIRECTORY_FILE)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
             assert isinstance(open.change_time, datetime)
@@ -1190,12 +1190,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            dir_open.open(ImpersonationLevel.Impersonation,
-                          DirectoryAccessMask.MAXIMUM_ALLOWED,
-                          FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                          0,
-                          CreateDisposition.FILE_OPEN_IF,
-                          CreateOptions.FILE_DIRECTORY_FILE)
+            dir_open.create(ImpersonationLevel.Impersonation,
+                            DirectoryAccessMask.MAXIMUM_ALLOWED,
+                            FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                            0,
+                            CreateDisposition.FILE_OPEN_IF,
+                            CreateOptions.FILE_DIRECTORY_FILE)
             dir_open.close(get_attributes=False)
         finally:
             connection.disconnect(True)
@@ -1214,12 +1214,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 DirectoryAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                                 0,
-                                 CreateDisposition.FILE_OPEN_IF,
-                                 CreateOptions.FILE_DIRECTORY_FILE)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   DirectoryAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                                   0,
+                                   CreateDisposition.FILE_OPEN_IF,
+                                   CreateOptions.FILE_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
             assert isinstance(open.change_time, datetime)
@@ -1284,13 +1284,13 @@ class TestOpen(object):
                 query_disk,
                 max_req
             ]
-            out_cont = open.open(ImpersonationLevel.Impersonation,
-                                 FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                                 FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                                 0,
-                                 CreateDisposition.FILE_OVERWRITE_IF,
-                                 CreateOptions.FILE_NON_DIRECTORY_FILE,
-                                 create_contexts)
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE,
+                                   create_contexts)
             assert len(out_cont) == 2
             assert isinstance(out_cont[0],
                               SMB2CreateQueryMaximalAccessResponse) or \
@@ -1311,12 +1311,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             actual = open.write(b"\x01\x02\x03\x04")
             assert actual == 4
@@ -1338,12 +1338,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
             open.flush()
         finally:
             connection.disconnect(True)
@@ -1358,12 +1358,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             old_last_write_time = open.last_write_time
             old_end_of_file = open.end_of_file
@@ -1385,12 +1385,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             old_last_write_time = open.last_write_time
             old_end_of_file = open.end_of_file
@@ -1415,12 +1415,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             open.write(b"\x01")
             actual = open.read(0, 1, unbuffered=True)
@@ -1441,12 +1441,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             open.write(b"\x01")
             with pytest.raises(SMBUnsupportedFeature) as exc:
@@ -1474,13 +1474,13 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE |
-                      CreateOptions.FILE_WRITE_THROUGH)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE |
+                        CreateOptions.FILE_WRITE_THROUGH)
 
             actual = open.write(b"\x01", write_through=True)
             assert actual == 1
@@ -1499,13 +1499,13 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE |
-                      CreateOptions.FILE_WRITE_THROUGH)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE |
+                        CreateOptions.FILE_WRITE_THROUGH)
 
             with pytest.raises(SMBUnsupportedFeature) as exc:
                 open.write(b"\x01", write_through=True)
@@ -1532,13 +1532,13 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE |
-                      CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE |
+                        CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
 
             actual = open.write(b"\x01", unbuffered=True)
             assert actual == 1
@@ -1557,13 +1557,13 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE |
-                      CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE |
+                        CreateOptions.FILE_NO_INTERMEDIATE_BUFFERING)
 
             with pytest.raises(SMBUnsupportedFeature) as exc:
                 open.write(b"\x01", unbuffered=True)
@@ -1588,31 +1588,31 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      DirectoryAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                      ShareAccess.FILE_SHARE_READ |
-                      ShareAccess.FILE_SHARE_WRITE |
-                      ShareAccess.FILE_SHARE_DELETE,
-                      CreateDisposition.FILE_OPEN_IF,
-                      CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        DirectoryAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                        ShareAccess.FILE_SHARE_READ |
+                        ShareAccess.FILE_SHARE_WRITE |
+                        ShareAccess.FILE_SHARE_DELETE,
+                        CreateDisposition.FILE_OPEN_IF,
+                        CreateOptions.FILE_DIRECTORY_FILE)
 
             file1 = Open(tree, r"directory\\file1.txt")
-            file1.open(ImpersonationLevel.Impersonation,
-                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                       ShareAccess.FILE_SHARE_READ,
-                       CreateDisposition.FILE_OVERWRITE_IF,
-                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file1.create(ImpersonationLevel.Impersonation,
+                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                         ShareAccess.FILE_SHARE_READ,
+                         CreateDisposition.FILE_OVERWRITE_IF,
+                         CreateOptions.FILE_NON_DIRECTORY_FILE)
             file1.write(b"\x01\x02\x03\x04", 0)
 
             file2 = Open(tree, r"directory\\file2.log")
-            file2.open(ImpersonationLevel.Impersonation,
-                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                       ShareAccess.FILE_SHARE_READ,
-                       CreateDisposition.FILE_OVERWRITE_IF,
-                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file2.create(ImpersonationLevel.Impersonation,
+                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                         ShareAccess.FILE_SHARE_READ,
+                         CreateDisposition.FILE_OVERWRITE_IF,
+                         CreateOptions.FILE_NON_DIRECTORY_FILE)
             file2.write(b"\x05\x06", 0)
 
             actual = open.query_directory("*",
@@ -1651,16 +1651,16 @@ class TestOpen(object):
             tree.connect()
 
             messages = [
-                open.open(ImpersonationLevel.Impersonation,
-                          FilePipePrinterAccessMask.GENERIC_READ |
-                          FilePipePrinterAccessMask.GENERIC_WRITE |
-                          FilePipePrinterAccessMask.DELETE,
-                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                          0,
-                          CreateDisposition.FILE_OVERWRITE_IF,
-                          CreateOptions.FILE_NON_DIRECTORY_FILE |
-                          CreateOptions.FILE_DELETE_ON_CLOSE,
-                          send=False),
+                open.create(ImpersonationLevel.Impersonation,
+                            FilePipePrinterAccessMask.GENERIC_READ |
+                            FilePipePrinterAccessMask.GENERIC_WRITE |
+                            FilePipePrinterAccessMask.DELETE,
+                            FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                            0,
+                            CreateDisposition.FILE_OVERWRITE_IF,
+                            CreateOptions.FILE_NON_DIRECTORY_FILE |
+                            CreateOptions.FILE_DELETE_ON_CLOSE,
+                            send=False),
                 open.write(b"\x01\x02\x03\x04", send=False),
                 open.read(0, 4, send=False),
                 open.close(False, send=False)
@@ -1695,16 +1695,16 @@ class TestOpen(object):
             tree.connect()
 
             messages = [
-                open.open(ImpersonationLevel.Impersonation,
-                          FilePipePrinterAccessMask.GENERIC_READ |
-                          FilePipePrinterAccessMask.GENERIC_WRITE |
-                          FilePipePrinterAccessMask.DELETE,
-                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                          0,
-                          CreateDisposition.FILE_OVERWRITE_IF,
-                          CreateOptions.FILE_NON_DIRECTORY_FILE |
-                          CreateOptions.FILE_DELETE_ON_CLOSE,
-                          send=False),
+                open.create(ImpersonationLevel.Impersonation,
+                            FilePipePrinterAccessMask.GENERIC_READ |
+                            FilePipePrinterAccessMask.GENERIC_WRITE |
+                            FilePipePrinterAccessMask.DELETE,
+                            FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                            0,
+                            CreateDisposition.FILE_OVERWRITE_IF,
+                            CreateOptions.FILE_NON_DIRECTORY_FILE |
+                            CreateOptions.FILE_DELETE_ON_CLOSE,
+                            send=False),
                 open.write(b"\x01\x02\x03\x04", send=False),
                 open.read(0, 4, send=False),
                 open.close(False, send=False)
@@ -1739,29 +1739,29 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      DirectoryAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                      ShareAccess.FILE_SHARE_READ |
-                      ShareAccess.FILE_SHARE_WRITE |
-                      ShareAccess.FILE_SHARE_DELETE,
-                      CreateDisposition.FILE_OPEN_IF,
-                      CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        DirectoryAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                        ShareAccess.FILE_SHARE_READ |
+                        ShareAccess.FILE_SHARE_WRITE |
+                        ShareAccess.FILE_SHARE_DELETE,
+                        CreateDisposition.FILE_OPEN_IF,
+                        CreateOptions.FILE_DIRECTORY_FILE)
 
             file1 = Open(tree, r"directory\\file1.txt")
-            file1.open(ImpersonationLevel.Impersonation,
-                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                       ShareAccess.FILE_SHARE_READ,
-                       CreateDisposition.FILE_OVERWRITE_IF,
-                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file1.create(ImpersonationLevel.Impersonation,
+                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                         ShareAccess.FILE_SHARE_READ,
+                         CreateDisposition.FILE_OVERWRITE_IF,
+                         CreateOptions.FILE_NON_DIRECTORY_FILE)
             file2 = Open(tree, r"directory\\file2.log")
-            file2.open(ImpersonationLevel.Impersonation,
-                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                       ShareAccess.FILE_SHARE_READ,
-                       CreateDisposition.FILE_OVERWRITE_IF,
-                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file2.create(ImpersonationLevel.Impersonation,
+                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                         ShareAccess.FILE_SHARE_READ,
+                         CreateDisposition.FILE_OVERWRITE_IF,
+                         CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             # create messages for each operation
             messages = [
@@ -1835,29 +1835,29 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      DirectoryAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                      ShareAccess.FILE_SHARE_READ |
-                      ShareAccess.FILE_SHARE_WRITE |
-                      ShareAccess.FILE_SHARE_DELETE,
-                      CreateDisposition.FILE_OPEN_IF,
-                      CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        DirectoryAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                        ShareAccess.FILE_SHARE_READ |
+                        ShareAccess.FILE_SHARE_WRITE |
+                        ShareAccess.FILE_SHARE_DELETE,
+                        CreateDisposition.FILE_OPEN_IF,
+                        CreateOptions.FILE_DIRECTORY_FILE)
 
             file1 = Open(tree, r"directory\\file1.txt")
-            file1.open(ImpersonationLevel.Impersonation,
-                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                       ShareAccess.FILE_SHARE_READ,
-                       CreateDisposition.FILE_OVERWRITE_IF,
-                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file1.create(ImpersonationLevel.Impersonation,
+                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                         ShareAccess.FILE_SHARE_READ,
+                         CreateDisposition.FILE_OVERWRITE_IF,
+                         CreateOptions.FILE_NON_DIRECTORY_FILE)
             file2 = Open(tree, r"directory\\file2.log")
-            file2.open(ImpersonationLevel.Impersonation,
-                       FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                       FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                       ShareAccess.FILE_SHARE_READ,
-                       CreateDisposition.FILE_OVERWRITE_IF,
-                       CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file2.create(ImpersonationLevel.Impersonation,
+                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                         ShareAccess.FILE_SHARE_READ,
+                         CreateDisposition.FILE_OVERWRITE_IF,
+                         CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             # create messages for each operation
             messages = [
@@ -1932,12 +1932,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
             open.close()
 
             # we will just manually say it is still connected so we get the
@@ -1957,12 +1957,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             with pytest.raises(SMBException) as exc:
                 open.read(0, connection.max_read_size + 1)
@@ -1983,12 +1983,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             with pytest.raises(SMBException) as exc:
                 open.write(b"\x00" * (connection.max_write_size + 1), 0)
@@ -2009,12 +2009,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
             open.write(b"\x01\x02\x03\x04", 0)
             actual = open.read(0, 65538)
             assert actual == b"\x01\x02\x03\x04"
@@ -2032,12 +2032,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
             read_req, unpack_func = open.write(b"\x00", 0, send=False)
             req = connection.send(read_req, sid=session.session_id,
                                   tid=tree.tree_connect_id)
@@ -2063,12 +2063,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
             read_req, unpack_func = open.write(b"\x00", 0, send=False)
             req = connection.send(read_req, sid=session.session_id,
                                   tid=tree.tree_connect_id)
@@ -2099,12 +2099,12 @@ class TestOpen(object):
             session.connect()
             tree.connect()
 
-            open.open(ImpersonationLevel.Impersonation,
-                      FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                      FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                      0,
-                      CreateDisposition.FILE_OVERWRITE_IF,
-                      CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             # create a request for a known failure and pass that into the
             # _close_response to ensure the exception is thrown

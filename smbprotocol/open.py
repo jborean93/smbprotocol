@@ -931,9 +931,9 @@ class Open(object):
         self.file_attributes = None
         self.create_disposition = None
 
-    def open(self, impersonation_level, desired_access, file_attributes,
-             share_access, create_disposition, create_options,
-             create_contexts=None, send=True):
+    def create(self, impersonation_level, desired_access, file_attributes,
+               share_access, create_disposition, create_options,
+               create_contexts=None, send=True):
         """
         This will open the file based on the input parameters supplied. Any
         file open should also be called with Open.close() when it is finished.
@@ -998,7 +998,7 @@ class Open(object):
             self.create_disposition = create_disposition
 
         if not send:
-            return create, self._open_response
+            return create, self._create_response
 
         log.info("Session: %s, Tree Connect: %s - sending SMB2 Create Request "
                  "for file %s" % (self.tree_connect.session.username,
@@ -1009,9 +1009,9 @@ class Open(object):
         request = self.connection.send(create,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
-        return self._open_response(request)
+        return self._create_response(request)
 
-    def _open_response(self, request):
+    def _create_response(self, request):
         log.info("Session: %s, Tree Connect: %s - receiving SMB2 Create "
                  "Response" % (self.tree_connect.session.username,
                                self.tree_connect.share_name))

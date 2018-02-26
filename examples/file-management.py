@@ -58,7 +58,7 @@ try:
     ]
 
     file_open = Open(tree, file_name)
-    open_info = file_open.open(
+    open_info = file_open.create(
         ImpersonationLevel.Impersonation,
         FilePipePrinterAccessMask.GENERIC_READ |
         FilePipePrinterAccessMask.GENERIC_WRITE,
@@ -93,7 +93,7 @@ try:
     # read and delete a file in a single SMB packet instead of 3
     file_open = Open(tree, file_name)
     delete_msgs = [
-        file_open.open(
+        file_open.create(
             ImpersonationLevel.Impersonation,
             FilePipePrinterAccessMask.GENERIC_READ |
             FilePipePrinterAccessMask.DELETE,
