@@ -4,7 +4,7 @@ from smbprotocol.connection import Connection
 from smbprotocol.create_contexts import CreateContextName, \
     SMB2CreateContextRequest, SMB2CreateQueryMaximalAccessRequest
 from smbprotocol.security_descriptor import AccessAllowedAce, AccessMask, \
-    AclPacket, SIDPacket, SMB2CreateSDBuffer
+    AclPacket, SDControl, SIDPacket, SMB2CreateSDBuffer
 from smbprotocol.session import Session
 from smbprotocol.structure import FlagField
 from smbprotocol.open import CreateDisposition, CreateOptions, \
@@ -13,9 +13,9 @@ from smbprotocol.open import CreateDisposition, CreateOptions, \
 from smbprotocol.tree import TreeConnect
 
 server = "127.0.0.1"
-port = 1445
+port = 445
 username = "smbuser"
-password = "smbpassword1"
+password = "smbpassword"
 share = r"\\%s\share" % server
 file_name = "file-test.txt"
 
@@ -46,6 +46,7 @@ try:
     acl['aces'] = [ace]
 
     sec_desc = SMB2CreateSDBuffer()
+    sec_desc['control'].set_flag(SDControl.SELF_RELATIVE)
     sec_desc.set_dacl(acl)
     sd_buffer = SMB2CreateContextRequest()
     sd_buffer['buffer_name'] = CreateContextName.SMB2_CREATE_SD_BUFFER
@@ -89,17 +90,31 @@ try:
           % (share, file_name, file_text.decode('utf-8')))
     file_open.close(False)
 
-    # delete a file
+    # read and delete a file in a single SMB packet instead of 3
     file_open = Open(tree, file_name)
-    file_open.open(
-        ImpersonationLevel.Impersonation,
-        FilePipePrinterAccessMask.DELETE,
-        FileAttributes.FILE_ATTRIBUTE_NORMAL,
-        0,
-        CreateDisposition.FILE_OPEN,
-        CreateOptions.FILE_NON_DIRECTORY_FILE |
-        CreateOptions.FILE_DELETE_ON_CLOSE
-    )
-    file_open.close(False)
+    delete_msgs = [
+        file_open.open(
+            ImpersonationLevel.Impersonation,
+            FilePipePrinterAccessMask.GENERIC_READ |
+            FilePipePrinterAccessMask.DELETE,
+            FileAttributes.FILE_ATTRIBUTE_NORMAL,
+            0,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE |
+            CreateOptions.FILE_DELETE_ON_CLOSE,
+            send=False
+        ),
+        file_open.read(0, len(text), send=False),
+        file_open.close(False, send=False)
+    ]
+    requests = connection.send_compound([x[0] for x in delete_msgs],
+                                        session.session_id,
+                                        tree.tree_connect_id, related=True)
+    responses = []
+    for i, request in enumerate(requests):
+        response = delete_msgs[i][1](request)
+        responses.append(response)
+    print("Text of file when reading/deleting in 1 request: %s"
+          % responses[1].decode('utf-8'))
 finally:
     connection.disconnect(True)

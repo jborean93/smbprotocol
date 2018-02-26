@@ -897,7 +897,10 @@ class Open(object):
         self.file_attributes = None
 
         # properties used privately
-        self.file_id = None
+        # set to { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF } to allow message
+        # compounding with the open as the first message, once opened this
+        # will be overwritten by the open response
+        self.file_id = b"\xff" * 16
         self.tree_connect = tree
         self.connection = tree.session.connection
         self.oplock_level = None
@@ -930,13 +933,19 @@ class Open(object):
 
     def open(self, impersonation_level, desired_access, file_attributes,
              share_access, create_disposition, create_options,
-             create_contexts=None):
+             create_contexts=None, send=True):
         """
         This will open the file based on the input parameters supplied. Any
         file open should also be called with Open.close() when it is finished.
 
         More details on how each option affects the open process can be found
         here https://msdn.microsoft.com/en-us/library/cc246502.aspx.
+
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMB2CreateRequest, receive_func) instead of
+        sending the the request and waiting for the response. The receive_func
+        can be used to get the response from the server by passing in the
+        Request that was used to sent it out of band.
 
         :param impersonation_level: (ImpersonationLevel) The type of
             impersonation level that is issuing the create request.
@@ -958,6 +967,9 @@ class Open(object):
         opening files. More details on create context request values can be
         found here https://msdn.microsoft.com/en-us/library/cc246504.aspx.
 
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
+
         :return: List of context response values or None if there are no
             context response values. If the context response value is not known
             to smbprotocol then the list value would be raw bytes otherwise
@@ -978,15 +990,28 @@ class Open(object):
             create['buffer_contexts'] = smbprotocol.create_contexts.\
                 SMB2CreateContextRequest.pack_multiple(create_contexts)
 
+        if self.connection.dialect >= Dialects.SMB_3_0_0:
+            self.desired_access = desired_access
+            self.share_mode = share_access
+            self.create_options = create_options
+            self.file_attributes = file_attributes
+            self.create_disposition = create_disposition
+
+        if not send:
+            return create, self._open_response
+
         log.info("Session: %s, Tree Connect: %s - sending SMB2 Create Request "
                  "for file %s" % (self.tree_connect.session.username,
                                   self.tree_connect.share_name,
                                   self.file_name))
+
         log.debug(str(create))
         request = self.connection.send(create,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
+        return self._open_response(request)
 
+    def _open_response(self, request):
         log.info("Session: %s, Tree Connect: %s - receiving SMB2 Create "
                  "Response" % (self.tree_connect.session.username,
                                self.tree_connect.share_name))
@@ -1002,13 +1027,6 @@ class Open(object):
         self.durable = False
         self.resilient_handle = False
         self.last_disconnect_time = 0
-
-        if self.connection.dialect >= Dialects.SMB_3_0_0:
-            self.desired_access = desired_access
-            self.share_mode = share_access
-            self.create_options = create_options
-            self.file_attributes = file_attributes
-            self.create_disposition = create_disposition
 
         self.creation_time = create_response['creation_time'].get_value()
         self.last_access_time = create_response['last_access_time'].get_value()
@@ -1289,7 +1307,8 @@ class Open(object):
             message to the caller and the unpack function
         :return: SMB2CloseResponse message received from the server
         """
-        if not self._connected:
+        # it is already closed and this isn't for an out of band request
+        if not self._connected and send:
             return
 
         close = SMB2CloseRequest()

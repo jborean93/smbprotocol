@@ -93,7 +93,7 @@ class Capabilities(object):
     """
     SMB2_GLOBAL_CAP_DFS = 0x00000001
     SMB2_GLOBAL_CAP_LEASING = 0x00000002
-    SMB2_GLOBAL_CAP_MTU = 0x00000004
+    SMB2_GLOBAL_CAP_LARGE_MTU = 0x00000004
     SMB2_GLOBAL_CAP_MULTI_CHANNEL = 0x00000008
     SMB2_GLOBAL_CAP_PERSISTENT_HANDLES = 0x00000010
     SMB2_GLOBAL_CAP_DIRECTORY_LEASING = 0x00000020
@@ -791,9 +791,9 @@ class Connection(object):
 
         # used for SMB 3.x for secure negotiate verification on tree connect
         self.negotiated_dialects = []
+        self.client_capabilities = Capabilities.SMB2_GLOBAL_CAP_LARGE_MTU | \
+            Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
 
-        # TODO: Add more capabilities
-        self.client_capabilities = Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
         self.client_security_mode = \
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED if \
             require_signing else SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
@@ -855,7 +855,7 @@ class Connection(object):
             self.supports_file_leasing = \
                 capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_LEASING)
             self.supports_multi_credit = \
-                capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_MTU)
+                capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_LARGE_MTU)
 
         # SMB 3.x
         if self.dialect >= Dialects.SMB_3_0_0:
@@ -943,7 +943,7 @@ class Connection(object):
 
         return request
 
-    def send_compound(self, messages, sid, tid):
+    def send_compound(self, messages, sid, tid, related=False):
         """
         Sends multiple messages within 1 TCP request, will fail if the size
         of the total length exceeds the maximum of the transport max.
@@ -976,6 +976,13 @@ class Connection(object):
 
             header = self._generate_packet_header(message, sid, tid, None)
             header['next_command'] = next_command
+            if i != 0 and related:
+                header['session_id'] = b"\xff" * 8
+                header['tree_id'] = b"\xff" * 4
+                header['flags'].set_flag(
+                    Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS
+                )
+
             if session.signing_required and session.signing_key:
                 self._sign(header, session, padding=padding)
             send_data += header.pack() + padding
@@ -1128,6 +1135,7 @@ class Connection(object):
 
             # now retrieve message(s) from response
             is_last = False
+            session_id = None
             while not is_last:
                 next_command = struct.unpack("<L", message_bytes[20:24])[0]
                 header_length = \
@@ -1135,7 +1143,12 @@ class Connection(object):
                 header_bytes = message_bytes[:header_length]
                 message = SMB2HeaderResponse()
                 message.unpack(header_bytes)
-                self._verify(message)
+
+                flags = message['flags']
+                if not flags.has_flag(Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS):
+                    session_id = message['session_id'].get_value()
+
+                self._verify(message, session_id)
                 message_id = message['message_id'].get_value()
                 request = self.outstanding_requests.get(message_id, None)
                 if not request:
@@ -1160,12 +1173,11 @@ class Connection(object):
         signature = self._generate_signature(message, session, padding)
         message['signature'] = signature
 
-    def _verify(self, message, verify_session=False):
+    def _verify(self, message, sid, verify_session=False):
         message_id = message['message_id'].get_value()
         flags = message['flags']
         status = message['status'].get_value()
         command = message['command'].get_value()
-        session_id = message['session_id'].get_value()
         if message_id == 0xFFFFFFFFFFFFFFFF or \
                 not flags.has_flag(Smb2Flags.SMB2_FLAGS_SIGNED) or \
                 status == NtStatus.STATUS_PENDING or \
@@ -1173,10 +1185,10 @@ class Connection(object):
                  not verify_session):
             return
 
-        session = self.session_table.get(session_id, None)
+        session = self.session_table.get(sid, None)
         if session is None:
             error_msg = "Failed to find session %d for message verification" \
-                        % session_id
+                        % sid
             raise smbprotocol.exceptions.SMBException(error_msg)
         expected = self._generate_signature(message, session)
         actual = message['signature'].get_value()

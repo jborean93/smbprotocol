@@ -8,9 +8,9 @@ from smbprotocol.open import CreateDisposition, CreateOptions, \
 from smbprotocol.tree import TreeConnect
 
 server = "127.0.0.1"
-port = 1445
+port = 445
 username = "smbuser"
-password = "smbpassword1"
+password = "smbpassword"
 share = r"\\%s\share" % server
 dir_name = "directory"
 
@@ -38,7 +38,8 @@ try:
     # request
     directory_file = Open(tree, r"%s\file.txt" % dir_name)
     directory_file.open(ImpersonationLevel.Impersonation,
-                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FilePipePrinterAccessMask.GENERIC_WRITE |
+                        FilePipePrinterAccessMask.DELETE,
                         FileAttributes.FILE_ATTRIBUTE_NORMAL,
                         ShareAccess.FILE_SHARE_READ,
                         CreateDisposition.FILE_OVERWRITE_IF,
@@ -70,14 +71,24 @@ try:
 
     # delete a directory (note the dir needs to be empty to delete on close)
     dir_open = Open(tree, dir_name)
-    dir_open.open(
-        ImpersonationLevel.Impersonation,
-        DirectoryAccessMask.DELETE,
-        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-        0,
-        CreateDisposition.FILE_OPEN,
-        CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_DELETE_ON_CLOSE
-    )
-    dir_open.close(False)
+    delete_msgs = [
+        dir_open.open(
+            ImpersonationLevel.Impersonation,
+            DirectoryAccessMask.DELETE,
+            FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+            0,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_DIRECTORY_FILE |
+            CreateOptions.FILE_DELETE_ON_CLOSE,
+            send=False
+        ),
+        dir_open.close(False, send=False)
+    ]
+    delete_reqs = connection.send_compound([x[0] for x in delete_msgs],
+                                           sid=session.session_id,
+                                           tid=tree.tree_connect_id,
+                                           related=True)
+    for i, request in enumerate(delete_reqs):
+        response = delete_msgs[i][1](request)
 finally:
     connection.disconnect(True)

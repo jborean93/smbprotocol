@@ -1640,6 +1640,93 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
+    def test_compounding_related_opens_encrypted(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-related.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            messages = [
+                open.open(ImpersonationLevel.Impersonation,
+                          FilePipePrinterAccessMask.GENERIC_READ |
+                          FilePipePrinterAccessMask.GENERIC_WRITE |
+                          FilePipePrinterAccessMask.DELETE,
+                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                          0,
+                          CreateDisposition.FILE_OVERWRITE_IF,
+                          CreateOptions.FILE_NON_DIRECTORY_FILE |
+                          CreateOptions.FILE_DELETE_ON_CLOSE,
+                          send=False),
+                open.write(b"\x01\x02\x03\x04", send=False),
+                open.read(0, 4, send=False),
+                open.close(False, send=False)
+            ]
+            requests = connection.send_compound([x[0] for x in messages],
+                                                session.session_id,
+                                                tree.tree_connect_id,
+                                                related=True)
+            responses = []
+            for i, request in enumerate(requests):
+                response = messages[i][1](request)
+                responses.append(response)
+
+            assert open.file_id != b"\xff" * 16
+            assert len(responses) == 4
+            assert responses[0] is None
+            assert responses[1] == 4
+            assert responses[2] == b"\x01\x02\x03\x04"
+            assert isinstance(responses[3], SMB2CloseResponse)
+        finally:
+            connection.disconnect(True)
+
+    def test_compounding_related_opens_signed(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(Dialects.SMB_2_0_2)
+        session = Session(connection, smb_real[0], smb_real[1],
+                          require_encryption=False)
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-related.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            messages = [
+                open.open(ImpersonationLevel.Impersonation,
+                          FilePipePrinterAccessMask.GENERIC_READ |
+                          FilePipePrinterAccessMask.GENERIC_WRITE |
+                          FilePipePrinterAccessMask.DELETE,
+                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                          0,
+                          CreateDisposition.FILE_OVERWRITE_IF,
+                          CreateOptions.FILE_NON_DIRECTORY_FILE |
+                          CreateOptions.FILE_DELETE_ON_CLOSE,
+                          send=False),
+                open.write(b"\x01\x02\x03\x04", send=False),
+                open.read(0, 4, send=False),
+                open.close(False, send=False)
+            ]
+            requests = connection.send_compound([x[0] for x in messages],
+                                                session.session_id,
+                                                tree.tree_connect_id,
+                                                related=True)
+            responses = []
+            for i, request in enumerate(requests):
+                response = messages[i][1](request)
+                responses.append(response)
+
+            assert open.file_id != b"\xff" * 16
+            assert len(responses) == 4
+            assert responses[0] is None
+            assert responses[1] == 4
+            assert responses[2] == b"\x01\x02\x03\x04"
+            assert isinstance(responses[3], SMB2CloseResponse)
+        finally:
+            connection.disconnect(True)
+
     @pytest.mark.skipif(os.name == "nt",
                         reason="flush in compound does't work on windows")
     def test_compounding_open_requests(self, smb_real):
