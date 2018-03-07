@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.1 (Unreleased)
+## 0.1.0 - 2018-03-07
 
 Initial release of smbprotocol, it contains the following features
 
