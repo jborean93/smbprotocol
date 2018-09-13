@@ -737,7 +737,7 @@ class Connection(object):
         omitted as they can be retrieved by the Server object stored in
         self.server
 
-        :param guid: A uniqure guid that represents the client
+        :param guid: A unique guid that represents the client
         :param server_name: The server to start the connection
         :param port: The port to use for the transport, default is 445
         :param require_signing: Whether signing is required on SMB messages
@@ -1351,7 +1351,7 @@ class Connection(object):
         request = self.send(neg_req)
         self.preauth_integrity_hash_value.append(request.message)
 
-        response = self.receive(request, timeout)
+        response = self.receive(request, timeout=timeout)
         log.info("Receiving SMB2 Negotiate response")
         log.debug(str(response))
         self.preauth_integrity_hash_value.append(response)
