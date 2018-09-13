@@ -33,6 +33,8 @@ install:
 - pip install .
 - pip install -r requirements-test.txt
 - pip install coveralls
+# make sure the Samba service on the container is up and running
+- python ./build-scripts/check_samba.py
 
 script:
 - py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing
