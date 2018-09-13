@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 - 2018-09-14
+
+* Fix initial negotiate message not setting connection timeout value
+
+
 ## 0.1.0 - 2018-03-07
 
 Initial release of smbprotocol, it contains the following features

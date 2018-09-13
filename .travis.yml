@@ -3,11 +3,18 @@ sudo: required
 language: python
 
 python:
-- "2.6"
-- "2.7"
-- "3.4"
-- "3.5"
-- "3.6"
+- 2.6
+- 2.7
+- 3.4
+- 3.5
+- 3.6
+
+# Python 3.7 requires 16.04 (Xenial), this is a hack to get that specific
+# distro running that version until I can swap the rest over officially
+matrix:
+  include:
+  - python: 3.7
+    dist: xenial
 
 services:
 - docker
@@ -22,10 +29,10 @@ env:
 
 install:
 - docker run -d -p $SMB_PORT:445 -v $(pwd)/build-scripts:/app -w /app -e SMB_USER=$SMB_USER -e SMB_PASSWORD=$SMB_PASSWORD -e SMB_SHARE=$SMB_SHARE centos:7 /bin/bash /app/setup_samba.sh;
-- pip install -U pip setuptools
+- pip install --upgrade pip setuptools
 - pip install .
 - pip install -r requirements-test.txt
-- pip install python-coveralls
+- pip install coveralls
 
 script:
 - py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing

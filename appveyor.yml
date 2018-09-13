@@ -20,6 +20,8 @@ environment:
   - PYTHON: Python35-x64
   - PYTHON: Python36
   - PYTHON: Python36-x64
+  - PYTHON: Python37
+  - PYTHON: Python37-x64
 
 init:
 - ps: |
@@ -38,12 +40,12 @@ init:
     Set-SmbServerConfiguration -RequireSecuritySignature $true -Force
 
 install:
-- ps: |
-    pip install -U pip setuptools
-    pip install .
-    pip install -r requirements-test.txt
+- cmd: python -m pip install --upgrade pip
+- cmd: pip install --upgrade setuptools
+- cmd: pip install .
+- cmd: pip install -r requirements-test.txt
 
 build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:
-- ps: py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing
+- cmd: py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing
