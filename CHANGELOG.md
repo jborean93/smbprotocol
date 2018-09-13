@@ -3,6 +3,7 @@
 ## 0.1.1 - 2018-09-14
 
 * Fix initial negotiate message not setting connection timeout value
+* Fix endless loop when running a compound message that failed
 
 
 ## 0.1.0 - 2018-03-07

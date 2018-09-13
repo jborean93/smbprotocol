@@ -1767,7 +1767,6 @@ class TestOpen(object):
             messages = [
                 file1.write(b"\x01\x02\x03\x04", 0, send=False),
                 file2.write(b"\x05\x06", 0, send=False),
-                file1.flush(send=False),
                 file1.read(0, 4, send=False),
                 open.query_directory("*",
                                      FileInformationClass.
@@ -1789,14 +1788,13 @@ class TestOpen(object):
                 responses.append(response)
 
             # assert each response
-            assert len(responses) == 7
+            assert len(responses) == 6
             assert isinstance(responses[0], int)
             assert isinstance(responses[1], int)
-            assert isinstance(responses[2], SMB2FlushResponse)
-            assert isinstance(responses[3], bytes)
-            assert isinstance(responses[4], list)
+            assert isinstance(responses[2], bytes)
+            assert isinstance(responses[3], list)
+            assert isinstance(responses[4], SMB2CloseResponse)
             assert isinstance(responses[5], SMB2CloseResponse)
-            assert isinstance(responses[6], SMB2CloseResponse)
 
             write1 = responses[0]
             assert write1 == 4
@@ -1804,10 +1802,10 @@ class TestOpen(object):
             write2 = responses[1]
             assert write2 == 2
 
-            read1 = responses[3]
+            read1 = responses[2]
             assert read1 == b"\x01\x02\x03\x04"
 
-            query1 = responses[4]
+            query1 = responses[3]
             assert query1[0]['file_name'].get_value() == \
                 ".".encode('utf-16-le')
             assert query1[1]['file_name'].get_value() == \
@@ -1863,7 +1861,6 @@ class TestOpen(object):
             messages = [
                 file1.write(b"\x01\x02\x03\x04", 0, send=False),
                 file2.write(b"\x05\x06", 0, send=False),
-                file1.flush(send=False),
                 file1.read(0, 4, send=False),
                 open.query_directory("*",
                                      FileInformationClass.
@@ -1885,14 +1882,13 @@ class TestOpen(object):
                 responses.append(response)
 
             # assert each response
-            assert len(responses) == 7
+            assert len(responses) == 6
             assert isinstance(responses[0], int)
             assert isinstance(responses[1], int)
-            assert isinstance(responses[2], SMB2FlushResponse)
-            assert isinstance(responses[3], bytes)
-            assert isinstance(responses[4], list)
+            assert isinstance(responses[2], bytes)
+            assert isinstance(responses[3], list)
+            assert isinstance(responses[4], SMB2CloseResponse)
             assert isinstance(responses[5], SMB2CloseResponse)
-            assert isinstance(responses[6], SMB2CloseResponse)
 
             write1 = responses[0]
             assert write1 == 4
@@ -1900,10 +1896,10 @@ class TestOpen(object):
             write2 = responses[1]
             assert write2 == 2
 
-            read1 = responses[3]
+            read1 = responses[2]
             assert read1 == b"\x01\x02\x03\x04"
 
-            query1 = responses[4]
+            query1 = responses[3]
             assert query1[0]['file_name'].get_value() == \
                 ".".encode('utf-16-le')
             assert query1[1]['file_name'].get_value() == \

@@ -115,6 +115,8 @@ class Tcp(object):
         while len(bytes) < buffer:
             try:
                 data = self._sock.recv(buffer - len(bytes))
+                if data == b"" and bytes == b"" and not wait:
+                    return
                 bytes += data
             except socket.error as err:
                 if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
