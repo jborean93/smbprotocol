@@ -30,7 +30,7 @@ backlog for features that would be nice to have in this library.
 
 ## Requirements
 
-* Python 2.6, 2.7, 3.4-3.6
+* Python 2.6, 2.7, 3.4+
 * For Kerberos auth [python-gssapi](https://github.com/pythongssapi/python-gssapi)
 
 To use Kerberos authentication, further dependencies are required, to install
