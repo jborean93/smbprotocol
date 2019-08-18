@@ -17,6 +17,11 @@ matrix:
   - python: 3.7
   - python: 3.8-dev
 
+  # 3.8 is still a beta and I'm running it to see if anything breaks but
+  # don't want it to stop the build
+  allow_failures:
+  - python: 3.8-dev
+
 services:
 - docker
 

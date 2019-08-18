@@ -1,3 +1,4 @@
+cryptography<2.2; python<"2.7"
 pytest==3.2.5; python_version<"2.7"
 pytest>=3.6; python_version>"2.7"
 pytest-cov
