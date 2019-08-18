@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 - TBD
+
+* Fix issue where timeout was not being applied to the new connection
+* Fix various deprecated regex escape patterns
+
+
 ## 0.1.1 - 2018-09-14
 
 * Fix initial negotiate message not setting connection timeout value

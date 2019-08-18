@@ -832,7 +832,7 @@ class Connection(object):
             negotiation process to complete
         """
         log.info("Setting up transport connection")
-        self.transport.connect()
+        self.transport.connect(timeout=timeout)
 
         log.info("Starting negotiation with SMB server")
         smb_response = self._send_smb2_negotiate(dialect, timeout)

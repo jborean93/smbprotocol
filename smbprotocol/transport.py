@@ -54,9 +54,10 @@ class Tcp(object):
         self._connected = False
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def connect(self):
+    def connect(self, timeout=None):
         if not self._connected:
             log.info("Connecting to DirectTcp socket")
+            self._sock.settimeout(timeout)
             self._sock.connect((self.server, self.port))
             self._sock.setblocking(0)
             self._connected = True
