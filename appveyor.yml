@@ -42,10 +42,10 @@ init:
 install:
 - cmd: python -m pip install --upgrade pip
 - cmd: pip install --upgrade setuptools
-- cmd: pip install .
 - cmd: pip install -r requirements-test.txt
+- cmd: pip install .
 
 build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:
-- cmd: py.test -v --instafail --pep8 --cov smbprotocol --cov-report term-missing
+- cmd: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
