@@ -883,8 +883,7 @@ class Open(object):
         Directory, or Printer
 
         :param tree: The Tree (share) the file is located in.
-        :param name: The name of the file, excluding the share path, e.g.
-            \\server\share\folder\file.txt would be folder\file.txt
+        :param name: The name of the file, excluding the share path.
         """
         # properties available based on the file itself
         self._connected = False

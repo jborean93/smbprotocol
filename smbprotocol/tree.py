@@ -177,9 +177,8 @@ class TreeConnect(object):
         3.2.1.4 Per Tree Connect
         Attributes per Tree Connect (share connections)
 
-        :param session: The Session to connect to the tree with
-        :param share_name: The name of the share, including the server name,
-            e.g. \\server\share
+        :param session: The Session to connect to the tree with.
+        :param share_name: The name of the share, including the server name.
         """
         self._connected = False
         self.open_table = {}
