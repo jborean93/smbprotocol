@@ -45,6 +45,14 @@ install:
 - cmd: pip install -r requirements-test.txt
 - cmd: pip install .
 
+# test out pywin32 on some matrixes
+- ps: |
+    $ErrorActionPreference = "SilentlyContinue"
+    if ($env:PYTHON -in @("Python27", "Python27-x64", "Python36", "Python36-x64")) {
+        pip install .[kerberos]
+    }
+    $ErrorActionPreference = "Stop"
+
 build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:

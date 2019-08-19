@@ -4,6 +4,8 @@
 
 * Fix issue where timeout was not being applied to the new connection
 * Fix various deprecated regex escape patterns
+* Added support for Windows Kerberos and implicit credential support through the optional extra library [pywin32](https://github.com/mhammond/pywin32)
+* Simplified the fallback NTLM context object
 
 
 ## 0.1.1 - 2018-09-14

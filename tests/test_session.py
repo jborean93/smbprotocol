@@ -122,19 +122,16 @@ class TestNtlmContext(object):
         actual = NtlmContext("username", "password")
         assert actual.domain == ""
         assert actual.username == "username"
-        assert actual.password == "password"
 
     def test_username_in_netlogon_form(self):
         actual = NtlmContext("DOMAIN\\username", "password")
         assert actual.domain == "DOMAIN"
         assert actual.username == "username"
-        assert actual.password == "password"
 
     def test_username_in_upn_form(self):
         actual = NtlmContext("username@DOMAIN.LOCAL", "password")
         assert actual.domain == ""
         assert actual.username == "username@DOMAIN.LOCAL"
-        assert actual.password == "password"
 
 
 class TestSession(object):
