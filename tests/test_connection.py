@@ -1,17 +1,29 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import hashlib
 import os
 import uuid
 
 import pytest
 
-from cryptography.hazmat.primitives.ciphers import aead
-from datetime import datetime
+from cryptography.hazmat.primitives.ciphers import (
+    aead,
+)
+
+from datetime import (
+    datetime,
+)
+
+from smbprotocol import (
+    Commands,
+    Dialects,
+)
 
 from smbprotocol.connection import (
-    Ciphers,
-    Commands,
+    Ciphers,,
     Connection,
-    Dialects,
     HashAlgorithms,
     NegotiateContextType,
     Request,
@@ -31,11 +43,17 @@ from smbprotocol.connection import (
     SMB3NegotiateRequest,
 )
 
-from smbprotocol.ioctl import SMB2IOCTLRequest
-from smbprotocol.exceptions import SMBException
-from smbprotocol.session import Session
+from smbprotocol.ioctl import (
+    SMB2IOCTLRequest,
+)
 
-from .utils import smb_real
+from smbprotocol.exceptions import (
+    SMBException,
+)
+
+from smbprotocol.session import (
+    Session,
+)
 
 
 def test_valid_hash_algorithm():
@@ -1045,7 +1063,7 @@ class TestConnection(object):
         connection.connect()
         try:
             test_msg = SMB2NegotiateRequest()
-            test_req = Request(test_msg, connection)
+            test_req = Request(test_msg, type(test_msg), connection)
             connection.outstanding_requests[666] = test_req
 
             # Put a bad message in the incoming queue to break the worker in a bad way

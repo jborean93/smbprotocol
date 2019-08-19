@@ -1,7 +1,18 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import struct
 
-from smbprotocol.structure import BytesField, EnumField, FlagField, \
-    IntField, ListField, Structure, StructureField
+from smbprotocol.structure import (
+    BytesField,
+    EnumField,
+    FlagField,
+    IntField,
+    ListField,
+    Structure,
+    StructureField,
+)
 
 try:
     from collections import OrderedDict

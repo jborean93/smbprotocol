@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import os
 import time
 import uuid
@@ -6,41 +10,13 @@ from datetime import datetime
 
 import pytest
 
-from smbprotocol.connection import Connection, Dialects
-from smbprotocol.exceptions import SMBException
-from smbprotocol.session import Session
-from smbprotocol.tree import TreeConnect
-
-from smbprotocol.open import (
-    CloseFlags,
-    CreateAction,
-    CreateDisposition,
-    CreateOptions,
-    DirectoryAccessMask,
-    FileAttributes,
-    FileInformationClass,
-    FileFlags,
-    FilePipePrinterAccessMask,
-    ImpersonationLevel,
-    RequestedOplockLevel,
-    ReadWriteChannel,
-    ShareAccess,
-    SMB2CloseRequest,
-    SMB2CloseResponse,
-    SMB2CreateRequest,
-    SMB2CreateResponse,
-    SMB2FlushRequest,
-    SMB2FlushResponse,
-    SMB2QueryDirectoryRequest,
-    SMB2QueryDirectoryResponse,
-    SMB2ReadRequest,
-    SMB2ReadResponse,
-    SMB2WriteRequest,
-    SMB2WriteResponse,
-    Open
+from smbprotocol import (
+    Dialects,
 )
 
-from smbprotocol.query_info import FileNamesInformation
+from smbprotocol.connection import (
+    Connection,
+)
 
 from smbprotocol.create_contexts import (
     CreateContextName,
@@ -56,9 +32,59 @@ from smbprotocol.create_contexts import (
     SMB2CreateTimewarpToken,
 )
 
-from smbprotocol.exceptions import SMBUnsupportedFeature
+from smbprotocol.exceptions import (
+    SMBException,
+    SMBUnsupportedFeature,
+)
 
-from .utils import smb_real
+from smbprotocol.file_info import (
+    FileAttributes,
+    FileEndOfFileInformation,
+    FileFullEaInformation,
+    FileInformationClass,
+    FileNamesInformation,
+    FileStandardInformation,
+)
+
+from smbprotocol.open import (
+    CloseFlags,
+    CreateAction,
+    CreateDisposition,
+    CreateOptions,
+    DirectoryAccessMask,
+    FileFlags,
+    FilePipePrinterAccessMask,
+    ImpersonationLevel,
+    InfoType,
+    Open,
+    ReadWriteChannel,
+    RequestedOplockLevel,
+    ShareAccess,
+    SMB2CloseRequest,
+    SMB2CloseResponse,
+    SMB2CreateRequest,
+    SMB2CreateResponse,
+    SMB2FlushRequest,
+    SMB2FlushResponse,
+    SMB2QueryDirectoryRequest,
+    SMB2QueryDirectoryResponse,
+    SMB2QueryInfoRequest,
+    SMB2QueryInfoResponse,
+    SMB2ReadRequest,
+    SMB2ReadResponse,
+    SMB2SetInfoRequest,
+    SMB2SetInfoResponse,
+    SMB2WriteRequest,
+    SMB2WriteResponse,
+)
+
+from smbprotocol.session import (
+    Session,
+)
+
+from smbprotocol.tree import (
+    TreeConnect,
+)
 
 
 class TestSMB2CreateRequest(object):
@@ -989,6 +1015,202 @@ class TestSMB2QueryDirectoryResponse(object):
             b"\x02\x00\x00\x00\x2E\x00\x00\x00"
 
 
+class TestSMB2QueryInfoRequest(object):
+
+    DATA = b"\x29\x00" \
+           b"\x01" \
+           b"\x00" \
+           b"\x00\x00\x00\x00" \
+           b"\x68\x00" \
+           b"\x00\x00" \
+           b"\x04\x00\x00\x00" \
+           b"\x00\x00\x00\x00" \
+           b"\x01\x00\x00\x00" \
+           b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+           b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+           b"\x01\x02\x03\x04"
+
+    def test_create_message(self):
+        message = SMB2QueryInfoRequest()
+        message['info_type'] = 1
+        message['flags'] = 1
+        message['file_id'] = b"\xff" * 16
+        message['buffer'] = b"\x01\x02\x03\x04"
+
+        actual = message.pack()
+        assert len(message) == 44
+        assert actual == self.DATA
+
+    def test_parse_message(self):
+        actual = SMB2QueryInfoRequest()
+        data = actual.unpack(self.DATA)
+
+        assert len(actual) == 44
+        assert data == b""
+
+        assert actual['structure_size'].get_value() == 41
+        assert actual['info_type'].get_value() == 1
+        assert actual['file_info_class'].get_value() == 0
+        assert actual['output_buffer_length'].get_value() == 0
+        assert actual['input_buffer_offset'].get_value() == 104
+        assert actual['reserved'].get_value() == 0
+        assert actual['input_buffer_length'].get_value() == 4
+        assert actual['additional_information'].get_value() == 0
+        assert actual['flags'].get_value() == 1
+        assert actual['file_id'].get_value() == b"\xff" * 16
+        assert actual['buffer'].get_value() == b"\x01\x02\x03\x04"
+
+
+class TestSMB2QueryInfoResponse(object):
+
+    def test_create_message(self):
+        message = SMB2QueryInfoResponse()
+        message['buffer'] = b"\x01\x02\x03\x04"
+        expected = b"\x09\x00" \
+                   b"\x48\x00" \
+                   b"\x04\x00\x00\x00" \
+                   b"\x01\x02\x03\x04"
+
+        actual = message.pack()
+        assert len(message) == 12
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2QueryInfoResponse()
+        data = b"\x09\x00" \
+               b"\x48\x00" \
+               b"\x04\x00\x00\x00" \
+               b"\x01\x02\x03\x04"
+        data = actual.unpack(data)
+        assert len(actual) == 12
+        assert data == b""
+
+        assert actual['structure_size'].get_value() == 9
+        assert actual['output_buffer_offset'].get_value() == 72
+        assert actual['output_buffer_length'].get_value() == 4
+        assert actual['buffer'].get_value() == b"\x01\x02\x03\x04"
+
+    def test_unpack_multiple_ea_response(self):
+        data = b"\x14\x00\x00\x00" \
+               b"\x00" \
+               b"\x04" \
+               b"\x04\x00" \
+               b"\x43\x41\x46\xe9\x00" \
+               b"\x63\x61\x66\xe9" \
+               b"\x00\x00\x00" \
+               b"\x10\x00\x00\x00" \
+               b"\x00" \
+               b"\x03" \
+               b"\x04\x00" \
+               b"\x41\x42\x43\x00" \
+               b"\x64\x65\x66\x67" \
+               b"\x00\x00\x00\x00" \
+               b"\x00" \
+               b"\x0d" \
+               b"\x04\x00" \
+               b"\x45\x4e\x44\x20\x41\x54\x54\x52" \
+               b"\x49\x42\x55\x54\x45\x00" \
+               b"\x00\x01\x02\x03"
+
+        message = SMB2QueryInfoResponse()
+        message['buffer'] = data
+        actual = message.parse_buffer(FileFullEaInformation)
+
+        assert len(actual) == 3
+
+        assert actual[0]['next_entry_offset'].get_value() == 20
+        assert actual[0]['flags'].get_value() == 0
+        assert actual[0]['ea_name_length'].get_value() == 4
+        assert actual[0]['ea_value_length'].get_value() == 4
+        assert actual[0]['ea_name'].get_value() == b"\x43\x41\x46\xe9"
+        assert actual[0]['ea_value'].get_value() == b"\x63\x61\x66\xe9"
+
+        assert actual[1]['next_entry_offset'].get_value() == 16
+        assert actual[1]['flags'].get_value() == 0
+        assert actual[1]['ea_name_length'].get_value() == 3
+        assert actual[1]['ea_value_length'].get_value() == 4
+        assert actual[1]['ea_name'].get_value() == b"\x41\x42\x43"
+        assert actual[1]['ea_value'].get_value() == b"\x64\x65\x66\x67"
+
+        assert actual[2]['next_entry_offset'].get_value() == 0
+        assert actual[2]['flags'].get_value() == 0
+        assert actual[2]['ea_name_length'].get_value() == 13
+        assert actual[2]['ea_value_length'].get_value() == 4
+        assert actual[2]['ea_name'].get_value() == b"\x45\x4e\x44\x20\x41\x54\x54\x52" \
+                                                   b"\x49\x42\x55\x54\x45"
+        assert actual[2]['ea_value'].get_value() == b"\x00\x01\x02\x03"
+
+
+class TestSMB2SetInfoRequest(object):
+
+    def test_create_message(self):
+        message = SMB2SetInfoRequest()
+        message['info_type'] = 1
+        message['file_info_class'] = 1
+        message['file_id'] = b"\xff" * 16
+        message['buffer'] = b"\x01\x02\x03\x04"
+        expected = b"\x21\x00" \
+                   b"\x01" \
+                   b"\x01" \
+                   b"\x04\x00\x00\x00" \
+                   b"\x60\x00" \
+                   b"\x00\x00" \
+                   b"\x00\x00\x00\x00" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+                   b"\x01\x02\x03\x04"
+
+        actual = message.pack()
+        assert len(message) == 36
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2SetInfoRequest()
+        data = b"\x21\x00" \
+               b"\x01" \
+               b"\x01" \
+               b"\x04\x00\x00\x00" \
+               b"\x60\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\xff\xff\xff\xff\xff\xff\xff\xff" \
+               b"\x01\x02\x03\x04"
+        data = actual.unpack(data)
+        assert len(actual) == 36
+        assert data == b""
+
+        assert actual['structure_size'].get_value() == 33
+        assert actual['info_type'].get_value() == 1
+        assert actual['file_info_class'].get_value() == 1
+        assert actual['buffer_length'].get_value() == 4
+        assert actual['buffer_offset'].get_value() == 96
+        assert actual['reserved'].get_value() == 0
+        assert actual['additional_information'].get_value() == 0
+        assert actual['file_id'].get_value() == b"\xff" * 16
+        assert actual['buffer'].get_value() == b"\x01\x02\x03\x04"
+
+
+class TestSMB2SetInfoResponse(object):
+
+    def test_create_message(self):
+        message = SMB2SetInfoResponse()
+        expected = b"\x02\x00"
+
+        actual = message.pack()
+        assert len(message) == 2
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2SetInfoResponse()
+        data = b"\x02\x00"
+        data = actual.unpack(data)
+        assert len(actual) == 2
+        assert data == b""
+
+        assert actual['structure_size'].get_value() == 2
+
+
 class TestOpen(object):
 
     # basic file open tests for each dialect
@@ -1397,6 +1619,13 @@ class TestOpen(object):
                         CreateDisposition.FILE_OVERWRITE_IF,
                         CreateOptions.FILE_NON_DIRECTORY_FILE)
             open.flush()
+
+            # Test flush without send
+            flush_req, flush_resp = open.flush(send=False)
+            request = open.connection.send(flush_req, open.tree_connect.session.session_id,
+                                           open.tree_connect.tree_connect_id)
+            flush_resp = flush_resp(request)
+            assert isinstance(flush_resp, SMB2FlushResponse)
         finally:
             connection.disconnect(True)
 
@@ -2124,5 +2353,74 @@ class TestOpen(object):
             assert str(exc.value) == "Received unexpected status from the " \
                                      "server: (3221225489) " \
                                      "STATUS_END_OF_FILE: 0xc0000011"
+        finally:
+            connection.disconnect(True)
+
+    def test_truncate_file(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "truncate-file.txt")
+
+        try:
+            session.connect()
+            tree.connect()
+
+            open.create(ImpersonationLevel.Impersonation,
+                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                        0,
+                        CreateDisposition.FILE_OVERWRITE_IF,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE)
+            assert open.end_of_file == 0
+
+            def read_and_eof(open):
+                read_req, read_func = open.read(0, 12, send=False)
+
+                file_info = FileStandardInformation()
+                query_req = SMB2QueryInfoRequest()
+                query_req['info_type'] = InfoType.SMB2_0_INFO_FILE
+                query_req['file_info_class'] = FileInformationClass.FILE_STANDARD_INFORMATION
+                query_req['file_id'] = open.file_id
+                query_req['output_buffer_length'] = len(file_info)
+
+                requests = open.connection.send_compound([read_req, query_req],
+                                                         open.tree_connect.session.session_id,
+                                                         open.tree_connect.tree_connect_id,
+                                                         related=True)
+                data = read_func(requests[0])
+                resp = open.connection.receive(requests[1])
+
+                query_resp = SMB2QueryInfoResponse()
+                query_resp.unpack(resp['data'].get_value())
+                file_info = query_resp.parse_buffer(FileStandardInformation)
+                return data, file_info['end_of_file'].get_value()
+
+            def truncate(open, size):
+                eof_info = FileEndOfFileInformation()
+                eof_info['end_of_file'] = size
+                req = SMB2SetInfoRequest()
+                req['info_type'] = InfoType.SMB2_0_INFO_FILE
+                req['file_info_class'] = FileInformationClass.FILE_END_OF_FILE_INFORMATION
+                req['file_id'] = open.file_id
+                req['buffer'] = eof_info
+                request = open.connection.send(req, open.tree_connect.session.session_id,
+                                               open.tree_connect.tree_connect_id)
+                response = open.connection.receive(request)
+                set_resp = SMB2SetInfoResponse()
+                set_resp.unpack(response['data'].get_value())
+
+            # Populate the file with some bytes
+            open.write(b"\x01\x02\x03\x04")
+            assert read_and_eof(open) == (b"\x01\x02\x03\x04", 4)
+
+            # Make the file bigger
+            truncate(open, 8)
+            assert read_and_eof(open) == (b"\x01\x02\x03\x04\x00\x00\x00\x00", 8)
+
+            # Make the file smaller
+            truncate(open, 3)
+            assert read_and_eof(open) == (b"\x01\x02\x03", 3)
         finally:
             connection.disconnect(True)

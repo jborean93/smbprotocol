@@ -1,8 +1,20 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import pytest
 
-from smbprotocol.security_descriptor import AccessAllowedAce, \
-    AccessDeniedAce, AceType, AclPacket, AclRevision, SDControl, SIDPacket, \
-    SMB2CreateSDBuffer, SystemAuditAce
+from smbprotocol.security_descriptor import (
+    AccessAllowedAce,
+    AccessDeniedAce,
+    AceType,
+    AclPacket,
+    AclRevision,
+    SDControl,
+    SIDPacket,
+    SMB2CreateSDBuffer,
+    SystemAuditAce,
+)
 
 
 class TestSIDPacket(object):

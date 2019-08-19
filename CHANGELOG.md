@@ -1,8 +1,11 @@
 # Changelog
 
-## 0.3.0 - TBD
+## 1.0.0 - TBD
 
-* Drop support for Python 2.6
+* Dropped support for Python 2.6
+* Added the `smbclient` package that provides a higher level API for interactive with SMB servers
+* Deprecated `smbprotocol.query_info` in favour of `smbprotocol.file_info`, `query_info` will be removed in the next major release
+* Add automatic symlink resolver when a symlink is in the path being opened
 * Fix issue when trying to connect to host with IPv6 address
 * Fix response parsing for SMB2 Create Response Lease V1 and V2
 * Added the ability to set the Oplock level when opening a file

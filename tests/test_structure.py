@@ -16,10 +16,13 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from smbprotocol.connection import (
-    Capabilities,
+from smbprotocol import (
     Commands,
     Dialects,
+)
+
+from smbprotocol.connection import (
+    Capabilities,
 )
 
 from smbprotocol.structure import (
@@ -1260,7 +1263,7 @@ class TestEnumField(object):
         with pytest.raises(ValueError) as exc:
             field.set_value(0x13)
         assert str(exc.value) == "Enum value 19 does not exist in enum type " \
-                                 "<class 'smbprotocol.connection.Commands'>"
+                                 "<class 'smbprotocol.Commands'>"
 
 
 class TestFlagField(object):

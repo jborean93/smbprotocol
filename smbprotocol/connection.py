@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 from __future__ import division
 
 import copy
@@ -9,58 +13,80 @@ import os
 import struct
 import time
 import threading
-from datetime import datetime
-from threading import Lock
 
-from cryptography.exceptions import UnsupportedAlgorithm
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import cmac
-from cryptography.hazmat.primitives.ciphers import aead, algorithms
+from collections import (
+    OrderedDict,
+)
 
-import smbprotocol.exceptions
-from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
-    FlagField, IntField, ListField, Structure, StructureField, UuidField
-from smbprotocol.transport import Tcp
+from cryptography.exceptions import (
+    UnsupportedAlgorithm,
+)
+
+from cryptography.hazmat.backends import (
+    default_backend,
+)
+
+from cryptography.hazmat.primitives import (
+    cmac,
+)
+
+from cryptography.hazmat.primitives.ciphers import (
+    aead,
+    algorithms,
+)
+
+from datetime import (
+    datetime,
+)
+
+from threading import (
+    Lock,
+)
+
+from smbprotocol import (
+    Commands,
+    Dialects,
+    MAX_PAYLOAD_SIZE,
+)
+
+from smbprotocol._text import (
+    to_text,
+)
+
+from smbprotocol.exceptions import (
+    NtStatus,
+    SMB2SymbolicLinkErrorResponse,
+    SMBException,
+    SMBResponseException,
+)
+
+from smbprotocol.open import (
+    Open,
+    SMB2CreateRequest,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    DateTimeField,
+    EnumField,
+    FlagField,
+    IntField,
+    ListField,
+    Structure,
+    StructureField,
+    UuidField,
+)
+
+from smbprotocol.transport import (
+    Tcp,
+)
 
 try:
     from queue import Queue
 except ImportError:  # pragma: no cover
     from Queue import Queue
 
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
-
 log = logging.getLogger(__name__)
-
-
-class Commands(object):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.1.2 SMB2 Packet Header - SYNC Command
-    The command code of an SMB2 packet, it is used in the packet header.
-    """
-    SMB2_NEGOTIATE = 0x0000
-    SMB2_SESSION_SETUP = 0x0001
-    SMB2_LOGOFF = 0x0002
-    SMB2_TREE_CONNECT = 0x0003
-    SMB2_TREE_DISCONNECT = 0x0004
-    SMB2_CREATE = 0x0005
-    SMB2_CLOSE = 0x0006
-    SMB2_FLUSH = 0x0007
-    SMB2_READ = 0x0008
-    SMB2_WRITE = 0x0009
-    SMB2_LOCK = 0x000A
-    SMB2_IOCTL = 0x000B
-    SMB2_CANCEL = 0x000C
-    SMB2_ECHO = 0x000D
-    SMB2_QUERY_DIRECTORY = 0x000E
-    SMB2_CHANGE_NOTIFY = 0x000F
-    SMB2_QUERY_INFO = 0x0010
-    SMB2_SET_INFO = 0x0011
-    SMB2_OPLOCK_BREAK = 0x0012
 
 
 class Smb2Flags(object):
@@ -104,23 +130,6 @@ class Capabilities(object):
     SMB2_GLOBAL_CAP_PERSISTENT_HANDLES = 0x00000010
     SMB2_GLOBAL_CAP_DIRECTORY_LEASING = 0x00000020
     SMB2_GLOBAL_CAP_ENCRYPTION = 0x00000040
-
-
-class Dialects(object):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.3 SMB2 NEGOTIATE Request Dialects
-    16-bit integeres specifying an SMB2 dialect that is supported. 0x02FF is
-    used in the SMBv1 negotiate request to say that dialects greater than
-    2.0.2 is supported.
-    """
-    SMB_2_0_2 = 0x0202
-    SMB_2_1_0 = 0x0210
-    SMB_3_0_0 = 0x0300
-    SMB_3_0_2 = 0x0302
-    SMB_3_1_1 = 0x0311
-    SMB_2_WILDCARD = 0x02FF
 
 
 class NegotiateContextType(object):
@@ -181,59 +190,6 @@ class Ciphers(object):
         except UnsupportedAlgorithm:  # pragma: no cover
             pass
         return supported_ciphers
-
-
-class NtStatus(object):
-    """
-    [MS-ERREF] https://msdn.microsoft.com/en-au/library/cc704588.aspx
-
-    2.3.1 NTSTATUS Values
-    These values are set in the status field of an SMB2Header response. This is
-    not an exhaustive list but common values that are returned.
-    """
-    STATUS_SUCCESS = 0x00000000
-    STATUS_PENDING = 0x00000103
-    STATUS_NOTIFY_CLEANUP = 0x0000010B
-    STATUS_NOTIFY_ENUM_DIR = 0x0000010C
-    STATUS_BUFFER_OVERFLOW = 0x80000005
-    STATUS_EA_LIST_INCONSISTENT = 0x80000014
-    STATUS_STOPPED_ON_SYMLINK = 0x8000002D
-    STATUS_INVALID_PARAMETER = 0xC000000D
-    STATUS_NO_SUCH_FILE = 0xC000000F
-    STATUS_END_OF_FILE = 0xC0000011
-    STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
-    STATUS_ACCESS_DENIED = 0xC0000022
-    STATUS_BUFFER_TOO_SMALL = 0xC0000023
-    STATUS_OBJECT_NAME_INVALID = 0xC0000033
-    STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
-    STATUS_OBJECT_NAME_COLLISION = 0xC0000035
-    STATUS_OBJECT_PATH_INVALID = 0xC0000039
-    STATUS_OBJECT_PATH_NOT_FOUND = 0xC000003A
-    STATUS_OBJECT_PATH_SYNTAX_BAD = 0xC000003B
-    STATUS_SHARING_VIOLATION = 0xC0000043
-    STATUS_EAS_NOT_SUPPORTED = 0xC000004F
-    STATUS_EA_TOO_LARGE = 0xC0000050
-    STATUS_NONEXISTENT_EA_ENTRY = 0xC0000051
-    STATUS_NO_EAS_ON_FILE = 0xC0000052
-    STATUS_EA_CORRUPT_ERROR = 0xC0000053
-    STATUS_LOGON_FAILURE = 0xC000006D
-    STATUS_PASSWORD_EXPIRED = 0xC0000071
-    STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
-    STATUS_PIPE_BUSY = 0xC00000AE
-    STATUS_PIPE_CLOSING = 0xC00000B1
-    STATUS_PIPE_DISCONNECTED = 0xC00000B0
-    STATUS_FILE_IS_A_DIRECTORY = 0xC00000BA
-    STATUS_NOT_SUPPORTED = 0xC00000BB
-    STATUS_BAD_NETWORK_NAME = 0xC00000CC
-    STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
-    STATUS_PIPE_EMPTY = 0xC00000D9
-    STATUS_INTERNAL_ERROR = 0xC00000E5
-    STATUS_NOT_A_DIRECTORY = 0xC0000103
-    STATUS_CANCELLED = 0xC0000120
-    STATUS_CANNOT_DELETE = 0xC0000121
-    STATUS_FILE_CLOSED = 0xC0000128
-    STATUS_PIPE_BROKEN = 0xC000014B
-    STATUS_USER_SESSION_DELETED = 0xC0000203
 
 
 class SMB2HeaderAsync(Structure):
@@ -831,8 +787,8 @@ class Connection(object):
         self.port = port
         self.transport = None  # Instanciated in .connect()
 
-        # Table of Session entries
-        self.session_table = {}
+        # Table of Session entries, the order is important for smbclient.
+        self.session_table = OrderedDict()
 
         # Table of sessions that have not completed authentication, indexed by
         # session_id
@@ -841,6 +797,7 @@ class Connection(object):
         # Table of Requests that have yet to be picked up by the application,
         # it MAY contain a response from the server as well
         self.outstanding_requests = dict()
+        self.outstanding_lock = Lock()
 
         # Table of available sequence numbers
         self.sequence_window = dict(
@@ -896,7 +853,7 @@ class Connection(object):
 
         # used to ensure sequence num/message id's are gathered/sent in the
         # same order if running in multiple threads
-        self.lock = Lock()
+        self.sequence_lock = Lock()
 
         # Keep track of the message processing thread's potential traceback that it may raise.
         self._t_exc = None
@@ -1020,7 +977,7 @@ class Connection(object):
         if tid and session:
             if tid not in session.tree_connect_table.keys():
                 error_msg = "Cannot find Tree with the ID %d in the session tree table" % tid
-                raise smbprotocol.exceptions.SMBException(error_msg)
+                raise SMBException(error_msg)
             tree = session.tree_connect_table[tid]
 
         if session and session.signing_required and session.signing_key:
@@ -1028,7 +985,7 @@ class Connection(object):
 
         request = None
         if message.COMMAND != Commands.SMB2_CANCEL:
-            request = Request(header, self, session_id=sid)
+            request = Request(header, type(message), self, session_id=sid)
             self.outstanding_requests[header['message_id'].get_value()] = request
 
         send_data = header.pack()
@@ -1085,10 +1042,13 @@ class Connection(object):
                 self._sign(header, session, padding=padding)
             send_data += header.pack() + padding
 
-            request = Request(header, self, session_id=sid)
+            request = Request(header, type(message), self, session_id=sid)
             requests.append(request)
             self.outstanding_requests[header['message_id'].get_value()] = \
                 request
+
+        if related:
+            requests[0].related_ids = [r.message['message_id'].get_value() for r in requests][1:]
 
         if session.encrypt_data or tree.encrypt_data:
             send_data = self._encrypt(send_data, session)
@@ -1098,7 +1058,7 @@ class Connection(object):
         return requests
 
     @_worker_running
-    def receive(self, request, wait=True, timeout=None):
+    def receive(self, request, wait=True, timeout=None, resolve_symlinks=True):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
@@ -1109,14 +1069,16 @@ class Connection(object):
             case of wait=False
         :param timeout: Set a timeout used while waiting for a response from
             the server
+        :param resolve_symlinks: Set to automatically resolve symlinks in the
+            path when opening a file or directory.
         :return: SMB2HeaderResponse of the received message
         """
         start_time = time.time()
         while True:
             iter_timeout = int(max(timeout - (time.time() - start_time), 1)) if timeout is not None else None
             if not request.response_event.wait(timeout=iter_timeout):
-                raise smbprotocol.exceptions.SMBException("Connection timeout of %d seconds exceeded while waiting "
-                                                          "for a response from the server" % timeout)
+                raise SMBException("Connection timeout of %d seconds exceeded while waiting for a response from the "
+                                   "server" % timeout)
 
             # Use a lock on the request so that in the case of a pending response we have exclusive lock on the event
             # flag and can clear it without the future pending response taking it over before we first clear the flag.
@@ -1129,8 +1091,53 @@ class Connection(object):
                     # Received a pending message, clear the response_event flag and wait again.
                     request.response_event.clear()
                     continue
+                elif status == NtStatus.STATUS_STOPPED_ON_SYMLINK and resolve_symlinks:
+                    # Received when we do an Open on a path that contains a symlink. Need to capture all related
+                    # requests and resend the Open + others with the redirected path. First we need to resolve the
+                    # symlink path. This will fail if the symlink is pointing to a location that is not in the same
+                    # tree/share as the original request.
+                    session = self.session_table[request.session_id]
+                    tree = session.tree_connect_table[request.message['tree_id'].get_value()]
+
+                    old_create = SMB2CreateRequest()
+                    old_create.unpack(request.message['data'].get_value())
+                    tree_share_name = tree.share_name + u'\\'
+                    original_path = tree_share_name + to_text(old_create['buffer_path'], encoding='utf-16-le')
+
+                    exp = SMBResponseException(response, status)
+                    reparse_buffer = next((e for e in exp.error_details
+                                           if isinstance(e, SMB2SymbolicLinkErrorResponse)))
+                    new_path = reparse_buffer.resolve_path(original_path)[len(tree_share_name):]
+
+                    new_open = Open(tree, new_path)
+                    create_req = new_open.create(
+                        old_create['impersonation_level'].get_value(),
+                        old_create['desired_access'].get_value(),
+                        old_create['file_attributes'].get_value(),
+                        old_create['share_access'].get_value(),
+                        old_create['create_disposition'].get_value(),
+                        old_create['create_options'].get_value(),
+                        create_contexts=old_create['buffer_contexts'].get_value(),
+                        send=False
+                    )[0]
+
+                    # Now create the new requests and get new message ids for these requests.
+                    related_requests = [self.outstanding_requests[i] for i in request.related_ids]
+                    new_msgs = [create_req] + [r.get_message_data() for r in related_requests]
+
+                    # Lock the outstanding_requests dict until we've updated the actual request object.
+                    with self.outstanding_lock:
+                        new_requests = self.send_compound(new_msgs, session.session_id, tree.tree_connect_id,
+                                                          related=True)
+                        for i, old_request in enumerate([request] + related_requests):
+                            del self.outstanding_requests[old_request.message['message_id'].get_value()]
+                            old_request.update_request(new_requests[i])
+
+                    # Finally wait once again for the new compound response to be received and return that to the
+                    # caller.
+                    return self.receive(new_requests[0], wait=wait, timeout=timeout, resolve_symlinks=True)
                 elif status not in [NtStatus.STATUS_SUCCESS, NtStatus.STATUS_PENDING]:
-                    raise smbprotocol.exceptions.SMBResponseException(response, status)
+                    raise SMBResponseException(response, status)
                 else:
                     break
 
@@ -1177,7 +1184,7 @@ class Connection(object):
         # when run in a thread or subprocess, getting the message id and
         # adjusting the sequence window is important so we acquire a lock to
         # ensure only one is run at a point in time
-        with self.lock:
+        with self.sequence_lock:
             sequence_window_low = self.sequence_window['low']
             sequence_window_high = self.sequence_window['high']
             credit_charge = self._calculate_credit_charge(message)
@@ -1185,7 +1192,7 @@ class Connection(object):
             if credit_charge > credits_available:
                 error_msg = "Request requires %d credits but only %d credits are available" \
                             % (credit_charge, credits_available)
-                raise smbprotocol.exceptions.SMBException(error_msg)
+                raise SMBException(error_msg)
 
             if message_id is None:
                 message_id = sequence_window_low
@@ -1250,21 +1257,22 @@ class Connection(object):
 
                     self._verify(msg, session_id)
 
-                    # add the upper credit limit based on the credits granted by
-                    # the server
-                    credit_response = msg['credit_response'].get_value()
-                    self.sequence_window['high'] += credit_response if credit_response > 0 else 1
-
                     message_id = msg['message_id'].get_value()
-                    request = self.outstanding_requests[message_id]
+                    with self.outstanding_lock:
+                        request = self.outstanding_requests[message_id]
 
-                    # Ensure we don't step on the receive() func in the main thread processing the pending result if
-                    # already set as that will clear the response_event flag then wait again.
-                    with request.response_lock:
-                        if msg['flags'].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
-                            request.async_id = msg['reserved'].pack() + msg['tree_id'].pack()
-                        request.response = msg
-                        request.response_event.set()
+                        # add the upper credit limit based on the credits granted by
+                        # the server
+                        credit_response = msg['credit_response'].get_value()
+                        self.sequence_window['high'] += credit_response if credit_response > 0 else 1
+
+                        # Ensure we don't step on the receive() func in the main thread processing the pending result
+                        # if already set as that will clear the response_event flag then wait again.
+                        with request.response_lock:
+                            if msg['flags'].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
+                                request.async_id = msg['reserved'].pack() + msg['tree_id'].pack()
+                            request.response = msg
+                            request.response_event.set()
             except Exception as exc:
                 # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
                 self._t_exc = exc
@@ -1298,13 +1306,13 @@ class Connection(object):
         if session is None:
             error_msg = "Failed to find session %d for message verification" \
                         % sid
-            raise smbprotocol.exceptions.SMBException(error_msg)
+            raise SMBException(error_msg)
         expected = self._generate_signature(message, session)
         actual = message['signature'].get_value()
         if actual != expected:
             error_msg = "Server message signature could not be verified: " \
                         "%s != %s" % (actual, expected)
-            raise smbprotocol.exceptions.SMBException(error_msg)
+            raise SMBException(error_msg)
 
     def _generate_signature(self, message, session, padding=None):
         msg = copy.deepcopy(message)
@@ -1359,14 +1367,14 @@ class Connection(object):
             error_msg = "Expecting flag of 0x0001 but got %s in the SMB " \
                         "Transform Header Response"\
                         % format(message['flags'].get_value(), 'x')
-            raise smbprotocol.exceptions.SMBException(error_msg)
+            raise SMBException(error_msg)
 
         session_id = message['session_id'].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
             error_msg = "Failed to find valid session %s for message " \
                         "decryption" % session_id
-            raise smbprotocol.exceptions.SMBException(error_msg)
+            raise SMBException(error_msg)
 
         if self.dialect >= Dialects.SMB_3_1_1:
             cipher = self.cipher_id
@@ -1484,7 +1492,7 @@ class Connection(object):
         :param message: The message being sent
         :return: The credit charge to set on the header
         """
-        credit_size = 65536
+        credit_size = MAX_PAYLOAD_SIZE
 
         if (not self.supports_multi_credit) or (message.COMMAND == Commands.SMB2_CANCEL):
             credit_charge = 0
@@ -1515,13 +1523,16 @@ class Connection(object):
 
 class Request(object):
 
-    def __init__(self, message, connection, session_id=None):
+    def __init__(self, message, message_type, connection, session_id=None):
         """
         [MS-SMB2] v53.0 2017-09-15
 
         3.2.1.7 Per Pending Request
         For each request that was sent to the server and is await a response
         :param message: The message to be sent in the request
+        :param message_type: The type of message that is set in the header's data field.
+        :param connection: The Connection the request was sent under.
+        :param session_id: The Session Id the request was for.
         """
         self.cancel_id = os.urandom(8)
         self.async_id = None
@@ -1536,7 +1547,12 @@ class Request(object):
         self.response_event = threading.Event()
         self.cancelled = False
 
+        # Stores the message_ids of related messages that are sent in a compound request. This is only set on the 1st
+        # message in the request.
+        self.related_ids = []
+
         self._connection = connection
+        self._message_type = message_type  # Used to rehydrate the message data in case it's needed again.
 
         # Cannot rely on the message values as it could be a related compound msg which does not set these values.
         self._session_id = session_id
@@ -1550,3 +1566,19 @@ class Request(object):
         self._connection.send(SMB2CancelRequest(), sid=self._session_id, credit_request=0, message_id=message_id,
                               async_id=self.async_id)
         self.cancelled = True
+
+    def get_message_data(self):
+        message_obj = self._message_type()
+        message_obj.unpack(self.message['data'].get_value())
+        return message_obj
+
+    def update_request(self, new_request):
+        self.cancel_id = new_request.cancel_id
+        self.async_id = new_request.async_id
+        self.message = new_request.message
+        self.timestamp = new_request.timestamp
+        self.response = None
+        self.response_lock = new_request.response_lock
+        self.response_event = new_request.response_event
+        self.cancelled = new_request.cancelled
+        self.related_ids = new_request.related_ids

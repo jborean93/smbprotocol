@@ -36,7 +36,7 @@ install:
 - python ./build-scripts/check_samba.py
 
 script:
-- py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+- py.test -v --pep8 --cov smbclient --cov smbprotocol --cov-report term-missing
 
 after_success:
 - coveralls

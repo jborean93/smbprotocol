@@ -1,11 +1,40 @@
-import pytest
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean# -*- coding: utf-8 -*- (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-from smbprotocol.connection import SMB2HeaderResponse, NtStatus, Dialects
-from smbprotocol.exceptions import ErrorContextId, IpAddrType, \
-    SMBAuthenticationError, SMBException, SMBResponseException, \
-    SMBUnsupportedFeature, SMB2ErrorContextResponse, SMB2ErrorResponse, \
-    SMB2MoveDstIpAddrStructure, SMB2ShareRedirectErrorContext, \
-    SMB2SymbolicLinkErrorResponse, SymbolicLinkErrorFlags
+import pytest
+import re
+
+from smbprotocol import (
+    Dialects,
+)
+
+from smbprotocol._text import (
+    to_bytes,
+    to_native,
+)
+
+from smbprotocol.connection import (
+    SMB2HeaderResponse,
+)
+
+from smbprotocol.exceptions import (
+    ErrorContextId,
+    IpAddrType,
+    NtStatus,
+    SMBAuthenticationError,
+    SMBException,
+    SMBLinkRedirectionError,
+    SMBOSError,
+    SMBResponseException,
+    SMBUnsupportedFeature,
+    SMB2ErrorContextResponse,
+    SMB2ErrorResponse,
+    SMB2MoveDstIpAddrStructure,
+    SMB2ShareRedirectErrorContext,
+    SMB2SymbolicLinkErrorResponse,
+    SymbolicLinkErrorFlags,
+)
 
 
 class TestSMBException(object):
@@ -27,6 +56,40 @@ class TestSMBAuthenticationError(object):
         with pytest.raises(SMBException) as exc:
             raise SMBAuthenticationError("auth error")
         assert str(exc.value) == "auth error"
+
+
+class TestSMBOSError(object):
+
+    def test_error(self):
+        with pytest.raises(SMBOSError) as err:
+            raise SMBOSError(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, u"filéname")
+        assert str(err.value) == "[Error 2] [NtStatus 0xc0000034] No such file or directory: 'filéname'"
+
+    def test_error_with_filename2(self):
+        with pytest.raises(SMBOSError) as err:
+            raise SMBOSError(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, u"filéname", u"filéname2")
+        assert str(err.value) == "[Error 2] [NtStatus 0xc0000034] No such file or directory: 'filéname' -> 'filéname2'"
+
+    def test_caught_with_smbexception(self):
+        with pytest.raises(SMBException) as err:
+            raise SMBOSError(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, u"filéname")
+        assert str(err.value) == "[Error 2] [NtStatus 0xc0000034] No such file or directory: 'filéname'"
+
+    def test_caught_with_oserror(self):
+        with pytest.raises(OSError) as err:
+            raise SMBOSError(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, u"filéname")
+        assert str(err.value) == "[Error 2] [NtStatus 0xc0000034] No such file or directory: 'filéname'"
+
+    def test_error_with_unknown_error(self):
+        with pytest.raises(SMBOSError) as err:
+            raise SMBOSError(1, u"filéname")
+        assert str(err.value) == "[Error 0] [NtStatus 0x00000001] Unknown NtStatus error returned 'STATUS_UNKNOWN': " \
+                                 "'filéname'"
+
+    def test_error_with_override(self):
+        with pytest.raises(SMBOSError) as err:
+            raise SMBOSError(NtStatus.STATUS_PRIVILEGE_NOT_HELD, u"filéname")
+        assert str(err.value) == "[Error 13] [NtStatus 0xc0000061] Required privilege not held: 'filéname'"
 
 
 class TestSMBUnsupportedFeature(object):
@@ -173,6 +236,24 @@ class TestSMBResponseException(object):
             assert str(exc) == exp_resp
 
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
+
+    def test_exception_no_context_but_data(self):
+        # Older dialects don't support the Error Context list but still return data in there. This tests those older
+        # hosts.
+        data = b"\x09\x00" \
+               b"\x00" \
+               b"\x00" \
+               b"\x04\x00\x00\x00" \
+               b"\x01\x02\x03\x04"
+        error_resp = SMB2ErrorResponse()
+        data = error_resp.unpack(data)
+
+        assert data == b""
+        assert len(error_resp['error_data'].get_value()) == 1
+        error_context = error_resp['error_data'].get_value()[0]
+        assert error_context['error_data_length'].get_value() == 4
+        assert error_context['error_id'].get_value() == ErrorContextId.SMB2_ERROR_ID_DEFAULT
+        assert error_context['error_context_data'].get_value() == b"\x01\x02\x03\x04"
 
     def _get_header(self, data, status=NtStatus.STATUS_INVALID_PARAMETER):
         header = SMB2HeaderResponse()
@@ -355,6 +436,106 @@ class TestSMB2SymbolicLinkErrorResponse(object):
             b"\x65\x00\x72\x00"
         assert actual.get_print_name() == r"C:\temp\folder"
         assert actual.get_substitute_name() == r"\??\C:\temp\folder"
+
+    @pytest.mark.parametrize('unparsed_length, sub_name, print_name, flags, link_path, expected', [
+        # Relative link that points to a file in the same directory
+        (0, u'tést', u'tést', SymbolicLinkErrorFlags.SYMLINK_FLAG_RELATIVE,
+         u'\\\\sérver\\sharé\\foldér\\subfolder\\mylink',
+         u'\\\\sérver\\sharé\\foldér\\subfolder\\tést'),
+
+        # Relative link that points to a file in the parent directory
+        (0, u'..\\tést', u'..\\tést', SymbolicLinkErrorFlags.SYMLINK_FLAG_RELATIVE,
+         u'\\\\sérver\\sharé\\foldér\\subfolder\\mylink',
+         u'\\\\sérver\\sharé\\foldér\\tést'),
+
+        # Relative link with further path components
+        (42, u'..\\tést', u'..\\tést', SymbolicLinkErrorFlags.SYMLINK_FLAG_RELATIVE,
+         u'\\\\sérver\\sharé\\foldér\\subfolder\\mylink\\some folder\\file.txt',
+         u'\\\\sérver\\sharé\\foldér\\tést\\some folder\\file.txt'),
+
+        # Absolute link
+        (0, u'\\??\\UNC\\sérver\\sharé\\foldér\\test', u'\\\\sérver\\sharé\\foldér\\test',
+         SymbolicLinkErrorFlags.SYMLINK_FLAG_ABSOLUTE,
+         u'\\\\sérver\\sharé\\foldér\\subfolder\\mylink',
+         u'\\\\sérver\\sharé\\foldér\\test'),
+
+        # Absolute link with further path components
+        (42, u'\\??\\UNC\\sérver\\sharé\\foldér\\test', u'\\\\sérver\\sharé\\foldér\\test',
+         SymbolicLinkErrorFlags.SYMLINK_FLAG_ABSOLUTE,
+         u'\\\\sérver\\sharé\\foldér\\subfolder\\mylink\\some folder\\file.txt',
+         u'\\\\sérver\\sharé\\foldér\\test\\some folder\\file.txt'),
+    ])
+    def test_resolve_path(self, unparsed_length, sub_name, print_name, flags, link_path, expected):
+        b_sub_name = to_bytes(sub_name, encoding='utf-16-le')
+        b_print_name = to_bytes(print_name, encoding='utf-16-le')
+        resp = SMB2SymbolicLinkErrorResponse()
+        resp['unparsed_path_length'] = unparsed_length
+        resp['substitute_name_offset'] = 0
+        resp['substitute_name_length'] = len(b_sub_name)
+        resp['print_name_offset'] = len(b_sub_name)
+        resp['print_name_length'] = len(b_print_name)
+        resp['flags'] = flags
+        resp['path_buffer'] = b_sub_name + b_print_name
+
+        assert resp.get_print_name() == print_name
+        assert resp.get_substitute_name() == sub_name
+
+        actual = resp.resolve_path(link_path)
+        assert actual == expected
+
+    def test_resolve_path_local_fail(self):
+        b_sub_name = to_bytes(u'\\??\\C:\\foldér', encoding='utf-16-le')
+        b_print_name = to_bytes(u'C:\\foldér', encoding='utf-16-le')
+        resp = SMB2SymbolicLinkErrorResponse()
+        resp['unparsed_path_length'] = 0
+        resp['substitute_name_offset'] = 0
+        resp['substitute_name_length'] = len(b_sub_name)
+        resp['print_name_offset'] = len(b_sub_name)
+        resp['print_name_length'] = len(b_print_name)
+        resp['flags'] = SymbolicLinkErrorFlags.SYMLINK_FLAG_ABSOLUTE
+        resp['path_buffer'] = b_sub_name + b_print_name
+
+        link_path = u'\\\\sérver\\sharé\\foldér'
+        expected = u"Encountered symlink at '%s' that points to 'C:\\foldér' which cannot be redirected: Cannot " \
+                   u"resolve link targets that point to a local path" % link_path
+        with pytest.raises(SMBLinkRedirectionError, match=re.escape(to_native(expected))):
+            resp.resolve_path(link_path)
+
+    def test_resolve_path_different_share(self):
+        b_sub_name = to_bytes(u'\\??\\UNC\\other-sérver\\sharé\\foldér', encoding='utf-16-le')
+        b_print_name = to_bytes(u'\\\\other-sérver\\sharé\\foldér', encoding='utf-16-le')
+        resp = SMB2SymbolicLinkErrorResponse()
+        resp['unparsed_path_length'] = 0
+        resp['substitute_name_offset'] = 0
+        resp['substitute_name_length'] = len(b_sub_name)
+        resp['print_name_offset'] = len(b_sub_name)
+        resp['print_name_length'] = len(b_print_name)
+        resp['flags'] = SymbolicLinkErrorFlags.SYMLINK_FLAG_ABSOLUTE
+        resp['path_buffer'] = b_sub_name + b_print_name
+
+        link_path = u'\\\\sérver\\sharé\\foldér'
+        expected = u"Encountered symlink at '%s' that points to '\\\\other-sérver\\sharé\\foldér' which cannot be " \
+                   u"redirected: Cannot resolve link targets that point to a different host/share" % link_path
+        with pytest.raises(SMBLinkRedirectionError, match=re.escape(to_native(expected))):
+            resp.resolve_path(link_path)
+
+    def test_resolve_path_different_host(self):
+        b_sub_name = to_bytes(u'\\??\\UNC\\sérver\\sharé2\\foldér', encoding='utf-16-le')
+        b_print_name = to_bytes(u'\\\\sérver\\sharé2\\foldér', encoding='utf-16-le')
+        resp = SMB2SymbolicLinkErrorResponse()
+        resp['unparsed_path_length'] = 0
+        resp['substitute_name_offset'] = 0
+        resp['substitute_name_length'] = len(b_sub_name)
+        resp['print_name_offset'] = len(b_sub_name)
+        resp['print_name_length'] = len(b_print_name)
+        resp['flags'] = SymbolicLinkErrorFlags.SYMLINK_FLAG_ABSOLUTE
+        resp['path_buffer'] = b_sub_name + b_print_name
+
+        link_path = u'\\\\sérver\\sharé\\foldér'
+        expected = u"Encountered symlink at '%s' that points to '\\\\sérver\\sharé2\\foldér' which cannot be " \
+                   u"redirected: Cannot resolve link targets that point to a different host/share" % link_path
+        with pytest.raises(SMBLinkRedirectionError, match=re.escape(to_native(expected))):
+            resp.resolve_path(link_path)
 
 
 class TestSMB2ShareRedirectErrorContext(object):

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 from setuptools import setup
 
@@ -14,8 +16,8 @@ except ImportError:
 
 setup(
     name='smbprotocol',
-    version='0.3.0',
-    packages=['smbprotocol'],
+    version='1.0.0',
+    packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
         'ntlm-auth>=1.2.0',
@@ -24,14 +26,14 @@ setup(
     ],
     extras_require={
         ':python_version<"2.7"': [
-            'ordereddict'
+            'ordereddict',
         ],
         'kerberos:sys_platform=="win32"': [
-            'pywin32'
+            'pywin32',
         ],
         'kerberos:sys_platform!="win32"': [
-            'gssapi>=1.4.1'
-        ]
+            'gssapi>=1.4.1',
+        ],
     },
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
     author='Jordan Borean',

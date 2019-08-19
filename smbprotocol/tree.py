@@ -1,12 +1,34 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import logging
 
-from smbprotocol.connection import Commands, Dialects
-from smbprotocol.exceptions import SMBException
-from smbprotocol.ioctl import CtlCode, IOCTLFlags, SMB2IOCTLRequest, \
-    SMB2IOCTLResponse, SMB2ValidateNegotiateInfoRequest, \
-    SMB2ValidateNegotiateInfoResponse
-from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
-    Structure
+from smbprotocol import (
+    Commands,
+    Dialects,
+)
+
+from smbprotocol.exceptions import (
+    SMBException,
+)
+
+from smbprotocol.ioctl import (
+    CtlCode,
+    IOCTLFlags,
+    SMB2IOCTLRequest,
+    SMB2IOCTLResponse,
+    SMB2ValidateNegotiateInfoRequest,
+    SMB2ValidateNegotiateInfoResponse,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    EnumField,
+    FlagField,
+    IntField,
+    Structure,
+)
 
 try:
     from collections import OrderedDict

@@ -7,6 +7,9 @@ cat > /etc/samba/smb.conf << EOL
 workgroup = WORKGROUP
 valid users = @smbgroup
 server signing = mandatory
+ea support = yes
+store dos attributes = yes
+vfs objects = xattr_tdb streams_xattr
 
 [$SMB_SHARE]
 comment = Test Samba Share

@@ -1,10 +1,18 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import logging
 import select
 import socket
 import struct
 import threading
 
-from smbprotocol.structure import BytesField, IntField, Structure
+from smbprotocol.structure import (
+    BytesField,
+    IntField,
+    Structure,
+)
 
 try:
     from queue import Queue

@@ -1,15 +1,35 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import os
 import uuid
 
 import pytest
 
-from smbprotocol.connection import Connection, Dialects
-from smbprotocol.exceptions import SMBException, SMBResponseException
-from smbprotocol.session import Session
-from smbprotocol.tree import SMB2TreeConnectRequest, SMB2TreeConnectResponse, \
-    SMB2TreeDisconnect, TreeConnect
+from smbprotocol import (
+    Dialects,
+)
 
-from .utils import smb_real
+from smbprotocol.connection import (
+    Connection,
+)
+
+from smbprotocol.exceptions import (
+    SMBException,
+    SMBResponseException,
+)
+
+from smbprotocol.session import (
+    Session,
+)
+
+from smbprotocol.tree import (
+    SMB2TreeConnectRequest,
+    SMB2TreeConnectResponse,
+    SMB2TreeDisconnect,
+    TreeConnect,
+)
 
 
 class TestSMB2TreeConnectRequest(object):

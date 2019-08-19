@@ -1,7 +1,21 @@
-import smbprotocol.connection
-import smbprotocol.open
-from smbprotocol.structure import BoolField, BytesField, DateTimeField, \
-    EnumField, FlagField, IntField, Structure, UuidField
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
+from smbprotocol.exceptions import (
+    NtStatus,
+)
+
+from smbprotocol.structure import (
+    BoolField,
+    BytesField,
+    DateTimeField,
+    EnumField,
+    FlagField,
+    IntField,
+    Structure,
+    UuidField,
+)
 
 try:
     from collections import OrderedDict
@@ -406,7 +420,7 @@ class SMB2CreateQueryMaximalAccessResponse(Structure):
         self.fields = OrderedDict([
             ('query_status', EnumField(
                 size=4,
-                enum_type=smbprotocol.connection.NtStatus,
+                enum_type=NtStatus,
                 enum_strict=False
             )),
             # either FilePipePrinterAccessMask or DirectoryAccessMask
