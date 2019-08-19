@@ -616,10 +616,10 @@ class SSPIContext(object):
         self._call_counter = 0
 
         flags = sspicon.ISC_REQ_INTEGRITY | \
-                sspicon.ISC_REQ_CONFIDENTIALITY | \
-                sspicon.ISC_REQ_REPLAY_DETECT | \
-                sspicon.ISC_REQ_SEQUENCE_DETECT | \
-                sspicon.ISC_REQ_MUTUAL_AUTH
+            sspicon.ISC_REQ_CONFIDENTIALITY | \
+            sspicon.ISC_REQ_REPLAY_DETECT | \
+            sspicon.ISC_REQ_SEQUENCE_DETECT | \
+            sspicon.ISC_REQ_MUTUAL_AUTH
 
         domain, username = _split_username_and_domain(username)
         # We could use the MECH to derive the package name but we are just
