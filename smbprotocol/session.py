@@ -16,7 +16,15 @@ from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
     Structure
 from smbprotocol.structure import _bytes_to_hex
 
-HAVE_SSPI = False  # TODO: add support for Windows and SSPI
+HAVE_SSPI = False
+try:  # pragma: no cover
+    import sspi
+    import sspicon
+    import win32security
+    HAVE_SSPI = True
+except ImportError:  # pragma: no cover
+    pass
+
 HAVE_GSSAPI = False
 try:  # pragma: no cover
     import gssapi
@@ -153,17 +161,21 @@ class Session(object):
 
         3.2.1.3 Per Session
         The Session object that is used to store the details for an
-        authenticated SMB session. There are 3 forms of authentication that are
+        authenticated SMB session. There are 4 forms of authentication that are
         supported;
 
-        1. NTLM Auth, requires the username and password
-        2. Kerberos Auth, only available in certain circumstances
-        3. Guest Auth, the credentials were rejected but the server allows a
+        1. SSPI Auth, Windows only if pywin32 is installed. Uses either
+            Kerberos or NTLM auth depending on the environment setup and can
+            use the current user's credentials if none are provided here.
+        2. NTLM Auth, requires the username and password
+        3. Kerberos Auth, only available in certain circumstances
+        4. Guest Auth, the credentials were rejected but the server allows a
             fallback to guest authentication (insecure and non-default)
 
         NTLM Auth is the fallback as it should be available in most scenarios
         while Kerberos only works on a system where python-gssapi is installed
-        and the GGF extension for inquire_sec_context_by_oid is available.
+        and the GGF extension for inquire_sec_context_by_oid is available
+        (Linux), or pywin32 is installed (Windows).
 
         If using Kerberos Auth, the username and password can be omitted which
         means the default user kerb ticket (if available) is used. If the
@@ -378,8 +390,9 @@ class Session(object):
                                     server=self.connection.server_name)
         elif mech in [MechTypes.KRB5, MechTypes.MS_KRB5, MechTypes.NTLMSSP] \
                 and HAVE_SSPI:
-            raise NotImplementedError("SSPI on Windows for authentication is "
-                                      "not yet implemented")
+            context = SSPIContext(username=self.username,
+                                  password=self.password,
+                                  server=self.connection.server_name)
         elif mech == MechTypes.NTLMSSP:
             context = NtlmContext(username=self.username,
                                   password=self.password)
@@ -420,7 +433,7 @@ class Session(object):
             if not in_token:
                 break
 
-            out_token = token_gen.send(session_resp['buffer'].get_value())
+            out_token = token_gen.send(in_token)
             status = response['status'].get_value()
             if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
                 log.info("More processing is required for SMB2_SESSION_SETUP")
@@ -458,6 +471,14 @@ class Session(object):
         return kdf.derive(ki)
 
 
+def _split_username_and_domain(username):
+    try:
+        domain, username = username.split("\\", 1)
+        return domain, username
+    except ValueError:
+        return "", username
+
+
 class NtlmContext(object):
 
     def __init__(self, username, password):
@@ -468,14 +489,8 @@ class NtlmContext(object):
             raise SMBAuthenticationError("The password must be set when using "
                                          "NTLM authentication")
 
-        # try and get the domain part from the username
         log.info("Setting up NTLM Security Context for user %s" % username)
-        try:
-            self.domain, self.username = username.split("\\", 1)
-        except ValueError:
-            self.username = username
-            self.domain = ''
-
+        self.domain, self.username = _split_username_and_domain(username)
         self.context = Ntlm(self.username, password, domain=self.domain)
 
     @property
@@ -592,3 +607,77 @@ class GSSAPIContext(object):
 
         log.info("GSSAPI: Acquired credentials for user %s" % str(user))
         return creds
+
+
+class SSPIContext(object):
+
+    def __init__(self, username, password, server):
+        log.info("Setting up SSPI Security Context for Windows auth")
+        self._call_counter = 0
+
+        flags = sspicon.ISC_REQ_INTEGRITY | \
+                sspicon.ISC_REQ_CONFIDENTIALITY | \
+                sspicon.ISC_REQ_REPLAY_DETECT | \
+                sspicon.ISC_REQ_SEQUENCE_DETECT | \
+                sspicon.ISC_REQ_MUTUAL_AUTH
+
+        domain, username = _split_username_and_domain(username)
+        # We could use the MECH to derive the package name but we are just
+        # better off using Negotiate and lettings Windows do all the heavy
+        # lifting.
+        self._context = sspi.ClientAuth(
+            pkg_name='Negotiate',
+            auth_info=(username, domain, password),
+            targetspn="cifs/%s" % server,
+            scflags=flags
+        )
+
+    @property
+    def complete(self):
+        return self._context.authenticated
+
+    def step(self):
+        in_token = None
+        while not self.complete:
+            log.info("SSPI: InitializeSecurityContext called")
+            out_token = self._step(in_token)
+            in_token = yield out_token if out_token != b"" else None
+
+    def get_session_key(self):
+        return self._context.ctxt.QueryContextAttributes(sspicon.SECPKG_ATTR_SESSION_KEY)
+
+    def _step(self, token):
+        success_codes = [
+            sspicon.SEC_E_OK,
+            sspicon.SEC_I_COMPLETE_AND_CONTINUE,
+            sspicon.SEC_I_COMPLETE_NEEDED,
+            sspicon.SEC_I_CONTINUE_NEEDED
+        ]
+
+        if token:
+            sec_token = win32security.PySecBufferType(
+                self._context.pkg_info['MaxToken'],
+                sspicon.SECBUFFER_TOKEN
+            )
+            sec_token.Buffer = token
+
+            sec_buffer = win32security.PySecBufferDescType()
+            sec_buffer.append(sec_token)
+        else:
+            sec_buffer = None
+
+        rc, out_buffer = self._context.authorize(sec_buffer_in=sec_buffer)
+        self._call_counter += 1
+        if rc not in success_codes:
+            rc_name = "Unknown Error"
+            for name, value in vars(sspicon).items():
+                if isinstance(value, int) and name.startswith("SEC_") and \
+                        value == rc:
+                    rc_name = name
+                    break
+            raise SMBAuthenticationError(
+                "InitializeSecurityContext failed on call %d: (%d) %s 0x%s"
+                % (self._call_counter, rc, rc_name, format(rc, 'x'))
+            )
+
+        return out_buffer[0].Buffer

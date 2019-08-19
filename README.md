@@ -31,7 +31,9 @@ backlog for features that would be nice to have in this library.
 ## Requirements
 
 * Python 2.6, 2.7, 3.4+
-* For Kerberos auth [python-gssapi](https://github.com/pythongssapi/python-gssapi)
+* For Kerberos auth
+    * [python-gssapi](https://github.com/pythongssapi/python-gssapi) on Linux
+    * [pywin32](https://github.com/mhammond/pywin32) on Windows
 
 To use Kerberos authentication, further dependencies are required, to install
 these dependencies run
@@ -46,12 +48,13 @@ sudo yum install gcc python-devel krb5-devel krb5-workstation python-devel
 pip install smbprotocol[kerberos]
 ```
 
-Currently Kerberos authentication is not supported on Windows. As part of this
-optional extra, the python-gssapi library is installed and smbprotocol requires
-a particular GSSAPI extension to be available to work. This extension should
-be installed on the majority of MIT or Heimdall Kerberos installs but it isn't
-guaranteed. To verify that Kerberos is available you can run the following
-check in a Python console
+Kerberos auth with Windows just requires the `pywin32` package to be installed
+and the Windows host to be joined to that domain. On Linux the python-gssapi
+library must be installed and smbprotocol requires a particular GSSAPI
+extension to be available to work. This extension should be installed on the
+majority of MIT or Heimdal Kerberos installs but it isn't guaranteed. To
+verify that Kerberos is available on Linux you can run the following check in
+a Python console:
 
 ```
 try:
@@ -73,7 +76,7 @@ To install smbprotocol, simply run
 ```
 pip install smbprotocol
 
-# on a non Windows host, to install with Kerberos support
+# To install with Kerberos support
 pip install smbprotocol[kerberos]
 ```
 
@@ -204,7 +207,6 @@ docker run -d -p $SMB_PORT:445 -v $(pwd)/build-scripts:/app -w /app -e SMB_USER=
 Here is a list of features that I would like to incorporate, PRs are welcome
 if you want to implement them yourself;
 
-* SSPI integration for Windows and Kerberos authentication
 * Test and support DFS mounts and not just server shares
 * Multiple channel support to speed up large data transfers
 * Create an easier API on top of the `raw` SMB calls that currently exist
