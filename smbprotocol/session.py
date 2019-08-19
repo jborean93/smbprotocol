@@ -1,11 +1,10 @@
-import base64
 import logging
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.kbkdf import CounterLocation, \
     KBKDFHMAC, Mode
-from ntlm_auth.ntlm import Ntlm
+from ntlm_auth.ntlm import NtlmContext as Ntlm
 from pyasn1.codec.der import decoder
 
 from smbprotocol.connection import Capabilities, Commands, Dialects, \
@@ -388,7 +387,10 @@ class Session(object):
             raise NotImplementedError("Mech Type %s is not yet supported"
                                       % mech)
 
-        for out_token in context.step():
+        response = None
+        token_gen = context.step()
+        out_token = next(token_gen)
+        while out_token is not None:
             session_setup = SMB2SessionSetupRequest()
             session_setup['security_mode'] = \
                 self.connection.client_security_mode
@@ -414,7 +416,7 @@ class Session(object):
             session_resp = SMB2SessionSetupResponse()
             session_resp.unpack(response['data'].get_value())
 
-            context.in_token = session_resp['buffer'].get_value()
+            out_token = token_gen.send(session_resp['buffer'].get_value())
             status = response['status'].get_value()
             if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
                 log.info("More processing is required for SMB2_SESSION_SETUP")
@@ -469,32 +471,28 @@ class NtlmContext(object):
         except ValueError:
             self.username = username
             self.domain = ''
-        self.password = password
-        self.context = Ntlm()
-        self.in_token = None
+
+        self.context = Ntlm(self.username, password, domain=self.domain)
 
     def step(self):
         log.info("NTLM: Generating Negotiate message")
-        msg1 = self.context.create_negotiate_message(self.domain)
-        msg1 = base64.b64decode(msg1)
+        msg1 = self.context.step()
         log.debug("NTLM: Negotiate message: %s" % _bytes_to_hex(msg1))
-        yield msg1
+        msg2 = yield msg1
 
-        log.info("NTLM: Parsing Challenge message")
-        msg2 = base64.b64encode(self.in_token)
-        log.debug("NTLM: Challenge message: %s" % _bytes_to_hex(self.in_token))
-        self.context.parse_challenge_message(msg2)
+        log.info("NTLM: Parsing Challenge message and generating Authentication message")
+        log.debug("NTLM: Challenge message: %s" % _bytes_to_hex(msg2))
+        msg3 = self.context.step(input_token=msg2)
 
-        log.info("NTLM: Generating Authenticate message")
-        msg3 = self.context.create_authenticate_message(
-            user_name=self.username,
-            password=self.password,
-            domain_name=self.domain
-        )
-        yield base64.b64decode(msg3)
+        yield msg3
 
     def get_session_key(self):
-        return self.context.authenticate_message.exported_session_key
+        # The session_key was only recently added in ntlm-auth, we have the
+        # fallback to the non-public interface for older versions where we
+        # know this still works. This should be removed once ntlm-auth no
+        # longer requires these older versions (>=1.4.0).
+        return getattr(self.context, 'session_key',
+                       self.context._session_security.exported_session_key)
 
 
 class GSSAPIContext(object):
@@ -510,14 +508,15 @@ class GSSAPIContext(object):
         self.context = gssapi.SecurityContext(name=server_name,
                                               creds=self.creds,
                                               usage='initiate')
-        self.in_token = None
 
     def step(self):
+        in_token = None
+
         while not self.context.complete:
             log.info("GSSAPI: gss_init_sec_context called")
-            out_token = self.context.step(self.in_token)
+            out_token = self.context.step(in_token)
             if out_token:
-                yield out_token
+                in_token = yield out_token
             else:
                 log.info("GSSAPI: gss_init_sec_context complete")
 
@@ -530,7 +529,7 @@ class GSSAPIContext(object):
         return context_data[0]
 
     def _acquire_creds(self, username, password):
-        # 3 use cases with Kerberos AUth
+        # 3 use cases with Kerberos Auth
         #   1. Both the user and pass is supplied so we want to create a new
         #      ticket with the pass
         #   2. Only the user is supplied so we will attempt to get the cred

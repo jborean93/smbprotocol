@@ -18,7 +18,7 @@ setup(
     packages=['smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
-        'ntlm-auth',
+        'ntlm-auth>=1.2.0',
         'pyasn1',
         'six',
     ],
@@ -26,7 +26,9 @@ setup(
         ':python_version<"2.7"': [
             'ordereddict'
         ],
-        'kerberos:sys_platform=="win32"': [],
+        'kerberos:sys_platform=="win32"': [
+            'pywin32'
+        ],
         'kerberos:sys_platform!="win32"': [
             'gssapi>=1.4.1'
         ]
