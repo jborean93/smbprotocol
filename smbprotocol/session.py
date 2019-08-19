@@ -390,7 +390,7 @@ class Session(object):
         response = None
         token_gen = context.step()
         out_token = next(token_gen)
-        while out_token is not None:
+        while not context.complete or out_token is not None:
             session_setup = SMB2SessionSetupRequest()
             session_setup['security_mode'] = \
                 self.connection.client_security_mode
@@ -415,6 +415,10 @@ class Session(object):
             self.session_id = response['session_id'].get_value()
             session_resp = SMB2SessionSetupResponse()
             session_resp.unpack(response['data'].get_value())
+
+            in_token = session_resp['buffer'].get_value()
+            if not in_token:
+                break
 
             out_token = token_gen.send(session_resp['buffer'].get_value())
             status = response['status'].get_value()
@@ -474,6 +478,10 @@ class NtlmContext(object):
 
         self.context = Ntlm(self.username, password, domain=self.domain)
 
+    @property
+    def complete(self):
+        return self.context.complete
+
     def step(self):
         log.info("NTLM: Generating Negotiate message")
         msg1 = self.context.step()
@@ -509,16 +517,16 @@ class GSSAPIContext(object):
                                               creds=self.creds,
                                               usage='initiate')
 
+    @property
+    def complete(self):
+        return self.context.complete
+
     def step(self):
         in_token = None
-
         while not self.context.complete:
             log.info("GSSAPI: gss_init_sec_context called")
             out_token = self.context.step(in_token)
-            if out_token:
-                in_token = yield out_token
-            else:
-                log.info("GSSAPI: gss_init_sec_context complete")
+            in_token = yield out_token
 
     def get_session_key(self):
         # GSS_C_INQ_SSPI_SESSION_KEY
