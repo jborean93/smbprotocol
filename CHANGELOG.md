@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - TBD
+## 0.2.0 - 2019-09-19
 
 * Fix issue where timeout was not being applied to the new connection
 * Fix various deprecated regex escape patterns
