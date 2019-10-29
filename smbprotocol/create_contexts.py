@@ -38,36 +38,32 @@ class CreateContextName(object):
                                 b"\x98\x0E\x15\x8D\xA1\xF6\xEC\x83"
 
     @staticmethod
-    def get_response_structure(name):
+    def get_response_structure(name, size=None):
         """
         Returns the response structure for a know list of create context
         responses.
 
         :param name: The constant value above
+        :param size: Specify the size of the context buffer, used to differenciate between REQUEST_LEASE and
+            REQUEST_LEASE_V2.
         :return: The response structure or None if unknown
         """
-        return {
-            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST:
-                SMB2CreateDurableHandleResponse(),
-            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT:
-                SMB2CreateDurableHandleReconnect(),
-            CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST:
-                SMB2CreateQueryMaximalAccessResponse(),
-            CreateContextName.SMB2_CREATE_REQUEST_LEASE:
-                SMB2CreateResponseLease(),
-            CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID:
-                SMB2CreateQueryOnDiskIDResponse(),
-            CreateContextName.SMB2_CREATE_REQUEST_LEASE_V2:
-                SMB2CreateResponseLeaseV2(),
-            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2:
-                SMB2CreateDurableHandleResponseV2(),
-            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2:
-                SMB2CreateDurableHandleReconnectV2,
-            CreateContextName.SMB2_CREATE_APP_INSTANCE_ID:
-                SMB2CreateAppInstanceId(),
-            CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION:
-                SMB2CreateAppInstanceVersion()
+        # Special handling for request lease here the header name has the same value, use the size to differenciate.
+        if name == CreateContextName.SMB2_CREATE_REQUEST_LEASE:
+            return {
+                32: SMB2CreateResponseLease(),
+                52: SMB2CreateResponseLeaseV2(),
+            }.get(size, None)
 
+        return {
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST: SMB2CreateDurableHandleResponse(),
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT: SMB2CreateDurableHandleReconnect(),
+            CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST: SMB2CreateQueryMaximalAccessResponse(),
+            CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID: SMB2CreateQueryOnDiskIDResponse(),
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2: SMB2CreateDurableHandleResponseV2(),
+            CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2: SMB2CreateDurableHandleReconnectV2,
+            CreateContextName.SMB2_CREATE_APP_INSTANCE_ID: SMB2CreateAppInstanceId(),
+            CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION: SMB2CreateAppInstanceVersion()
         }.get(name, None)
 
 
@@ -216,7 +212,7 @@ class SMB2CreateContextRequest(Structure):
         :return: relevant Structure of buffer_data or bytes if unknown name
         """
         buffer_name = self['buffer_name'].get_value()
-        structure = CreateContextName.get_response_structure(buffer_name)
+        structure = CreateContextName.get_response_structure(buffer_name, size=self['data_length'].get_value())
         if structure:
             structure.unpack(self['buffer_data'].get_value())
             return structure
@@ -239,6 +235,16 @@ class SMB2CreateContextRequest(Structure):
         data = b""
         msg_count = len(messages)
         for i, msg in enumerate(messages):
+            if not isinstance(msg, SMB2CreateContextRequest):
+                buffer = msg
+                buffer_name = getattr(msg, 'NAME', None)
+                if buffer_name is None:
+                    raise ValueError("Invalid context message, must be either a SMB2CreateContextRequest or a "
+                                     "predefined structure object with NAME defined.")
+                msg = SMB2CreateContextRequest()
+                msg['buffer_name'] = buffer_name
+                msg['buffer_data'] = buffer
+
             if i == msg_count - 1:
                 msg['next'] = 0
             else:
@@ -258,6 +264,8 @@ class SMB2CreateEABuffer(Structure):
 
     Used to apply extended attributes as part of creating a new file.
     """
+
+    NAME = CreateContextName.SMB2_CREATE_EA_BUFFER
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -333,6 +341,8 @@ class SMB2CreateDurableHandleRequest(Structure):
     Used by the client to mark the open as a durable open.
     """
 
+    NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST
+
     def __init__(self):
         self.fields = OrderedDict([
             ('durable_request', BytesField(size=16, default=b"\x00" * 16))
@@ -361,6 +371,8 @@ class SMB2CreateDurableHandleReconnect(Structure):
     Used by the client when attempting to reestablish a durable open
     """
 
+    NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT
+
     def __init__(self):
         self.fields = OrderedDict([
             ('data', BytesField(size=16))
@@ -375,6 +387,8 @@ class SMB2CreateQueryMaximalAccessRequest(Structure):
     Used by the client to retrieve maximal access information as part of
     processing the open.
     """
+
+    NAME = CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -412,6 +426,8 @@ class SMB2CreateAllocationSize(Structure):
     newly created or overwritten.
     """
 
+    NAME = CreateContextName.SMB2_CREATE_ALLOCATION_SIZE
+
     def __init__(self):
         self.fields = OrderedDict([
             ('allocation_size', IntField(size=8))
@@ -427,6 +443,8 @@ class SMB2CreateTimewarpToken(Structure):
     at a previous point in time.
     """
 
+    NAME = CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
+
     def __init__(self):
         self.fields = OrderedDict([
             ('timestamp', DateTimeField())
@@ -440,6 +458,8 @@ class SMB2CreateRequestLease(Structure):
 
     Used by the cliet when requesting the server to return a lease.
     """
+
+    NAME = CreateContextName.SMB2_CREATE_REQUEST_LEASE
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -484,6 +504,8 @@ class SMB2CreateQueryOnDiskIDResponse(Structure):
     Sent by the server in response to an SMB2CreateQueryOnDiskIDRequest packet.
     """
 
+    NAME = CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID
+
     def __init__(self):
         self.fields = OrderedDict([
             ('disk_file_id', IntField(size=8)),
@@ -505,6 +527,8 @@ class SMB2CreateRequestLeaseV2(Structure):
     Valid for the SMB 3.x family only
     """
 
+    NAME = CreateContextName.SMB2_CREATE_REQUEST_LEASE_V2
+
     def __init__(self):
         self.fields = OrderedDict([
             ('lease_key', BytesField(size=16)),
@@ -518,7 +542,7 @@ class SMB2CreateRequestLeaseV2(Structure):
             )),
             ('lease_duration', IntField(size=8)),
             ('parent_lease_key', BytesField(size=16)),
-            ('epoch', BytesField(size=16)),
+            ('epoch', BytesField(size=2)),
             ('reserved', IntField(size=2))
         ])
         super(SMB2CreateRequestLeaseV2, self).__init__()
@@ -559,6 +583,8 @@ class SMB2CreateDurableHandleRequestV2(Structure):
     Valid for the SMB 3.x family only
     """
 
+    NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2
+
     def __init__(self):
         self.fields = OrderedDict([
             # timeout in milliseconds
@@ -580,6 +606,8 @@ class SMB2CreateDurableHandleReconnectV2(Structure):
     Used by the client when reestablishing a durable open.
     Valid for the SMB 3.x family only
     """
+
+    NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -621,6 +649,8 @@ class SMB2CreateAppInstanceId(Structure):
     create request.
     """
 
+    NAME = CreateContextName.SMB2_CREATE_APP_INSTANCE_ID
+
     def __init__(self):
         self.fields = OrderedDict([
             ('structure_size', IntField(
@@ -640,6 +670,8 @@ class SMB2SVHDXOpenDeviceContextRequest(Structure):
 
     Used to open the shared virtual disk file.
     """
+
+    NAME = CreateContextName.SVHDX_OPEN_DEVICE_CONTEXT
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -722,6 +754,8 @@ class SMB2SVHDXOpenDeviceContextV2Request(Structure):
 
     Used to open the shared virtual disk file on the RSVD Protocol version 2
     """
+
+    NAME = CreateContextName.SVHDX_OPEN_DEVICE_CONTEXT
 
     def __init__(self):
         self.fields = OrderedDict([
@@ -815,6 +849,8 @@ class SMB2CreateAppInstanceVersion(Structure):
     provided by an application.
     Valid for the SMB 3.1.1+ family
     """
+
+    NAME = CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION
 
     def __init__(self):
         self.fields = OrderedDict([

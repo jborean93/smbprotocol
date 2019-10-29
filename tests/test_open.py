@@ -10,20 +10,52 @@ from smbprotocol.connection import Connection, Dialects
 from smbprotocol.exceptions import SMBException
 from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
-from smbprotocol.open import CloseFlags, CreateAction, CreateDisposition, \
-    CreateOptions, DirectoryAccessMask, FileAttributes, FileInformationClass, \
-    FileFlags, FilePipePrinterAccessMask, ImpersonationLevel, \
-    ReadWriteChannel, ShareAccess, SMB2CloseRequest, SMB2CloseResponse, \
-    SMB2CreateRequest, SMB2CreateResponse, SMB2FlushRequest, \
-    SMB2FlushResponse, SMB2QueryDirectoryRequest, SMB2QueryDirectoryResponse, \
-    SMB2ReadRequest, SMB2ReadResponse, SMB2WriteRequest, SMB2WriteResponse, \
+
+from smbprotocol.open import (
+    CloseFlags,
+    CreateAction,
+    CreateDisposition,
+    CreateOptions,
+    DirectoryAccessMask,
+    FileAttributes,
+    FileInformationClass,
+    FileFlags,
+    FilePipePrinterAccessMask,
+    ImpersonationLevel,
+    RequestedOplockLevel,
+    ReadWriteChannel,
+    ShareAccess,
+    SMB2CloseRequest,
+    SMB2CloseResponse,
+    SMB2CreateRequest,
+    SMB2CreateResponse,
+    SMB2FlushRequest,
+    SMB2FlushResponse,
+    SMB2QueryDirectoryRequest,
+    SMB2QueryDirectoryResponse,
+    SMB2ReadRequest,
+    SMB2ReadResponse,
+    SMB2WriteRequest,
+    SMB2WriteResponse,
     Open
+)
+
 from smbprotocol.query_info import FileNamesInformation
-from smbprotocol.create_contexts import CreateContextName, \
-    SMB2CreateAllocationSize, SMB2CreateContextRequest, \
-    SMB2CreateQueryMaximalAccessRequest, \
-    SMB2CreateQueryMaximalAccessResponse, SMB2CreateQueryOnDiskIDResponse, \
-    SMB2CreateTimewarpToken
+
+from smbprotocol.create_contexts import (
+    CreateContextName,
+    SMB2CreateAllocationSize,
+    SMB2CreateContextRequest,
+    SMB2CreateRequestLease,
+    SMB2CreateRequestLeaseV2,
+    SMB2CreateResponseLease,
+    SMB2CreateResponseLeaseV2,
+    SMB2CreateQueryMaximalAccessRequest,
+    SMB2CreateQueryMaximalAccessResponse,
+    SMB2CreateQueryOnDiskIDResponse,
+    SMB2CreateTimewarpToken,
+)
+
 from smbprotocol.exceptions import SMBUnsupportedFeature
 
 from .utils import smb_real
@@ -1298,6 +1330,44 @@ class TestOpen(object):
             assert isinstance(out_cont[1],
                               SMB2CreateQueryMaximalAccessResponse) or \
                 isinstance(out_cont[1], SMB2CreateQueryOnDiskIDResponse)
+        finally:
+            connection.disconnect(True)
+
+    @pytest.mark.parametrize('lease_version', ['v1', 'v2'])
+    def test_create_file_with_lease(self, smb_real, lease_version):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        session = Session(connection, smb_real[0], smb_real[1])
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "file-lease.txt")
+        try:
+            session.connect()
+            tree.connect()
+
+            if lease_version == 'v1':
+                lease_request = SMB2CreateRequestLease()
+            else:
+                lease_request = SMB2CreateRequestLeaseV2()
+                lease_request['parent_lease_key'] = b"\x00" * 16
+                lease_request['epoch'] = os.urandom(2)
+
+            lease_request['lease_key'] = os.urandom(16)
+            lease_request['lease_state'] = 1
+
+            out_cont = open.create(ImpersonationLevel.Impersonation,
+                                   FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                                   FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                                   0,
+                                   CreateDisposition.FILE_OVERWRITE_IF,
+                                   CreateOptions.FILE_NON_DIRECTORY_FILE,
+                                   create_contexts=[lease_request],
+                                   oplock_level=RequestedOplockLevel.SMB2_OPLOCK_LEVEL_LEASE)
+            assert len(out_cont) == 1
+
+            if lease_version == 'v1':
+                assert isinstance(out_cont[0], SMB2CreateResponseLease)
+            else:
+                assert isinstance(out_cont[0], SMB2CreateResponseLeaseV2)
         finally:
             connection.disconnect(True)
 

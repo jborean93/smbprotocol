@@ -932,7 +932,9 @@ class Open(object):
 
     def create(self, impersonation_level, desired_access, file_attributes,
                share_access, create_disposition, create_options,
-               create_contexts=None, send=True):
+               create_contexts=None,
+               oplock_level=RequestedOplockLevel.SMB2_OPLOCK_LEVEL_NONE,
+               send=True):
         """
         This will open the file based on the input parameters supplied. Any
         file open should also be called with Open.close() when it is finished.
@@ -966,6 +968,7 @@ class Open(object):
         opening files. More details on create context request values can be
         found here https://msdn.microsoft.com/en-us/library/cc246504.aspx.
 
+        :param oplock_level: The requested oplock level of the request.
         :param send: Whether to send the request in the same call or return the
             message to the caller and the unpack function
 
@@ -975,6 +978,7 @@ class Open(object):
             it is a Structure defined in create_contexts.py
         """
         create = SMB2CreateRequest()
+        create['requested_oplock_level'] = oplock_level
         create['impersonation_level'] = impersonation_level
         create['desired_access'] = desired_access
         create['file_attributes'] = file_attributes
