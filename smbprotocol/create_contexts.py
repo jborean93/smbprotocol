@@ -195,9 +195,6 @@ class SMB2CreateContextRequest(Structure):
         return mod if mod == 0 else 8 - mod
 
     def _padding2_size(self, structure):
-        if structure['next'].get_value() == 0:
-            return 0
-
         data_length = len(structure['buffer_name']) + \
             len(structure['padding']) + len(structure['buffer_data'])
         mod = data_length % 8

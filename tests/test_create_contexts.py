@@ -102,12 +102,8 @@ class TestSMB2CreateContextName(object):
                    b"\x00\x00" \
                    b"\x00\x00" \
                    b"\x00\x00\x00\x00" \
-                   b"\x51\x46\x69\x64"
-
-        # has not padding on the end
-        assert len(ea_buffers) == 89
-        assert len(alloc_size_context) == 32
-        assert len(query_disk) == 20
+                   b"\x51\x46\x69\x64" \
+                   b"\x00\x00\x00\x00"
 
         actual = SMB2CreateContextRequest.pack_multiple([
             ea_buffers,
@@ -118,7 +114,7 @@ class TestSMB2CreateContextName(object):
         # now has padding on the end
         assert len(ea_buffers) == 96
         assert len(alloc_size_context) == 32
-        assert len(query_disk) == 20
+        assert len(query_disk) == 24
         assert actual == expected
 
     def test_pack_multiple_raw_context(self):
@@ -187,7 +183,8 @@ class TestSMB2CreateContextName(object):
                b"\x00\x00" \
                b"\x00\x00" \
                b"\x00\x00\x00\x00" \
-               b"\x51\x46\x69\x64"
+               b"\x51\x46\x69\x64" \
+               b"\x00\x00\x00\x00"
         data = actual1.unpack(data)
         data = actual2.unpack(data)
         data = actual3.unpack(data)
@@ -247,7 +244,7 @@ class TestSMB2CreateContextName(object):
         assert alloc['allocation_size'].get_value() == 1024
         assert actual2['padding2'].get_value() == b""
 
-        assert len(actual3) == 20
+        assert len(actual3) == 24
         assert actual3['next'].get_value() == 0
         assert actual3['name_offset'].get_value() == 16
         assert actual3['name_length'].get_value() == 4
@@ -257,7 +254,7 @@ class TestSMB2CreateContextName(object):
         assert actual3['buffer_name'].get_value() == b"\x51\x46\x69\x64"
         assert actual3['padding'].get_value() == b""
         assert actual3['buffer_data'].get_value() == b""
-        assert actual3['padding2'].get_value() == b""
+        assert actual3['padding2'].get_value() == b"\x00\x00\x00\x00"
 
     def test_get_context_data_known(self):
         message = SMB2CreateContextRequest()

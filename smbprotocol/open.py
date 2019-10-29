@@ -467,6 +467,8 @@ class SMB2CreateResponse(Structure):
                 smbprotocol.create_contexts.SMB2CreateContextRequest()
             data = create_context.unpack(data)
             context_list.append(create_context)
+            # Manually make sure the final padding is present
+            create_context['padding2'] = b"\x00" * create_context._padding2_size(create_context)
             last_context = create_context['next'].get_value() == 0
 
         return context_list
@@ -1021,6 +1023,11 @@ class Open(object):
         response = self.connection.receive(request)
         create_response = SMB2CreateResponse()
         create_response.unpack(response['data'].get_value())
+
+        # Manually set the length so the debug log won't fail due to some servers returning a padded value which is not
+        # reflected in the padding2 of the context response.
+        create_response['create_contexts_length'] = len(create_response['buffer'])
+
         self._connected = True
         log.debug(str(create_response))
 
