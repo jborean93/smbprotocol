@@ -1,3 +1,5 @@
+import pytest
+import re
 import uuid
 
 from datetime import datetime
@@ -100,12 +102,8 @@ class TestSMB2CreateContextName(object):
                    b"\x00\x00" \
                    b"\x00\x00" \
                    b"\x00\x00\x00\x00" \
-                   b"\x51\x46\x69\x64"
-
-        # has not padding on the end
-        assert len(ea_buffers) == 89
-        assert len(alloc_size_context) == 32
-        assert len(query_disk) == 20
+                   b"\x51\x46\x69\x64" \
+                   b"\x00\x00\x00\x00"
 
         actual = SMB2CreateContextRequest.pack_multiple([
             ea_buffers,
@@ -116,8 +114,30 @@ class TestSMB2CreateContextName(object):
         # now has padding on the end
         assert len(ea_buffers) == 96
         assert len(alloc_size_context) == 32
-        assert len(query_disk) == 20
+        assert len(query_disk) == 24
         assert actual == expected
+
+    def test_pack_multiple_raw_context(self):
+        alloc_size = SMB2CreateAllocationSize()
+        alloc_size['allocation_size'] = 1024
+
+        expected = b"\x00\x00\x00\x00" \
+                   b"\x10\x00" \
+                   b"\x04\x00" \
+                   b"\x00\x00" \
+                   b"\x18\x00" \
+                   b"\x08\x00\x00\x00" \
+                   b"\x41\x6c\x53\x69" \
+                   b"\x00\x00\x00\x00" \
+                   b"\x00\x04\x00\x00\x00\x00\x00\x00"
+        actual = SMB2CreateContextRequest.pack_multiple([alloc_size])
+        assert actual == expected
+
+    def test_pack_multiple_bad_message(self):
+        expected = "Invalid context message, must be either a SMB2CreateContextRequest or a predefined structure " \
+                   "object with NAME defined."
+        with pytest.raises(ValueError, match=re.escape(expected)):
+            SMB2CreateContextRequest.pack_multiple([b"\x00"])
 
     def test_parse_message(self):
         actual1 = SMB2CreateContextRequest()
@@ -163,7 +183,8 @@ class TestSMB2CreateContextName(object):
                b"\x00\x00" \
                b"\x00\x00" \
                b"\x00\x00\x00\x00" \
-               b"\x51\x46\x69\x64"
+               b"\x51\x46\x69\x64" \
+               b"\x00\x00\x00\x00"
         data = actual1.unpack(data)
         data = actual2.unpack(data)
         data = actual3.unpack(data)
@@ -223,7 +244,7 @@ class TestSMB2CreateContextName(object):
         assert alloc['allocation_size'].get_value() == 1024
         assert actual2['padding2'].get_value() == b""
 
-        assert len(actual3) == 20
+        assert len(actual3) == 24
         assert actual3['next'].get_value() == 0
         assert actual3['name_offset'].get_value() == 16
         assert actual3['name_length'].get_value() == 4
@@ -233,7 +254,7 @@ class TestSMB2CreateContextName(object):
         assert actual3['buffer_name'].get_value() == b"\x51\x46\x69\x64"
         assert actual3['padding'].get_value() == b""
         assert actual3['buffer_data'].get_value() == b""
-        assert actual3['padding2'].get_value() == b""
+        assert actual3['padding2'].get_value() == b"\x00\x00\x00\x00"
 
     def test_get_context_data_known(self):
         message = SMB2CreateContextRequest()
@@ -592,7 +613,7 @@ class TestSMB2CreateRequestLeaseV2(object):
             LeaseRequestFlags.SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET
         message['lease_duration'] = 10
         message['parent_lease_key'] = b"\xee" * 16
-        message['epoch'] = b"\xdd" * 16
+        message['epoch'] = b"\xdd" * 2
         expected = b"\xff\xff\xff\xff\xff\xff\xff\xff" \
                    b"\xff\xff\xff\xff\xff\xff\xff\xff" \
                    b"\x01\x00\x00\x00" \
@@ -600,11 +621,10 @@ class TestSMB2CreateRequestLeaseV2(object):
                    b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
                    b"\xee\xee\xee\xee\xee\xee\xee\xee" \
                    b"\xee\xee\xee\xee\xee\xee\xee\xee" \
-                   b"\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd" \
-                   b"\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd" \
+                   b"\xdd\xdd" \
                    b"\x00\x00"
         actual = message.pack()
-        assert len(message) == 66
+        assert len(message) == 52
         assert actual == expected
 
     def test_parse_message(self):
@@ -616,11 +636,10 @@ class TestSMB2CreateRequestLeaseV2(object):
                b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
                b"\xee\xee\xee\xee\xee\xee\xee\xee" \
                b"\xee\xee\xee\xee\xee\xee\xee\xee" \
-               b"\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd" \
-               b"\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd" \
+               b"\xdd\xdd" \
                b"\x00\x00"
         data = actual.unpack(data)
-        assert len(actual) == 66
+        assert len(actual) == 52
         assert data == b""
         assert actual['lease_key'].get_value() == b"\xff" * 16
         assert actual['lease_state'].get_value() == \
@@ -629,7 +648,7 @@ class TestSMB2CreateRequestLeaseV2(object):
             LeaseRequestFlags.SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET
         assert actual['lease_duration'].get_value() == 10
         assert actual['parent_lease_key'].get_value() == b"\xee" * 16
-        assert actual['epoch'].get_value() == b"\xdd" * 16
+        assert actual['epoch'].get_value() == b"\xdd" * 2
         assert actual['reserved'].get_value() == 0
 
 

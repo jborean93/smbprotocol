@@ -51,22 +51,22 @@ class Tcp(object):
         self.send_lock = threading.Lock()
         self.recv_lock = threading.Lock()
 
-        self._connected = False
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._sock = None
 
     def connect(self, timeout=None):
-        if not self._connected:
+        if self._sock is None:
             log.info("Connecting to DirectTcp socket")
-            self._sock.settimeout(timeout)
-            self._sock.connect((self.server, self.port))
+            try:
+                self._sock = socket.create_connection((self.server, self.port), timeout=timeout)
+            except (OSError, socket.gaierror) as err:
+                raise ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err)))
             self._sock.setblocking(0)
-            self._connected = True
 
     def disconnect(self):
-        if self._connected:
+        if self._sock is not None:
             log.info("Disconnecting DirectTcp socket")
             self._sock.close()
-            self._connected = False
+            self._sock = None
 
     def send(self, request):
         data_length = len(request)

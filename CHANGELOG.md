@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 - TBD
+
+* Fix issue when trying to connect to host with IPv6 address
+* Fix response parsing for SMB2 Create Response Lease V1 and V2
+* Added the ability to set the Oplock level when opening a file
+
+
 ## 0.2.0 - 2019-09-19
 
 * Fix issue where timeout was not being applied to the new connection

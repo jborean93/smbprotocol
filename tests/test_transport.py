@@ -1,4 +1,5 @@
 import errno
+import re
 import socket
 
 import pytest
@@ -46,12 +47,19 @@ class TestTcp(object):
     def test_send_fail_non_blocking(self):
         # ensure it doesn't loop when a non blocking error is raised
         tcp = Tcp("0.0.0.0", 0)
+        tcp._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         with pytest.raises(socket.error) as err:
             tcp.send(b"\x01\x02\x03\x04")
 
     def test_recv_fail_non_blocking(self):
         # ensure it doesn't loop when a non blocking error is raised
         tcp = Tcp("0.0.0.0", 0)
+        tcp._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         with pytest.raises(socket.error) as err:
             tcp._recv(10)
         assert err.value.errno == errno.ENOTCONN
+
+    def test_invalid_host(self):
+        tcp = Tcp("fake-host", 445)
+        with pytest.raises(ValueError, match=re.escape("Failed to connect to 'fake-host:445': ")):
+            tcp.connect()
