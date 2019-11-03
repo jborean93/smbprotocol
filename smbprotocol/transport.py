@@ -109,7 +109,7 @@ class Tcp(object):
                 buffer = self._sock.recv(packet_size)
             except socket.error as err:
                 # If the socket is closed send None to the msg worker to tell it to stop.
-                if err.errno == errno.EBADF:
+                if err.errno in [errno.EBADF, errno.ECONNABORTED]:
                     self._recv_queue.put(None)
                     return
                 raise
