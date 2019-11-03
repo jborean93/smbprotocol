@@ -60,7 +60,7 @@ build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:
 #- cmd: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
-- cmd: echo hi
+- cmd: echo howdy
 
 on_finish:
 - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
