@@ -1546,6 +1546,7 @@ class Request(object):
             return
 
         message_id = self.message['message_id'].get_value()
+        log.info("Cancelling message %s" % message_id)
         self._connection.send(SMB2CancelRequest(), sid=self._session_id, credit_request=0, message_id=message_id,
                               async_id=self.async_id)
         self.cancelled = True

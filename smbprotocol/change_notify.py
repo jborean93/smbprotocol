@@ -247,6 +247,9 @@ class FileSystemWatcher(object):
         change_notify['file_id'] = self.open.file_id
         change_notify['completion_filter'] = completion_filter
 
+        log.info("Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request"
+                 % (self.open.tree_connect.session.username, self.open.tree_connect.share_name, self.open.file_name))
+        log.debug(str(change_notify))
         request = self.open.connection.send(change_notify, self.open.tree_connect.session.session_id,
                                             self.open.tree_connect.tree_connect_id)
         self._request = request
@@ -282,4 +285,5 @@ class FileSystemWatcher(object):
         except Exception as exc:
             self._t_exc = exc
         finally:
+            log.debug("Firing response event for %s change notify" % (self.open.file_name))
             self.response_event.set()
