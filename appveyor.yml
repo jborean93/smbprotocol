@@ -35,8 +35,7 @@ init:
     New-SmbShare -Name "$($env:SMB_SHARE)-encrypted" -Path C:\share-encrypted -EncryptData $true -FullAccess Everyone > $null
 
     $env:SMB_USER = $($env:USERNAME)
-    #$env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
-    $env:SMB_PASSWORD = $env:APPVEYOR_RDP_PASSWORD
+    $env:SMB_PASSWORD = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon", "DefaultPassword", '')
 
     Set-SmbServerConfiguration -RequireSecuritySignature $true -Force
 
