@@ -43,8 +43,6 @@ from smbprotocol.open import (
     Open
 )
 
-from .utils import smb_real
-
 
 class TestFileNotifyInformation(object):
 
