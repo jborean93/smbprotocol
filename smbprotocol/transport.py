@@ -1,5 +1,5 @@
-import errno
 import logging
+import select
 import socket
 import struct
 import threading
@@ -76,10 +76,13 @@ class Tcp(object):
     def close(self):
         if self._sock is not None:
             log.info("Disconnecting DirectTcp socket")
-            self._sock.shutdown(socket.SHUT_RD)
-            self._sock.close()
+            # Send a shutdown to the socket so the select returns and wait until the thread is closed before actually
+            # closing the socket.
+            sock = self._sock
             self._sock = None
+            sock.shutdown(socket.SHUT_RDWR)
             self._t_recv.join()
+            sock.close()
 
     @socket_connect
     def send(self, header):
@@ -99,19 +102,13 @@ class Tcp(object):
 
     def recv_thread(self):
         while True:
-            try:
-                b_packet_size = self._sock.recv(4)
-                # Python 2 seems to return an empty byte string instead of EBADF
-                if b_packet_size == b"":
-                    return
-
-                packet_size = struct.unpack(">L", b_packet_size)[0]
-                buffer = self._sock.recv(packet_size)
-            except socket.error as err:
+            read_socks, _, _ = select.select([self._sock], [], [])
+            if self._sock is None:
                 # If the socket is closed send None to the msg worker to tell it to stop.
-                if err.errno in [errno.EBADF, errno.ECONNABORTED]:
-                    self._recv_queue.put(None)
-                    return
-                raise
+                self._recv_queue.put(None)
+                return
 
+            b_packet_size = self._sock.recv(4)
+            packet_size = struct.unpack(">L", b_packet_size)[0]
+            buffer = self._sock.recv(packet_size)
             self._recv_queue.put(buffer)

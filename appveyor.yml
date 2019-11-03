@@ -10,19 +10,18 @@ environment:
     SMB_SERVER: 127.0.0.1
     SMB_SHARE: share
     SMB_PORT: 445
-    APPVEYOR_RDP_PASSWORD: SuperSecretPassword123
   matrix:
   # https://www.appveyor.com/docs/installed-software/#python
   - PYTHON: Python27
-  #- PYTHON: Python27-x64
-  #- PYTHON: Python34
-  #- PYTHON: Python34-x64
-  #- PYTHON: Python35
-  #- PYTHON: Python35-x64
-  #- PYTHON: Python36
-  #- PYTHON: Python36-x64
-  #- PYTHON: Python37
-  #- PYTHON: Python37-x64
+  - PYTHON: Python27-x64
+  - PYTHON: Python34
+  - PYTHON: Python34-x64
+  - PYTHON: Python35
+  - PYTHON: Python35-x64
+  - PYTHON: Python36
+  - PYTHON: Python36-x64
+  - PYTHON: Python37
+  - PYTHON: Python37-x64
 
 init:
 - ps: |
@@ -40,7 +39,6 @@ init:
     $env:SMB_PASSWORD = $env:APPVEYOR_RDP_PASSWORD
 
     Set-SmbServerConfiguration -RequireSecuritySignature $true -Force
-- ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 
 install:
 - cmd: python -m pip install --upgrade pip
@@ -59,8 +57,4 @@ install:
 build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:
-#- cmd: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
-- cmd: echo howdy
-
-on_finish:
-- ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+- cmd: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
