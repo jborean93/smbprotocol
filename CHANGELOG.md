@@ -2,6 +2,7 @@
 
 ## 0.2.1 - TBD
 
+* Drop support for Python 2.6
 * Fix issue when trying to connect to host with IPv6 address
 * Fix response parsing for SMB2 Create Response Lease V1 and V2
 * Added the ability to set the Oplock level when opening a file
