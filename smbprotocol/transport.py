@@ -76,6 +76,7 @@ class Tcp(object):
     def close(self):
         if self._sock is not None:
             log.info("Disconnecting DirectTcp socket")
+            self._sock.shutdown(socket.SHUT_RD)
             self._sock.close()
             self._sock = None
             self._t_recv.join()
@@ -100,6 +101,10 @@ class Tcp(object):
         while True:
             try:
                 b_packet_size = self._sock.recv(4)
+                # Python 2 seems to return an empty byte string instead of EBADF
+                if b_packet_size == b"":
+                    return
+
                 packet_size = struct.unpack(">L", b_packet_size)[0]
                 buffer = self._sock.recv(packet_size)
             except socket.error as err:

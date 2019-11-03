@@ -194,6 +194,8 @@ class FileSystemWatcher(object):
             return None
         if self._request is None or self._request.response is None:
             return None
+        elif self._request.response['status'].get_value() == NtStatus.STATUS_PENDING:
+            return None
         elif self._t_exc:
             raise self._t_exc
 
