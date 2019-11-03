@@ -1168,8 +1168,6 @@ class TestConnection(object):
         finally:
             connection.disconnect(True)
 
-    @pytest.mark.skipif(os.environ.get("TRAVIS_PYTHON_VERSION", "") == '2.6',
-                        reason="Travis-CI Python 2.6 does not support AES CCM")
     def test_encrypt_ccm(self, monkeypatch):
         def mockurandom(length):
             return b"\xff" * length
