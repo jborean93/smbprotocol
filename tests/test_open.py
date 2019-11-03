@@ -1446,6 +1446,7 @@ class TestOpen(object):
 
             old_last_write_time = open.last_write_time
             old_end_of_file = open.end_of_file
+            time.sleep(2)
             open.write(b"\x01")
             open.close(True)
             assert open.last_write_time != old_last_write_time
