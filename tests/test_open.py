@@ -1653,7 +1653,7 @@ class TestOpen(object):
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory")
+        open = Open(tree, "directory-query")
         try:
             session.connect()
             tree.connect()
@@ -1667,7 +1667,7 @@ class TestOpen(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            file1 = Open(tree, r"directory\\file1.txt")
+            file1 = Open(tree, r"directory-query\\file1.txt")
             file1.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -1676,7 +1676,7 @@ class TestOpen(object):
                          CreateOptions.FILE_NON_DIRECTORY_FILE)
             file1.write(b"\x01\x02\x03\x04", 0)
 
-            file2 = Open(tree, r"directory\\file2.log")
+            file2 = Open(tree, r"directory-query\\file2.log")
             file2.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -1804,7 +1804,7 @@ class TestOpen(object):
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
         tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory")
+        open = Open(tree, "directory-compound-open")
         try:
             session.connect()
             tree.connect()
@@ -1818,14 +1818,14 @@ class TestOpen(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            file1 = Open(tree, r"directory\\file1.txt")
+            file1 = Open(tree, r"directory-compound-open\\file1.txt")
             file1.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
                          ShareAccess.FILE_SHARE_READ,
                          CreateDisposition.FILE_OVERWRITE_IF,
                          CreateOptions.FILE_NON_DIRECTORY_FILE)
-            file2 = Open(tree, r"directory\\file2.log")
+            file2 = Open(tree, r"directory-compound-open\\file2.log")
             file2.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -1898,7 +1898,7 @@ class TestOpen(object):
         connection.connect(Dialects.SMB_2_1_0)
         session = Session(connection, smb_real[0], smb_real[1], False)
         tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory")
+        open = Open(tree, "directory-compound-open-plaintext")
         try:
             session.connect()
             tree.connect()
@@ -1912,14 +1912,14 @@ class TestOpen(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            file1 = Open(tree, r"directory\\file1.txt")
+            file1 = Open(tree, r"directory-compound-open-plaintext\\file1.txt")
             file1.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
                          ShareAccess.FILE_SHARE_READ,
                          CreateDisposition.FILE_OVERWRITE_IF,
                          CreateOptions.FILE_NON_DIRECTORY_FILE)
-            file2 = Open(tree, r"directory\\file2.log")
+            file2 = Open(tree, r"directory-compound-open-plaintext\\file2.log")
             file2.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -2087,37 +2087,6 @@ class TestOpen(object):
         finally:
             connection.disconnect(True)
 
-    def test_receive_message_without_request(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
-
-        try:
-            session.connect()
-            tree.connect()
-
-            open.create(ImpersonationLevel.Impersonation,
-                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                        0,
-                        CreateDisposition.FILE_OVERWRITE_IF,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE)
-            read_req, unpack_func = open.write(b"\x00", 0, send=False)
-            req = connection.send(read_req, sid=session.session_id,
-                                  tid=tree.tree_connect_id)
-
-            # delete the outstanding request so we throw the exception
-            message_id = req.message['message_id'].get_value()
-            del connection.outstanding_requests[message_id]
-            with pytest.raises(SMBException) as exc:
-                connection.receive(request=req)
-            assert str(exc.value) == "Received response with an unknown " \
-                                     "message ID: %d" % message_id
-        finally:
-            connection.disconnect(True)
-
     def test_receive_with_timeout(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
@@ -2142,6 +2111,7 @@ class TestOpen(object):
             # is no response to get
             connection.receive(request=req)
             req.response = None
+            req.response_event.clear()
 
             start_time = time.time()
             with pytest.raises(SMBException) as exc:

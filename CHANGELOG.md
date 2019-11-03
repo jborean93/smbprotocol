@@ -1,11 +1,14 @@
 # Changelog
 
-## 0.2.1 - TBD
+## 0.3.0 - TBD
 
 * Drop support for Python 2.6
 * Fix issue when trying to connect to host with IPv6 address
 * Fix response parsing for SMB2 Create Response Lease V1 and V2
 * Added the ability to set the Oplock level when opening a file
+* Revamped the socket listener and message processor to run in a separate thread for better concurrency
+* Added the `FileSystemWatcher` in `change_notify.py` to provider a way to watch for changes on the SMB filesystem
+* Added the `.cancel()` method onto a Request to cancel an SMB request on the server
 
 
 ## 0.2.0 - 2019-09-19

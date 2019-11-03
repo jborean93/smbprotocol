@@ -6,12 +6,31 @@ import pytest
 
 from cryptography.hazmat.primitives.ciphers import aead
 from datetime import datetime
-from smbprotocol.connection import Ciphers, Commands, Connection, Dialects, \
-    HashAlgorithms, NegotiateContextType, SecurityMode, \
-    SMB2EncryptionCapabilities, Smb2Flags, SMB2Echo, SMB2HeaderRequest, \
-    SMB2HeaderResponse, SMB2NegotiateContextRequest, SMB2NegotiateRequest, \
-    SMB2NegotiateResponse, SMB2PreauthIntegrityCapabilities, \
-    SMB2TransformHeader, SMB3NegotiateRequest
+
+from smbprotocol.connection import (
+    Ciphers,
+    Commands,
+    Connection,
+    Dialects,
+    HashAlgorithms,
+    NegotiateContextType,
+    Request,
+    SecurityMode,
+    SMB2CancelRequest,
+    SMB2EncryptionCapabilities,
+    Smb2Flags,
+    SMB2Echo,
+    SMB2HeaderAsync,
+    SMB2HeaderRequest,
+    SMB2HeaderResponse,
+    SMB2NegotiateContextRequest,
+    SMB2NegotiateRequest,
+    SMB2NegotiateResponse,
+    SMB2PreauthIntegrityCapabilities,
+    SMB2TransformHeader,
+    SMB3NegotiateRequest,
+)
+
 from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.exceptions import SMBException
 from smbprotocol.session import Session
@@ -41,6 +60,54 @@ def test_invalid_cipher():
     with pytest.raises(KeyError) as exc:
         Ciphers.get_cipher(0x3)
         assert False  # shouldn't be reached
+
+
+class TestSMB2HeaderAsync(object):
+
+    DATA = b"\xfe\x53\x4d\x42" \
+           b"\x40\x00" \
+           b"\x00\x00" \
+           b"\x00\x00" \
+           b"\x00\x00" \
+           b"\x0c\x00" \
+           b"\x00\x00" \
+           b"\x00\x00\x00\x00" \
+           b"\x00\x00\x00\x00" \
+           b"\x01\x00\x00\x00\x00\x00\x00\x00" \
+           b"\x01\x02\x03\x04\x05\x06\x07\x08" \
+           b"\x0a\x00\x00\x00\x00\x00\x00\x00" \
+           b"\x00\x00\x00\x00\x00\x00\x00\x00" \
+           b"\x00\x00\x00\x00\x00\x00\x00\x00"
+
+    def test_create_message(self):
+        header = SMB2HeaderAsync()
+        header['command'] = Commands.SMB2_CANCEL
+        header['message_id'] = 1
+        header['async_id'] = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        header['session_id'] = 10
+        actual = header.pack()
+        assert len(header) == 64
+        assert actual == self.DATA
+
+    def test_parse_message(self):
+        actual = SMB2HeaderAsync()
+        assert actual.unpack(self.DATA + b"\x01\x02\x03\x04") == b""
+
+        assert len(actual) == 68
+        assert actual['protocol_id'].get_value() == b"\xfeSMB"
+        assert actual['structure_size'].get_value() == 64
+        assert actual['credit_charge'].get_value() == 0
+        assert actual['channel_sequence'].get_value() == 0
+        assert actual['reserved'].get_value() == 0
+        assert actual['command'].get_value() == Commands.SMB2_CANCEL
+        assert actual['credit_request'].get_value() == 0
+        assert actual['flags'].get_value() == 0
+        assert actual['next_command'].get_value() == 0
+        assert actual['message_id'].get_value() == 1
+        assert actual['async_id'].get_value() == 578437695752307201
+        assert actual['session_id'].get_value() == 10
+        assert actual['signature'].get_value() == b"\x00" * 16
+        assert actual['data'].get_value() == b"\x01\x02\x03\x04"
 
 
 class TestSMB2HeaderRequest(object):
@@ -751,6 +818,25 @@ class TestSMB2Echo(object):
         assert actual['reserved'].get_value() == 0
 
 
+class TestSMB2CancelRequest(object):
+
+    DATA = b"\x04\x00" \
+           b"\x00\x00"
+
+    def test_create_message(self):
+        message = SMB2CancelRequest()
+        actual = message.pack()
+        assert len(message) == 4
+        assert actual == self.DATA
+
+    def test_parse_message(self):
+        actual = SMB2CancelRequest()
+        assert actual.unpack(self.DATA) == b""
+        assert len(actual) == 4
+        assert actual['structure_size'].get_value() == 4
+        assert actual['reserved'].get_value() == 0
+
+
 class TestSMB2TransformHeader(object):
 
     def test_create_message(self):
@@ -951,6 +1037,27 @@ class TestConnection(object):
             connection._verify(header, 0)
             actual = header.pack()
             assert actual == expected
+        finally:
+            connection.disconnect()
+
+    def test_broken_message_worker(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection.connect()
+        try:
+            test_msg = SMB2NegotiateRequest()
+            test_req = Request(test_msg, connection)
+            connection.outstanding_requests[666] = test_req
+
+            # Put a bad message in the incoming queue to break the worker in a bad way
+            connection.transport._recv_queue.put(b"\x01\x02\x03\x04")
+            while connection._t_exc is None:
+                pass
+
+            with pytest.raises(Exception):
+                connection.send(SMB2NegotiateRequest())
+
+            # Verify that all outstanding request events have been set on a failure
+            assert test_req.response_event.is_set()
         finally:
             connection.disconnect()
 

@@ -7,6 +7,11 @@ import threading
 from smbprotocol.structure import BytesField, IntField, Structure
 
 try:
+    from queue import Queue
+except ImportError:  # pragma: no cover
+    from Queue import Queue
+
+try:
     from collections import OrderedDict
 except ImportError:  # pragma: no cover
     from ordereddict import OrderedDict
@@ -37,94 +42,71 @@ class DirectTCPPacket(Structure):
         super(DirectTCPPacket, self).__init__()
 
 
+def socket_connect(func):
+    def wrapped(self, *args, **kwargs):
+        if self._sock is None:
+            log.info("Connecting to DirectTcp socket")
+            try:
+                self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
+            except (OSError, socket.gaierror) as err:
+                raise ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err)))
+            self._sock.settimeout(None)  # Make sure the socket is in blocking mode.
+
+            self._t_recv = threading.Thread(target=self.recv_thread, name="recv-%s:%s" % (self.server, self.port))
+            self._t_recv.daemon = True
+            self._t_recv.start()
+
+        func(self, *args, **kwargs)
+
+    return wrapped
+
+
 class Tcp(object):
 
     MAX_SIZE = 16777215
 
-    def __init__(self, server, port):
-        log.info("Setting up DirectTcp connection on %s:%d" % (server, port))
+    def __init__(self, server, port, recv_queue, timeout=None):
         self.server = server
         self.port = port
-
-        # used in multithreading processes to ensure send and recv isn't run at
-        # the same time
-        self.send_lock = threading.Lock()
-        self.recv_lock = threading.Lock()
-
+        self.timeout = timeout
         self._sock = None
+        self._recv_queue = recv_queue
+        self._t_recv = None
 
-    def connect(self, timeout=None):
-        if self._sock is None:
-            log.info("Connecting to DirectTcp socket")
-            try:
-                self._sock = socket.create_connection((self.server, self.port), timeout=timeout)
-            except (OSError, socket.gaierror) as err:
-                raise ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err)))
-            self._sock.setblocking(0)
-
-    def disconnect(self):
+    def close(self):
         if self._sock is not None:
             log.info("Disconnecting DirectTcp socket")
             self._sock.close()
             self._sock = None
+            self._t_recv.join()
 
-    def send(self, request):
-        data_length = len(request)
+    @socket_connect
+    def send(self, header):
+        b_msg = header
+        data_length = len(b_msg)
         if data_length > self.MAX_SIZE:
-            raise ValueError("Data to be sent over Direct TCP size %d exceeds "
-                             "the max length allowed %d"
+            raise ValueError("Data to be sent over Direct TCP size %d exceeds the max length allowed %d"
                              % (data_length, self.MAX_SIZE))
 
         tcp_packet = DirectTCPPacket()
-        tcp_packet['smb2_message'] = request
+        tcp_packet['smb2_message'] = b_msg
+
         data = tcp_packet.pack()
+        while data:
+            sent = self._sock.send(data)
+            data = data[sent:]
 
-        self.send_lock.acquire()
-        try:
-            while data:
-                sent = 0
-                try:
-                    sent = self._sock.send(data)
-                except socket.error as err:
-                    if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                        raise err
-                data = data[sent:]
-        finally:
-            self.send_lock.release()
-
-    def receive(self):
-        # receive first 4 bytes that contain the size of the packet, return
-        # None if no data is available, Connection handles this scenario
-        self.recv_lock.acquire()
-        try:
-            packet_size_bytes = self._recv(4)
-            if packet_size_bytes is None:
-                return
-
-            packet_size_int = struct.unpack(">L", packet_size_bytes)[0]
-            # we know there is 4 bytes so need to wait for the full stream to
-            # return before releasing the lock
-            buffer = self._recv(packet_size_int, wait=True)
-        finally:
-            self.recv_lock.release()
-        return buffer
-
-    def _recv(self, buffer, wait=False):
-        # will attempt to retrieve the data in the recv buffer based on the
-        # buffer size or return None if nothing available
-        bytes = b""
-        while len(bytes) < buffer:
+    def recv_thread(self):
+        while True:
             try:
-                data = self._sock.recv(buffer - len(bytes))
-                if data == b"" and bytes == b"" and not wait:
-                    return
-                bytes += data
+                b_packet_size = self._sock.recv(4)
+                packet_size = struct.unpack(">L", b_packet_size)[0]
+                buffer = self._sock.recv(packet_size)
             except socket.error as err:
-                if err.errno not in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                    raise err
-                # this was the first request so return None
-                elif bytes == b"" and not wait:
-                    return None
-                # we started getting data and there is still some remaining
-                # so try again
-        return bytes
+                # If the socket is closed send None to the msg worker to tell it to stop.
+                if err.errno == errno.EBADF:
+                    self._recv_queue.put(None)
+                    return
+                raise
+
+            self._recv_queue.put(buffer)
