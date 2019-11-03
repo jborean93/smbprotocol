@@ -1058,27 +1058,25 @@ class Connection(object):
         return requests
 
     @_worker_running
-    def receive(self, request, wait=True, timeout=None, resolve_symlinks=True):
+    def receive(self, request, wait=True, timeout=30, resolve_symlinks=True):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
 
         :param request: The Request object to wait get the response for
-        :param wait: Wait for the final response in the case of a
-            STATUS_PENDING response, the pending response is returned in the
-            case of wait=False
-        :param timeout: Set a timeout used while waiting for a response from
-            the server
-        :param resolve_symlinks: Set to automatically resolve symlinks in the
-            path when opening a file or directory.
+        :param wait: Wait for the final response in the case of a STATUS_PENDING response, the pending response is
+            returned in the case of wait=False
+        :param timeout: Set a timeout used while waiting for the initial response from the server. Not set when a
+            pending request is received (client will wait indefinitely after a pending result and wait=True).
+        :param resolve_symlinks: Set to automatically resolve symlinks in the path when opening a file or directory.
         :return: SMB2HeaderResponse of the received message
         """
         start_time = time.time()
         while True:
             iter_timeout = int(max(timeout - (time.time() - start_time), 1)) if timeout is not None else None
             if not request.response_event.wait(timeout=iter_timeout):
-                raise SMBException("Connection timeout of %d seconds exceeded while waiting for a response from the "
-                                   "server" % timeout)
+                raise SMBException("Connection timeout of %d seconds exceeded while waiting for a message id %s "
+                                   "response from the server: %s" % (timeout, request.message['message_id'].get_value(), request.response_event.is_set()))
 
             # Use a lock on the request so that in the case of a pending response we have exclusive lock on the event
             # flag and can clear it without the future pending response taking it over before we first clear the flag.
@@ -1090,6 +1088,7 @@ class Connection(object):
                 if status == NtStatus.STATUS_PENDING and wait:
                     # Received a pending message, clear the response_event flag and wait again.
                     request.response_event.clear()
+                    timeout = None
                     continue
                 elif status == NtStatus.STATUS_STOPPED_ON_SYMLINK and resolve_symlinks:
                     # Received when we do an Open on a path that contains a symlink. Need to capture all related
