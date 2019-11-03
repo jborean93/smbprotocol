@@ -22,7 +22,7 @@ from smbprotocol import (
 )
 
 from smbprotocol.connection import (
-    Ciphers,,
+    Ciphers,
     Connection,
     HashAlgorithms,
     NegotiateContextType,
