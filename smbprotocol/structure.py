@@ -1,13 +1,40 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import copy
 import struct
 import textwrap
 import types
 import uuid
-from abc import ABCMeta, abstractmethod
-from binascii import hexlify
-from datetime import datetime, timedelta
 
-from six import with_metaclass, integer_types
+from abc import (
+    ABCMeta,
+    abstractmethod,
+)
+
+from binascii import (
+    hexlify,
+)
+
+from datetime import (
+    datetime,
+    timedelta,
+)
+
+from six import (
+    binary_type,
+    integer_types,
+    python_2_unicode_compatible,
+    text_type,
+    with_metaclass,
+)
+
+from smbprotocol._text import (
+    to_bytes,
+    to_native,
+    to_text,
+)
 
 TAB = "    "  # Instead of displaying a tab on the print, use 4 spaces
 
@@ -17,7 +44,7 @@ class InvalidFieldDefinition(Exception):
 
 
 def _bytes_to_hex(bytes, pretty=False, hex_per_line=8):
-    hex = hexlify(bytes).decode('utf-8')
+    hex = to_text(hexlify(bytes))
 
     if pretty:
         if hex_per_line == 0:  # show hex on 1 line
@@ -84,7 +111,7 @@ class Structure(object):
         )
         field_strings.append(hex_wrapper.fill(raw_hex))
 
-        string = "%s:\n%s" % (struct_name, '\n'.join(field_strings))
+        string = "%s:\n%s" % (to_native(struct_name), '\n'.join([to_native(s) for s in field_strings]))
 
         return string
 
@@ -125,6 +152,7 @@ class Structure(object):
         return field
 
 
+@python_2_unicode_compatible
 class Field(with_metaclass(ABCMeta, object)):
 
     def __init__(self, little_endian=True, default=None, size=None):
@@ -293,7 +321,7 @@ class Field(with_metaclass(ABCMeta, object)):
         else:
             return size
 
-    def _get_struct_format(self, size):
+    def _get_struct_format(self, size, unsigned=True):
         """
         Get's the format specified for use in struct. This is only designed
         for 1, 2, 4, or 8 byte values and will throw an exception if it is
@@ -314,12 +342,16 @@ class Field(with_metaclass(ABCMeta, object)):
         if size not in struct_format.keys():
             raise InvalidFieldDefinition("Cannot struct format of size %s"
                                          % size)
-        return struct_format[size]
+        format_char = struct_format[size]
+        if not unsigned:
+            format_char = format_char.lower()
+
+        return format_char
 
 
 class IntField(Field):
 
-    def __init__(self, size, **kwargs):
+    def __init__(self, size, unsigned=True, **kwargs):
         """
         Used to store an int value for a field. The size for these values MUST
         be 1, 2, 4, or 8 and if another size is required use the BytesField
@@ -331,10 +363,11 @@ class IntField(Field):
         if size not in [1, 2, 4, 8]:
             raise InvalidFieldDefinition("IntField size must have a value of "
                                          "1, 2, 4, or 8 not %s" % str(size))
+        self.unsigned = unsigned
         super(IntField, self).__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
-        format = self._get_struct_format(self.size)
+        format = self._get_struct_format(self.size, self.unsigned)
         struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
         packed_int = struct.pack(struct_string, value)
         return packed_int
@@ -345,7 +378,7 @@ class IntField(Field):
         elif isinstance(value, types.LambdaType):
             int_value = value
         elif isinstance(value, bytes):
-            format = self._get_struct_format(self.size)
+            format = self._get_struct_format(self.size, self.unsigned)
             struct_string = "%s%s"\
                             % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
@@ -867,3 +900,35 @@ class BoolField(Field):
 
     def _to_string(self):
         return str(self._get_calculated_value(self.value))
+
+
+class TextField(BytesField):
+
+    def __init__(self, encoding='utf-16-le', **kwargs):
+        self.encoding = encoding
+        super(TextField, self).__init__(**kwargs)
+
+    def _pack_value(self, value):
+        return to_bytes(value, encoding=self.encoding)
+
+    def _parse_value(self, value):
+        if value is None:
+            text_value = u""
+        elif isinstance(value, binary_type):
+            text_value = to_text(value, encoding=self.encoding)
+        elif isinstance(value, text_type):
+            text_value = value
+        elif isinstance(value, types.LambdaType):
+            text_value = value
+        else:
+            raise TypeError("Cannot parse value for field %s of type %s to a "
+                            "text string" % (self.name, type(value).__name__))
+
+        return text_value
+
+    def _get_packed_size(self):
+        text_value = self._get_calculated_value(self.value)
+        return len(to_bytes(text_value, encoding=self.encoding))
+
+    def _to_string(self):
+        return self.value

@@ -109,3 +109,6 @@ ENV/
 
 # MacOS File
 .DS_Store
+
+# Vagrant test files
+build-scripts/.vagrant

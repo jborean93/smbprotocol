@@ -1,6 +1,4 @@
-import errno
 import re
-import socket
 
 import pytest
 
@@ -37,29 +35,15 @@ class TestDirectTcpPacket(object):
 class TestTcp(object):
 
     def test_normal_fail_message_too_big(self):
-        tcp = Tcp("0.0.0.0", 0)
+        tcp = Tcp("0.0.0.0", 0, None)
+        tcp._sock = True
         with pytest.raises(ValueError) as exc:
             tcp.send(b"\x00" * 16777216)
         assert str(exc.value) == "Data to be sent over Direct TCP size " \
                                  "16777216 exceeds the max length allowed " \
                                  "16777215"
 
-    def test_send_fail_non_blocking(self):
-        # ensure it doesn't loop when a non blocking error is raised
-        tcp = Tcp("0.0.0.0", 0)
-        tcp._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        with pytest.raises(socket.error) as err:
-            tcp.send(b"\x01\x02\x03\x04")
-
-    def test_recv_fail_non_blocking(self):
-        # ensure it doesn't loop when a non blocking error is raised
-        tcp = Tcp("0.0.0.0", 0)
-        tcp._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        with pytest.raises(socket.error) as err:
-            tcp._recv(10)
-        assert err.value.errno == errno.ENOTCONN
-
     def test_invalid_host(self):
-        tcp = Tcp("fake-host", 445)
+        tcp = Tcp("fake-host", 445, None)
         with pytest.raises(ValueError, match=re.escape("Failed to connect to 'fake-host:445': ")):
-            tcp.connect()
+            tcp.send(b"")
