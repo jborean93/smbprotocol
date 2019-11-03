@@ -332,6 +332,8 @@ class TestChangeNotify(object):
             while watcher._request.async_id is None:
                 pass
 
+            assert watcher.result is None
+
             watcher.cancel()
 
             watcher.wait()
@@ -364,9 +366,6 @@ class TestChangeNotify(object):
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)
-            assert watcher.result is None
-            assert watcher.response_event.is_set() is False
-
             expected = "Received unexpected status from the server: (3221225485) STATUS_INVALID_PARAMETER"
             with pytest.raises(SMBResponseException, match=re.escape(expected)):
                 watcher.wait()
