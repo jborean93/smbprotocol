@@ -4,6 +4,10 @@
 
 import ntpath
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol._text import (
     to_bytes,
     to_text,
@@ -15,11 +19,6 @@ from smbprotocol.structure import (
     IntField,
     Structure,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 
 class ReparseTags(object):

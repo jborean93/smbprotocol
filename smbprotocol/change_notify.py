@@ -5,6 +5,10 @@
 import logging
 import threading
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol.connection import (
     Commands,
     NtStatus,
@@ -22,11 +26,6 @@ from smbprotocol.structure import (
     Structure,
     TextField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 

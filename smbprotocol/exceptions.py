@@ -8,6 +8,10 @@ import ntpath
 import os
 import socket
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol import (
     Dialects,
 )
@@ -30,11 +34,6 @@ from smbprotocol.structure import (
     Structure,
     StructureField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 
 class NtStatus(object):

@@ -1051,10 +1051,8 @@ class TestConnection(object):
         try:
             header = SMB2HeaderResponse()
             header['message_id'] = 0xFFFFFFFFFFFFFFFF
-            expected = header.pack()
-            connection._verify(header, 0)
-            actual = header.pack()
-            assert actual == expected
+            b_msg = header.pack()
+            connection._verify(b_msg, 0)
         finally:
             connection.disconnect()
 
@@ -1087,7 +1085,7 @@ class TestConnection(object):
             header['message_id'] = 1
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             with pytest.raises(SMBException) as exc:
-                connection._verify(header, 100)
+                connection._verify(header.pack(), 100)
             assert str(exc.value) == "Failed to find session 100 for " \
                                      "message verification"
         finally:
@@ -1104,7 +1102,7 @@ class TestConnection(object):
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['signature'] = b"\xff" * 16
             with pytest.raises(SMBException) as exc:
-                connection._verify(header, list(connection.session_table.keys())[0], verify_session=True)
+                connection._verify(header.pack(), list(connection.session_table.keys())[0], verify_session=True)
             assert "Server message signature could not be verified:" in str(exc.value)
         finally:
             connection.disconnect(True)

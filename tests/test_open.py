@@ -2317,9 +2317,8 @@ class TestOpen(object):
                 connection.receive(request=req, timeout=2)
             end_time = int(time.time() - start_time)
             assert end_time < 5
-            assert str(exc.value) == "Connection timeout of 2 seconds " \
-                                     "exceeded while waiting for a response " \
-                                     "from the server"
+            assert str(exc.value) == "Connection timeout of 2 seconds exceeded while waiting for a message id %s " \
+                                     "response from the server" % req.message['message_id'].get_value()
         finally:
             connection.disconnect(True)
 

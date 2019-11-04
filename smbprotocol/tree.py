@@ -4,6 +4,10 @@
 
 import logging
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol import (
     Commands,
     Dialects,
@@ -29,11 +33,6 @@ from smbprotocol.structure import (
     IntField,
     Structure,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 

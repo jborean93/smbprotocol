@@ -4,7 +4,6 @@
 
 from __future__ import division
 
-import copy
 import hashlib
 import hmac
 import logging
@@ -980,19 +979,16 @@ class Connection(object):
                 raise SMBException(error_msg)
             tree = session.tree_connect_table[tid]
 
-        if session and session.signing_required and session.signing_key:
-            self._sign(header, session)
-
+        b_msg = self._sign_and_pack(header, session)
         request = None
         if message.COMMAND != Commands.SMB2_CANCEL:
             request = Request(header, type(message), self, session_id=sid)
             self.outstanding_requests[header['message_id'].get_value()] = request
 
-        send_data = header.pack()
         if (session and session.encrypt_data) or (tree and tree.encrypt_data):
-            send_data = self._encrypt(send_data, session)
+            b_msg = self._encrypt(b_msg, session)
 
-        self.transport.send(send_data)
+        self.transport.send(b_msg)
 
         if message.COMMAND != Commands.SMB2_CANCEL:
             return request
@@ -1034,13 +1030,10 @@ class Connection(object):
             if i != 0 and related:
                 header['session_id'] = b"\xff" * 8
                 header['tree_id'] = b"\xff" * 4
-                header['flags'].set_flag(
-                    Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS
-                )
+                header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS)
 
-            if session.signing_required and session.signing_key:
-                self._sign(header, session, padding=padding)
-            send_data += header.pack() + padding
+            b_msg = self._sign_and_pack(header, session, padding=padding)
+            send_data += b_msg + padding
 
             request = Request(header, type(message), self, session_id=sid)
             requests.append(request)
@@ -1058,7 +1051,7 @@ class Connection(object):
         return requests
 
     @_worker_running
-    def receive(self, request, wait=True, timeout=30, resolve_symlinks=True):
+    def receive(self, request, wait=True, timeout=5, resolve_symlinks=True):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
@@ -1076,7 +1069,7 @@ class Connection(object):
             iter_timeout = int(max(timeout - (time.time() - start_time), 1)) if timeout is not None else None
             if not request.response_event.wait(timeout=iter_timeout):
                 raise SMBException("Connection timeout of %d seconds exceeded while waiting for a message id %s "
-                                   "response from the server: %s" % (timeout, request.message['message_id'].get_value(), request.response_event.is_set()))
+                                   "response from the server" % (timeout, request.message['message_id'].get_value()))
 
             # Use a lock on the request so that in the case of a pending response we have exclusive lock on the event
             # flag and can clear it without the future pending response taking it over before we first clear the flag.
@@ -1250,30 +1243,33 @@ class Connection(object):
                     b_header = b_msg[:header_length]
                     b_msg = b_msg[header_length:]
 
-                    msg = SMB2HeaderResponse()
-                    msg.unpack(b_header)
-                    if not msg['flags'].has_flag(Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS):
-                        session_id = msg['session_id'].get_value()
+                    # There's a weird GIL lock that occurs when trying to initialise the SMB2HeaderResponse in this
+                    # thread. We process the raw bytes and delay the actual deserialization until the first call to
+                    # Request().response.
+                    flags = struct.unpack("<I", b_header[16:20])[0]
+                    if flags & Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS != Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS:
+                        session_id = struct.unpack("<Q", b_header[40:48])[0]
 
                     # TODO: verify why this is failing now.
                     if not is_encrypted:
-                        self._verify(msg, session_id)
+                        self._verify(b_header, session_id)
 
-                    message_id = msg['message_id'].get_value()
+                    message_id = struct.unpack("<Q", b_header[24:32])[0]
                     with self.outstanding_lock:
                         request = self.outstanding_requests[message_id]
 
                         # add the upper credit limit based on the credits granted by
                         # the server
-                        credit_response = msg['credit_response'].get_value()
+                        credit_response = struct.unpack("<H", b_header[14:16])[0]
                         self.sequence_window['high'] += credit_response if credit_response > 0 else 1
 
                         # Ensure we don't step on the receive() func in the main thread processing the pending result
                         # if already set as that will clear the response_event flag then wait again.
                         with request.response_lock:
-                            if msg['flags'].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
-                                request.async_id = msg['reserved'].pack() + msg['tree_id'].pack()
-                            request.response = msg
+                            if flags & Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND == Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND:
+                                request.async_id = b_header[32:40]
+
+                            request.response = b_header
                             request.response_event.set()
             except Exception as exc:
                 # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
@@ -1287,52 +1283,49 @@ class Connection(object):
                 # here a fatal errors and the connection should be closed so we exit the worker thread.
                 return
 
-    def _sign(self, message, session, padding=None):
-        message['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
-        signature = self._generate_signature(message, session, padding)
-        message['signature'] = signature
+    def _sign_and_pack(self, message, session, padding=None):
+        if not (session and session.signing_required and session.signing_key):
+            return message.pack()
 
-    def _verify(self, message, sid, verify_session=False):
-        message_id = message['message_id'].get_value()
-        flags = message['flags']
-        status = message['status'].get_value()
-        command = message['command'].get_value()
-        if message_id == 0xFFFFFFFFFFFFFFFF or \
-                not flags.has_flag(Smb2Flags.SMB2_FLAGS_SIGNED) or \
-                status == NtStatus.STATUS_PENDING or \
-                (command == Commands.SMB2_SESSION_SETUP and
-                 not verify_session):
+        message['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
+        b_msg = message.pack()
+        signature = self._generate_signature(b_msg, session, padding)
+        message['signature'] = signature  # Make sure we update the original message structure for backrefs.
+        b_msg = b_msg[:48] + signature + b_msg[64:]
+        return b_msg
+
+    def _verify(self, b_msg, session_id, verify_session=False):
+        status = struct.unpack("<H", b_msg[10:12])[0]
+        command = struct.unpack("<H", b_msg[12:14])[0]
+        flags = struct.unpack("<I", b_msg[16:20])[0]
+        message_id = struct.unpack("<Q", b_msg[24:32])[0]
+        signature = b_msg[48:64]
+
+        if message_id == 0xFFFFFFFFFFFFFFFF or (flags & Smb2Flags.SMB2_FLAGS_SIGNED == 0) or \
+                status == NtStatus.STATUS_PENDING or (command == Commands.SMB2_SESSION_SETUP and not verify_session):
             return
 
-        session = self.session_table.get(sid, None)
+        session = self.session_table.get(session_id, None)
         if session is None:
-            error_msg = "Failed to find session %d for message verification" \
-                        % sid
-            raise SMBException(error_msg)
-        expected = self._generate_signature(message, session)
-        actual = message['signature'].get_value()
-        if actual != expected:
-            error_msg = "Server message signature could not be verified: " \
-                        "%s != %s" % (actual, expected)
-            raise SMBException(error_msg)
+            raise SMBException("Failed to find session %s for message verification" % session_id)
 
-    def _generate_signature(self, message, session, padding=None):
-        msg = copy.deepcopy(message)
-        msg['signature'] = b"\x00" * 16
-        msg_data = msg.pack() + (padding if padding else b"")
+        expected = self._generate_signature(b_msg, session)
+        if signature != expected:
+            raise SMBException("Server message signature could not be verified: %s != %s" % (signature, expected))
+
+    def _generate_signature(self, b_msg, session, padding=None):
+        b_msg = b_msg[:48] + (b"\x00" * 16) + b_msg[64:] + (padding if padding else b"")
 
         if self.dialect >= Dialects.SMB_3_0_0:
             # TODO: work out when to get channel.signing_key
             signing_key = session.signing_key
 
-            c = cmac.CMAC(algorithms.AES(signing_key),
-                          backend=default_backend())
-            c.update(msg_data)
+            c = cmac.CMAC(algorithms.AES(signing_key), backend=default_backend())
+            c.update(b_msg)
             signature = c.finalize()
         else:
             signing_key = session.signing_key
-            hmac_algo = hmac.new(signing_key, msg=msg_data,
-                                 digestmod=hashlib.sha256)
+            hmac_algo = hmac.new(signing_key, msg=b_msg, digestmod=hashlib.sha256)
             signature = hmac_algo.digest()[:16]
 
         return signature
@@ -1544,7 +1537,9 @@ class Request(object):
         # The following are not in the SMB spec but used by various functions in smbprotocol
         # Used to contain the corresponding response from the server as the
         # receiving in done in a separate thread
-        self.response = None
+        self._response = None
+        self._proc_response_lock = threading.Lock()  # Used to make sure the response is deserialized only once.
+
         self.response_lock = threading.Lock()
         self.response_event = threading.Event()
         self.cancelled = False
@@ -1558,6 +1553,23 @@ class Request(object):
 
         # Cannot rely on the message values as it could be a related compound msg which does not set these values.
         self._session_id = session_id
+
+    @property
+    def response(self):
+        if self._response is None:
+            return None
+
+        with self._proc_response_lock:
+            if not isinstance(self._response, SMB2HeaderResponse):
+                b_data = self._response
+                self._response = SMB2HeaderResponse()
+                self._response.unpack(b_data)
+
+        return self._response
+
+    @response.setter
+    def response(self, value):
+        self._response = value
 
     def cancel(self):
         if self.cancelled is True:

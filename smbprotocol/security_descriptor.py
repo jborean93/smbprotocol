@@ -4,6 +4,10 @@
 
 import struct
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol.structure import (
     BytesField,
     EnumField,
@@ -13,11 +17,6 @@ from smbprotocol.structure import (
     Structure,
     StructureField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 
 class AccessMask(object):

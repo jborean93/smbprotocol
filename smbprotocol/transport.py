@@ -8,6 +8,10 @@ import socket
 import struct
 import threading
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol.structure import (
     BytesField,
     IntField,
@@ -18,11 +22,6 @@ try:
     from queue import Queue
 except ImportError:  # pragma: no cover
     from Queue import Queue
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +116,10 @@ class Tcp(object):
                 return
 
             b_packet_size = self._sock.recv(4)
+            if b_packet_size == b"":
+                self._recv_queue.put(None)
+                return
+
             packet_size = struct.unpack(">L", b_packet_size)[0]
             buffer = self._sock.recv(packet_size)
             self._recv_queue.put(buffer)

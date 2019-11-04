@@ -2,6 +2,10 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol.exceptions import (
     NtStatus,
 )
@@ -16,11 +20,6 @@ from smbprotocol.structure import (
     Structure,
     UuidField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 
 class CreateContextName(object):

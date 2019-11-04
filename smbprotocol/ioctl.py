@@ -5,6 +5,10 @@
 import binascii
 import socket
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol import (
     Commands,
     Dialects,
@@ -25,11 +29,6 @@ from smbprotocol.structure import (
     StructureField,
     UuidField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 
 class CtlCode(object):

@@ -2,6 +2,10 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol.structure import (
     BoolField,
     BytesField,
@@ -14,11 +18,6 @@ from smbprotocol.structure import (
     TextField,
     UuidField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 
 class AlignmentRequirement(object):

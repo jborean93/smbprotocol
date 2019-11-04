@@ -4,6 +4,10 @@
 
 import logging
 
+from collections import (
+    OrderedDict,
+)
+
 from cryptography.hazmat.backends import (
     default_backend,
 )
@@ -78,11 +82,6 @@ try:  # pragma: no cover
     HAVE_GSSAPI = True
 except ImportError:  # pragma: no cover
     pass
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 
@@ -395,7 +394,7 @@ class Session(object):
         if self.signing_required:
             log.info("Verifying the SMB Setup Session signature as auth is "
                      "successful")
-            self.connection._verify(response, self.session_id, True)
+            self.connection._verify(response.pack(), self.session_id, True)
 
     def disconnect(self, close=True):
         """
