@@ -42,7 +42,7 @@ class TestTcp(object):
 
     def test_normal_fail_message_too_big(self):
         tcp = Tcp("0.0.0.0", 0, None)
-        tcp._sock = True
+        tcp._connected = True
         with pytest.raises(ValueError) as exc:
             tcp.send(b"\x00" * 16777216)
         assert str(exc.value) == "Data to be sent over Direct TCP size " \
