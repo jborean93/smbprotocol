@@ -647,7 +647,7 @@ def utime(path, times=None, ns=None, follow_symlinks=True, **kwargs):
         # time_ns() was only added in Python 3.7
         time_ns = getattr(time, 'time_ns', None)
         if not time_ns:
-            def time_ns():
+            def time_ns():  # pragma: no cover
                 return int(time.time()) * 1000000000
 
         atime = mtime = (time_ns() // 100) + DateTimeField.EPOCH_FILETIME

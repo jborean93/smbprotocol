@@ -4,9 +4,8 @@
 
 import hashlib
 import os
-import uuid
-
 import pytest
+import uuid
 
 from cryptography.hazmat.primitives.ciphers import (
     aead,
@@ -1051,8 +1050,7 @@ class TestConnection(object):
         try:
             header = SMB2HeaderResponse()
             header['message_id'] = 0xFFFFFFFFFFFFFFFF
-            b_msg = header.pack()
-            connection._verify(b_msg, 0)
+            connection.verify_signature(header, 0)
         finally:
             connection.disconnect()
 
@@ -1085,7 +1083,7 @@ class TestConnection(object):
             header['message_id'] = 1
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             with pytest.raises(SMBException) as exc:
-                connection._verify(header.pack(), 100)
+                connection.verify_signature(header, 100)
             assert str(exc.value) == "Failed to find session 100 for " \
                                      "message verification"
         finally:
@@ -1098,11 +1096,11 @@ class TestConnection(object):
         try:
             session.connect()
             header = connection.preauth_integrity_hash_value[-2]
-            # just set some random values for verifiation failure
+            # just set some random values for verification failure
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['signature'] = b"\xff" * 16
             with pytest.raises(SMBException) as exc:
-                connection._verify(header.pack(), list(connection.session_table.keys())[0], verify_session=True)
+                connection.verify_signature(header, list(connection.session_table.keys())[0], force=True)
             assert "Server message signature could not be verified:" in str(exc.value)
         finally:
             connection.disconnect(True)
@@ -1150,7 +1148,7 @@ class TestConnection(object):
             msg = SMB2IOCTLRequest()
             msg['max_output_response'] = 65538  # results in 2 credits required
             with pytest.raises(SMBException) as exc:
-                connection._generate_packet_header(msg, None, None, 0)
+                connection.send(msg, None, None, 0)
             assert str(exc.value) == "Request requires 2 credits but only 1 " \
                                      "credits are available"
         finally:

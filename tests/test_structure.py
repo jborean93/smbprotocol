@@ -7,14 +7,13 @@ import six
 import types
 import uuid
 
+from collections import (
+    OrderedDict,
+)
+
 from datetime import (
     datetime,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
 
 from smbprotocol import (
     Commands,

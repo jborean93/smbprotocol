@@ -394,7 +394,7 @@ class Session(object):
         if self.signing_required:
             log.info("Verifying the SMB Setup Session signature as auth is "
                      "successful")
-            self.connection._verify(response.pack(), self.session_id, True)
+            self.connection.verify_signature(response, self.session_id, force=True)
 
     def disconnect(self, close=True):
         """

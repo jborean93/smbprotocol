@@ -20,12 +20,36 @@ from smbclient._os import (
 )
 
 from smbprotocol.exceptions import (
+    SMBAuthenticationError,
     SMBOSError,
 )
 
 from smbprotocol.file_info import (
     FileAttributes,
 )
+
+from smbprotocol.reparse_point import (
+    ReparseDataBuffer,
+)
+
+
+@pytest.mark.parametrize('path', [
+    '\\\\only_server',
+    '\\\\server_slash\\',
+])
+def test_open_bad_path(path):
+    expected = "The SMB path specified must contain the server and share to connect to"
+    with pytest.raises(ValueError, match=expected):
+        smbclient.open_file(path)
+
+
+def test_reset_connection(smb_share):
+    smbclient.reset_connection_cache()
+
+    # Once we've reset the connection it should fail because we didn't set any credentials
+    expected = 'Failed to authenticate with server'
+    with pytest.raises(SMBAuthenticationError, match=expected):
+        smbclient.stat(smb_share)
 
 
 def test_link_relative_path_fail(smb_share):
@@ -92,7 +116,8 @@ def test_link_to_file(smb_share):
     assert dst_stat.st_nlink == 2
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_link_to_symbolic_link_follows(smb_share):
     normal_filename = "%s\\file.txt" % smb_share
     link_filename = "%s\\link.txt" % smb_share
@@ -110,7 +135,8 @@ def test_link_to_symbolic_link_follows(smb_share):
     assert actual_hard.st_ino == actual_normal.st_ino
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_link_to_symbolic_link_not_follows(smb_share):
     normal_filename = "%s\\file.txt" % smb_share
     link_filename = "%s\\link.txt" % smb_share
@@ -228,7 +254,8 @@ def test_lstat_on_dir(smb_share):
     assert actual.st_uid == 0
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_lstat_on_symlink_file(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -435,6 +462,7 @@ def test_write_byte_file(smb_share):
         assert fd.tell() == 0
         assert fd.write(b"abc")
         assert fd.tell() == 3
+        fd.flush()
 
     with smbclient.open_file(file_path, mode='rb') as fd:
         assert fd.read() == b"abc"
@@ -669,6 +697,12 @@ def test_open_file_unbuffered(smb_share):
 
     with smbclient.open_file(filename, mode='wb', buffering=0) as fd:
         assert isinstance(fd, SMBFileIO)
+        fd.write(b"abc")
+        fd.flush()
+
+    with smbclient.open_file(filename, mode='rb', buffering=0) as fd:
+        assert isinstance(fd, SMBFileIO)
+        assert fd.read() == b"abc"
 
 
 def test_open_file_unbuffered_text_file(smb_share):
@@ -677,7 +711,8 @@ def test_open_file_unbuffered_text_file(smb_share):
         smbclient.open_file("%s\\file.txt" % smb_share, mode='w', buffering=0)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_open_symlink_file(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -691,7 +726,8 @@ def test_open_symlink_file(smb_share):
         assert fd.read() == u"content"
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_open_file_in_symlink_dir(smb_share):
     filename = "%s\\link\\file.txt" % smb_share
 
@@ -705,7 +741,8 @@ def test_open_file_in_symlink_dir(smb_share):
         assert fd.read() == u"content"
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_readlink_that_is_normal_file(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -716,7 +753,8 @@ def test_readlink_that_is_normal_file(smb_share):
     assert ntpath.normcase(actual) == ntpath.normcase(src_filename)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_readlink_that_is_normal_dir(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -727,7 +765,8 @@ def test_readlink_that_is_normal_dir(smb_share):
     assert ntpath.normcase(actual) == ntpath.normcase(src_dirname)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_readlink_relative_path(smb_share):
     src_filename = "%s\\dir1\\file.txt" % smb_share
     dst_filename = "%s\\dir2\\link.txt" % smb_share
@@ -747,6 +786,20 @@ def test_readlink_normal_file(smb_share):
     expected = "[NtStatus 0xc0000275] The file or directory is not a reparse point"
     with pytest.raises(OSError, match=re.escape(expected)):
         smbclient.readlink(filename)
+
+
+def test_readlink_not_symlink(monkeypatch):
+    def a(*args, **kwargs):
+        buffer = ReparseDataBuffer()
+        buffer['reparse_tag'] = 1
+        buffer['data_buffer'] = b""
+        return buffer
+
+    monkeypatch.setattr(smbclient._os, "_get_reparse_point", a)
+
+    expected = "Cannot read link of reparse point with tag (1) IO_REPARSE_TAG_RESERVED_ONE at 'path'"
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        smbclient.readlink("path")
 
 
 def test_remove_file(smb_share):
@@ -787,7 +840,8 @@ def test_remove_file_that_is_opened_without_delete_access(smb_share):
             smbclient.remove(filename)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_remove_symlink_missing_src(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -798,7 +852,8 @@ def test_remove_symlink_missing_src(smb_share):
     assert smbclient.listdir(smb_share) == []
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_remove_symlink_with_src(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -945,7 +1000,8 @@ def test_rmdir_file(smb_share):
         smbclient.rmdir(filename)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_rmdir_symlink_missing_src(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -956,7 +1012,8 @@ def test_rmdir_symlink_missing_src(smb_share):
     assert smbclient.listdir(smb_share) == []
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_rmdir_symlink_with_src(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -1035,7 +1092,8 @@ def test_scamdir_with_pattern(smb_share):
     assert names == ["file-test1.txt"]
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_scandir_with_symlink(smb_share):
     smbclient.symlink("%s\\file.txt" % smb_share, "%s\\link.txt" % smb_share)
     smbclient.symlink("%s\\dir" % smb_share, "%s\\link-dir" % smb_share, target_is_directory=True)
@@ -1138,7 +1196,8 @@ def test_stat_readonly(smb_share):
     assert actual.st_file_attributes == 33
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_stat_symlink_follow(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1153,7 +1212,8 @@ def test_stat_symlink_follow(smb_share):
     assert actual.st_ino == actual_src.st_ino
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_stat_symlink_follow_no_target(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1165,7 +1225,8 @@ def test_stat_symlink_follow_no_target(smb_share):
         smbclient.stat(dst_filename)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_stat_symlink_dont_follow(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1181,7 +1242,8 @@ def test_stat_symlink_dont_follow(smb_share):
     assert stat.S_ISLNK(actual.st_mode)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_symlink_file_missing_src(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1195,7 +1257,8 @@ def test_symlink_file_missing_src(smb_share):
         FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_symlink_file_existing_src(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1215,7 +1278,8 @@ def test_symlink_file_existing_src(smb_share):
         FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_symlink_dir_missing_src(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -1229,7 +1293,8 @@ def test_symlink_dir_missing_src(smb_share):
         FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_symlink_dir_existing_src(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -1247,7 +1312,8 @@ def test_symlink_dir_existing_src(smb_share):
         FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_symlink_relative_src(smb_share):
     src_filename = "%s\\dir1\\file.txt" % smb_share
     dst_filename = "%s\\dir2\\link.txt" % smb_share
@@ -1308,7 +1374,8 @@ def test_unlink_file(smb_share):
     assert smbclient.listdir(smb_share) == []
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Samba does not update timestamps")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="Samba does not update timestamps")
 def test_set_utime_file(smb_share):
     filename = "%s\\file.txt" % smb_share
 
@@ -1327,7 +1394,8 @@ def test_set_utime_file(smb_share):
     assert actual.st_mtime_ns == 1000000000
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Samba does not update timestamps")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="Samba does not update timestamps")
 def test_set_utime_file_negative(smb_share):
     filename = "%s\\file.txt" % smb_share
 
@@ -1346,7 +1414,8 @@ def test_set_utime_file_negative(smb_share):
     assert actual.st_mtime_ns == -1000000000
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Samba does not update timestamps")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="Samba does not update timestamps")
 def test_set_utime_directory(smb_share):
     dirname = "%s\\directory" % smb_share
 
@@ -1364,7 +1433,8 @@ def test_set_utime_directory(smb_share):
     assert actual.st_mtime_ns == 1000000000
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Samba does not update timestamps")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="Samba does not update timestamps")
 def test_set_utime_ns(smb_share):
     filename = "%s\\file.txt" % smb_share
 
@@ -1394,7 +1464,8 @@ def test_set_utime_bad_tuple():
         smbclient.utime("", times=(0, 0, 0))
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Samba does not update timestamps")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="Samba does not update timestamps")
 def test_set_utime_touch(smb_share):
     filename = "%s\\file.txt" % smb_share
 
@@ -1415,7 +1486,8 @@ def test_set_utime_touch(smb_share):
     assert actual.st_mtime_ns > before_stat.st_mtime_ns
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_set_utime_follow(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1436,7 +1508,8 @@ def test_set_utime_follow(smb_share):
     assert actual_file.st_mtime == 1.0
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_set_utime_dont_follow(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1496,7 +1569,28 @@ def test_walk_bottomup(smb_share):
     assert scanned_dirs == ['dir3', 'dir2', 'dir1']
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+def test_walk_no_dir(smb_share):
+    fake_dir = "%s\\fake-dir" % smb_share
+    had_result = False
+    for _ in smbclient.walk(fake_dir):
+        had_result = True
+    assert not had_result
+
+
+def test_walk_no_dir_on_error(smb_share):
+    fake_dir = "%s\\fake-dir" % smb_share
+
+    def on_error(err):
+        raise err
+
+    expected = "[Error 2] [NtStatus 0xc0000034] No such file or directory: "
+    with pytest.raises(SMBOSError, match=re.escape(expected)):
+        for _ in smbclient.walk(fake_dir, onerror=on_error):
+            pass
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_walk_with_symlink_follow(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -1525,7 +1619,8 @@ def test_walk_with_symlink_follow(smb_share):
     assert scanned_roots[dst_dirname]['files'] == ['file.txt']
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_walk_with_symlink_dont_follow(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\link" % smb_share
@@ -1588,8 +1683,16 @@ def test_xattr_file(smb_share):
     assert smbclient.listxattr(filename) == [b"KEY", b"NEW"]
 
 
-@pytest.mark.skipif(os.name != "nt" or 'APPVEYOR' in os.environ,
-                    reason="cannot create symlinks on Samba and hangs on Appveyor")
+def test_xattr_missing_file(smb_share):
+    filename = "%s\\file.txt" % smb_share
+
+    expected = "[Error 2] [NtStatus 0xc0000034] No such file or directory: "
+    with pytest.raises(SMBOSError, match=re.escape(expected)):
+        smbclient.listxattr(filename)
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_xattr_follow(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -1609,8 +1712,8 @@ def test_xattr_follow(smb_share):
     assert smbclient.listxattr(dst_filename) == []
 
 
-@pytest.mark.skipif(os.name != "nt" or 'APPVEYOR' in os.environ,
-                    reason="cannot create symlinks on Samba and hangs on Appveyor")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_xattr_dont_follow(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share

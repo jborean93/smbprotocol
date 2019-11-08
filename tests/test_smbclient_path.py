@@ -47,7 +47,8 @@ def test_exists_missing_path(smb_share):
     assert exists("%s\\missing dir\\file.txt" % smb_share) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_exists_broken_symlink(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -57,7 +58,8 @@ def test_exists_broken_symlink(smb_share):
     assert exists(dst_filename) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_exists_working_symlink(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -86,7 +88,8 @@ def test_lexists_missing_path(smb_share):
     assert lexists("%s\\missing dir\\file.txt" % smb_share) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_lexists_broken_symlink(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -96,7 +99,8 @@ def test_lexists_broken_symlink(smb_share):
     assert lexists(dst_filename) is True
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_lexists_working_symlink(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -169,7 +173,8 @@ def test_isfile_with_dir(smb_share):
     assert isfile(dir_name) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_isfile_with_link(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -181,7 +186,8 @@ def test_isfile_with_link(smb_share):
     assert isfile(dst_filename) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_isfile_with_broken_link(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -212,7 +218,8 @@ def test_isdir_with_dir(smb_share):
     assert isdir(dir_name) is True
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_isdir_with_link(smb_share):
     src_dir_name = "%s\\dir" % smb_share
     dst_dir_name = "%s\\link" % smb_share
@@ -223,7 +230,8 @@ def test_isdir_with_link(smb_share):
     assert isdir(dst_dir_name) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_isdir_with_broken_link(smb_share):
     src_dir_name = "%s\\dir" % smb_share
     dst_dir_name = "%s\\link" % smb_share
@@ -254,7 +262,8 @@ def test_islink_with_dir(smb_share):
     assert islink(dir_name) is False
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_islink_with_file_link(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -266,7 +275,8 @@ def test_islink_with_file_link(smb_share):
     assert islink(dst_filename) is True
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_islink_with_broken_file_link(smb_share):
     src_filename = "%s\\file.txt" % smb_share
     dst_filename = "%s\\link.txt" % smb_share
@@ -276,7 +286,8 @@ def test_islink_with_broken_file_link(smb_share):
     assert islink(dst_filename) is True
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_islink_with_dir_link(smb_share):
     src_dir_name = "%s\\dir" % smb_share
     dst_dir_name = "%s\\link" % smb_share
@@ -287,7 +298,8 @@ def test_islink_with_dir_link(smb_share):
     assert islink(dst_dir_name) is True
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_islink_with_broken_dir_link(smb_share):
     src_dir_name = "%s\\dir" % smb_share
     dst_dir_name = "%s\\link" % smb_share
@@ -346,7 +358,8 @@ def test_samefile_missing_path2(smb_share):
         samefile(file1, file2)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_samefile_with_symlink(smb_share):
     file1 = "%s\\file1.txt" % smb_share
     file2 = "%s\\file2.txt" % smb_share
@@ -359,7 +372,8 @@ def test_samefile_with_symlink(smb_share):
     assert samefile(file1, file2) is True
 
 
-@pytest.mark.skipif(os.name != "nt", reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
 def test_samefile_with_broken_symlink(smb_share):
     file1 = "%s\\file1.txt" % smb_share
     file2 = "%s\\file2.txt" % smb_share

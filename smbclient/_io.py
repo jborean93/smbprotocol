@@ -227,10 +227,19 @@ class SMBFileTransaction(object):
         tid = self.raw.fd.tree_connect.tree_connect_id
         requests = self.raw.fd.connection.send_compound(send_msgs, sid, tid, related=True)
 
-        try:
-            responses = [func(requests[idx]) for idx, func in enumerate(unpack_functions)]
-        except SMBResponseException as exc:
-            raise SMBOSError(exc.status, self.raw.name)
+        # Due to a wonderful threading issue we need to ensure we call .receive() for each message we sent so cannot
+        # just enumerate the list in 1 line in case it throws an exception.
+        failures = []
+        responses = []
+        for idx, func in enumerate(unpack_functions):
+            try:
+                responses.append(func(requests[idx]))
+            except SMBResponseException as exc:
+                failures.append(SMBOSError(exc.status, self.raw.name))
+
+        # If there was a failure, just raise the first exception found.
+        if failures:
+            raise failures[0]
 
         remove_index.sort(reverse=True)  # Need to remove from highest index first.
         [responses.pop(i) for i in remove_index]  # Remove the open and close response if commit() did that work.
@@ -373,16 +382,13 @@ class SMBRawIO(io.RawIOBase):
         """
         return self._offset
 
-    def truncate(self, size=None):
+    def truncate(self, size):
         """
         Truncate the file to at most size bytes and return the truncated size.
 
         Size defaults to the current file position, as returned by tell().
         The current file position is changed to the value of size.
         """
-        if size is None:
-            size = self._offset
-
         with SMBFileTransaction(self) as transaction:
             eof_info = FileEndOfFileInformation()
             eof_info['end_of_file'] = size

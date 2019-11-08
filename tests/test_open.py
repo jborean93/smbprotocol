@@ -3,12 +3,11 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import os
+import pytest
 import time
 import uuid
 
 from datetime import datetime
-
-import pytest
 
 from smbprotocol import (
     Dialects,

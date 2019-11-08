@@ -2,11 +2,10 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+import pytest
 import re
 import threading
 import uuid
-
-import pytest
 
 from smbprotocol._text import (
     to_native,
@@ -166,6 +165,94 @@ class TestChangeNotify(object):
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)
             assert watcher.result is None
             assert watcher.response_event.is_set() is False
+
+            # Run the wait in a separate thread so we can create the dir
+            def watcher_wait():
+                watcher.wait()
+            watcher_wait_thread = threading.Thread(target=watcher_wait)
+            watcher_wait_thread.daemon = True
+            watcher_wait_thread.start()
+
+            def watcher_event():
+                watcher.response_event.wait()
+            watcher_event_thread = threading.Thread(target=watcher_event)
+            watcher_event_thread.daemon = True
+            watcher_event_thread.start()
+
+            # Create the new file
+            file_open = Open(tree, "directory-watch\\created file")
+            file_open.create(ImpersonationLevel.Impersonation,
+                             FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                             FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                             ShareAccess.FILE_SHARE_READ |
+                             ShareAccess.FILE_SHARE_WRITE |
+                             ShareAccess.FILE_SHARE_DELETE,
+                             CreateDisposition.FILE_OPEN_IF,
+                             CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file_open.close()
+
+            watcher_wait_thread.join(timeout=2)
+            watcher_event_thread.join(timeout=2)
+            assert watcher_wait_thread.is_alive() is False
+            assert watcher_event_thread.is_alive() is False
+
+            assert watcher.response_event.is_set()
+            assert len(watcher.result) == 1
+
+            assert watcher.result[0]['file_name'].get_value() == u"created file"
+            assert watcher.result[0]['action'].get_value() == FileAction.FILE_ACTION_ADDED
+
+            open.close()
+        finally:
+            connection.disconnect(True)
+
+    def test_change_notify_on_dir_compound(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+
+        # Cannot use encryption as Samba has a bug where the transform response has the wrong Session Id. Also there's
+        # a special edge case of testing the Session Id of the plaintext response with signatures so don't use
+        # encryption.
+        # https://bugzilla.samba.org/show_bug.cgi?id=14189
+        session = Session(connection, smb_real[0], smb_real[1], require_encryption=False)
+        tree = TreeConnect(session, smb_real[4])
+        open = Open(tree, "directory-watch")
+        try:
+            session.connect()
+            tree.connect()
+
+            # Ensure the dir is clean of files.
+            open.create(ImpersonationLevel.Impersonation,
+                        DirectoryAccessMask.MAXIMUM_ALLOWED,
+                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                        ShareAccess.FILE_SHARE_READ |
+                        ShareAccess.FILE_SHARE_WRITE |
+                        ShareAccess.FILE_SHARE_DELETE,
+                        CreateDisposition.FILE_OPEN_IF,
+                        CreateOptions.FILE_DIRECTORY_FILE)
+            self._remove_file(tree, "directory-watch\\created file")
+            open.close()
+
+            watcher = FileSystemWatcher(open)
+            messages = [
+                open.create(ImpersonationLevel.Impersonation,
+                            DirectoryAccessMask.MAXIMUM_ALLOWED,
+                            FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                            ShareAccess.FILE_SHARE_READ |
+                            ShareAccess.FILE_SHARE_WRITE |
+                            ShareAccess.FILE_SHARE_DELETE,
+                            CreateDisposition.FILE_OPEN_IF,
+                            CreateOptions.FILE_DIRECTORY_FILE,
+                            send=False),
+                watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME, send=False)
+            ]
+
+            assert watcher.result is None
+            assert watcher.response_event.is_set() is False
+
+            requests = connection.send_compound([m[0] for m in messages], sid=session.session_id,
+                                                tid=tree.tree_connect_id, related=True)
+            [messages[i][1](req) for i, req in enumerate(requests)]
 
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():

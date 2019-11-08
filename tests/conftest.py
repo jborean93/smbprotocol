@@ -3,10 +3,8 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import os
-import time
-
 import pytest
-
+import time
 
 from smbclient import (
     mkdir,
@@ -16,8 +14,8 @@ from smbclient import (
 )
 
 
-def remove_tree(path):
-    for dir_entry in scandir(path):
+def remove_tree(path, **kwargs):
+    for dir_entry in scandir(path, **kwargs):
         if dir_entry.is_dir():
             if dir_entry.is_symlink():
                 rmdir(dir_entry.path)
@@ -65,4 +63,4 @@ def smb_share(request, smb_real):
     try:
         yield share_path
     finally:
-        remove_tree(share_path)
+        remove_tree(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])

@@ -9,7 +9,7 @@
 * Fix issue when trying to connect to host with IPv6 address
 * Fix response parsing for SMB2 Create Response Lease V1 and V2
 * Added the ability to set the Oplock level when opening a file
-* Revamped the socket listener and message processor to run in a separate thread for better concurrency
+* Revamped the socket listener and message processor to run in a separate thread for faster message resolving
 * Added the `FileSystemWatcher` in `change_notify.py` to provider a way to watch for changes on the SMB filesystem
 * Added the `.cancel()` method onto a Request to cancel an SMB request on the server
 
