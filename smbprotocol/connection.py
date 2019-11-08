@@ -307,7 +307,8 @@ class SMB2HeaderResponse(Structure):
             )),
             ('command', EnumField(
                 size=2,
-                enum_type=Commands
+                enum_type=Commands,
+                enum_strict=False,
             )),
             ('credit_response', IntField(size=2)),
             ('flags', FlagField(
@@ -1147,13 +1148,12 @@ class Connection(object):
     def _check_worker_running(self):
         """ Checks that the message worker thread is still running and raises it's exception if it has failed. """
         if self._t_exc is not None:
-            self.transport.close()
+            self.disconnect(False)
             raise self._t_exc
 
     @_worker_running
     def _send(self, messages, session_id=None, tree_id=None, message_id=None, credit_request=None, related=False,
               async_id=None):
-
         send_data = b""
         requests = []
         session = self.session_table.get(session_id, None)
@@ -1260,7 +1260,6 @@ class Connection(object):
                     b_msg = self._decrypt(msg)
 
                 next_command = -1
-                session_id = None
                 while next_command != 0:
                     next_command = struct.unpack("<L", b_msg[20:24])[0]
                     header_length = next_command if next_command != 0 else len(b_msg)
@@ -1305,6 +1304,7 @@ class Connection(object):
 
                 # While a caller of send/receive could theoretically catch this exception, we consider any failures
                 # here a fatal errors and the connection should be closed so we exit the worker thread.
+                self.disconnect(False)
                 return
 
     def _generate_signature(self, b_header, signing_key):
