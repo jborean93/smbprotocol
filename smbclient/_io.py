@@ -328,9 +328,10 @@ class SMBRawIO(io.RawIOBase):
 
         try:
             # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wpo/feeb3122-cfe0-4b34-821d-e31c036d763c
-            # Impersonation on SMB has no meaning when opening files, just use Anonymous
+            # Impersonation on SMB has little meaning when opening files but is important if using RPC so set to a sane
+            # default of Impersonation.
             open_result = self.fd.create(
-                ImpersonationLevel.Anonymous,
+                ImpersonationLevel.Impersonation,
                 self._desired_access,
                 self._file_attributes,
                 share_access,
