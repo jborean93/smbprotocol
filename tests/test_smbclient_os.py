@@ -53,7 +53,7 @@ def test_reset_connection(smb_share):
 
 
 def test_delete_session(smb_share):
-    server = ntpath.normpath(smb_share).split("\\")[0]
+    server = ntpath.normpath(smb_share).split("\\")[2]
     smbclient.delete_session(server)
 
     # Once we've closed the connection it should fail because we didn't set any credentials

@@ -101,22 +101,22 @@ def _parse_mode(raw, invalid=""):
     return create_disposition
 
 
-def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, buffer=b""):
+def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, input_buffer=b""):
     """
     Sends an IOCTL request to the server.
 
-    :param transaction: The SMBFileTransaciton the request is to run under.
+    :param transaction: The SMBFileTransaction the request is to run under.
     :param ctl_code: The IOCTL Code of the request.
     :param output_size: Specify the max output response allowed from the server.
     :param flags: Specify custom flags to be set on the IOCTL request.
-    :param buffer: Specify an optional input buffer for the request.
+    :param input_buffer: Specify an optional input buffer for the request.
     """
     request = SMB2IOCTLRequest()
     request['ctl_code'] = ctl_code
     request['file_id'] = transaction.raw.fd.file_id
     request['max_output_response'] = output_size
     request['flags'] = flags
-    request['buffer'] = buffer
+    request['buffer'] = input_buffer
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)

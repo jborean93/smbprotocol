@@ -575,7 +575,7 @@ def symlink(src, dst, target_is_directory=False, **kwargs):
 
     with SMBFileTransaction(raw) as transaction:
         ioctl_request(transaction, CtlCode.FSCTL_SET_REPARSE_POINT, flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                      buffer=reparse_buffer)
+                      input_buffer=reparse_buffer)
 
 
 def truncate(path, length, **kwargs):
