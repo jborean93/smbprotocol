@@ -2,7 +2,7 @@
 
 ## 1.0.0 - TBD
 
-* Dropped support for Python 2.6
+* Dropped support for Python 2.6 and Python 3.4
 * Added the `smbclient` package that provides a higher level API for interactive with SMB servers
 * Deprecated `smbprotocol.query_info` in favour of `smbprotocol.file_info`, `query_info` will be removed in the next major release
 * Add automatic symlink resolver when a symlink is in the path being opened
