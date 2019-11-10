@@ -111,12 +111,12 @@ def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_
     :param flags: Specify custom flags to be set on the IOCTL request.
     :param input_buffer: Specify an optional input buffer for the request.
     """
-    request = SMB2IOCTLRequest()
-    request['ctl_code'] = ctl_code
-    request['file_id'] = transaction.raw.fd.file_id
-    request['max_output_response'] = output_size
-    request['flags'] = flags
-    request['buffer'] = input_buffer
+    ioctl_req = SMB2IOCTLRequest()
+    ioctl_req['ctl_code'] = ctl_code
+    ioctl_req['file_id'] = transaction.raw.fd.file_id
+    ioctl_req['max_output_response'] = output_size
+    ioctl_req['flags'] = flags
+    ioctl_req['buffer'] = input_buffer
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)
@@ -124,7 +124,7 @@ def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_
         query_resp.unpack(response['data'].get_value())
         return query_resp['buffer'].get_value()
 
-    transaction += (request, _receive_resp)
+    transaction += (ioctl_req, _receive_resp)
 
 
 def query_info(transaction, info_class, flags=0, output_buffer_length=None):
@@ -134,7 +134,7 @@ def query_info(transaction, info_class, flags=0, output_buffer_length=None):
     :param transaction: The SMBFileTransaction the request is to run under.
     :param info_class: The required information class type defined in file_info.py that is being requested.
     :param flags: Optional flags to set on the query request.
-    :param output_buffer_length: Override the max ouput buffer length, defaults to the size of the information class.
+    :param output_buffer_length: Override the max output buffer length, defaults to the size of the information class.
     """
     info_obj = info_class()
     query_req = SMB2QueryInfoRequest()
@@ -179,7 +179,7 @@ class SMBFileTransaction(object):
 
     def __init__(self, raw):
         """
-        Stores compound requests in 1 class that can be commited when required. Either uses the opened raw object or
+        Stores compound requests in 1 class that can be committed when required. Either uses the opened raw object or
         if that is not opened, opens and closes it in the 1 request.
 
         :param raw: The SMBRawIO object to run the compound request with.

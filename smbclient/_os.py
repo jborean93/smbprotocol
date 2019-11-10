@@ -295,12 +295,12 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         if buffering == -1:
             buffering = MAX_PAYLOAD_SIZE
 
-        buffer = buff_type(raw_fd, buffer_size=buffering)
+        fd_buffer = buff_type(raw_fd, buffer_size=buffering)
 
         if 'b' in raw_fd.mode:
-            return buffer
+            return fd_buffer
 
-        return io.TextIOWrapper(buffer, encoding, errors, newline, line_buffering=line_buffering)
+        return io.TextIOWrapper(fd_buffer, encoding, errors, newline, line_buffering=line_buffering)
     except Exception:
         # If there was a failure in the setup, make sure the file is closed.
         raw_fd.close()
@@ -370,7 +370,7 @@ def rename(src, dst, **kwargs):
     :param dst: The path to rename the file or directory to.
     :param kwargs: Common SMB Session arguments for smbclient.
     """
-    _rename_information(src, dst, replace=False, **kwargs)
+    _rename_information(src, dst, replace_if_exists=False, **kwargs)
 
 
 def renames(old, new, **kwargs):
@@ -398,13 +398,13 @@ def replace(src, dst, **kwargs):
     :param dst: The path to rename the file or directory to.
     :param kwargs: Common SMB Session arguments for smbclient.
     """
-    _rename_information(src, dst, replace=True, **kwargs)
+    _rename_information(src, dst, replace_if_exists=True, **kwargs)
 
 
 def rmdir(path, **kwargs):
     """
     Remove (delete) the directory path. If the directory does not exist or is not empty, an FileNotFoundError or an
-    OSError is raised respectively. In order to remove whole directory trees, smbclient.shutil.rmtree() can be used.
+    OSError is raised respectively.
 
     :param path: The path to the directory to remove.
     :param kwargs: Common SMB Session arguments for smbclient.
@@ -684,7 +684,7 @@ def walk(top, topdown=True, onerror=None, follow_symlinks=False, **kwargs):
     the exception object.
 
     By default walk() will not walk down into symbolic links that resolve to directories, Set follow_symlinks to True
-    to visit directories pointed to by symlinks. Be aware that setting follow_symlinks to True can lead to inficite
+    to visit directories pointed to by symlinks. Be aware that setting follow_symlinks to True can lead to infinite
     recursion if a link points to a parent directory of itself. walk() does not keep track of the directories it
     visited already.
 
@@ -920,8 +920,8 @@ def _get_reparse_point(path, **kwargs):
     return reparse_buffer
 
 
-def _rename_information(src, dst, replace=False, **kwargs):
-    verb = 'replace' if replace else 'rename'
+def _rename_information(src, dst, replace_if_exists=False, **kwargs):
+    verb = 'replace' if replace_if_exists else 'rename'
     norm_src = ntpath.normpath(src)
     norm_dst = ntpath.normpath(dst)
 
@@ -937,7 +937,7 @@ def _rename_information(src, dst, replace=False, **kwargs):
                    create_options=CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
     with SMBFileTransaction(raw) as transaction:
         file_rename = FileRenameInformation()
-        file_rename['replace_if_exists'] = replace
+        file_rename['replace_if_exists'] = replace_if_exists
         file_rename['file_name'] = to_text(dst_name[1:])  # dst_name has \ prefix from splitdrive, we remove that.
         set_info(transaction, file_rename)
 
