@@ -2,11 +2,15 @@ from smbclient import (
     link,
     open_file,
     remove,
+    register_session,
     stat,
     symlink,
 )
 
-# Read an existing file as text (credentials only needed for the first request to the server)
+# Optional - register the server with explicit credentials
+register_session("server", username="admin", password="pass")
+
+# Read an existing file as text (credentials only needed for the first request to the server if not registered.)
 with open_file(r"\\server\share\file.txt", username="admin", password="pass") as fd:
     file_contents = fd.read()
 

@@ -141,7 +141,8 @@ requests to the same server until the Python process exists. This makes
 authentication simple and only required for the first call to the server.
 
 You can specify the credentials and other connection parameters on each
-`smbclient` function with the following kwargs:
+`smbclient` function or register a server with credentials with the following
+kwargs:
 
 * `username`: The username used to connect to the share
 * `password`: The password used to connect to the share
@@ -160,6 +161,9 @@ the directory and not for the subsequent file creation in that dir.
 
 ```
 import smbclient
+
+# Optional - register the credentials with a server
+smbclient.register_session("server", username="user", password="pass")
 
 smbclient.mkdir(r"\\server\share\directory", username="user", password="pass")
 

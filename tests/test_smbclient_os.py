@@ -52,6 +52,16 @@ def test_reset_connection(smb_share):
         smbclient.stat(smb_share)
 
 
+def test_delete_session(smb_share):
+    server = ntpath.normpath(smb_share).split("\\")[0]
+    smbclient.delete_session(server)
+
+    # Once we've closed the connection it should fail because we didn't set any credentials
+    expected = 'Failed to authenticate with server'
+    with pytest.raises(SMBAuthenticationError, match=expected):
+        smbclient.stat(smb_share)
+
+
 def test_link_relative_path_fail(smb_share):
     expected = "src must be the absolute path to where the file is hard linked to."
     with pytest.raises(ValueError, match=expected):

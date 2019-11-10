@@ -5,6 +5,8 @@
 import logging
 
 from smbclient._pool import (
+    delete_session,
+    register_session,
     reset_connection_cache,
 )
 

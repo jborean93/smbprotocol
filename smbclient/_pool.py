@@ -23,9 +23,26 @@ _CLIENT_GUID = uuid.uuid4()
 _SMB_CONNECTIONS = {}
 
 
+def delete_session(server, port=445):
+    """
+    Deletes the connection in the connection pool for the server specified. This will also close all sessions
+    associated with the connection.
+
+    :param server: The server name to close/delete.
+    :param port: The port used for the server.
+    """
+    connection_key = "%s:%s" % (server, port)
+
+    global _SMB_CONNECTIONS
+    connection = _SMB_CONNECTIONS.get(connection_key, None)
+    if connection:
+        del _SMB_CONNECTIONS[connection_key]
+        connection.disconnect(close=True)
+
+
 def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, connection_timeout=60):
     """
-    Returns an active Tree connection and file path relative to that tree based on the UNC path passed in and other
+    Returns an active Tree connection and file path including the tree based on the UNC path passed in and other
     connection arguments. The opened connection is registered in a pool and re-used if a connection is made to the same
     server with the same credentials.
 
@@ -37,15 +54,48 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
         back to False.
     :param connection_timeout: Override the timeout used for the initial connection.
-    :return: SMBSession that provides the fundamental connection layer to the SMB Server.
+    :return: The TreeConnect and file path including the tree based on the UNC path passed in.
     """
     path_split = [p for p in ntpath.normpath(path).split("\\") if p]
     if len(path_split) < 2:
         raise ValueError("The SMB path specified must contain the server and share to connect to")
 
     server = path_split[0]
-    connection_key = "%s:%s" % (server, port)
     share_path = "\\\\%s\\%s" % (server, path_split[1])
+
+    session = register_session(server, username=username, password=password, port=port, encrypt=encrypt,
+                               connection_timeout=connection_timeout)
+
+    tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
+    if not tree:
+        tree = TreeConnect(session, share_path)
+        tree.connect()
+
+    file_path = ""
+    if len(path_split) > 2:
+        file_path = "\\".join(path_split[2:])
+
+    return tree, file_path
+
+
+def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60):
+    """
+    Creates an active connection and session to the server specified. This can be manually called to register the
+    credentials of a specific server instead of defining it on the first function connecting to the server. The opened
+    connection is registered in a pool and re-used if a connection is made to the same server with the same
+    credentials.
+
+    :param server: The server name to register.
+    :param username: Optional username to connect with. Required if no session has been registered for the server and
+        Kerberos auth is not being used.
+    :param password: Optional password to connect with.
+    :param port: The port to connect with.
+    :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
+        back to False.
+    :param connection_timeout: Override the timeout used for the initial connection.
+    :return: The Session that was registered or already existed in the pool.
+    """
+    connection_key = "%s:%s" % (server, port)
 
     global _SMB_CONNECTIONS
     connection = _SMB_CONNECTIONS.get(connection_key, None)
@@ -68,16 +118,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
         elif not session.encrypt_data and encrypt:
             session.encrypt = True
 
-    tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
-    if not tree:
-        tree = TreeConnect(session, share_path)
-        tree.connect()
-
-    file_path = ""
-    if len(path_split) > 2:
-        file_path = "\\".join(path_split[2:])
-
-    return tree, file_path
+    return session
 
 
 # Make sure we run the function to close all the sessions when we exit Python

@@ -1,9 +1,13 @@
 from smbclient import (
     listdir,
     mkdir,
+    register_session,
     rmdir,
     scandir,
 )
+
+# Optional - register the server with explicit credentials
+register_session("server", username="admin", password="pass")
 
 # Create a directory (only the first request needs credentials)
 mkdir(r"\\server\share\directory", username="user", password="pass")
