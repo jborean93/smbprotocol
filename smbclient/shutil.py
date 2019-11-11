@@ -1,14 +1,14 @@
 from __future__ import unicode_literals
 import errno
 
-from ntpath import join, basename, normcase, abspath, normpath, splitdrive
+from ntpath import join, basename, normpath, splitdrive
 
 import sys
-import stat as py_stat
+import os.path
 from os import error as os_error
 
 from smbclient._io import ioctl_request, SMBFileTransaction, SMBRawIO
-from smbclient._os import remove, rmdir, listdir, stat, utime, open_file, makedirs, readlink, symlink, scandir
+from smbclient._os import remove, rmdir, listdir, stat, open_file, makedirs, readlink, symlink, scandir
 from smbclient.path import islink, isdir
 from smbprotocol.exceptions import SMBOSError
 from smbprotocol.ioctl import SMB2SrvCopyChunk, IOCTLFlags, SMB2SrvCopyChunkResponse, CtlCode, SMB2SrvCopyChunkCopy, \
@@ -73,63 +73,40 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
         onerror(rmdir, path, sys.exc_info())
 
 
-def copy2(src, dst, server_side_copy=False, **kwargs):
-    """Copy data and metadata. Return the file's destination.
-
-    Metadata is copied with copystat(). Please see the copystat function
-    for more information.
+def copy(src, dst, server_side_copy=False, **kwargs):
+    """Copy data.
 
     The destination may be a directory.
-
     """
+    _check_src_dst(src, dst)
+
     if isdir(dst, **kwargs):
         dst = join(dst, basename(src))
-    if server_side_copy:
-        copyfile_server_side(src, dst, **kwargs)
+    if server_side_copy and _is_remote_file(src) and _is_sameshare(src, dst):
+        _copyfile_server_side(src, dst, **kwargs)
     else:
         copyfile(src, dst, **kwargs)
-    copystat(src, dst, **kwargs)
-
-
-def copystat(src, dst, **kwargs):
-    """Copy file metadata
-
-    Copy the permission bits, last access time, last modification time, and
-    flags from `src` to `dst`. The file contents, owner, and group are
-    unaffected. `src` and `dst` are path names given as strings.
-    """
-    st = stat(src, **kwargs)
-    utime(dst, ns=(st.st_atime_ns, st.st_mtime_ns), **kwargs)
-
-    # TODO: in principle, we can copy the readonly flag via chmod
-    # mode = py_stat.S_IMODE(st.st_mode)
-    # if hasattr(os, 'chmod'):
-    #     os.chmod(dst, mode)
 
 
 def copyfile(src, dst, **kwargs):
     """Copy data from src to dst"""
-    if _samefile(src, dst):
+    _check_src_dst(src, dst)
+
+    if _samefile(src, dst, **kwargs):
         raise ValueError("`%s` and `%s` are the same file" % (src, dst))
 
-    for fn in [src, dst]:
-        try:
-            st = stat(fn, **kwargs)
-        except OSError:
-            # File most likely does not exist
-            pass
+    def _open(fname, mode, **kwargs):
+        if _is_remote_file(fname):
+            return open_file(fname, mode, **kwargs)
         else:
-            # XXX What about other special files? (sockets, devices...)
-            if py_stat.S_ISFIFO(st.st_mode):
-                raise SpecialFileError("`%s` is a named pipe" % fn)
+            return open(fname, mode)
 
-    with open_file(src, 'rb', **kwargs) as fsrc:
-        with open_file(dst, 'wb', **kwargs) as fdst:
-            copyfileobj(fsrc, fdst)
+    with _open(src, 'rb', **kwargs) as fsrc, _open(dst, 'wb', **kwargs) as fdst:
+        copyfileobj(fsrc, fdst)
 
 
-def copytree(src, dst, symlinks=False, ignore=None, server_side_copy=False, **kwargs):
-    """Recursively copy a directory tree using copy2().
+def copytree_copy(src, dst, symlinks=False, ignore=None, server_side_copy=False, **kwargs):
+    """Recursively copy a directory tree using copy().
 
     The destination directory must not already exist.
     If exception(s) occur, an Error is raised with a list of reasons.
@@ -154,6 +131,8 @@ def copytree(src, dst, symlinks=False, ignore=None, server_side_copy=False, **kw
     XXX Consider this example code rather than the ultimate tool.
 
     """
+    _check_src_dst(src, dst)
+
     names = listdir(src, **kwargs)
     if ignore is not None:
         ignored_names = ignore(src, names)
@@ -172,29 +151,21 @@ def copytree(src, dst, symlinks=False, ignore=None, server_side_copy=False, **kw
                 linkto = readlink(srcname, **kwargs)
                 symlink(linkto, dstname, **kwargs)
             elif isdir(srcname, **kwargs):
-                copytree(srcname, dstname, symlinks, ignore, **kwargs)
+                copytree_copy(srcname, dstname, symlinks, ignore, **kwargs)
             else:
                 # Will raise a SpecialFileError for unsupported file types
-                copy2(srcname, dstname, server_side_copy=server_side_copy, **kwargs)
+                copy(srcname, dstname, server_side_copy=server_side_copy, **kwargs)
         # catch the Error from the recursive copytree so that we can
         # continue with other files
         except Error as err:
             errors.extend(err.args[0])
         except EnvironmentError as why:
             errors.append((srcname, dstname, str(why)))
-    try:
-        copystat(src, dst)
-    except OSError as why:
-        if WindowsError is not None and isinstance(why, WindowsError):
-            # Copying file access times may fail on Windows
-            pass
-        else:
-            errors.append((src, dst, str(why)))
     if errors:
         raise Error(errors)
 
 
-def copyfile_server_side(src, dst, **kwargs):
+def _copyfile_server_side(src, dst, **kwargs):
     """
     Server side copy of a file
 
@@ -247,7 +218,7 @@ def copyfile_server_side(src, dst, **kwargs):
 
                     ioctl_request(transaction_dst, CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
                                   flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                                  output_size=32, buffer=copychunkcopy_struct)
+                                  output_size=32, input_buffer=copychunkcopy_struct)
 
             for result in transaction_dst.results:
                 copychunk_response = SMB2SrvCopyChunkResponse()
@@ -280,8 +251,39 @@ def _batches(lst, n):
         yield lst[i:i + n]
 
 
-def _samefile(src, dst):
-    return normcase(abspath(src)) == normcase(abspath(dst))
+def _samefile(src, dst, **kwargs):
+    unc_src, rest_src = splitdrive(src)
+    unc_dst, rest_dst = splitdrive(dst)
+    if unc_src != unc_dst:
+        return False
+
+    if unc_src:
+        stat1 = stat(src, **kwargs)
+        if src == dst:
+            return True
+        try:
+            stat2 = stat(dst, **kwargs)
+            return stat1.st_ino == stat2.st_ino and stat1.st_dev == stat2.st_dev
+        except SMBOSError:
+            return False
+
+    else:
+        try:
+            return os.path.samefile(src, dst)
+        except OSError:
+            # target file does not exist
+            return False
+
+
+def _is_remote_file(src):
+    unc, _ = splitdrive(src)
+    return bool(unc)
+
+
+def _is_sameshare(src, dst):
+    unc_src, _ = splitdrive(src)
+    unc_dst, _ = splitdrive(dst)
+    return unc_src == unc_dst
 
 
 def copyfileobj(fsrc, fdst, length=16 * 1024):
@@ -291,3 +293,10 @@ def copyfileobj(fsrc, fdst, length=16 * 1024):
         if not buf:
             break
         fdst.write(buf)
+
+
+def _check_src_dst(src, dst):
+    if not _is_remote_file(src):
+        raise ValueError("Local sources are not supported yet")
+    if not _is_remote_file(dst):
+        raise ValueError("Local destinations are not supported yet")
