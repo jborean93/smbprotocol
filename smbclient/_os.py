@@ -143,10 +143,15 @@ def listdir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: A list containing the names of the entries in the directory.
     """
-    with SMBDirectoryIO(path, mode='r', **kwargs) as dir_fd:
-        return list(e['file_name'].get_value().decode('utf-16-le') for e in
-                    dir_fd.query_directory(search_pattern, FileInformationClass.FILE_NAMES_INFORMATION) if
-                    e['file_name'].get_value().decode('utf-16-le') not in ['.', '..'])
+    with SMBDirectoryIO(path, mode='r', share_access='r', **kwargs) as dir_fd:
+        try:
+            raw_filenames = dir_fd.query_directory(search_pattern, FileInformationClass.FILE_NAMES_INFORMATION)
+            return list(e['file_name'].get_value().decode('utf-16-le') for e in raw_filenames if
+                        e['file_name'].get_value().decode('utf-16-le') not in ['.', '..'])
+        except SMBResponseException as exc:
+            if exc.status == NtStatus.STATUS_NO_SUCH_FILE:
+                return []
+            raise
 
 
 def lstat(path, **kwargs):

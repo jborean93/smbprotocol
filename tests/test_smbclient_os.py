@@ -221,6 +221,11 @@ def test_listdir_with_pattern(smb_share):
     assert smbclient.listdir(smb_share, search_pattern="file-test?.txt") == ["file-test1.txt"]
 
 
+def test_listdir_with_pattern_no_match(smb_share):
+    actual = smbclient.listdir(smb_share, search_pattern="no matching file")
+    assert actual == []
+
+
 def test_lstat_on_file(smb_share):
     filename = ntpath.join(smb_share, 'file.txt')
     with smbclient.open_file(filename, mode='w') as fd:
