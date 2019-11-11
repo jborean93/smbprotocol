@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
-# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 from __future__ import unicode_literals
 import errno
 
@@ -11,12 +8,12 @@ import stat as py_stat
 from os import error as os_error
 
 from smbclient._io import ioctl_request, SMBFileTransaction, SMBRawIO
-from smbclient._os import remove, rmdir, listdir, lstat, stat, utime, open_file, makedirs, readlink, symlink
+from smbclient._os import remove, rmdir, listdir, stat, utime, open_file, makedirs, readlink, symlink, scandir
 from smbclient.path import islink, isdir
 from smbprotocol.exceptions import SMBOSError
 from smbprotocol.ioctl import SMB2SrvCopyChunk, IOCTLFlags, SMB2SrvCopyChunkResponse, CtlCode, SMB2SrvCopyChunkCopy, \
     SMB2SrvRequestResumeKey
-from smbprotocol.open import FilePipePrinterAccessMask, CreateOptions, ShareAccess
+from smbprotocol.open import FilePipePrinterAccessMask, CreateOptions
 
 CHUNK_SIZE = 1 * 1024 * 1024  # maximum chunksize allowed by smb
 
@@ -53,33 +50,23 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
     elif onerror is None:
         def onerror(*args):
             raise
-    try:
-        if islink(path, **kwargs):
-            # symlinks to directories are forbidden, see bug #1669
-            raise OSError("Cannot call rmtree on a symbolic link")
-    except OSError:
-        onerror(islink, path, sys.exc_info())
-        # can't continue even if onerror hook returns
-        return
 
-    names = []
     try:
-        names = listdir(path, **kwargs)
+        dir_entries = scandir(path, **kwargs)
+        for dir_entry in dir_entries:
+            if dir_entry.is_dir():
+                if dir_entry.is_symlink():
+                    rmdir(dir_entry.path, **kwargs)
+                else:
+                    rmtree(dir_entry.path, ignore_errors, onerror, **kwargs)
+            else:
+                try:
+                    remove(dir_entry.path, **kwargs)
+                except os_error:
+                    onerror(remove, dir_entry.path, sys.exc_info())
     except os_error:
-        onerror(listdir, path, sys.exc_info())
-    for name in names:
-        fullname = join(path, name)
-        try:
-            mode = lstat(fullname, **kwargs).st_mode
-        except os_error:
-            mode = 0
-        if py_stat.S_ISDIR(mode):
-            rmtree(fullname, ignore_errors, onerror, **kwargs)
-        else:
-            try:
-                remove(fullname, **kwargs)
-            except os_error:
-                onerror(remove, fullname, sys.exc_info())
+        onerror(scandir, path, sys.exc_info())
+
     try:
         rmdir(path, **kwargs)
     except os_error:
@@ -123,7 +110,7 @@ def copystat(src, dst, **kwargs):
 def copyfile(src, dst, **kwargs):
     """Copy data from src to dst"""
     if _samefile(src, dst):
-        raise Error("`%s` and `%s` are the same file" % (src, dst))
+        raise ValueError("`%s` and `%s` are the same file" % (src, dst))
 
     for fn in [src, dst]:
         try:
