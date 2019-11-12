@@ -1267,8 +1267,8 @@ def test_symlink_file_missing_src(smb_share):
     assert smbclient.listdir(smb_share) == ['link.txt']
     actual = smbclient.lstat(dst_filename)
     assert stat.S_ISLNK(actual.st_mode)
-    assert actual.st_file_attributes == \
-           FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+    assert actual.st_file_attributes == (
+        FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1288,8 +1288,8 @@ def test_symlink_file_existing_src(smb_share):
 
     actual = smbclient.lstat(dst_filename)
     assert stat.S_ISLNK(actual.st_mode)
-    assert actual.st_file_attributes == \
-           FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+    assert actual.st_file_attributes == (
+        FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1303,8 +1303,8 @@ def test_symlink_dir_missing_src(smb_share):
     assert smbclient.listdir(smb_share) == ['link']
     actual = smbclient.lstat(dst_dirname)
     assert stat.S_ISLNK(actual.st_mode)
-    assert actual.st_file_attributes == \
-           FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
+    assert actual.st_file_attributes == (
+        FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1322,8 +1322,8 @@ def test_symlink_dir_existing_src(smb_share):
     assert 'dir' in actual_dirs
     actual = smbclient.lstat(dst_dirname)
     assert stat.S_ISLNK(actual.st_mode)
-    assert actual.st_file_attributes == \
-           FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
+    assert actual.st_file_attributes == (
+        FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1345,8 +1345,8 @@ def test_symlink_relative_src(smb_share):
 
     actual = smbclient.lstat(dst_filename)
     assert stat.S_ISLNK(actual.st_mode)
-    assert actual.st_file_attributes == \
-           FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+    assert actual.st_file_attributes == (
+        FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE)
 
 
 def test_symlink_fail_not_absolute_dst(smb_share):
