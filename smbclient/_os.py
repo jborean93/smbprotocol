@@ -55,7 +55,7 @@ from smbprotocol.file_info import (
 from smbprotocol.ioctl import (
     CtlCode,
     IOCTLFlags,
-)
+    SMB2SrvCopyChunk, SMB2SrvCopyChunkResponse, SMB2SrvCopyChunkCopy, SMB2SrvRequestResumeKey)
 
 from smbprotocol.open import (
     CreateOptions,
@@ -75,10 +75,11 @@ from smbprotocol.structure import (
     DateTimeField,
 )
 
-
 XATTR_CREATE = getattr(os, 'XATTR_CREATE', 1)
 XATTR_REPLACE = getattr(os, 'XATTR_REPLACE', 2)
 
+MAX_COPY_CHUNK_SIZE = 1 * 1024 * 1024  # maximum chunksize 1M from 3.3.3 in MS-SMB documentation
+MAX_COPY_CHUNK_COUNT = 16  # maximum total chunksize 16M from 3.3.3 in MS-SMB documentation
 
 SMBStatResult = collections.namedtuple('SMBStatResult', [
     'st_mode',
@@ -1016,3 +1017,93 @@ class SMBDirEntry(object):
             if not self._lstat:
                 self._lstat = lstat(self._smb_raw.name)
             return self._lstat
+
+
+def copyfile_server_side(src, dst, **kwargs):
+    """
+    Server side copy of a file
+
+    :param src: The source file.
+    :param dst: The target file.
+    :param kwargs: Common SMB Session arguments for smbclient.
+    """
+
+    if not _is_sameshare(src, dst):
+        raise ValueError(
+            "Server side copy can only occur on the same drive, '%s' must be the same as the dst root '%s'" % (
+                src, dst))
+
+    norm_dst = ntpath.normpath(dst)
+    norm_src = ntpath.normpath(src)
+
+    try:
+        stat(norm_dst, **kwargs)
+    except SMBOSError as err:
+        if err.errno != errno.ENOENT:
+            raise
+    else:
+        raise ValueError("Target %s already exists" % norm_dst)
+
+    with SMBRawIO(norm_src, mode='r', desired_access=FilePipePrinterAccessMask.GENERIC_READ,
+                  create_options=(CreateOptions.FILE_NON_DIRECTORY_FILE), share_access='r',
+                  **kwargs) as raw_src:
+
+        with SMBFileTransaction(raw_src) as transaction_src:
+            ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
+                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
+                          output_size=32)
+
+        val_resp = SMB2SrvRequestResumeKey()
+        val_resp.unpack(transaction_src.results[0])
+
+        chunks = _get_srv_copy_chunks(transaction_src)
+
+        with SMBRawIO(norm_dst, mode='x', desired_access=FilePipePrinterAccessMask.GENERIC_WRITE,
+                      share_access='r',
+                      create_options=CreateOptions.FILE_NON_DIRECTORY_FILE, **kwargs) as raw_dst:
+
+            with SMBFileTransaction(raw_dst) as transaction_dst:
+                for batch in _batches(chunks, MAX_COPY_CHUNK_COUNT):
+                    copychunkcopy_struct = SMB2SrvCopyChunkCopy()
+                    copychunkcopy_struct['source_key'] = val_resp['resume_key'].get_value()
+                    copychunkcopy_struct['chunks'] = batch
+
+                    ioctl_request(transaction_dst, CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
+                                  flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
+                                  output_size=32, input_buffer=copychunkcopy_struct)
+
+            for result in transaction_dst.results:
+                copychunk_response = SMB2SrvCopyChunkResponse()
+                copychunk_response.unpack(result)
+                if copychunk_response['chunks_written'].get_value() < 1:
+                    raise SMBOSError('Could not copy chunks in server side copy', filename=norm_dst)
+
+
+def _get_srv_copy_chunks(transaction):
+    chunks = []
+    offset = 0
+
+    while offset < transaction.raw.fd.end_of_file:
+        copychunk_struct = SMB2SrvCopyChunk()
+        copychunk_struct['source_offset'] = offset
+        copychunk_struct['target_offset'] = offset
+        if offset + MAX_COPY_CHUNK_SIZE < transaction.raw.fd.end_of_file:
+            copychunk_struct['length'] = MAX_COPY_CHUNK_SIZE
+        else:
+            copychunk_struct['length'] = transaction.raw.fd.end_of_file - offset
+
+        chunks.append(copychunk_struct)
+        offset += MAX_COPY_CHUNK_SIZE
+
+    return chunks
+
+
+def _batches(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
+def _is_sameshare(src, dst):
+    unc_src, _ = ntpath.splitdrive(src)
+    unc_dst, _ = ntpath.splitdrive(dst)
+    return unc_src.lower() == unc_dst.lower()

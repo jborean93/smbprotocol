@@ -1,21 +1,14 @@
 from __future__ import unicode_literals
-import errno
 
-from ntpath import join, basename, normpath, splitdrive
+from ntpath import join, basename, splitdrive
 
 import sys
 import os.path
 from os import error as os_error
 
-from smbclient._io import ioctl_request, SMBFileTransaction, SMBRawIO
-from smbclient._os import remove, rmdir, listdir, stat, open_file, makedirs, readlink, symlink, scandir
+from smbclient._os import remove, rmdir, listdir, stat, makedirs, readlink, symlink, scandir, copyfile_server_side
 from smbclient.path import islink, isdir
 from smbprotocol.exceptions import SMBOSError
-from smbprotocol.ioctl import SMB2SrvCopyChunk, IOCTLFlags, SMB2SrvCopyChunkResponse, CtlCode, SMB2SrvCopyChunkCopy, \
-    SMB2SrvRequestResumeKey
-from smbprotocol.open import FilePipePrinterAccessMask, CreateOptions
-
-CHUNK_SIZE = 1 * 1024 * 1024  # maximum chunksize allowed by smb
 
 
 class Error(EnvironmentError):
@@ -73,39 +66,23 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
         onerror(rmdir, path, sys.exc_info())
 
 
-def copy(src, dst, server_side_copy=False, **kwargs):
+def copy(src, dst, **kwargs):
     """Copy data.
 
     The destination may be a directory.
     """
     _check_src_dst(src, dst)
 
-    if isdir(dst, **kwargs):
-        dst = join(dst, basename(src))
-    if server_side_copy and _is_remote_file(src) and _is_sameshare(src, dst):
-        _copyfile_server_side(src, dst, **kwargs)
-    else:
-        copyfile(src, dst, **kwargs)
-
-
-def copyfile(src, dst, **kwargs):
-    """Copy data from src to dst"""
-    _check_src_dst(src, dst)
-
     if _samefile(src, dst, **kwargs):
         raise ValueError("`%s` and `%s` are the same file" % (src, dst))
 
-    def _open(fname, mode, **kwargs):
-        if _is_remote_file(fname):
-            return open_file(fname, mode, **kwargs)
-        else:
-            return open(fname, mode)
+    if isdir(dst, **kwargs):
+        dst = join(dst, basename(src))
 
-    with _open(src, 'rb', **kwargs) as fsrc, _open(dst, 'wb', **kwargs) as fdst:
-        copyfileobj(fsrc, fdst)
+    copyfile_server_side(src, dst, **kwargs)
 
 
-def copytree_copy(src, dst, symlinks=False, ignore=None, server_side_copy=False, **kwargs):
+def copytree_copy(src, dst, symlinks=False, ignore=None, **kwargs):
     """Recursively copy a directory tree using copy().
 
     The destination directory must not already exist.
@@ -154,7 +131,7 @@ def copytree_copy(src, dst, symlinks=False, ignore=None, server_side_copy=False,
                 copytree_copy(srcname, dstname, symlinks, ignore, **kwargs)
             else:
                 # Will raise a SpecialFileError for unsupported file types
-                copy(srcname, dstname, server_side_copy=server_side_copy, **kwargs)
+                copy(srcname, dstname, **kwargs)
         # catch the Error from the recursive copytree so that we can
         # continue with other files
         except Error as err:
@@ -163,92 +140,6 @@ def copytree_copy(src, dst, symlinks=False, ignore=None, server_side_copy=False,
             errors.append((srcname, dstname, str(why)))
     if errors:
         raise Error(errors)
-
-
-def _copyfile_server_side(src, dst, **kwargs):
-    """
-    Server side copy of a file
-
-    :param src: The source file.
-    :param dst: The target file.
-    :param kwargs: Common SMB Session arguments for smbclient.
-    """
-
-    norm_dst = normpath(dst)
-    norm_src = normpath(src)
-
-    src_drive = splitdrive(norm_src)[0]
-    dst_drive = splitdrive(norm_dst)[0]
-    if src_drive.lower() != dst_drive.lower():
-        raise ValueError(
-            "Server side copy can only occur on the same drive, '%s' must be the same as the dst root '%s'" % (
-                src_drive, dst_drive))
-
-    try:
-        stat(norm_dst, **kwargs)
-    except SMBOSError as err:
-        if err.errno != errno.ENOENT:
-            raise
-    else:
-        raise ValueError("Target %s already exists" % norm_dst)
-
-    with SMBRawIO(norm_src, mode='r', desired_access=FilePipePrinterAccessMask.GENERIC_READ,
-                  create_options=(CreateOptions.FILE_NON_DIRECTORY_FILE), share_access='r',
-                  **kwargs) as raw_src:
-
-        with SMBFileTransaction(raw_src) as transaction_src:
-            ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
-                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                          output_size=32)
-
-        val_resp = SMB2SrvRequestResumeKey()
-        val_resp.unpack(transaction_src.results[0])
-
-        chunks = _get_srv_copy_chunks(transaction_src)
-
-        with SMBRawIO(norm_dst, mode='x', desired_access=FilePipePrinterAccessMask.GENERIC_WRITE,
-                      share_access='r',
-                      create_options=(CreateOptions.FILE_NON_DIRECTORY_FILE), **kwargs) as raw_dst:
-
-            with SMBFileTransaction(raw_dst) as transaction_dst:
-                for batch in _batches(chunks, 16):
-                    copychunkcopy_struct = SMB2SrvCopyChunkCopy()
-                    copychunkcopy_struct['source_key'] = val_resp['resume_key'].get_value()
-                    copychunkcopy_struct['chunks'] = batch
-
-                    ioctl_request(transaction_dst, CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
-                                  flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                                  output_size=32, input_buffer=copychunkcopy_struct)
-
-            for result in transaction_dst.results:
-                copychunk_response = SMB2SrvCopyChunkResponse()
-                copychunk_response.unpack(result)
-                if copychunk_response['chunks_written'].get_value() < 1:
-                    raise SMBOSError('Could not copy chunks in server side copy', filename=norm_dst)
-
-
-def _get_srv_copy_chunks(transaction):
-    chunks = []
-    offset = 0
-
-    while offset < transaction.raw.fd.end_of_file:
-        copychunk_struct = SMB2SrvCopyChunk()
-        copychunk_struct['source_offset'] = offset
-        copychunk_struct['target_offset'] = offset
-        if offset + CHUNK_SIZE < transaction.raw.fd.end_of_file:
-            copychunk_struct['length'] = CHUNK_SIZE
-        else:
-            copychunk_struct['length'] = transaction.raw.fd.end_of_file - offset
-
-        chunks.append(copychunk_struct)
-        offset += CHUNK_SIZE
-
-    return chunks
-
-
-def _batches(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
 
 
 def _samefile(src, dst, **kwargs):
@@ -278,21 +169,6 @@ def _samefile(src, dst, **kwargs):
 def _is_remote_file(src):
     unc, _ = splitdrive(src)
     return bool(unc)
-
-
-def _is_sameshare(src, dst):
-    unc_src, _ = splitdrive(src)
-    unc_dst, _ = splitdrive(dst)
-    return unc_src == unc_dst
-
-
-def copyfileobj(fsrc, fdst, length=16 * 1024):
-    """copy data from file-like object fsrc to file-like object fdst"""
-    while 1:
-        buf = fsrc.read(length)
-        if not buf:
-            break
-        fdst.write(buf)
 
 
 def _check_src_dst(src, dst):

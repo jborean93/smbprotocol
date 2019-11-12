@@ -16,8 +16,7 @@ import stat
 from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
-    SMBFileIO,
-)
+    SMBFileIO)
 
 from smbprotocol.exceptions import (
     SMBAuthenticationError,
@@ -1269,7 +1268,7 @@ def test_symlink_file_missing_src(smb_share):
     actual = smbclient.lstat(dst_filename)
     assert stat.S_ISLNK(actual.st_mode)
     assert actual.st_file_attributes == \
-        FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+           FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1290,7 +1289,7 @@ def test_symlink_file_existing_src(smb_share):
     actual = smbclient.lstat(dst_filename)
     assert stat.S_ISLNK(actual.st_mode)
     assert actual.st_file_attributes == \
-        FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+           FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1305,7 +1304,7 @@ def test_symlink_dir_missing_src(smb_share):
     actual = smbclient.lstat(dst_dirname)
     assert stat.S_ISLNK(actual.st_mode)
     assert actual.st_file_attributes == \
-        FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
+           FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1324,7 +1323,7 @@ def test_symlink_dir_existing_src(smb_share):
     actual = smbclient.lstat(dst_dirname)
     assert stat.S_ISLNK(actual.st_mode)
     assert actual.st_file_attributes == \
-        FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
+           FileAttributes.FILE_ATTRIBUTE_DIRECTORY | FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1347,7 +1346,7 @@ def test_symlink_relative_src(smb_share):
     actual = smbclient.lstat(dst_filename)
     assert stat.S_ISLNK(actual.st_mode)
     assert actual.st_file_attributes == \
-        FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+           FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FileAttributes.FILE_ATTRIBUTE_ARCHIVE
 
 
 def test_symlink_fail_not_absolute_dst(smb_share):
@@ -1746,3 +1745,24 @@ def test_xattr_dont_follow(smb_share):
 
     smbclient.removexattr(dst_filename, b"KEY", follow_symlinks=False)
     assert smbclient.listxattr(dst_filename, follow_symlinks=False) == []
+
+
+def test_copy_across_paths_raises(smb_share):
+    expected = 'Server side copy can only occur on the same drive'
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        smbclient.copyfile_server_side("//127.0.0.1/filer1/file1", "//host/filer2/file2")
+
+
+def test_server_side_copy_multiple_chunks(smb_share):
+    smbclient.mkdir("%s\\dir2" % smb_share)
+    with smbclient.open_file("%s\\file1" % smb_share, mode='w') as fd:
+        fd.write(u"content" * 1024)
+
+    smbclient._os.CHUNK_SIZE = 1024
+
+    smbclient.copyfile_server_side("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
+
+    src_stat = smbclient.stat("%s\\file1" % smb_share)
+    dst_stat = smbclient.stat("%s\\dir2\\file1" % smb_share)
+
+    assert src_stat.st_size == dst_stat.st_size
