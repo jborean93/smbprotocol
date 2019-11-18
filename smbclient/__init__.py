@@ -44,6 +44,7 @@ from smbclient._os import (
     SMBStatResult,
     XATTR_CREATE,
     XATTR_REPLACE,
+    copyfile
 )
 
 try:
