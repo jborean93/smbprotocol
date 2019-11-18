@@ -6,18 +6,13 @@ import sys
 import os.path
 from os import error as os_error
 
-from smbclient._os import remove, rmdir, listdir, stat, makedirs, readlink, symlink, scandir, copyfile_server_side
+from smbclient._os import remove, rmdir, listdir, stat, makedirs, readlink, symlink, scandir, copyfile
 from smbclient.path import islink, isdir
 from smbprotocol.exceptions import SMBOSError
 
 
 class Error(EnvironmentError):
     pass
-
-
-class SpecialFileError(EnvironmentError):
-    """Raised when trying to do a kind of operation (e.g. copying) which is
-    not supported on a special file (e.g. a named pipe)"""
 
 
 def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
@@ -79,11 +74,14 @@ def copy(src, dst, **kwargs):
     if isdir(dst, **kwargs):
         dst = join(dst, basename(src))
 
-    copyfile_server_side(src, dst, **kwargs)
+    copyfile(src, dst, **kwargs)
 
 
-def copytree_copy(src, dst, symlinks=False, ignore=None, **kwargs):
+def copytree(src, dst, symlinks=False, ignore=None, **kwargs):
     """Recursively copy a directory tree using copy().
+
+    Note: later on, copytree might use copy2 similar to the shutil
+          counterpart.
 
     The destination directory must not already exist.
     If exception(s) occur, an Error is raised with a list of reasons.
@@ -128,7 +126,7 @@ def copytree_copy(src, dst, symlinks=False, ignore=None, **kwargs):
                 linkto = readlink(srcname, **kwargs)
                 symlink(linkto, dstname, **kwargs)
             elif isdir(srcname, **kwargs):
-                copytree_copy(srcname, dstname, symlinks, ignore, **kwargs)
+                copytree(srcname, dstname, symlinks, ignore, **kwargs)
             else:
                 # Will raise a SpecialFileError for unsupported file types
                 copy(srcname, dstname, **kwargs)

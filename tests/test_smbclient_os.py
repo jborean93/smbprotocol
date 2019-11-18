@@ -1750,7 +1750,7 @@ def test_xattr_dont_follow(smb_share):
 def test_copy_across_paths_raises(smb_share):
     expected = 'Server side copy can only occur on the same drive'
     with pytest.raises(ValueError, match=re.escape(expected)):
-        smbclient.copyfile_server_side("//127.0.0.1/filer1/file1", "//host/filer2/file2")
+        smbclient.copyfile("//127.0.0.1/filer1/file1", "//host/filer2/file2")
 
 
 def test_server_side_copy_multiple_chunks(smb_share):
@@ -1760,7 +1760,7 @@ def test_server_side_copy_multiple_chunks(smb_share):
 
     smbclient._os.CHUNK_SIZE = 1024
 
-    smbclient.copyfile_server_side("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
+    smbclient.copyfile("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
 
     src_stat = smbclient.stat("%s\\file1" % smb_share)
     dst_stat = smbclient.stat("%s\\dir2\\file1" % smb_share)

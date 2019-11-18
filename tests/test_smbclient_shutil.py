@@ -9,11 +9,10 @@ import sys
 
 import pytest
 import re
-from time import sleep
 
 from smbclient import open_file, mkdir, stat, symlink
 from smbclient.path import exists
-from smbclient.shutil import rmtree, copy, copytree_copy
+from smbclient.shutil import rmtree, copy, copytree
 
 
 def test_rmtree(smb_share):
@@ -64,7 +63,6 @@ def test_copy(smb_share):
     with open_file("%s\\file1" % smb_share, mode='w') as fd:
         fd.write(u"content")
 
-    sleep(0.1)
     copy("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
 
     src_stat = stat("%s\\file1" % smb_share)
@@ -78,7 +76,6 @@ def test_copy_raises_when_source_and_target_identical(smb_share):
     with open_file("%s\\file1" % smb_share, mode='w') as fd:
         fd.write(u"content")
 
-    sleep(0.1)
     if (sys.version_info > (3, 0)):
         expected = 'are the same file'
         context = pytest.raises(ValueError, match=re.escape(expected))
@@ -94,7 +91,6 @@ def test_copy_with_dir_as_target(smb_share):
     with open_file("%s\\file1" % smb_share, mode='w') as fd:
         fd.write(u"content")
 
-    sleep(0.1)
     copy("%s\\file1" % smb_share, "%s\\dir2" % smb_share)
 
     src_stat = stat("%s\\file1" % smb_share)
@@ -113,8 +109,7 @@ def test_copytree(smb_share):
     with open_file("%s\\dir2\\file2" % smb_share, mode='w') as fd:
         fd.write(u"content")
 
-    sleep(0.01)
-    copytree_copy("%s\\dir2" % smb_share, "%s\\dir4" % smb_share)
+    copytree("%s\\dir2" % smb_share, "%s\\dir4" % smb_share)
 
     src_stat = stat("%s\\dir2\\dir3\\file1" % smb_share)
     dst_stat = stat("%s\\dir4\\dir3\\file1" % smb_share)
@@ -135,8 +130,7 @@ def test_copytree_with_skip(smb_share):
     def ignore(src, names):
         return [name for name in names if name == "file2"]
 
-    sleep(0.01)
-    copytree_copy("%s\\dir2" % smb_share, "%s\\dir4" % smb_share, ignore=ignore)
+    copytree("%s\\dir2" % smb_share, "%s\\dir4" % smb_share, ignore=ignore)
 
     assert exists("%s\\dir4\\dir3\\file1" % smb_share) is True
     assert exists("%s\\dir4\\file2" % smb_share) is False

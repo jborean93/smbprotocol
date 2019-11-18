@@ -55,7 +55,11 @@ from smbprotocol.file_info import (
 from smbprotocol.ioctl import (
     CtlCode,
     IOCTLFlags,
-    SMB2SrvCopyChunk, SMB2SrvCopyChunkResponse, SMB2SrvCopyChunkCopy, SMB2SrvRequestResumeKey)
+    SMB2SrvCopyChunk,
+    SMB2SrvCopyChunkResponse,
+    SMB2SrvCopyChunkCopy,
+    SMB2SrvRequestResumeKey
+)
 
 from smbprotocol.open import (
     CreateOptions,
@@ -1019,7 +1023,7 @@ class SMBDirEntry(object):
             return self._lstat
 
 
-def copyfile_server_side(src, dst, **kwargs):
+def copyfile(src, dst, **kwargs):
     """
     Server side copy of a file
 
@@ -1062,8 +1066,8 @@ def copyfile_server_side(src, dst, **kwargs):
                       share_access='r',
                       create_options=CreateOptions.FILE_NON_DIRECTORY_FILE, **kwargs) as raw_dst:
 
-            with SMBFileTransaction(raw_dst) as transaction_dst:
-                for batch in _batches(chunks, MAX_COPY_CHUNK_COUNT):
+            for batch in _batches(chunks, MAX_COPY_CHUNK_COUNT):
+                with SMBFileTransaction(raw_dst) as transaction_dst:
                     copychunkcopy_struct = SMB2SrvCopyChunkCopy()
                     copychunkcopy_struct['source_key'] = val_resp['resume_key'].get_value()
                     copychunkcopy_struct['chunks'] = batch
@@ -1072,11 +1076,11 @@ def copyfile_server_side(src, dst, **kwargs):
                                   flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
                                   output_size=32, input_buffer=copychunkcopy_struct)
 
-            for result in transaction_dst.results:
-                copychunk_response = SMB2SrvCopyChunkResponse()
-                copychunk_response.unpack(result)
-                if copychunk_response['chunks_written'].get_value() < 1:
-                    raise SMBOSError('Could not copy chunks in server side copy', filename=norm_dst)
+                for result in transaction_dst.results:
+                    copychunk_response = SMB2SrvCopyChunkResponse()
+                    copychunk_response.unpack(result)
+                    if copychunk_response['chunks_written'].get_value() < 1:
+                        raise SMBOSError('Could not copy chunks in server side copy', filename=norm_dst)
 
 
 def _get_srv_copy_chunks(transaction):
