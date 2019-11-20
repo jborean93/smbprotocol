@@ -106,6 +106,73 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
 ])
 
 
+def copyfile(src, dst, **kwargs):
+    """
+    Copy a file to a different location on the same server share. This will fail if the src and dst paths are to a
+    different server or share. This will replace the file at dst if it already exists.
+
+    This is not normally part of the builtin os package but because it relies on some SMB IOCTL commands it is useful
+    to expose here.
+
+    :param src: The full UNC path of the source file.
+    :param dst: The full UNC path of the target file.
+    :param kwargs: Common SMB Session arguments for smbclient.
+    """
+    norm_src = ntpath.normpath(src)
+    norm_dst = ntpath.normpath(dst)
+
+    if not norm_src.startswith('\\\\'):
+        raise ValueError("src must be an absolute path to where the file should be copied from.")
+
+    if not norm_dst.startswith('\\\\'):
+        raise ValueError("dst must be an absolute path to where the file should be copied to.")
+
+    src_root = ntpath.splitdrive(norm_src)[0]
+    dst_root, dst_name = ntpath.splitdrive(norm_dst)
+    if src_root.lower() != dst_root.lower():
+        raise ValueError("Cannot copy a file to a different root than the src.")
+
+    with open_file(norm_src, mode='rb', share_access='r', buffering=0, **kwargs) as src_fd:
+        resume_response = SMB2SrvRequestResumeKey()
+
+        with SMBFileTransaction(src_fd) as transaction_src:
+            ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
+                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL, output_size=len(resume_response))
+
+        resume_response.unpack(transaction_src.results[0])
+        resume_key = resume_response['resume_key'].get_value()
+
+        chunks = []
+        offset = 0
+        while offset < src_fd.fd.end_of_file:
+            copychunk_struct = SMB2SrvCopyChunk()
+            copychunk_struct['source_offset'] = offset
+            copychunk_struct['target_offset'] = offset
+            copychunk_struct['length'] = min(MAX_COPY_CHUNK_SIZE, src_fd.fd.end_of_file - offset)
+
+            chunks.append(copychunk_struct)
+            offset += MAX_COPY_CHUNK_SIZE
+
+        with open_file(norm_dst, mode='wb', share_access='r', buffering=0, **kwargs) as dst_fd:
+            for i in range(0, len(chunks), MAX_COPY_CHUNK_COUNT):
+                batch = chunks[i:i + MAX_COPY_CHUNK_COUNT]
+                with SMBFileTransaction(dst_fd) as transaction_dst:
+                    copychunkcopy_struct = SMB2SrvCopyChunkCopy()
+                    copychunkcopy_struct['source_key'] = resume_key
+                    copychunkcopy_struct['chunks'] = batch
+
+                    ioctl_request(transaction_dst, CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
+                                  flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL, output_size=12,
+                                  input_buffer=copychunkcopy_struct)
+
+                for result in transaction_dst.results:
+                    copychunk_response = SMB2SrvCopyChunkResponse()
+                    copychunk_response.unpack(result)
+                    if copychunk_response['chunks_written'].get_value() != len(batch):
+                        raise IOError("Failed to copy all the chunks in a server side copyfile: '%s' -> '%s'"
+                                      % (norm_src, norm_dst))
+
+
 def link(src, dst, follow_symlinks=True, **kwargs):
     """
     Create a hard link pointing to src named dst. The src argument must be an absolute path in the same share as
@@ -1023,85 +1090,3 @@ class SMBDirEntry(object):
             if not self._lstat:
                 self._lstat = lstat(self._smb_raw.name)
             return self._lstat
-
-
-def copyfile(src, dst, **kwargs):
-    """
-    Server side copy of a file
-
-    :param src: The source file.
-    :param dst: The target file.
-    :param kwargs: Common SMB Session arguments for smbclient.
-    """
-
-    if not _is_sameshare(src, dst):
-        raise ValueError(to_native(
-            "Server side copy can only occur on the same drive, '%s' must be the same as the dst root '%s'"
-            % (src, dst))
-        )
-
-    norm_dst = ntpath.normpath(dst)
-    norm_src = ntpath.normpath(src)
-
-    try:
-        stat(norm_dst, **kwargs)
-    except SMBOSError as err:
-        if err.errno != errno.ENOENT:
-            raise
-    else:
-        raise ValueError(to_native("Target %s already exists" % norm_dst))
-
-    with open_file(norm_src, mode='rb', share_access='r', **kwargs) as src_fd:
-        with SMBFileTransaction(src_fd.raw) as transaction_src:
-            ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
-                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                          output_size=32)
-
-        val_resp = SMB2SrvRequestResumeKey()
-        val_resp.unpack(transaction_src.results[0])
-
-        chunks = _get_srv_copy_chunks(transaction_src)
-
-        with open_file(norm_dst, mode='xb', share_access='r', **kwargs) as dst_fd:
-            for i in range(0, len(chunks), MAX_COPY_CHUNK_COUNT):
-                batch = chunks[i:i + MAX_COPY_CHUNK_COUNT]
-                with SMBFileTransaction(dst_fd.raw) as transaction_dst:
-                    copychunkcopy_struct = SMB2SrvCopyChunkCopy()
-                    copychunkcopy_struct['source_key'] = val_resp['resume_key'].get_value()
-                    copychunkcopy_struct['chunks'] = batch
-
-                    ioctl_request(transaction_dst, CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
-                                  flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                                  output_size=32, input_buffer=copychunkcopy_struct)
-
-                for result in transaction_dst.results:
-                    copychunk_response = SMB2SrvCopyChunkResponse()
-                    copychunk_response.unpack(result)
-                    if copychunk_response['chunks_written'].get_value() < 1:
-                        raise SMBOSError('Could not copy chunks in server side copy', filename=norm_src,
-                                         filename2=norm_dst)
-
-
-def _get_srv_copy_chunks(transaction):
-    chunks = []
-    offset = 0
-
-    while offset < transaction.raw.fd.end_of_file:
-        copychunk_struct = SMB2SrvCopyChunk()
-        copychunk_struct['source_offset'] = offset
-        copychunk_struct['target_offset'] = offset
-        if offset + MAX_COPY_CHUNK_SIZE < transaction.raw.fd.end_of_file:
-            copychunk_struct['length'] = MAX_COPY_CHUNK_SIZE
-        else:
-            copychunk_struct['length'] = transaction.raw.fd.end_of_file - offset
-
-        chunks.append(copychunk_struct)
-        offset += MAX_COPY_CHUNK_SIZE
-
-    return chunks
-
-
-def _is_sameshare(src, dst):
-    unc_src, _ = ntpath.splitdrive(src)
-    unc_dst, _ = ntpath.splitdrive(dst)
-    return unc_src.lower() == unc_dst.lower()

@@ -379,8 +379,11 @@ class SMB2SrvRequestResumeKey(Structure):
             ('resume_key', BytesField(size=24)),
             ('context_length', IntField(
                 size=4,
-                default=0
-            ))
+                default=lambda s: len(s['context']),
+            )),
+            ('context', BytesField(
+                size=lambda s: s['context_length'].get_value(),
+            )),
         ])
         super(SMB2SrvRequestResumeKey, self).__init__()
 

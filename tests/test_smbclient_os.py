@@ -61,6 +61,57 @@ def test_delete_session(smb_share):
         smbclient.stat(smb_share)
 
 
+def test_copy_across_paths_raises(smb_share):
+    expected = "Cannot copy a file to a different root than the src."
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        smbclient.copyfile("%s\\file" % smb_share, "//host/filer2/file2")
+
+
+def test_copyfile_src_not_unc():
+    expected = "src must be an absolute path to where the file should be copied from."
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        smbclient.copyfile("file", "\\\\server\\share\\file")
+
+
+def test_copyfile_dst_not_unc():
+    expected = "dst must be an absolute path to where the file should be copied to."
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        smbclient.copyfile("\\\\server\\share\\file", "file")
+
+
+def test_server_side_copy_multiple_chunks(smb_share):
+    smbclient.mkdir("%s\\dir2" % smb_share)
+    with smbclient.open_file("%s\\file1" % smb_share, mode='w') as fd:
+        fd.write(u"content" * 1024)
+
+    smbclient._os.CHUNK_SIZE = 1024
+
+    smbclient.copyfile("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
+
+    src_stat = smbclient.stat("%s\\file1" % smb_share)
+    dst_stat = smbclient.stat("%s\\dir2\\file1" % smb_share)
+
+    assert src_stat.st_size == dst_stat.st_size
+
+
+def test_server_side_copy_large_file(smb_share):
+    src_filename = "%s\\file1" % smb_share
+    dst_filename = "%s\\file2" % smb_share
+
+    # Actually reading and writing more than 16MB takes too long for the tests so just test the file length
+    expected_length = 1024 * 1024 * 17
+
+    with smbclient.open_file(src_filename, mode='wb') as fd:
+        fd.truncate(expected_length)
+
+    smbclient.copyfile(src_filename, dst_filename)
+    smbclient.copyfile(src_filename, dst_filename)
+
+    with smbclient.open_file(dst_filename, mode='rb') as fd:
+        assert fd.seek(0, smbclient.SEEK_END)
+        assert fd.tell() == expected_length
+
+
 def test_link_relative_path_fail(smb_share):
     expected = "src must be the absolute path to where the file is hard linked to."
     with pytest.raises(ValueError, match=expected):
@@ -1745,24 +1796,3 @@ def test_xattr_dont_follow(smb_share):
 
     smbclient.removexattr(dst_filename, b"KEY", follow_symlinks=False)
     assert smbclient.listxattr(dst_filename, follow_symlinks=False) == []
-
-
-def test_copy_across_paths_raises(smb_share):
-    expected = 'Server side copy can only occur on the same drive'
-    with pytest.raises(ValueError, match=re.escape(expected)):
-        smbclient.copyfile("//127.0.0.1/filer1/file1", "//host/filer2/file2")
-
-
-def test_server_side_copy_multiple_chunks(smb_share):
-    smbclient.mkdir("%s\\dir2" % smb_share)
-    with smbclient.open_file("%s\\file1" % smb_share, mode='w') as fd:
-        fd.write(u"content" * 1024)
-
-    smbclient._os.CHUNK_SIZE = 1024
-
-    smbclient.copyfile("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
-
-    src_stat = smbclient.stat("%s\\file1" % smb_share)
-    dst_stat = smbclient.stat("%s\\dir2\\file1" % smb_share)
-
-    assert src_stat.st_size == dst_stat.st_size

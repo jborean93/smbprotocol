@@ -117,8 +117,14 @@ class Tcp(object):
                     return
 
                 packet_size = struct.unpack(">L", b_packet_size)[0]
-                b_data = self._sock.recv(packet_size)
-                self._recv_queue.put(b_data)
+                b_data = bytearray()
+                bytes_read = 0
+                while bytes_read < packet_size:
+                    b_fragment = self._sock.recv(packet_size - bytes_read)
+                    b_data.extend(b_fragment)
+                    bytes_read += len(b_fragment)
+
+                self._recv_queue.put(bytes(b_data))
         except Exception as e:
             # Log a warning if the exception was raised while we were connected and not just some weird platform-ism
             # exception when reading from a closed socket.

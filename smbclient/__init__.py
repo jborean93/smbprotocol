@@ -17,6 +17,7 @@ from smbclient._io import (
 )
 
 from smbclient._os import (
+    copyfile,
     link,
     listdir,
     lstat,
@@ -44,7 +45,6 @@ from smbclient._os import (
     SMBStatResult,
     XATTR_CREATE,
     XATTR_REPLACE,
-    copyfile
 )
 
 try:
