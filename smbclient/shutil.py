@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com> and other contributors
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 from __future__ import unicode_literals
 
 from ntpath import join, basename, splitdrive
@@ -8,6 +12,11 @@ from os import error as os_error
 
 from smbclient._os import remove, rmdir, listdir, stat, makedirs, readlink, symlink, scandir, copyfile
 from smbclient.path import islink, isdir
+
+from smbprotocol._text import (
+    to_native,
+)
+
 from smbprotocol.exceptions import SMBOSError
 
 
@@ -69,7 +78,7 @@ def copy(src, dst, **kwargs):
     _check_src_dst(src, dst)
 
     if _samefile(src, dst, **kwargs):
-        raise ValueError("`%s` and `%s` are the same file" % (src, dst))
+        raise ValueError(to_native("`%s` and `%s` are the same file" % (src, dst)))
 
     if isdir(dst, **kwargs):
         dst = join(dst, basename(src))

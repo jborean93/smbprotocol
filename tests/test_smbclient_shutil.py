@@ -76,13 +76,8 @@ def test_copy_raises_when_source_and_target_identical(smb_share):
     with open_file("%s\\file1" % smb_share, mode='w') as fd:
         fd.write(u"content")
 
-    if (sys.version_info > (3, 0)):
-        expected = 'are the same file'
-        context = pytest.raises(ValueError, match=re.escape(expected))
-    else:
-        context = pytest.raises(ValueError)
-
-    with context:
+    expected = 'are the same file'
+    with pytest.raises(ValueError, match=re.escape(expected)):
         copy("%s\\file1" % smb_share, "%s\\file1" % smb_share)
 
 
