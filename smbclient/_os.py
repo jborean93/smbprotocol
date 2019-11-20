@@ -133,12 +133,11 @@ def copyfile(src, dst, **kwargs):
         raise ValueError("Cannot copy a file to a different root than the src.")
 
     with open_file(norm_src, mode='rb', share_access='r', buffering=0, **kwargs) as src_fd:
-        resume_response = SMB2SrvRequestResumeKey()
-
         with SMBFileTransaction(src_fd) as transaction_src:
             ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
-                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL, output_size=len(resume_response))
+                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL, output_size=32)
 
+        resume_response = SMB2SrvRequestResumeKey()
         resume_response.unpack(transaction_src.results[0])
         resume_key = resume_response['resume_key'].get_value()
 
