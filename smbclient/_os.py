@@ -1051,11 +1051,8 @@ def copyfile(src, dst, **kwargs):
     else:
         raise ValueError(to_native("Target %s already exists" % norm_dst))
 
-    with SMBRawIO(norm_src, mode='r', desired_access=FilePipePrinterAccessMask.GENERIC_READ,
-                  create_options=(CreateOptions.FILE_NON_DIRECTORY_FILE), share_access='r',
-                  **kwargs) as raw_src:
-
-        with SMBFileTransaction(raw_src) as transaction_src:
+    with open_file(norm_src, mode='rb', share_access='r', **kwargs) as src_fd:
+        with SMBFileTransaction(src_fd.raw) as transaction_src:
             ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
                           flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
                           output_size=32)
@@ -1065,12 +1062,10 @@ def copyfile(src, dst, **kwargs):
 
         chunks = _get_srv_copy_chunks(transaction_src)
 
-        with SMBRawIO(norm_dst, mode='x', desired_access=FilePipePrinterAccessMask.GENERIC_WRITE,
-                      share_access='r',
-                      create_options=CreateOptions.FILE_NON_DIRECTORY_FILE, **kwargs) as raw_dst:
-
-            for batch in _batches(chunks, MAX_COPY_CHUNK_COUNT):
-                with SMBFileTransaction(raw_dst) as transaction_dst:
+        with open_file(norm_dst, mode='xb', share_access='r', **kwargs) as dst_fd:
+            for i in range(0, len(chunks), MAX_COPY_CHUNK_COUNT):
+                batch = chunks[i:i + MAX_COPY_CHUNK_COUNT]
+                with SMBFileTransaction(dst_fd.raw) as transaction_dst:
                     copychunkcopy_struct = SMB2SrvCopyChunkCopy()
                     copychunkcopy_struct['source_key'] = val_resp['resume_key'].get_value()
                     copychunkcopy_struct['chunks'] = batch
@@ -1083,7 +1078,8 @@ def copyfile(src, dst, **kwargs):
                     copychunk_response = SMB2SrvCopyChunkResponse()
                     copychunk_response.unpack(result)
                     if copychunk_response['chunks_written'].get_value() < 1:
-                        raise SMBOSError('Could not copy chunks in server side copy', filename=norm_dst)
+                        raise SMBOSError('Could not copy chunks in server side copy', filename=norm_src,
+                                         filename2=norm_dst)
 
 
 def _get_srv_copy_chunks(transaction):
@@ -1103,11 +1099,6 @@ def _get_srv_copy_chunks(transaction):
         offset += MAX_COPY_CHUNK_SIZE
 
     return chunks
-
-
-def _batches(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
 
 
 def _is_sameshare(src, dst):
