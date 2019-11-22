@@ -13,10 +13,16 @@ import re
 import smbclient  # Tests that we expose this in smbclient/__init__.py
 import stat
 
+from smbclient._io import (
+    query_info,
+    SMBFileTransaction,
+)
+
 from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
-    SMBFileIO)
+    SMBFileIO,
+)
 
 from smbprotocol.exceptions import (
     SMBAuthenticationError,
@@ -25,6 +31,7 @@ from smbprotocol.exceptions import (
 
 from smbprotocol.file_info import (
     FileAttributes,
+    FileStreamInformation,
 )
 
 from smbprotocol.reparse_point import (
@@ -297,7 +304,7 @@ def test_lstat_on_file(smb_share):
     assert actual.st_nlink == 1
     assert actual.st_size == 7
     assert actual.st_uid == 0
-    assert actual.st_reparse_tag is None
+    assert actual.st_reparse_tag == 0
 
 
 def test_lstat_on_dir(smb_share):
@@ -319,7 +326,7 @@ def test_lstat_on_dir(smb_share):
     assert actual.st_nlink == 1
     assert actual.st_size == 0
     assert actual.st_uid == 0
-    assert actual.st_reparse_tag is None
+    assert actual.st_reparse_tag == 0
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -778,6 +785,29 @@ def test_open_file_unbuffered_text_file(smb_share):
     expected = "can't have unbuffered text I/O"
     with pytest.raises(ValueError, match=re.escape(expected)):
         smbclient.open_file("%s\\file.txt" % smb_share, mode='w', buffering=0)
+
+
+def test_open_file_with_ads(smb_share):
+    filename = "%s\\file.txt" % smb_share
+    with smbclient.open_file(filename, mode='w') as fd:
+        fd.write(u"default")
+
+    with smbclient.open_file(filename + ":ads", mode='w') as fd:
+        fd.write(u"ads")
+
+    with smbclient.open_file(filename) as fd:
+        assert fd.read() == u"default"
+
+    with smbclient.open_file(filename + ":ads") as fd:
+        assert fd.read() == u"ads"
+
+    assert smbclient.listdir(smb_share) == ["file.txt"]
+
+    with smbclient.open_file(filename, buffering=0, mode='rb') as fd, SMBFileTransaction(fd) as trans:
+        query_info(trans, FileStreamInformation, output_buffer_length=1024)
+
+    actual = sorted([s['stream_name'].get_value() for s in trans.results[0]])
+    assert actual == [u"::$DATA", u":ads:$DATA"]
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -1239,7 +1269,7 @@ def test_stat_directory(smb_share):
     assert actual.st_atime_ns is not None
     assert actual.st_mtime_ns is not None
     assert actual.st_file_attributes == FileAttributes.FILE_ATTRIBUTE_DIRECTORY
-    assert actual.st_reparse_tag is None
+    assert actual.st_reparse_tag == 0
 
 
 def test_stat_file(smb_share):
@@ -1283,7 +1313,7 @@ def test_stat_file(smb_share):
     assert actual.st_atime_ns is not None
     assert actual.st_mtime_ns is not None
     assert actual.st_file_attributes == FileAttributes.FILE_ATTRIBUTE_ARCHIVE
-    assert actual.st_reparse_tag is None
+    assert actual.st_reparse_tag == 0
 
 
 def test_stat_readonly(smb_share):

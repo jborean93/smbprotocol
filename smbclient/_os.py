@@ -34,10 +34,6 @@ from smbprotocol._text import (
     to_text,
 )
 
-from smbprotocol.connection import (
-    SMB2HeaderResponse,
-)
-
 from smbprotocol.exceptions import (
     NtStatus,
     SMBOSError,
@@ -45,6 +41,7 @@ from smbprotocol.exceptions import (
 )
 
 from smbprotocol.file_info import (
+    FileAttributeTagInformation,
     FileBasicInformation,
     FileDispositionInformation,
     FileFsVolumeInformation,
@@ -540,45 +537,22 @@ def stat(path, follow_symlinks=True, **kwargs):
             st_ctime_ns: Same as st_ctime but measured in nanoseconds
             st_chgtime_ns: Same as st_chgtime but measured in nanoseconds
             st_file_attributes: An int representing the Windows FILE_ATTRIBUTES_* constants.
-            st_reparse_tag: An int representing the Windows IO_REPARSE_TAG_* constants. This is set to None unless
+            st_reparse_tag: An int representing the Windows IO_REPARSE_TAG_* constants. This is set to 0 unless
                 follow_symlinks=False and the path is a reparse point. See smbprotocol.reparse_point.ReparseTags.
     """
-
-    def handle_not_reparse_error(errors):
-        # Sending FSCTL_GET_REPARSE_POINT for a non-reparse point will error with STATUS_NOT_A_REPARSE_POINT. We just
-        # silently ignore this error as we are trying to get the tag in 1 request from the server.
-        actual_errors = []
-        for e in errors:
-            if e.ntstatus != NtStatus.STATUS_NOT_A_REPARSE_POINT:
-                actual_errors.append(e)
-
-        if actual_errors:
-            raise actual_errors[0]
-
     raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
-    with SMBFileTransaction(raw, handle_not_reparse_error) as transaction:
+    with SMBFileTransaction(raw) as transaction:
         query_info(transaction, FileBasicInformation)
         # volume_label is variable and can return up to the first 32 chars (32 * 2 for UTF-16) + null padding
         query_info(transaction, FileFsVolumeInformation, output_buffer_length=88)
         query_info(transaction, FileInternalInformation)
         query_info(transaction, FileStandardInformation)
+        query_info(transaction, FileAttributeTagInformation)
 
-        if not follow_symlinks:
-            ioctl_request(transaction, CtlCode.FSCTL_GET_REPARSE_POINT, output_size=16384,
-                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL)
+    basic_info, fs_volume, internal_info, standard_info, attribute_tag = transaction.results
 
-    basic_info = transaction.results[0]
-    fs_volume = transaction.results[1]
-    internal_info = transaction.results[2]
-    standard_info = transaction.results[3]
-    reparse_tag = None
-
-    # Only parse the reparse tag if we didn't fail to get the actual response.
-    if not follow_symlinks and not isinstance(transaction.results[4], SMB2HeaderResponse):
-        reparse_buffer = ReparseDataBuffer()
-        reparse_buffer.unpack(transaction.results[4])
-        reparse_tag = reparse_buffer['reparse_tag'].get_value()
+    reparse_tag = attribute_tag['reparse_tag'].get_value()
 
     file_attributes = basic_info['file_attributes']
     st_mode = 0  # Permission bits are mostly symbolic, holdover from python stat behaviour

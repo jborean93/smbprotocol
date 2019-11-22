@@ -6,6 +6,10 @@ from collections import (
     OrderedDict,
 )
 
+from smbprotocol.reparse_point import (
+    ReparseTags,
+)
+
 from smbprotocol.structure import (
     BoolField,
     BytesField,
@@ -276,6 +280,30 @@ class FileAlignmentInformation(Structure):
             )),
         ])
         super(FileAlignmentInformation, self).__init__()
+
+
+class FileAttributeTagInformation(Structure):
+    """
+    [MS-FSCC] 2.4.6 FileAttributeTagInformation
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/d295752f-ce89-4b98-8553-266d37c84f0e
+    """
+
+    INFO_TYPE = InfoType.SMB2_0_INFO_FILE
+    INFO_CLASS = FileInformationClass.FILE_ATTRIBUTE_TAG_INFORMATION
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('file_attributes', FlagField(
+                size=4,
+                flag_type=FileAttributes,
+            )),
+            ('reparse_tag', EnumField(
+                size=4,
+                enum_type=ReparseTags,
+                enum_strict=False,
+            )),
+        ])
+        super(FileAttributeTagInformation, self).__init__()
 
 
 class FileBasicInformation(Structure):
@@ -626,6 +654,10 @@ class FileInternalInformation(Structure):
 
 
 class FileLinkInformation(Structure):
+    """
+    [MS-FSSC] 2.4.21 FileLinkInformation
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/69643dd3-b518-465d-bb0e-e2e9c5b7875e
+    """
 
     INFO_TYPE = InfoType.SMB2_0_INFO_FILE
     INFO_CLASS = FileInformationClass.FILE_LINK_INFORMATION
@@ -766,6 +798,38 @@ class FileStandardInformation(Structure):
             ('reserved', IntField(size=2)),
         ])
         super(FileStandardInformation, self).__init__()
+
+
+class FileStreamInformation(Structure):
+    """
+    [MS-FSCC] 2.4.40 FileStreamInformation
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/f8762be6-3ab9-411e-a7d6-5cc68f70c78d
+    """
+
+    INFO_TYPE = InfoType.SMB2_0_INFO_FILE
+    INFO_CLASS = FileInformationClass.FILE_STREAM_INFORMATION
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('next_entry_offset', IntField(size=4)),
+            ('stream_name_length', IntField(
+                size=4,
+                default=lambda s: len(s['stream_name']),
+            )),
+            ('stream_size', IntField(
+                size=8,
+                unsigned=False,
+            )),
+            ('stream_allocation_size', IntField(
+                size=8,
+                unsigned=False,
+            )),
+            ('stream_name', TextField(
+                encoding='utf-16-le',
+                size=lambda s: s['stream_name_length'].get_value(),
+            )),
+        ])
+        super(FileStreamInformation, self).__init__()
 
 
 class FileFsObjectIdInformation(Structure):

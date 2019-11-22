@@ -33,6 +33,7 @@ from smbprotocol.file_info import (
     FileIdBothDirectoryInformation,
     FileIdFullDirectoryInformation,
     FileNamesInformation,
+    FileStreamInformation,
     InfoType,
 
     # While this shouldn't ever be removed, we need to keep this imported so we stay backwards compat. These were
@@ -975,21 +976,25 @@ class SMB2QueryInfoResponse(Structure):
     def parse_buffer(self, file_info_type):
         buffer = self['buffer'].get_value()
 
-        file_obj = file_info_type()
-        if isinstance(file_obj, FileFullEaInformation):
-            ea_list = []
+        def unpack_list(buffer, byte_boundary):
+            info_list = []
             while buffer:
-                ea = file_info_type()
-                buffer = ea.unpack(buffer)
+                entry = file_info_type()
+                buffer = entry.unpack(buffer)
 
-                # Each entry is aligned at a 4 byte boundary so remove that padding.
-                padded_size = len(ea) % 4
-                buffer_offset = (4 - padded_size) if padded_size else 0
+                padded_size = len(entry) % byte_boundary
+                buffer_offset = (byte_boundary - padded_size) if padded_size else 0
                 buffer = buffer[buffer_offset:]
 
-                ea_list.append(ea)
+                info_list.append(entry)
 
-            return ea_list
+            return info_list
+
+        file_obj = file_info_type()
+        if isinstance(file_obj, FileFullEaInformation):
+            return unpack_list(buffer, 4)
+        elif isinstance(file_obj, FileStreamInformation):
+            return unpack_list(buffer, 8)
         else:
             file_obj.unpack(buffer)
             return file_obj
