@@ -472,6 +472,7 @@ def test_copymode_local_to_remote(smb_share, tmpdir):
     actual = smbclient_stat(dst_filename).st_file_attributes
     assert actual & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
+    os.chmod(src_filename, stat.S_IWRITE)  # Needed when running on Windows as os.remove will fail to remove.
     os.remove(src_filename)
     with open(src_filename, mode='w') as fd:
         fd.write(u"content")
@@ -525,6 +526,7 @@ def test_copymode_local_to_local(tmpdir):
     actual = os.stat(dst_filename).st_mode
     assert stat.S_IMODE(actual) & stat.S_IWRITE == 0
 
+    os.chmod(src_filename, stat.S_IWRITE)  # Needed when running on Windows as os.remove will fail to remove.
     os.remove(src_filename)
     with open(src_filename, mode='w') as fd:
         fd.write(u"content")
@@ -561,6 +563,7 @@ def test_copymode_local_to_local_symlink_follow(tmpdir):
     actual_link = os.lstat(dst_link).st_mode
     assert stat.S_IMODE(actual_link) & stat.S_IWRITE == stat.S_IWRITE
 
+    os.chmod(src_filename, stat.S_IWRITE)  # Needed when running on Windows as os.remove will fail to remove.
     os.remove(src_filename)
     with open(src_filename, mode='w') as fd:
         fd.write(u"content")
@@ -600,12 +603,12 @@ def test_copymode_local_to_local_symlink_dont_follow(tmpdir):
 
 
 def test_copymode_missing_src(smb_share):
-    with pytest.raises(OSError, match=re.escape("No such file or directory: ")):
+    with pytest.raises(OSError):
         copymode("%s\\missing.txt", smb_share)
 
 
 def test_copymode_missing_dst(smb_share):
-    with pytest.raises(OSError, match=re.escape("No such file or directory: ")):
+    with pytest.raises(OSError):
         copymode(smb_share, "%s\\missing.txt" % smb_share)
 
 
@@ -795,6 +798,7 @@ def test_copystat_local_to_local(tmpdir):
     assert stat.S_IMODE(actual.st_mode) & stat.S_IWRITE == 0
 
 
+@pytest.mark.skipif(os.name == 'nt', reason="Windows and symlinks fall flat with local paths.")
 def test_copystat_local_to_local_symlink_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir

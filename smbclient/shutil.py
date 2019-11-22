@@ -123,6 +123,12 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
     :param kwargs: Common arguments used to build the SMB Session for any UNC paths.
     :return: The dst path.
     """
+    def wrap_not_implemented(function_name):
+        def raise_not_implemented(*args, **kwargs):
+            raise NotImplementedError("%s is unavailable on this platform as a local operation" % function_name)
+
+        return raise_not_implemented
+
     norm_src = ntpath.normpath(src)
     if norm_src.startswith('\\\\'):
         src_root = ntpath.splitdrive(norm_src)[0]
@@ -134,8 +140,9 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
     else:
         src_root = None
         islink_func = os.path.islink
-        readlink_func = os.readlink
-        symlink_func = os.symlink
+        # readlink and symlink are not available on Windows on Python 2.
+        readlink_func = getattr(os, 'readlink', wrap_not_implemented('readlink'))
+        symlink_func = getattr(os, 'symlink', wrap_not_implemented('symlink'))
         src_open = open
         src_kwargs = {}
 
