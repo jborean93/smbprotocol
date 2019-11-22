@@ -537,7 +537,8 @@ def test_copymode_local_to_local(tmpdir):
     assert stat.S_IMODE(actual) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(os.name == 'nt', reason="Windows and local symlinks fall flat with local paths.")
+@pytest.mark.skipif(os.name == 'nt' and sys.version_info[0] < 3,
+                    reason="Windows and local symlinks fall flat with local paths.")
 def test_copymode_local_to_local_symlink_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir
@@ -578,7 +579,8 @@ def test_copymode_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(sys.version_info[0] == 3 and sys.version_info[1] == 5,
+@pytest.mark.skipif((os.name == 'nt' and sys.version_info[0] < 3) or
+                    (sys.version_info[0] == 3 and sys.version_info[1] == 5),
                     reason="Python 3.5 errors out on os.chmod(follow_symlinks=False)")
 def test_copymode_local_to_local_symlink_dont_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
@@ -799,7 +801,8 @@ def test_copystat_local_to_local(tmpdir):
     assert stat.S_IMODE(actual.st_mode) & stat.S_IWRITE == 0
 
 
-@pytest.mark.skipif(os.name == 'nt', reason="Windows and local symlinks fall flat with local paths.")
+@pytest.mark.skipif(os.name == 'nt' and sys.version_info[0] < 3,
+                    reason="Windows and local symlinks fall flat with local paths.")
 def test_copystat_local_to_local_symlink_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir
@@ -832,7 +835,8 @@ def test_copystat_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link.st_mode) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(os.name == 'nt' or (sys.version_info[0] == 3 and sys.version_info[1] == 5),
+@pytest.mark.skipif((os.name == 'nt' and sys.version_info[0] < 3) or
+                    (sys.version_info[0] == 3 and sys.version_info[1] == 5),
                     reason="Python 3.5 errors out on os.chmod(follow_symlinks=False)")
 def test_copystat_local_to_local_symlink_dont_follow_fail(tmpdir):
     test_dir = tmpdir.mkdir('test')
