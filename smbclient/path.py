@@ -6,18 +6,12 @@ import errno
 import stat as py_stat
 
 from smbclient._os import (
-    get_reparse_tag,
-    lstat,
     stat,
 )
 
 from smbprotocol.exceptions import (
     SMBLinkRedirectionError,
     SMBOSError,
-)
-
-from smbprotocol.reparse_point import (
-    ReparseTags,
 )
 
 
@@ -101,7 +95,7 @@ def isfile(path, **kwargs):
     :param kwargs: Common arguments used to build the SMB Session.
     :return: True if the path is a file or points to a file.
     """
-    return _stat_ismode(path, py_stat.S_ISREG, **kwargs)
+    return _stat_ismode(path, py_stat.S_ISREG, True, **kwargs)
 
 
 def isdir(path, **kwargs):
@@ -113,7 +107,7 @@ def isdir(path, **kwargs):
     :param kwargs: Common arguments used to build the SMB Session.
     :return: True if path is a dir or points to a dir.
     """
-    return _stat_ismode(path, py_stat.S_ISDIR, **kwargs)
+    return _stat_ismode(path, py_stat.S_ISDIR, True, **kwargs)
 
 
 def islink(path, **kwargs):
@@ -124,11 +118,7 @@ def islink(path, **kwargs):
     :param kwargs: Common arguments used to build the SMB Session.
     :return: True if path is a symlink.
     """
-    if _stat_ismode(path, py_stat.S_ISLNK, **kwargs):
-        reparse_tag = get_reparse_tag(path, **kwargs)
-        return reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK
-    else:
-        return False
+    return _stat_ismode(path, py_stat.S_ISLNK, False, **kwargs)
 
 
 def samefile(path1, path2, **kwargs):
@@ -159,9 +149,9 @@ def _exists(path, symlink_default, follow_symlinks, **kwargs):
         return symlink_default
 
 
-def _stat_ismode(path, check, **kwargs):
+def _stat_ismode(path, check, follow, **kwargs):
     try:
-        return check(lstat(path, **kwargs).st_mode)
+        return check(stat(path, follow_symlinks=follow, **kwargs).st_mode)
     except SMBOSError as err:
         if err.errno == errno.ENOENT:
             return False

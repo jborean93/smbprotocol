@@ -8,22 +8,11 @@ import time
 
 from smbclient import (
     mkdir,
-    remove,
-    rmdir,
-    scandir,
 )
 
-
-def remove_tree(path, **kwargs):
-    for dir_entry in scandir(path, **kwargs):
-        if dir_entry.is_dir():
-            if dir_entry.is_symlink():
-                rmdir(dir_entry.path)
-            else:
-                remove_tree(dir_entry.path)
-        else:
-            remove(dir_entry.path)
-    rmdir(path)
+from smbclient.shutil import (
+    rmtree,
+)
 
 
 @pytest.fixture(scope='module')
@@ -63,4 +52,4 @@ def smb_share(request, smb_real):
     try:
         yield share_path
     finally:
-        remove_tree(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+        rmtree(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])

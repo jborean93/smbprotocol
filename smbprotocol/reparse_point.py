@@ -25,6 +25,8 @@ class ReparseTags(object):
     """
     [MS-FSCC] 2.1.2.1 Reparse Tags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/c8e77b37-3909-4fe6-a4ea-2b9d423b1ee4
+
+    Also includes the tags defined in winnt.h of the Windows 10 SDK.
     """
     IO_REPARSE_TAG_RESERVED_ZERO = 0x00000000
     IO_REPARSE_TAG_RESERVED_ONE = 0x00000001
@@ -33,11 +35,77 @@ class ReparseTags(object):
     IO_REPARSE_TAG_DRIVER_EXTENDER = 0x80000005
     IO_REPARSE_TAG_HSM2 = 0x80000006
     IO_REPARSE_TAG_SIS = 0x80000007
+    IO_REPARSE_TAG_WIM = 0x80000008
+    IO_REPARSE_TAG_CSV = 0x80000009
     IO_REPARSE_TAG_DFS = 0x8000000A
     IO_REPARSE_TAG_FILTER_MANAGER = 0x8000000B
     IO_REPARSE_TAG_SYMLINK = 0xA000000C
+    IO_REPARSE_TAG_IIS_CACHE = 0xA0000010
     IO_REPARSE_TAG_DFSR = 0x80000012
+    IO_REPARSE_TAG_DEDUP = 0x80000013
     IO_REPARSE_TAG_NFS = 0x80000014
+    IO_REPARSE_TAG_FILE_PLACEHOLDER = 0x80000015
+    IO_REPARSE_TAG_WOF = 0x80000017
+    IO_REPARSE_TAG_WCI = 0x80000018
+    IO_REPARSE_TAG_WCI_1 = 0x90001018
+    IO_REPARSE_TAG_GLOBAL_REPARSE = 0xA0000019
+    IO_REPARSE_TAG_CLOUD = 0x9000001A
+    IO_REPARSE_TAG_CLOUD_1 = 0x9000101A
+    IO_REPARSE_TAG_CLOUD_2 = 0x9000201A
+    IO_REPARSE_TAG_CLOUD_3 = 0x9000301A
+    IO_REPARSE_TAG_CLOUD_4 = 0x9000401A
+    IO_REPARSE_TAG_CLOUD_5 = 0x9000501A
+    IO_REPARSE_TAG_CLOUD_6 = 0x9000601A
+    IO_REPARSE_TAG_CLOUD_7 = 0x9000701A
+    IO_REPARSE_TAG_CLOUD_8 = 0x9000801A
+    IO_REPARSE_TAG_CLOUD_9 = 0x9000901A
+    IO_REPARSE_TAG_CLOUD_A = 0x9000A01A
+    IO_REPARSE_TAG_CLOUD_B = 0x9000B01A
+    IO_REPARSE_TAG_CLOUD_C = 0x9000C01A
+    IO_REPARSE_TAG_CLOUD_D = 0x9000D01A
+    IO_REPARSE_TAG_CLOUD_E = 0x9000E01A
+    IO_REPARSE_TAG_CLOUD_F = 0x9000F01A
+    IO_REPARSE_TAG_CLOUD_MASK = 0x0000F000
+    IO_REPARSE_TAG_APPEXECLINK = 0x8000001B
+    IO_REPARSE_TAG_PROJFS = 0x9000001C
+    IO_REPARSE_TAG_LX_SYMLINK = 0xA000001D
+    IO_REPARSE_TAG_STORAGE_SYNC = 0x8000001E
+    IO_REPARSE_TAG_WCI_TOMBSTONE = 0xA000001F
+    IO_REPARSE_TAG_UNHANDLED = 0x80000020
+    IO_REPARSE_TAG_ONEDRIVE = 0x80000021
+    IO_REPARSE_TAG_PROJFS_TOMBSTONE = 0xA0000022
+    IO_REPARSE_TAG_AF_UNIX = 0x80000023
+
+    @staticmethod
+    def is_reparse_tag_microsoft(tag):
+        """
+        Determine whether a reparse point tag corresponds to a tag owned by Microsoft.
+
+        :param tag: The reparse point tag.
+        :return: bool to indicate whether the tag is owned by Microsoft.
+        """
+        return tag & 0x80000000 == 0x80000000
+
+    @staticmethod
+    def is_reparse_tag_name_surrogate(tag):
+        """
+        Determine whether a reparse point tag is a name surrogate. A name surrogate means that the file or directory
+        with this reparse tag represents another named entity in the system, such as a mounted folder or symbolic link.
+
+        :param tag: The reparse point tag.
+        :return: bool to indicate whether the tag is a name surrogate.
+        """
+        return tag & 0x20000000 == 0x20000000
+
+    @staticmethod
+    def is_reparse_tag_directory(tag):
+        """
+        Determine whether a directory with this reparse point can have children.
+
+        :param tag: The reparse point tag.
+        :return: bool to indicate whether the directory with the tag can have children.
+        """
+        return tag & 0x10000000 == 0x10000000
 
 
 class SymbolicLinkFlags(object):

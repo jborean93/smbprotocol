@@ -177,14 +177,17 @@ def set_info(transaction, info_buffer):
 
 class SMBFileTransaction(object):
 
-    def __init__(self, raw):
+    def __init__(self, raw, onerror=None):
         """
         Stores compound requests in 1 class that can be committed when required. Either uses the opened raw object or
         if that is not opened, opens and closes it in the 1 request.
 
         :param raw: The SMBRawIO object to run the compound request with.
+        :param onerror: A function that takes in a list of exceptions that were raised in the SMB responses. This can
+            be used to ignore known errors or reraise them in a better way.
         """
         self.raw = raw
+        self.onerror = onerror
         self.results = None
         self._actions = []
 
@@ -201,7 +204,7 @@ class SMBFileTransaction(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.commit()
 
-    def commit(self):
+    def commit(self, onerror=None):
         """
         Sends a compound request to the server. Optionally opens and closes a handle in the same request if the handle
         is not already opened.
@@ -236,10 +239,14 @@ class SMBFileTransaction(object):
                 responses.append(func(requests[idx]))
             except SMBResponseException as exc:
                 failures.append(SMBOSError(exc.status, self.raw.name))
+                responses.append(requests[idx].response)
 
         # If there was a failure, just raise the first exception found.
         if failures:
-            raise failures[0]
+            if self.onerror is not None:
+                self.onerror(failures)
+            else:
+                raise failures[0]
 
         remove_index.sort(reverse=True)  # Need to remove from highest index first.
         [responses.pop(i) for i in remove_index]  # Remove the open and close response if commit() did that work.

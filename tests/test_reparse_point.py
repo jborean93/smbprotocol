@@ -14,6 +14,21 @@ from smbprotocol.reparse_point import (
 )
 
 
+class TestReparseTags(object):
+
+    def test_tag_is_microsoft(self):
+        assert ReparseTags.is_reparse_tag_microsoft(ReparseTags.IO_REPARSE_TAG_SYMLINK)
+        assert not ReparseTags.is_reparse_tag_microsoft(1)
+
+    def test_tag_is_name_surrogate(self):
+        assert ReparseTags.is_reparse_tag_name_surrogate(ReparseTags.IO_REPARSE_TAG_SYMLINK)
+        assert not ReparseTags.is_reparse_tag_name_surrogate(ReparseTags.IO_REPARSE_TAG_HSM)
+
+    def test_tag_is_directory(self):
+        assert ReparseTags.is_reparse_tag_directory(ReparseTags.IO_REPARSE_TAG_CLOUD)
+        assert not ReparseTags.is_reparse_tag_directory(ReparseTags.IO_REPARSE_TAG_SYMLINK)
+
+
 class TestReparseDataBuffer(object):
 
     DATA = b"\x0c\x00\x00\xa0" \

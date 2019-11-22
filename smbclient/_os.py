@@ -34,6 +34,10 @@ from smbprotocol._text import (
     to_text,
 )
 
+from smbprotocol.connection import (
+    SMB2HeaderResponse,
+)
+
 from smbprotocol.exceptions import (
     NtStatus,
     SMBOSError,
@@ -45,6 +49,7 @@ from smbprotocol.file_info import (
     FileDispositionInformation,
     FileFsVolumeInformation,
     FileFullEaInformation,
+    FileIdFullDirectoryInformation,
     FileInformationClass,
     FileInternalInformation,
     FileLinkInformation,
@@ -103,6 +108,7 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
     'st_ctime_ns',
     'st_chgtime_ns',
     'st_file_attributes',
+    'st_reparse_tag',
 ])
 
 
@@ -179,7 +185,7 @@ def link(src, dst, follow_symlinks=True, **kwargs):
 
     :param src: The full UNC path to used as the source of the hard link.
     :param dst: The full UNC path to create the hard link at.
-    :param follow_symlinks:
+    :param follow_symlinks: Whether to link to the src target (True) or src itself (False) if src is a symlink.
     :param kwargs: Common arguments used to build the SMB Session.
     """
     norm_src = ntpath.normpath(src)
@@ -496,9 +502,9 @@ def scandir(path, search_pattern="*", **kwargs):
 
     Using scandir() instead of listdir() can significantly increase the performance of code that also needs file type
     or file attribute information, because DirEntry objects expose this information if the SMB server provides it when
-    scanning a directory. All DirEntry methods may perform a SMB request, bit is_dir(), is_file(), is_symlink() usually
-    only require a one system call. See the Python documentation for how DirEntry is set up and the methods and
-    attributes that are available.
+    scanning a directory. All DirEntry methods may perform a SMB request, but is_dir(), is_file(), is_symlink() usually
+    only require a one system call unless the file or directory is a reparse point which requires 2 calls. See the
+    Python documentation for how DirEntry is set up and the methods and attributes that are available.
 
     :param path: The path to a directory to scan.
     :param search_pattern: THe search string to match against the names of directories or files. This pattern can use
@@ -523,7 +529,8 @@ def stat(path, follow_symlinks=True, **kwargs):
     This function normally follows symlinks; to stat a symlink add the argument follow_symlinks=False.
 
     :param path: The path to the file or directory to stat.
-    :param follow_symlinks: Whether to stat() the symlink target if path is a symlink or not.
+    :param follow_symlinks: Whether to open the file's reparse point if present during the open. In most scenarios
+        this means to stat() the symlink target if the path is a symlink or not.
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: A tuple representing the stat result of the path. This contains the standard tuple entries as
         os.stat_result as well as:
@@ -533,17 +540,45 @@ def stat(path, follow_symlinks=True, **kwargs):
             st_ctime_ns: Same as st_ctime but measured in nanoseconds
             st_chgtime_ns: Same as st_chgtime but measured in nanoseconds
             st_file_attributes: An int representing the Windows FILE_ATTRIBUTES_* constants.
+            st_reparse_tag: An int representing the Windows IO_REPARSE_TAG_* constants. This is set to None unless
+                follow_symlinks=False and the path is a reparse point. See smbprotocol.reparse_point.ReparseTags.
     """
+
+    def handle_not_reparse_error(errors):
+        # Sending FSCTL_GET_REPARSE_POINT for a non-reparse point will error with STATUS_NOT_A_REPARSE_POINT. We just
+        # silently ignore this error as we are trying to get the tag in 1 request from the server.
+        actual_errors = []
+        for e in errors:
+            if e.ntstatus != NtStatus.STATUS_NOT_A_REPARSE_POINT:
+                actual_errors.append(e)
+
+        if actual_errors:
+            raise actual_errors[0]
+
     raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
-    with SMBFileTransaction(raw) as transaction:
+    with SMBFileTransaction(raw, handle_not_reparse_error) as transaction:
         query_info(transaction, FileBasicInformation)
         # volume_label is variable and can return up to the first 32 chars (32 * 2 for UTF-16) + null padding
         query_info(transaction, FileFsVolumeInformation, output_buffer_length=88)
         query_info(transaction, FileInternalInformation)
         query_info(transaction, FileStandardInformation)
 
-    basic_info, fs_volume, internal_info, standard_info = transaction.results
+        if not follow_symlinks:
+            ioctl_request(transaction, CtlCode.FSCTL_GET_REPARSE_POINT, output_size=16384,
+                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL)
+
+    basic_info = transaction.results[0]
+    fs_volume = transaction.results[1]
+    internal_info = transaction.results[2]
+    standard_info = transaction.results[3]
+    reparse_tag = None
+
+    # Only parse the reparse tag if we didn't fail to get the actual response.
+    if not follow_symlinks and not isinstance(transaction.results[4], SMB2HeaderResponse):
+        reparse_buffer = ReparseDataBuffer()
+        reparse_buffer.unpack(transaction.results[4])
+        reparse_tag = reparse_buffer['reparse_tag'].get_value()
 
     file_attributes = basic_info['file_attributes']
     st_mode = 0  # Permission bits are mostly symbolic, holdover from python stat behaviour
@@ -557,7 +592,9 @@ def stat(path, follow_symlinks=True, **kwargs):
     else:
         st_mode |= 0o666
 
-    if file_attributes.has_flag(FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT):
+    if reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK:
+        # Python behaviour is to remove the S_IFDIR and S_IFREG is the file is a symbolic link. It also only sets
+        # S_IFLNK for symbolic links and not other reparse point tags like junction points.
         st_mode ^= py_stat.S_IFMT(st_mode)
         st_mode |= py_stat.S_IFLNK
 
@@ -584,7 +621,8 @@ def stat(path, follow_symlinks=True, **kwargs):
         st_mtime_ns=mtime_ns,
         st_ctime_ns=ctime_ns,
         st_chgtime_ns=chgtime_ns,
-        st_file_attributes=file_attributes.get_value()
+        st_file_attributes=file_attributes.get_value(),
+        st_reparse_tag=reparse_tag,
     )
 
 
@@ -819,10 +857,7 @@ def walk(top, topdown=True, onerror=None, follow_symlinks=False, **kwargs):
             # In case the dir was changed in the yield we need to re-check if the dir is now a symlink and skip it if
             # it is not and follow_symlinks=False.
             if not follow_symlinks and py_stat.S_ISLNK(lstat(dirpath, **kwargs).st_mode):
-                # Not all reparse buffers are symlinks, we need to check the reparse tag which requires another call.
-                reparse_tag = get_reparse_tag(dirpath, **kwargs)
-                if reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK:
-                    continue
+                continue
 
             for dir_top, dir_dirs, dir_files in walk(dirpath, **walk_kwargs):
                 yield dir_top, dir_dirs, dir_files
@@ -922,19 +957,6 @@ def setxattr(path, attribute, value, flags=0, follow_symlinks=True, **kwargs):
         ea_info['ea_name'] = b_attribute
         ea_info['ea_value'] = b_value
         set_info(transaction, ea_info)
-
-
-def get_reparse_tag(path, **kwargs):
-    """
-    Gets the reparse tag of a reparse point. This isn't part of the of the builtin os package but it is used in a few
-    places in smbclient so it's exposed here.
-
-    :param path: The path to get the reparse tag for.
-    :param kwargs: Common SMB Session arguments for smbclient.
-    :return: The reparse point's tag value as an int.
-    """
-    reparse_buffer = _get_reparse_point(path, **kwargs)
-    return reparse_buffer['reparse_tag'].get_value()
 
 
 def _delete(raw_type, path, **kwargs):
@@ -1038,54 +1060,149 @@ def _set_basic_information(path, creation_time=0, last_access_time=0, last_write
 class SMBDirEntry(object):
 
     def __init__(self, raw, dir_info):
-        self.name = raw.name.split("\\")[-1]
-        self.path = raw.name
         self._smb_raw = raw
-
-        # Cache some values to avoid repeated checks.
         self._dir_info = dir_info
         self._stat = None
         self._lstat = None
-        # Unlike the WIN32_FILE_DATA this isn't returned in the dir query result, we need to store this separately
-        # and query/cache on demand if the file attributes contains the FILE_ATTRIBUTE_REPARSE_POINT attribute.
-        self._reparse_tag = None
 
     def __str__(self):
         return '<{0}: {1!r}>'.format(self.__class__.__name__, to_native(self.name))
 
+    @property
+    def name(self):
+        """ The entry's base filename, relative to the scandir() path argument. """
+        return self._smb_raw.name.split("\\")[-1]
+
+    @property
+    def path(self):
+        """ The entry's full path name. """
+        return self._smb_raw.name
+
     def inode(self):
+        """
+        Return the inode number of the entry.
+
+        The result is cached on the 'smcblient.DirEntry' object. Use
+        'smbclient.stat(entry.path, follow_symlinks=False).st_ino' to fetch up-to-date information.
+        """
         return self._dir_info['file_id'].get_value()
 
-    def is_dir(self):
-        # While the path may be a symlink on Windows the symlink is already seen as either a file or directory. We can
-        # infer the followed path type by the type of the symlink itself.
-        return self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
+    def is_dir(self, follow_symlinks=True):
+        """
+        Return 'True' if this entry is a directory or a symbolic link pointing to a directory; return 'False' if the
+        entry is or points to any other kind of file, or if it doesn't exist anymore.
 
-    def is_file(self):
-        return not self.is_dir()
+        If follow_symlinks is 'False', return 'True' only if this entry is a directory (without following symlinks);
+        return 'False' if the entry is any other kind of file.
+
+        The result is cached on the 'smcblient.DirEntry' object, with a separate cache for follow_symlinks 'True' and
+        'False'. Call 'smbclient.path.isdir(entry.path)' to fetch up-to-date information.
+
+        On the first, uncached call, no SMB call is required unless the path is a reparse point.
+
+        :param follow_symlinks: Whether to check if the entry's target is a directory (True) or the entry itself
+            (False) if the entry is a symlink.
+        :return: bool that states whether the entry is a directory or not.
+        """
+        is_lnk = self.is_symlink()
+        if follow_symlinks and is_lnk:
+            return self._link_target_type_check(py_stat.S_ISDIR)
+        else:
+            # Python behaviour is to consider a symlink not a directory even if it has the DIRECTORY attribute.
+            return not is_lnk and self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
+
+    def is_file(self, follow_symlinks=True):
+        """
+        Return 'True' if this entry is a file or a symbolic link pointing to a file; return 'False' if the entry is or
+        points to a directory or other non-file entry.
+
+        If follow_symlinks is 'False', return 'True' only if this entry is a file (without following symlinks); return
+        'False' if entry is a directory or other non-file entry.
+
+        The result is cached on the 'smcblient.DirEntry' object, with a separate cache for follow_symlinks 'True' and
+        'False'. Call 'smbclient.path.isfile(entry.path)' to fetch up-to-date information.
+
+        On the first, uncached call, no SMB call is required unless the path is a reparse point.
+
+        :param follow_symlinks: Whether to check if the entry's target is a file (True) or the entry itself (False) if
+            the entry is a symlink.
+        :return: bool that states whether the entry is a file or not.
+        """
+        is_lnk = self.is_symlink()
+        if follow_symlinks and is_lnk:
+            return self._link_target_type_check(py_stat.S_ISREG)
+        else:
+            # Python behaviour is to consider a symlink not a file even if it does not have the DIRECTORY attribute.
+            return not is_lnk and \
+                not self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
 
     def is_symlink(self):
-        if self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT):
-            # While a symlink is a reparse point, there are many different types of reparse points. We need to get and
-            # cache the reparse tag and use that as our check.
-            if self._reparse_tag is None:
-                self._reparse_tag = get_reparse_tag(self._smb_raw.name)
+        """
+        Return 'True' if this entry is a symbolic link (even if broken); return 'False' if the entry points to a
+        directory or any kind of file.
 
-            return self._reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK
+        The result is cached on the 'smcblient.DirEntry' object. Call 'smcblient.path.islink()' to fetch up-to-date
+        information.
+
+        On the first, uncached call, only files or directories that are reparse points requires another SMB call. The
+        result is cached for subsequent calls.
+
+        :return: Whether the path is a symbolic link.
+        """
+        if self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT):
+            # While a symlink is a reparse point, all reparse points aren't symlinks. We need to get the reparse tag
+            # to use as our check. Unlike WIN32_FILE_DATA scanned locally, we don't get the reparse tag in the original
+            # query result. We need to do a separate stat call to get this information.
+            lstat = self.stat(follow_symlinks=False)
+            return lstat.st_reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK
         else:
             return False
 
     def stat(self, follow_symlinks=True):
+        """
+        Return a SMBStatResult object for this entry. This method follows symbolic links by default; to stat a symbolic
+        link without following add the 'follow_symlinks=False' argument.
+
+        This method always requires an extra SMB call or 2 if the path is a reparse point. The result is cached on the
+        'smcblient.DirEntry' object, with a separate cache for follow_symlinks 'True' and 'False'. Call
+        'smbclient.stat(entry.path)' to fetch up-to-date information.
+
+        :param follow_symlinks: Whether to stat() the symlink target (True) or the symlink itself (False) if path is a
+            symlink or not.
+        :return: SMBStatResult object, see smbclient.stat() for more information.
+        """
         if follow_symlinks:
             if not self._stat:
                 if self.is_symlink():
-                    self._stat = stat(self._smb_raw.name)
+                    self._stat = stat(self.path)
                 else:
+                    # Because it's not a symlink lstat will be the same as stat so set both.
                     if self._lstat is None:
                         self._lstat = lstat(self._smb_raw.name)
                     self._stat = self._lstat
             return self._stat
         else:
             if not self._lstat:
-                self._lstat = lstat(self._smb_raw.name)
+                self._lstat = lstat(self.path)
             return self._lstat
+
+    @classmethod
+    def from_path(cls, path, **kwargs):
+        file_stat = stat(path, **kwargs)
+
+        # A DirEntry only needs these 2 properties to be set
+        dir_info = FileIdFullDirectoryInformation()
+        dir_info['file_attributes'] = file_stat.st_file_attributes
+        dir_info['file_id'] = file_stat.st_ino
+
+        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info)
+        dir_entry._stat = file_stat
+        return dir_entry
+
+    def _link_target_type_check(self, check):
+        try:
+            return check(self.stat(follow_symlinks=True).st_mode)
+        except OSError as err:
+            if err.errno == errno.ENOENT:  # Missing target, broken symlink just return False
+                return False
+            raise

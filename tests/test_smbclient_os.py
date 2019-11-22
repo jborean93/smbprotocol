@@ -29,6 +29,7 @@ from smbprotocol.file_info import (
 
 from smbprotocol.reparse_point import (
     ReparseDataBuffer,
+    ReparseTags,
 )
 
 
@@ -296,6 +297,7 @@ def test_lstat_on_file(smb_share):
     assert actual.st_nlink == 1
     assert actual.st_size == 7
     assert actual.st_uid == 0
+    assert actual.st_reparse_tag is None
 
 
 def test_lstat_on_dir(smb_share):
@@ -317,6 +319,7 @@ def test_lstat_on_dir(smb_share):
     assert actual.st_nlink == 1
     assert actual.st_size == 0
     assert actual.st_uid == 0
+    assert actual.st_reparse_tag is None
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -334,6 +337,7 @@ def test_lstat_on_symlink_file(smb_share):
     actual = smbclient.lstat(dst_filename)
     assert actual.st_ino != actual_src.st_ino
     assert stat.S_ISLNK(actual.st_mode)
+    assert actual.st_reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK
 
 
 def test_mkdir(smb_share):
@@ -1160,15 +1164,42 @@ def test_scamdir_with_pattern(smb_share):
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
                     reason="cannot create symlinks on Samba")
 def test_scandir_with_symlink(smb_share):
+    with smbclient.open_file("%s\\file.txt" % smb_share, mode='w') as fd:
+        fd.write(u"content")
+    smbclient.symlink("%s\\file.txt" % smb_share, "%s\\link.txt" % smb_share)
+
+    smbclient.mkdir("%s\\dir" % smb_share)
+    smbclient.symlink("%s\\dir" % smb_share, "%s\\link-dir" % smb_share, target_is_directory=True)
+
+    for entry in smbclient.scandir(smb_share):
+        # This is tested in other tests, we only care about symlinks.
+        if entry.name in ['file.txt', 'dir']:
+            continue
+
+        assert entry.is_symlink()
+        assert entry.is_dir(follow_symlinks=False) is False
+        assert entry.is_file(follow_symlinks=False) is False
+
+        if entry.name == 'link.txt':
+            assert entry.is_dir() is False
+            assert entry.is_file() is True
+        else:
+            assert entry.is_dir() is True
+            assert entry.is_file() is False
+
+
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="cannot create symlinks on Samba")
+def test_scandir_with_broken_symlink(smb_share):
     smbclient.symlink("%s\\file.txt" % smb_share, "%s\\link.txt" % smb_share)
     smbclient.symlink("%s\\dir" % smb_share, "%s\\link-dir" % smb_share, target_is_directory=True)
 
     for entry in smbclient.scandir(smb_share):
         assert entry.is_symlink()
-        if entry.name == 'link.txt':
-            assert entry.is_file()
-        else:
-            assert entry.is_dir()
+        assert entry.is_dir() is False
+        assert entry.is_dir(follow_symlinks=False) is False  # broken link target
+        assert entry.is_file() is False
+        assert entry.is_file(follow_symlinks=False) is False  # broken link target
 
 
 def test_stat_directory(smb_share):
@@ -1190,6 +1221,7 @@ def test_stat_directory(smb_share):
     assert actual[13] == actual.st_ctime_ns
     assert actual[14] == actual.st_chgtime_ns
     assert actual[15] == actual.st_file_attributes
+    assert actual[16] == actual.st_reparse_tag
 
     assert stat.S_ISDIR(actual.st_mode)
     assert not stat.S_ISREG(actual.st_mode)
@@ -1207,6 +1239,7 @@ def test_stat_directory(smb_share):
     assert actual.st_atime_ns is not None
     assert actual.st_mtime_ns is not None
     assert actual.st_file_attributes == FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+    assert actual.st_reparse_tag is None
 
 
 def test_stat_file(smb_share):
@@ -1232,6 +1265,7 @@ def test_stat_file(smb_share):
     assert actual[13] == actual.st_ctime_ns
     assert actual[14] == actual.st_chgtime_ns
     assert actual[15] == actual.st_file_attributes
+    assert actual[16] == actual.st_reparse_tag
 
     assert not stat.S_ISDIR(actual.st_mode)
     assert stat.S_ISREG(actual.st_mode)
@@ -1249,6 +1283,7 @@ def test_stat_file(smb_share):
     assert actual.st_atime_ns is not None
     assert actual.st_mtime_ns is not None
     assert actual.st_file_attributes == FileAttributes.FILE_ATTRIBUTE_ARCHIVE
+    assert actual.st_reparse_tag is None
 
 
 def test_stat_readonly(smb_share):

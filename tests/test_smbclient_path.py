@@ -183,7 +183,7 @@ def test_isfile_with_link(smb_share):
         fd.write(u"content")
     symlink(src_filename, dst_filename)
 
-    assert isfile(dst_filename) is False
+    assert isfile(dst_filename) is True
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
@@ -227,7 +227,7 @@ def test_isdir_with_link(smb_share):
     mkdir(src_dir_name)
     symlink(src_dir_name, dst_dir_name)
 
-    assert isdir(dst_dir_name) is False
+    assert isdir(dst_dir_name) is True
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
