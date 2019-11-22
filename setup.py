@@ -25,9 +25,6 @@ setup(
         'six',
     ],
     extras_require={
-        ':python_version<"2.7"': [
-            'ordereddict',
-        ],
         'kerberos:sys_platform=="win32"': [
             'pywin32',
         ],
