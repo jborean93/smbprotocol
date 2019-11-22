@@ -537,6 +537,7 @@ def test_copymode_local_to_local(tmpdir):
     assert stat.S_IMODE(actual) & stat.S_IWRITE == stat.S_IWRITE
 
 
+@pytest.mark.skipif(os.name == 'nt', reason="Windows and local symlinks fall flat with local paths.")
 def test_copymode_local_to_local_symlink_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir
@@ -798,7 +799,7 @@ def test_copystat_local_to_local(tmpdir):
     assert stat.S_IMODE(actual.st_mode) & stat.S_IWRITE == 0
 
 
-@pytest.mark.skipif(os.name == 'nt', reason="Windows and symlinks fall flat with local paths.")
+@pytest.mark.skipif(os.name == 'nt', reason="Windows and local symlinks fall flat with local paths.")
 def test_copystat_local_to_local_symlink_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir
@@ -831,7 +832,7 @@ def test_copystat_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link.st_mode) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(sys.version_info[0] == 3 and sys.version_info[1] == 5,
+@pytest.mark.skipif(os.name == 'nt' or (sys.version_info[0] == 3 and sys.version_info[1] == 5),
                     reason="Python 3.5 errors out on os.chmod(follow_symlinks=False)")
 def test_copystat_local_to_local_symlink_dont_follow_fail(tmpdir):
     test_dir = tmpdir.mkdir('test')
@@ -925,12 +926,12 @@ def test_copystat_symlink_dont_follow(smb_share):
 
 
 def test_copystat_missing_src(smb_share):
-    with pytest.raises(OSError, match=re.escape("No such file or directory: ")):
+    with pytest.raises(OSError):
         copystat("%s\\missing.txt", smb_share)
 
 
 def test_copystat_missing_dst(smb_share):
-    with pytest.raises(OSError, match=re.escape("No such file or directory: ")):
+    with pytest.raises(OSError):
         copystat(smb_share, "%s\\missing.txt" % smb_share)
 
 
