@@ -1,23 +1,48 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import pytest
 import re
 import uuid
 
 from datetime import datetime
-from smbprotocol.connection import NtStatus
-from smbprotocol.create_contexts import CreateContextName, \
-    DurableHandleFlags, LeaseRequestFlags, LeaseResponseFlags, LeaseState, \
-    SMB2CreateAllocationSize, SMB2CreateAppInstanceId, \
-    SMB2CreateAppInstanceVersion, SMB2CreateContextRequest, \
-    SMB2CreateDurableHandleReconnect, SMB2CreateDurableHandleReconnectV2, \
-    SMB2CreateDurableHandleRequest, SMB2CreateDurableHandleRequestV2, \
-    SMB2CreateDurableHandleResponse, SMB2CreateDurableHandleResponseV2, \
-    SMB2CreateEABuffer, SMB2CreateQueryMaximalAccessRequest, \
-    SMB2CreateQueryMaximalAccessResponse, SMB2CreateQueryOnDiskIDResponse, \
-    SMB2CreateRequestLease, SMB2CreateRequestLeaseV2, \
-    SMB2CreateResponseLease, SMB2CreateResponseLeaseV2, \
-    SMB2CreateTimewarpToken, SMB2SVHDXOpenDeviceContextRequest, \
-    SMB2SVHDXOpenDeviceContextResponse, SMB2SVHDXOpenDeviceContextV2Request, \
-    SMB2SVHDXOpenDeviceContextV2Response, SVHDXOriginatorFlags
+
+from smbprotocol.create_contexts import (
+    CreateContextName,
+    DurableHandleFlags,
+    LeaseRequestFlags,
+    LeaseResponseFlags,
+    LeaseState,
+    SMB2CreateAllocationSize,
+    SMB2CreateAppInstanceId,
+    SMB2CreateAppInstanceVersion,
+    SMB2CreateContextRequest,
+    SMB2CreateDurableHandleReconnect,
+    SMB2CreateDurableHandleReconnectV2,
+    SMB2CreateDurableHandleRequest,
+    SMB2CreateDurableHandleRequestV2,
+    SMB2CreateDurableHandleResponse,
+    SMB2CreateDurableHandleResponseV2,
+    SMB2CreateEABuffer,
+    SMB2CreateQueryMaximalAccessRequest,
+    SMB2CreateQueryMaximalAccessResponse,
+    SMB2CreateQueryOnDiskIDResponse,
+    SMB2CreateRequestLease,
+    SMB2CreateRequestLeaseV2,
+    SMB2CreateResponseLease,
+    SMB2CreateResponseLeaseV2,
+    SMB2CreateTimewarpToken,
+    SMB2SVHDXOpenDeviceContextRequest,
+    SMB2SVHDXOpenDeviceContextResponse,
+    SMB2SVHDXOpenDeviceContextV2Request,
+    SMB2SVHDXOpenDeviceContextV2Response,
+    SVHDXOriginatorFlags,
+)
+
+from smbprotocol.exceptions import (
+    NtStatus,
+)
 
 
 class TestCreateContextName(object):

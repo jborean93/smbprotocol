@@ -1,12 +1,22 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import struct
 
-from smbprotocol.structure import BytesField, EnumField, FlagField, \
-    IntField, ListField, Structure, StructureField
+from collections import (
+    OrderedDict,
+)
 
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
+from smbprotocol.structure import (
+    BytesField,
+    EnumField,
+    FlagField,
+    IntField,
+    ListField,
+    Structure,
+    StructureField,
+)
 
 
 class AccessMask(object):

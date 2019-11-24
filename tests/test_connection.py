@@ -1,17 +1,28 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import hashlib
 import os
+import pytest
 import uuid
 
-import pytest
+from cryptography.hazmat.primitives.ciphers import (
+    aead,
+)
 
-from cryptography.hazmat.primitives.ciphers import aead
-from datetime import datetime
+from datetime import (
+    datetime,
+)
+
+from smbprotocol import (
+    Commands,
+    Dialects,
+)
 
 from smbprotocol.connection import (
     Ciphers,
-    Commands,
     Connection,
-    Dialects,
     HashAlgorithms,
     NegotiateContextType,
     Request,
@@ -31,11 +42,17 @@ from smbprotocol.connection import (
     SMB3NegotiateRequest,
 )
 
-from smbprotocol.ioctl import SMB2IOCTLRequest
-from smbprotocol.exceptions import SMBException
-from smbprotocol.session import Session
+from smbprotocol.ioctl import (
+    SMB2IOCTLRequest,
+)
 
-from .utils import smb_real
+from smbprotocol.exceptions import (
+    SMBException,
+)
+
+from smbprotocol.session import (
+    Session,
+)
 
 
 def test_valid_hash_algorithm():
@@ -1033,10 +1050,7 @@ class TestConnection(object):
         try:
             header = SMB2HeaderResponse()
             header['message_id'] = 0xFFFFFFFFFFFFFFFF
-            expected = header.pack()
-            connection._verify(header, 0)
-            actual = header.pack()
-            assert actual == expected
+            connection.verify_signature(header, 0)
         finally:
             connection.disconnect()
 
@@ -1045,7 +1059,7 @@ class TestConnection(object):
         connection.connect()
         try:
             test_msg = SMB2NegotiateRequest()
-            test_req = Request(test_msg, connection)
+            test_req = Request(test_msg, type(test_msg), connection)
             connection.outstanding_requests[666] = test_req
 
             # Put a bad message in the incoming queue to break the worker in a bad way
@@ -1069,7 +1083,7 @@ class TestConnection(object):
             header['message_id'] = 1
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             with pytest.raises(SMBException) as exc:
-                connection._verify(header, 100)
+                connection.verify_signature(header, 100)
             assert str(exc.value) == "Failed to find session 100 for " \
                                      "message verification"
         finally:
@@ -1082,14 +1096,12 @@ class TestConnection(object):
         try:
             session.connect()
             header = connection.preauth_integrity_hash_value[-2]
-            # just set some random values for verifiation failure
+            # just set some random values for verification failure
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['signature'] = b"\xff" * 16
             with pytest.raises(SMBException) as exc:
-                connection._verify(header, header['session_id'].get_value(),
-                                   verify_session=True)
-            assert "Server message signature could not be verified:" in \
-                str(exc.value)
+                connection.verify_signature(header, list(connection.session_table.keys())[0], force=True)
+            assert "Server message signature could not be verified:" in str(exc.value)
         finally:
             connection.disconnect(True)
 
@@ -1136,7 +1148,7 @@ class TestConnection(object):
             msg = SMB2IOCTLRequest()
             msg['max_output_response'] = 65538  # results in 2 credits required
             with pytest.raises(SMBException) as exc:
-                connection._generate_packet_header(msg, None, None, 0)
+                connection.send(msg, None, None, 0)
             assert str(exc.value) == "Request requires 2 credits but only 1 " \
                                      "credits are available"
         finally:

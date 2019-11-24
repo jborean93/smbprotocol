@@ -1,15 +1,46 @@
-from pyasn1.type.char import GeneralString
-from pyasn1.type.constraint import SingleValueConstraint
-from pyasn1.type.namedtype import NamedType, NamedTypes, OptionalNamedType
-from pyasn1.type.namedval import NamedValues
-from pyasn1.type.tag import Tag, tagClassApplication, tagClassContext, \
-    tagFormatConstructed, tagFormatSimple, TagSet
-from pyasn1.type.univ import BitString, Choice, Enumerated, ObjectIdentifier, \
-    OctetString, Sequence, SequenceOf
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
+from pyasn1.type.char import (
+    GeneralString,
+)
+
+from pyasn1.type.constraint import (
+    SingleValueConstraint,
+)
+
+from pyasn1.type.namedtype import (
+    NamedType,
+    NamedTypes,
+    OptionalNamedType,
+)
+
+from pyasn1.type.namedval import (
+    NamedValues,
+)
+
+from pyasn1.type.tag import (
+    Tag,
+    tagClassApplication,
+    tagClassContext,
+    tagFormatConstructed,
+    tagFormatSimple,
+    TagSet,
+)
+
+from pyasn1.type.univ import (
+    BitString,
+    Choice,
+    Enumerated,
+    ObjectIdentifier,
+    OctetString,
+    Sequence,
+    SequenceOf,
+)
 
 
 class MechTypes(object):
-    # Currently only NTLMSSP is supported, with the aim to support Kerberos
     MS_KRB5 = ObjectIdentifier('1.2.840.48018.1.2.2')
     KRB5 = ObjectIdentifier('1.2.840.113554.1.2.2')
     KRB5_U2U = ObjectIdentifier('1.2.840.113554.1.2.2.3')

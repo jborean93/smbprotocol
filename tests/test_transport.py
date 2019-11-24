@@ -1,8 +1,14 @@
-import re
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import pytest
+import re
 
-from smbprotocol.transport import DirectTCPPacket, Tcp
+from smbprotocol.transport import (
+    DirectTCPPacket,
+    Tcp,
+)
 
 
 class TestDirectTcpPacket(object):
@@ -36,7 +42,7 @@ class TestTcp(object):
 
     def test_normal_fail_message_too_big(self):
         tcp = Tcp("0.0.0.0", 0, None)
-        tcp._sock = True
+        tcp._connected = True
         with pytest.raises(ValueError) as exc:
             tcp.send(b"\x00" * 16777216)
         assert str(exc.value) == "Data to be sent over Direct TCP size " \

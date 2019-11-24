@@ -1,15 +1,37 @@
-import uuid
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import pytest
+import uuid
 
-from smbprotocol.connection import Dialects
-from smbprotocol.ioctl import CtlCode, HashRetrievalType, HashVersion, \
-    IfCapability, IOCTLFlags, SMB2IOCTLRequest, SMB2IOCTLResponse, \
-    SMB2NetworkInterfaceInfo, SMB2SrvCopyChunk, SMB2SrvCopyChunkCopy, \
-    SMB2SrvCopyChunkResponse, SMB2SrvNetworkResiliencyRequest, \
-    SMB2SrvReadHashRequest, SMB2SrvRequestResumeKey, SMB2SrvSnapshotArray, \
-    SMB2ValidateNegotiateInfoRequest, SMB2ValidateNegotiateInfoResponse, \
-    SockAddrFamily, SockAddrIn, SockAddrIn6, SockAddrStorage
+from smbprotocol import (
+    Dialects,
+)
+
+from smbprotocol.ioctl import (
+    CtlCode,
+    HashRetrievalType,
+    HashVersion,
+    IfCapability,
+    IOCTLFlags,
+    SMB2IOCTLRequest,
+    SMB2IOCTLResponse,
+    SMB2NetworkInterfaceInfo,
+    SMB2SrvCopyChunk,
+    SMB2SrvCopyChunkCopy,
+    SMB2SrvCopyChunkResponse,
+    SMB2SrvNetworkResiliencyRequest,
+    SMB2SrvReadHashRequest,
+    SMB2SrvRequestResumeKey,
+    SMB2SrvSnapshotArray,
+    SMB2ValidateNegotiateInfoRequest,
+    SMB2ValidateNegotiateInfoResponse,
+    SockAddrFamily,
+    SockAddrIn,
+    SockAddrIn6,
+    SockAddrStorage,
+)
 
 
 class TestSMB2IOCTLRequest(object):

@@ -1,14 +1,31 @@
-import os
-import uuid
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import pytest
+import uuid
 
-from smbprotocol.connection import Connection, Dialects, SecurityMode
-from smbprotocol.exceptions import SMBAuthenticationError, SMBException
-from smbprotocol.session import NtlmContext, Session, SMB2Logoff, \
-    SMB2SessionSetupRequest, SMB2SessionSetupResponse
+from smbprotocol import (
+    Dialects,
+)
 
-from .utils import smb_real
+from smbprotocol.connection import (
+    Connection,
+    SecurityMode,
+)
+
+from smbprotocol.exceptions import (
+    SMBAuthenticationError,
+    SMBException,
+)
+
+from smbprotocol.session import (
+    NtlmContext,
+    Session,
+    SMB2Logoff,
+    SMB2SessionSetupRequest,
+    SMB2SessionSetupResponse,
+)
 
 
 class TestSMB2SessionSetupRequest(object):

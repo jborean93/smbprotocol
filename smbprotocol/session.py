@@ -1,20 +1,69 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import logging
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.kbkdf import CounterLocation, \
-    KBKDFHMAC, Mode
-from ntlm_auth.ntlm import NtlmContext as Ntlm
-from pyasn1.codec.der import decoder
+from collections import (
+    OrderedDict,
+)
 
-from smbprotocol.connection import Capabilities, Commands, Dialects, \
-    NtStatus, SecurityMode
-from smbprotocol.exceptions import SMBAuthenticationError, SMBException, \
-    SMBResponseException
-from smbprotocol.spnego import InitialContextToken, MechTypes, ObjectIdentifier
-from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
-    Structure
-from smbprotocol.structure import _bytes_to_hex
+from cryptography.hazmat.backends import (
+    default_backend,
+)
+
+from cryptography.hazmat.primitives import (
+    hashes,
+)
+
+from cryptography.hazmat.primitives.kdf.kbkdf import (
+    CounterLocation,
+    KBKDFHMAC,
+    Mode,
+)
+
+from ntlm_auth.ntlm import (
+    NtlmContext as Ntlm,
+)
+
+from pyasn1.codec.der import (
+    decoder,
+)
+
+from smbprotocol import (
+    Commands,
+    Dialects,
+)
+
+from smbprotocol.connection import (
+    Capabilities,
+    SecurityMode,
+)
+
+from smbprotocol.exceptions import (
+    NtStatus,
+    SMBAuthenticationError,
+    SMBException,
+    SMBResponseException,
+)
+
+from smbprotocol.spnego import (
+    InitialContextToken,
+    MechTypes,
+    ObjectIdentifier,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    EnumField,
+    FlagField,
+    IntField,
+    Structure,
+)
+
+from smbprotocol.structure import (
+    _bytes_to_hex,
+)
 
 HAVE_SSPI = False
 try:  # pragma: no cover
@@ -33,11 +82,6 @@ try:  # pragma: no cover
     HAVE_GSSAPI = True
 except ImportError:  # pragma: no cover
     pass
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 
@@ -350,7 +394,7 @@ class Session(object):
         if self.signing_required:
             log.info("Verifying the SMB Setup Session signature as auth is "
                      "successful")
-            self.connection._verify(response, self.session_id, True)
+            self.connection.verify_signature(response, self.session_id, force=True)
 
     def disconnect(self, close=True):
         """

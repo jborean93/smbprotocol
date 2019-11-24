@@ -1,17 +1,57 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import logging
 
-import smbprotocol.create_contexts
-import smbprotocol.query_info
-from smbprotocol.exceptions import SMBException, SMBResponseException, \
-    SMBUnsupportedFeature
-from smbprotocol.structure import BytesField, DateTimeField, EnumField, \
-    FlagField, IntField, ListField, Structure, StructureField
-from smbprotocol.connection import Commands, Dialects, NtStatus
+from collections import (
+    OrderedDict,
+)
 
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
+from smbprotocol import (
+    Commands,
+    Dialects,
+    MAX_PAYLOAD_SIZE,
+)
+
+from smbprotocol.create_contexts import (
+    SMB2CreateContextRequest,
+)
+
+from smbprotocol.exceptions import (
+    NtStatus,
+    SMBException,
+    SMBResponseException,
+    SMBUnsupportedFeature,
+)
+
+from smbprotocol.file_info import (
+    FileBothDirectoryInformation,
+    FileDirectoryInformation,
+    FileFullDirectoryInformation,
+    FileFullEaInformation,
+    FileIdBothDirectoryInformation,
+    FileIdFullDirectoryInformation,
+    FileNamesInformation,
+    FileStreamInformation,
+    InfoType,
+
+    # While this shouldn't ever be removed, we need to keep this imported so we stay backwards compat. These were
+    # originally defined here.
+    FileAttributes,
+    FileInformationClass,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    DateTimeField,
+    EnumField,
+    FlagField,
+    IntField,
+    ListField,
+    Structure,
+    StructureField,
+)
 
 log = logging.getLogger(__name__)
 
@@ -182,30 +222,6 @@ class CreateAction(object):
     FILE_OVERWRITTEN = 0x3
 
 
-class FileAttributes(object):
-    """
-    [MS-FSCC]
-
-    2.6 File Attributes
-    Combination of file attributes for a file or directory
-    """
-    FILE_ATTRIBUTE_ARCHIVE = 0x00000020
-    FILE_ATTRIBUTE_COMPRESSED = 0x00000800
-    FILE_ATTRIBUTE_DIRECTORY = 0x00000010
-    FILE_ATTRIBUTE_ENCRYPTED = 0x00004000
-    FILE_ATTRIBUTE_HIDDEN = 0x00000002
-    FILE_ATTRIBUTE_NORMAL = 0x00000080
-    FILE_ATTRIBUTE_NOT_CONTENT_INDEXED = 0x00002000
-    FILE_ATTRIBUTE_OFFLINE = 0x00001000
-    FILE_ATTRIBUTE_READONLY = 0x00000001
-    FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
-    FILE_ATTRIBUTE_SPARSE_FILE = 0x00000200
-    FILE_ATTRIBUTE_SYSTEM = 0x00000004
-    FILE_ATTRIBUTE_TEMPORARY = 0x00000100
-    FILE_ATTRIBUTE_INTEGRITY_STREAM = 0x00008000
-    FILE_ATTRIBUTE_NO_SCRUB_DATA = 0x00020000
-
-
 class CloseFlags(object):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -249,22 +265,6 @@ class WriteFlags(object):
     SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x00000002
 
 
-class FileInformationClass(object):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.33 SMB2 QUERY_DIRECTORY Request FileInformationClass
-    Describe the format the data MUST be returned in. The format structure must
-    is specified in https://msdn.microsoft.com/en-us/library/cc232064.aspx
-    """
-    FILE_DIRECTORY_INFORMATION = 0x01
-    FILE_FULL_DIRECTORY_INFORMATION = 0x02
-    FILE_ID_FULL_DIRECTORY_INFORMATION = 0x26
-    FILE_BOTH_DIRECTORY_INFORMATION = 0x03
-    FILE_ID_BOTH_DIRECTORY_INFORMATION = 0x25
-    FILE_NAMES_INFORMATION = 0x0C
-
-
 class QueryDirectoryFlags(object):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -276,6 +276,35 @@ class QueryDirectoryFlags(object):
     SMB2_RETURN_SINGLE_ENTRY = 0x02
     SMB2_INDEX_SPECIFIED = 0x04
     SMB2_REOPEN = 0x10
+
+
+class QueryInfoFlags(object):
+    """
+    [MS-SMB2] 2.2.37 SMB2 QUERY_INFO Request - Flags
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/d623b2f7-a5cd-4639-8cc9-71fa7d9f9ba9
+
+    Flags to set on a QUERY_INFO request.
+    """
+    SL_RESTART_SCAN = 0x00000001
+    SL_RETURN_SINGLE_ENTRY = 0x00000002
+    SL_INDEX_SPECIFIED = 0x00000004
+
+
+class InfoAdditionalInformation(object):
+    """
+    [MS-SMB2] 2.2.39 SMB2 SET_INFO Request - AdditionalInformation
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/ee9614c4-be54-4a3c-98f1-769a7032a0e4
+
+    If security information is being set, this value must contains one or more of the following flags.
+    """
+    OWNER_SECURTIY_INFORMATION = 0x00000001
+    GROUP_SECURITY_INFORMATION = 0x00000002
+    DACL_SECURITY_INFORMATION = 0x00000004
+    SACL_SECURITY_INFORMATION = 0x00000008
+    LABEL_SECURITY_INFORMATION = 0x00000010
+    ATTRIBUTE_SECURITY_INFORMATION = 0x00000020
+    SCOPE_SECURITY_INFORMATION = 0x00000040
+    BACKUP_SECURITY_INFORMATION = 0x00010000
 
 
 class SMB2CreateRequest(Structure):
@@ -290,7 +319,7 @@ class SMB2CreateRequest(Structure):
 
     def __init__(self):
         # pep 80 char issues force me to define this here
-        create_con_req = smbprotocol.create_contexts.SMB2CreateContextRequest
+        create_con_req = SMB2CreateContextRequest
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -383,8 +412,7 @@ class SMB2CreateRequest(Structure):
         context_list = []
         last_context = data == b""
         while not last_context:
-            create_context = \
-                smbprotocol.create_contexts.SMB2CreateContextRequest()
+            create_context = SMB2CreateContextRequest()
             data = create_context.unpack(data)
             context_list.append(create_context)
             last_context = create_context['next'].get_value() == 0
@@ -403,7 +431,7 @@ class SMB2CreateResponse(Structure):
     COMMAND = Commands.SMB2_CREATE
 
     def __init__(self):
-        create_con_req = smbprotocol.create_contexts.SMB2CreateContextRequest
+        create_con_req = SMB2CreateContextRequest
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -432,9 +460,7 @@ class SMB2CreateResponse(Structure):
                 flag_type=FileAttributes
             )),
             ('reserved2', IntField(size=4)),
-            ('file_id', BytesField(
-                size=16
-            )),
+            ('file_id', BytesField(size=16)),
             ('create_contexts_offset', IntField(
                 size=4,
                 default=lambda s: self._create_contexts_offset(s)
@@ -463,8 +489,7 @@ class SMB2CreateResponse(Structure):
         context_list = []
         last_context = data == b""
         while not last_context:
-            create_context = \
-                smbprotocol.create_contexts.SMB2CreateContextRequest()
+            create_context = SMB2CreateContextRequest()
             data = create_context.unpack(data)
             context_list.append(create_context)
             # Manually make sure the final padding is present
@@ -494,7 +519,7 @@ class SMB2CloseRequest(Structure):
                 flag_type=CloseFlags
             )),
             ('reserved', IntField(size=4)),
-            ('file_id', BytesField(size=16))
+            ('file_id', BytesField(size=16)),
         ])
         super(SMB2CloseRequest, self).__init__()
 
@@ -551,7 +576,7 @@ class SMB2FlushRequest(Structure):
             )),
             ('reserved1', IntField(size=2)),
             ('reserved2', IntField(size=4)),
-            ('file_id', BytesField(size=16))
+            ('file_id', BytesField(size=16)),
         ])
         super(SMB2FlushRequest, self).__init__()
 
@@ -808,25 +833,20 @@ class SMB2QueryDirectoryRequest(Structure):
         Pass in the buffer value from the response object to unpack it and
         return a list of query response structures for the request.
 
+        :param file_information_class: The info class that represents the
+            buffer.
         :param buffer: The raw bytes value of the SMB2QueryDirectoryResponse
             buffer field.
         :return: List of query_info.* structures based on the
             FileInformationClass used in the initial query request.
         """
-        structs = smbprotocol.query_info
         resp_structure = {
-            FileInformationClass.FILE_DIRECTORY_INFORMATION:
-                structs.FileDirectoryInformation,
-            FileInformationClass.FILE_NAMES_INFORMATION:
-                structs.FileNamesInformation,
-            FileInformationClass.FILE_BOTH_DIRECTORY_INFORMATION:
-                structs.FileBothDirectoryInformation,
-            FileInformationClass.FILE_ID_BOTH_DIRECTORY_INFORMATION:
-                structs.FileIdBothDirectoryInformation,
-            FileInformationClass.FILE_FULL_DIRECTORY_INFORMATION:
-                structs.FileFullDirectoryInformation,
-            FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION:
-                structs.FileIdFullDirectoryInformation,
+            FileInformationClass.FILE_DIRECTORY_INFORMATION: FileDirectoryInformation,
+            FileInformationClass.FILE_NAMES_INFORMATION: FileNamesInformation,
+            FileInformationClass.FILE_BOTH_DIRECTORY_INFORMATION: FileBothDirectoryInformation,
+            FileInformationClass.FILE_ID_BOTH_DIRECTORY_INFORMATION: FileIdBothDirectoryInformation,
+            FileInformationClass.FILE_FULL_DIRECTORY_INFORMATION: FileFullDirectoryInformation,
+            FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION: FileIdFullDirectoryInformation,
         }[file_information_class]
         query_results = []
 
@@ -872,6 +892,177 @@ class SMB2QueryDirectoryResponse(Structure):
             ))
         ])
         super(SMB2QueryDirectoryResponse, self).__init__()
+
+
+class SMB2QueryInfoRequest(Structure):
+    """
+    [MS-SMB2] 2.2.37 SMB2 QUERY_INFO Request
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/d623b2f7-a5cd-4639-8cc9-71fa7d9f9ba9
+
+    Sent by a client to request information on a file, named pipe, or underlying volume.
+    """
+    COMMAND = Commands.SMB2_QUERY_INFO
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=41,
+            )),
+            ('info_type', EnumField(
+                size=1,
+                enum_type=InfoType,
+            )),
+            ('file_info_class', EnumField(
+                size=1,
+                enum_type=FileInformationClass,
+                default=FileInformationClass.FILE_NONE
+            )),
+            ('output_buffer_length', IntField(
+                size=4,
+                default=lambda s: 0,
+            )),
+            ('input_buffer_offset', IntField(
+                size=2,
+                default=lambda s: 0 if s['input_buffer_length'].get_value() == 0 else 104,
+            )),
+            ('reserved', IntField(size=2)),
+            ('input_buffer_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('additional_information', IntField(size=4)),
+            ('flags', FlagField(
+                size=4,
+                flag_type=QueryInfoFlags,
+            )),
+            ('file_id', BytesField(size=16)),
+            ('buffer', BytesField(
+                size=lambda s: s['input_buffer_length'].get_value(),
+            )),
+        ])
+        super(SMB2QueryInfoRequest, self).__init__()
+
+
+class SMB2QueryInfoResponse(Structure):
+    """
+    [MS-SMB2] 2.2.38 SMB2 QUERY_INFO Response
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/3b1b3598-a898-44ca-bfac-2dcae065247f
+
+    Sent by the server in response to an SMB2QueryInfoRequest.
+    """
+    COMMAND = Commands.SMB2_QUERY_INFO
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=9,
+            )),
+            ('output_buffer_offset', IntField(
+                size=2,
+                default=72,
+            )),
+            ('output_buffer_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('buffer', BytesField(
+                size=lambda s: s['output_buffer_length'].get_value(),
+            )),
+        ])
+        super(SMB2QueryInfoResponse, self).__init__()
+
+    def parse_buffer(self, file_info_type):
+        buffer = self['buffer'].get_value()
+
+        def unpack_list(buffer, byte_boundary):
+            info_list = []
+            while buffer:
+                entry = file_info_type()
+                buffer = entry.unpack(buffer)
+
+                padded_size = len(entry) % byte_boundary
+                buffer_offset = (byte_boundary - padded_size) if padded_size else 0
+                buffer = buffer[buffer_offset:]
+
+                info_list.append(entry)
+
+            return info_list
+
+        file_obj = file_info_type()
+        if isinstance(file_obj, FileFullEaInformation):
+            return unpack_list(buffer, 4)
+        elif isinstance(file_obj, FileStreamInformation):
+            return unpack_list(buffer, 8)
+        else:
+            file_obj.unpack(buffer)
+            return file_obj
+
+
+class SMB2SetInfoRequest(Structure):
+    """
+    [MS-SMB2] 2.2.39 SMB2 SET_INFO Request
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/ee9614c4-be54-4a3c-98f1-769a7032a0e4
+
+    Sent by a client to set information on a file or underlying object store.
+    """
+    COMMAND = Commands.SMB2_SET_INFO
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=33,
+            )),
+            ('info_type', EnumField(
+                size=1,
+                enum_type=InfoType,
+            )),
+            ('file_info_class', EnumField(
+                size=1,
+                enum_type=FileInformationClass,
+                default=FileInformationClass.FILE_NONE
+            )),
+            ('buffer_length', IntField(
+                size=4,
+                default=lambda s: len(s['buffer']),
+            )),
+            ('buffer_offset', IntField(
+                size=2,
+                default=96
+            )),
+            ('reserved', IntField(size=2)),
+            ('additional_information', EnumField(
+                size=4,
+                enum_type=InfoAdditionalInformation,
+            )),
+            ('file_id', BytesField(size=16)),
+            ('buffer', BytesField(
+                size=lambda s: s['buffer_length'].get_value()
+            ))
+        ])
+        super(SMB2SetInfoRequest, self).__init__()
+
+
+class SMB2SetInfoResponse(Structure):
+    """
+    [MS-SMB2] 2.2.40 SMB2 SET_INFO Response
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/c4318eb4-bdab-49b7-9352-abd7005c7f19
+
+    Sent by the server in response to an SMB2SetInfoRequest to notify the client that its request has been successfully
+    processed.
+    """
+    COMMAND = Commands.SMB2_SET_INFO
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('structure_size', IntField(
+                size=2,
+                default=2
+            )),
+        ])
+        super(SMB2SetInfoResponse, self).__init__()
 
 
 class Open(object):
@@ -931,6 +1122,10 @@ class Open(object):
         self.create_options = None
         self.file_attributes = None
         self.create_disposition = None
+
+    @property
+    def connected(self):
+        return self._connected
 
     def create(self, impersonation_level, desired_access, file_attributes,
                share_access, create_disposition, create_options,
@@ -992,8 +1187,7 @@ class Open(object):
         else:
             create['buffer_path'] = self.file_name.encode('utf-16-le')
         if create_contexts:
-            create['buffer_contexts'] = smbprotocol.create_contexts.\
-                SMB2CreateContextRequest.pack_multiple(create_contexts)
+            create['buffer_contexts'] = SMB2CreateContextRequest.pack_multiple(create_contexts)
 
         if self.connection.dialect >= Dialects.SMB_3_0_0:
             self.desired_access = desired_access
@@ -1238,7 +1432,7 @@ class Open(object):
         return flush_response
 
     def query_directory(self, pattern, file_information_class, flags=None,
-                        file_index=0, max_output=65536, send=True):
+                        file_index=0, max_output=MAX_PAYLOAD_SIZE, send=True):
         """
         Run a Query/Find on an opened directory based on the params passed in.
 

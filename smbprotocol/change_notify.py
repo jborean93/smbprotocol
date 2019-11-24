@@ -5,6 +5,10 @@
 import logging
 import threading
 
+from collections import (
+    OrderedDict,
+)
+
 from smbprotocol.connection import (
     Commands,
     NtStatus,
@@ -22,11 +26,6 @@ from smbprotocol.structure import (
     Structure,
     TextField,
 )
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 
@@ -227,7 +226,7 @@ class FileSystemWatcher(object):
         """ States whether the change notify request was cancelled or not. """""
         return self._request is not None and self._request.cancelled is True
 
-    def start(self, completion_filter, flags=0, output_buffer_length=65536):
+    def start(self, completion_filter, flags=0, output_buffer_length=65536, send=True):
         """
         Starts a change notify request against the server with the options specified.
 
@@ -240,6 +239,8 @@ class FileSystemWatcher(object):
             events in the sub directories of the Open() dir specified.
         :param output_buffer_length: The output buffer length to defined the max size of data the server can return.
             Set to 0 to only receive a notification of changes without the details of the change.
+        :param send: Whether to send the request in the same call or return the message to the caller and the
+            unpack function. Note the compound request must not close the dir the watcher is started on.
         """
         change_notify = SMB2ChangeNotifyRequest()
         change_notify['flags'] = flags
@@ -250,8 +251,15 @@ class FileSystemWatcher(object):
         log.info("Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request"
                  % (self.open.tree_connect.session.username, self.open.tree_connect.share_name, self.open.file_name))
         log.debug(str(change_notify))
-        request = self.open.connection.send(change_notify, self.open.tree_connect.session.session_id,
-                                            self.open.tree_connect.tree_connect_id)
+        if send:
+            request = self.open.connection.send(change_notify, self.open.tree_connect.session.session_id,
+                                                self.open.tree_connect.tree_connect_id)
+            self._start_response(request)
+            return
+        else:
+            return change_notify, self._start_response
+
+    def _start_response(self, request):
         self._request = request
         self._t_on_response.start()
 
@@ -285,5 +293,5 @@ class FileSystemWatcher(object):
         except Exception as exc:
             self._t_exc = exc
         finally:
-            log.debug("Firing response event for %s change notify" % (self.open.file_name))
+            log.debug("Firing response event for %s change notify" % self.open.file_name)
             self.response_event.set()

@@ -1,0 +1,73 @@
+---
+- hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: install samba
+    package:
+      name: samba
+      state: present
+
+  - name: template out smb.conf file
+    copy:
+      content: |
+        [global]
+        workgroup = WORKGROUP
+        valid users = @smbgroup
+        server signing = mandatory
+        ea support = yes
+        store dos attributes = yes
+        vfs objects = xattr_tdb streams_xattr
+
+        [share]
+        comment = Test Samba Share
+        path = /srv/samba/share
+        browsable = yes
+        guest ok = no
+        read only = no
+        create mask = 0755
+
+        [share-encrypted]
+        command = Test Encrypted Samba Share
+        path = /srv/samba/share-encrypted
+        browsable = yes
+        guest ok = no
+        read only = no
+        create mask = 0755
+        smb encrypt = required
+      dest: /etc/samba/smb.conf
+
+  - name: create smbgroup
+    group:
+      name: smbgroup
+      state: present
+
+  - name: create smbuser and add to smbgroup
+    user:
+      name: smbuser
+      password: "{{ 'smbpass' | password_hash('sha512', 'mysecretsalt') }}"
+      state: present
+      group: smbgroup
+
+  - name: set smbpassword
+    shell: (echo smbpass; echo smbpass) | smbpasswd -s -a smbuser
+
+  - name: create share directories
+    file:
+      path: /srv/samba/{{ item }}
+      state: directory
+      group: smbgroup
+      mode: '755'
+      owner: smbuser
+    loop:
+    - share
+    - share-encrypted
+
+  - name: set selinux permissions for samba dir
+    command: chcon -R -t samba_share_t /srv/samba/
+
+  - name: create and start the samba services
+    systemd:
+      name: smb
+      state: started
+      enabled: yes

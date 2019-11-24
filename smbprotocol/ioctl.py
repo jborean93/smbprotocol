@@ -1,15 +1,34 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import binascii
 import socket
 
-from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, \
-    ListField, Structure, StructureField, UuidField
-from smbprotocol.connection import Capabilities, Commands, Dialects, \
-    SecurityMode
+from collections import (
+    OrderedDict,
+)
 
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
+from smbprotocol import (
+    Commands,
+    Dialects,
+)
+
+from smbprotocol.connection import (
+    Capabilities,
+    SecurityMode,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    EnumField,
+    FlagField,
+    IntField,
+    ListField,
+    Structure,
+    StructureField,
+    UuidField,
+)
 
 
 class CtlCode(object):
@@ -31,6 +50,7 @@ class CtlCode(object):
     FSCTL_LMR_REQUEST_RESILIENCY = 0x001401D4
     FSCTL_QUERY_NETWORK_INTERFACE_INFO = 0x001401FC
     FSCTL_SET_REPARSE_POINT = 0x000900A4
+    FSCTL_GET_REPARSE_POINT = 0x000900A8
     FSCTL_DFS_GET_REFERRALS_EX = 0x000601B0
     FSCTL_FILE_LEVEL_TRIM = 0x00098208
     FSCTL_VALIDATE_NEGOTIATE_INFO = 0x00140204
@@ -359,8 +379,11 @@ class SMB2SrvRequestResumeKey(Structure):
             ('resume_key', BytesField(size=24)),
             ('context_length', IntField(
                 size=4,
-                default=0
-            ))
+                default=lambda s: len(s['context']),
+            )),
+            ('context', BytesField(
+                size=lambda s: s['context_length'].get_value(),
+            )),
         ])
         super(SMB2SrvRequestResumeKey, self).__init__()
 

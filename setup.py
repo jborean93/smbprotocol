@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 from setuptools import setup
 
@@ -14,8 +16,8 @@ except ImportError:
 
 setup(
     name='smbprotocol',
-    version='0.3.0',
-    packages=['smbprotocol'],
+    version='1.0.0',
+    packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
         'ntlm-auth>=1.2.0',
@@ -23,17 +25,14 @@ setup(
         'six',
     ],
     extras_require={
-        ':python_version<"2.7"': [
-            'ordereddict'
-        ],
         'kerberos:sys_platform=="win32"': [
-            'pywin32'
+            'pywin32',
         ],
         'kerberos:sys_platform!="win32"': [
-            'gssapi>=1.4.1'
-        ]
+            'gssapi>=1.4.1',
+        ],
     },
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
     author='Jordan Borean',
     author_email='jborean93@gmail.com',
     url='https://github.com/jborean93/smbprotocol',
@@ -47,7 +46,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

@@ -1,20 +1,27 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import logging
 import select
 import socket
 import struct
 import threading
 
-from smbprotocol.structure import BytesField, IntField, Structure
+from collections import (
+    OrderedDict,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    IntField,
+    Structure,
+)
 
 try:
     from queue import Queue
 except ImportError:  # pragma: no cover
     from Queue import Queue
-
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +51,7 @@ class DirectTCPPacket(Structure):
 
 def socket_connect(func):
     def wrapped(self, *args, **kwargs):
-        if self._sock is None:
+        if not self._connected:
             log.info("Connecting to DirectTcp socket")
             try:
                 self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
@@ -55,6 +62,7 @@ def socket_connect(func):
             self._t_recv = threading.Thread(target=self.recv_thread, name="recv-%s:%s" % (self.server, self.port))
             self._t_recv.daemon = True
             self._t_recv.start()
+            self._connected = True
 
         func(self, *args, **kwargs)
 
@@ -69,20 +77,20 @@ class Tcp(object):
         self.server = server
         self.port = port
         self.timeout = timeout
+        self._connected = False
         self._sock = None
         self._recv_queue = recv_queue
         self._t_recv = None
 
     def close(self):
-        if self._sock is not None:
+        if self._connected:
             log.info("Disconnecting DirectTcp socket")
             # Send a shutdown to the socket so the select returns and wait until the thread is closed before actually
             # closing the socket.
-            sock = self._sock
-            self._sock = None
-            sock.shutdown(socket.SHUT_RDWR)
+            self._connected = False
+            self._sock.shutdown(socket.SHUT_RDWR)
             self._t_recv.join()
-            sock.close()
+            self._sock.close()
 
     @socket_connect
     def send(self, header):
@@ -101,14 +109,28 @@ class Tcp(object):
             data = data[sent:]
 
     def recv_thread(self):
-        while True:
-            read_socks, _, _ = select.select([self._sock], [], [])
-            if self._sock is None:
-                # If the socket is closed send None to the msg worker to tell it to stop.
-                self._recv_queue.put(None)
-                return
+        try:
+            while True:
+                select.select([self._sock], [], [])
+                b_packet_size = self._sock.recv(4)
+                if b_packet_size == b"":
+                    return
 
-            b_packet_size = self._sock.recv(4)
-            packet_size = struct.unpack(">L", b_packet_size)[0]
-            buffer = self._sock.recv(packet_size)
-            self._recv_queue.put(buffer)
+                packet_size = struct.unpack(">L", b_packet_size)[0]
+                b_data = bytearray()
+                bytes_read = 0
+                while bytes_read < packet_size:
+                    b_fragment = self._sock.recv(packet_size - bytes_read)
+                    b_data.extend(b_fragment)
+                    bytes_read += len(b_fragment)
+
+                self._recv_queue.put(bytes(b_data))
+        except Exception as e:
+            # Log a warning if the exception was raised while we were connected and not just some weird platform-ism
+            # exception when reading from a closed socket.
+            if self._connected:
+                log.warning("Uncaught exception in socket recv thread: %s" % e)
+            return
+        finally:
+            # Make sure we close the message processing thread in connection.py
+            self._recv_queue.put(None)

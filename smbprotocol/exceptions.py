@@ -1,14 +1,98 @@
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
 import binascii
+import errno
+import ntpath
+import os
 import socket
 
-import smbprotocol.connection
-from smbprotocol.structure import BytesField, EnumField, IntField, ListField, \
-    Structure, StructureField
+from collections import (
+    OrderedDict,
+)
 
-try:
-    from collections import OrderedDict
-except ImportError:  # pragma: no cover
-    from ordereddict import OrderedDict
+from smbprotocol import (
+    Dialects,
+)
+
+from smbprotocol._text import (
+    to_bytes,
+    to_native,
+    to_text,
+)
+
+from smbprotocol.reparse_point import (
+    SymbolicLinkReparseDataBuffer,
+)
+
+from smbprotocol.structure import (
+    BytesField,
+    EnumField,
+    IntField,
+    ListField,
+    Structure,
+    StructureField,
+)
+
+
+class NtStatus(object):
+    """
+    [MS-ERREF] https://msdn.microsoft.com/en-au/library/cc704588.aspx
+
+    2.3.1 NTSTATUS Values
+    These values are set in the status field of an SMB2Header response. This is
+    not an exhaustive list but common values that are returned.
+    """
+    STATUS_SUCCESS = 0x00000000
+    STATUS_PENDING = 0x00000103
+    STATUS_NOTIFY_CLEANUP = 0x0000010B
+    STATUS_NOTIFY_ENUM_DIR = 0x0000010C
+    STATUS_BUFFER_OVERFLOW = 0x80000005
+    STATUS_END_OF_FILE = 0xC0000011
+    STATUS_INVALID_EA_NAME = 0x80000013
+    STATUS_EA_LIST_INCONSISTENT = 0x80000014
+    STATUS_STOPPED_ON_SYMLINK = 0x8000002D
+    STATUS_INFO_LENGTH_MISMATCH = 0xC0000004
+    STATUS_INVALID_PARAMETER = 0xC000000D
+    STATUS_NO_SUCH_FILE = 0xC000000F
+    STATUS_END_OF_FILE = 0xC0000011
+    STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
+    STATUS_ACCESS_DENIED = 0xC0000022
+    STATUS_BUFFER_TOO_SMALL = 0xC0000023
+    STATUS_OBJECT_NAME_INVALID = 0xC0000033
+    STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
+    STATUS_OBJECT_NAME_COLLISION = 0xC0000035
+    STATUS_OBJECT_PATH_INVALID = 0xC0000039
+    STATUS_OBJECT_PATH_NOT_FOUND = 0xC000003A
+    STATUS_OBJECT_PATH_SYNTAX_BAD = 0xC000003B
+    STATUS_SHARING_VIOLATION = 0xC0000043
+    STATUS_EAS_NOT_SUPPORTED = 0xC000004F
+    STATUS_EA_TOO_LARGE = 0xC0000050
+    STATUS_NONEXISTENT_EA_ENTRY = 0xC0000051
+    STATUS_NO_EAS_ON_FILE = 0xC0000052
+    STATUS_EA_CORRUPT_ERROR = 0xC0000053
+    STATUS_PRIVILEGE_NOT_HELD = 0xC0000061
+    STATUS_LOGON_FAILURE = 0xC000006D
+    STATUS_PASSWORD_EXPIRED = 0xC0000071
+    STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
+    STATUS_PIPE_BUSY = 0xC00000AE
+    STATUS_PIPE_CLOSING = 0xC00000B1
+    STATUS_PIPE_DISCONNECTED = 0xC00000B0
+    STATUS_FILE_IS_A_DIRECTORY = 0xC00000BA
+    STATUS_NOT_SUPPORTED = 0xC00000BB
+    STATUS_BAD_NETWORK_NAME = 0xC00000CC
+    STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
+    STATUS_PIPE_EMPTY = 0xC00000D9
+    STATUS_INTERNAL_ERROR = 0xC00000E5
+    STATUS_DIRECTORY_NOT_EMPTY = 0xC0000101
+    STATUS_NOT_A_DIRECTORY = 0xC0000103
+    STATUS_CANCELLED = 0xC0000120
+    STATUS_CANNOT_DELETE = 0xC0000121
+    STATUS_FILE_CLOSED = 0xC0000128
+    STATUS_PIPE_BROKEN = 0xC000014B
+    STATUS_USER_SESSION_DELETED = 0xC0000203
+    STATUS_NOT_A_REPARSE_POINT = 0xC0000275
 
 
 class SMBException(Exception):
@@ -19,6 +103,66 @@ class SMBException(Exception):
 class SMBAuthenticationError(SMBException):
     # Used for authentication specific errors
     pass
+
+
+class SMBOSError(OSError, SMBException):
+
+    def __init__(self, ntstatus, filename, filename2=None):
+        self.ntstatus = ntstatus
+        self.filename2 = to_native(filename2) if filename2 else None
+
+        ntstatus_name = 'STATUS_UNKNOWN'
+        for name, val in vars(NtStatus).items():
+            if ntstatus == val:
+                ntstatus_name = name
+                break
+
+        error_details = {
+            NtStatus.STATUS_OBJECT_NAME_NOT_FOUND: errno.ENOENT,
+            NtStatus.STATUS_OBJECT_PATH_NOT_FOUND: errno.ENOENT,
+            NtStatus.STATUS_OBJECT_NAME_COLLISION: errno.EEXIST,
+            NtStatus.STATUS_PRIVILEGE_NOT_HELD: (errno.EACCES, "Required privilege not held"),
+            NtStatus.STATUS_SHARING_VIOLATION: (errno.EPERM, "The process cannot access the file because it is being "
+                                                             "used by another process"),
+            NtStatus.STATUS_NOT_A_REPARSE_POINT: (errno.EINVAL, "The file or directory is not a reparse point"),
+            NtStatus.STATUS_FILE_IS_A_DIRECTORY: errno.EISDIR,
+            NtStatus.STATUS_NOT_A_DIRECTORY: errno.ENOTDIR,
+            NtStatus.STATUS_DIRECTORY_NOT_EMPTY: errno.ENOTEMPTY,
+            NtStatus.STATUS_END_OF_FILE: getattr(errno, 'ENODATA', 120),  # Not present on py2 for Windows.
+        }.get(ntstatus, (0, "Unknown NtStatus error returned '%s'" % ntstatus_name))
+
+        if not isinstance(error_details, tuple):
+            error_details = (error_details, os.strerror(error_details))
+
+        super(SMBOSError, self).__init__(error_details[0], error_details[1], to_native(filename))
+
+    def __str__(self):
+        msg = "[Error {0}] [NtStatus 0x{1}] {2}: '{3}'".format(self.errno, format(self.ntstatus, 'x').zfill(8),
+                                                               self.strerror, self.filename)
+        if self.filename2:
+            msg += " -> '%s'" % self.filename2
+
+        return msg
+
+
+class SMBLinkRedirectionError(SMBException):
+
+    @property
+    def message(self):
+        msg = "Encountered symlink at '%s' that points to '%s' which cannot be redirected: %s" \
+              % (to_native(self.path), to_native(self.target), to_native(self.args[0]))
+        return msg
+
+    @property
+    def path(self):
+        return self.args[1]
+
+    @property
+    def target(self):
+        return self.args[2]
+
+    def __str__(self):
+        return self.message
 
 
 class SMBUnsupportedFeature(SMBException):
@@ -65,7 +209,7 @@ class SMBUnsupportedFeature(SMBException):
 
     def _get_dialect_name(self, dialect):
         dialect_field = EnumField(
-            enum_type=smbprotocol.connection.Dialects,
+            enum_type=Dialects,
             enum_strict=False,
             size=2)
         dialect_field.set_value(dialect)
@@ -94,13 +238,12 @@ class SMBResponseException(SMBException):
 
         error_details = []
         for raw_error_data in error['error_data'].get_value():
-            nt_status = smbprotocol.connection.NtStatus
             error_id = raw_error_data['error_id'].get_value()
             raw_data = raw_error_data['error_context_data'].get_value()
-            if self.status == nt_status.STATUS_STOPPED_ON_SYMLINK:
+            if self.status == NtStatus.STATUS_STOPPED_ON_SYMLINK:
                 error_data = SMB2SymbolicLinkErrorResponse()
                 error_data.unpack(raw_data)
-            elif self.status == nt_status.STATUS_BAD_NETWORK_NAME and \
+            elif self.status == NtStatus.STATUS_BAD_NETWORK_NAME and \
                     error_id == ErrorContextId.SMB2_ERROR_ID_SHARE_REDIRECT:
                 error_data = SMB2ShareRedirectErrorContext()
                 error_data.unpack(raw_data)
@@ -121,8 +264,7 @@ class SMBResponseException(SMBException):
                 detail_msg = self._get_share_redirect_detail_msg(error_detail)
             else:
                 # unknown error details in response, output raw bytes
-                detail_msg = "Raw: %s"\
-                             % binascii.hexlify(error_detail).decode('utf-8')
+                detail_msg = "Raw: %s" % binascii.hexlify(error_detail).decode('utf-8')
 
             # the first details message is set differently
             if error_details_msg == "":
@@ -231,9 +373,19 @@ class SMB2ErrorResponse(Structure):
 
     def _error_data_value(self, structure, data):
         context_responses = []
+
         while len(data) > 0:
             response = SMB2ErrorContextResponse()
-            data = response.unpack(data)
+            if structure['error_context_count'].get_value() > 0:
+                # Working with SMB 3.1.1+ where the errors are already in an SMB2ErrorContextReponse packet, unpack the
+                # data as usual
+                data = response.unpack(data)
+            else:
+                # Working with an older SMB dialect where the response is set directly in the error_data field, need to
+                # manually craft the SMB2ErrorContextResponse with the data returned.
+                response['error_context_data'] = data
+                data = b""
+
             context_responses.append(response)
 
         return context_responses
@@ -258,7 +410,7 @@ class SMB2ErrorContextResponse(Structure):
             ('error_id', EnumField(
                 size=4,
                 default=ErrorContextId.SMB2_ERROR_ID_DEFAULT,
-                enum_type=ErrorContextId
+                enum_type=ErrorContextId,
             )),
             ('error_context_data', BytesField(
                 size=lambda s: s['error_data_length'].get_value(),
@@ -306,9 +458,12 @@ class SMB2SymbolicLinkErrorResponse(Structure):
             ('print_name_offset', IntField(size=2)),
             ('print_name_length', IntField(size=2)),
             ('flags', EnumField(
-                size=4,
-                enum_type=SymbolicLinkErrorFlags
+                size=2,
+                enum_type=SymbolicLinkErrorFlags,
             )),
+            # Not in the spec but Windows seems to add \x00\x80 to the end of flags which breaks our parsing. Cannot
+            # seem to figure out why but this just ignored that field.
+            ('reserved', IntField(size=2)),
             # use the get/set_name functions to get/set these values as they
             # also (d)encode the text and set the length and offset accordingly
             ('path_buffer', BytesField(
@@ -331,8 +486,9 @@ class SMB2SymbolicLinkErrorResponse(Structure):
         :param print_name: The print name string to set
         :param substitute_name: The substitute name string to set
         """
-        print_bytes = print_name.encode('utf-16-le')
-        sub_bytes = substitute_name.encode('utf-16-le')
+        # Ensure that the to_bytes input is an actual text string for py2 compat with native strings.
+        print_bytes = to_bytes(to_text(print_name), encoding='utf-16-le')
+        sub_bytes = to_bytes(to_text(substitute_name), encoding='utf-16-le')
         path_buffer = print_bytes + sub_bytes
 
         self['print_name_offset'].set_value(0)
@@ -345,13 +501,51 @@ class SMB2SymbolicLinkErrorResponse(Structure):
         offset = self['print_name_offset'].get_value()
         length = self['print_name_length'].get_value()
         name_bytes = self['path_buffer'].get_value()[offset:offset + length]
-        return name_bytes.decode('utf-16-le')
+        return to_text(name_bytes, encoding='utf-16-le')
 
     def get_substitute_name(self):
         offset = self['substitute_name_offset'].get_value()
         length = self['substitute_name_length'].get_value()
         name_bytes = self['path_buffer'].get_value()[offset:offset + length]
-        return name_bytes.decode('utf-16-le')
+        return to_text(name_bytes, encoding='utf-16-le')
+
+    def resolve_path(self, link_path):
+        """
+        [MS-SMB2] 2.2.2.2.1.1 Handling the Symbolic Link Error Response
+        https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/a8da655c-8b0b-415a-b726-16dc33fa5827
+
+        Attempts to resolve the link target path. Will fail if the link is pointing to a local path or a UNC path
+        on another host or share.
+
+        :param link_path: The original path to the symbolic link to resolve relative paths from.
+        :return: The resolved link target path.
+        """
+        substitute_name = self.get_substitute_name()
+        print_name = self.get_print_name()
+        unparsed_path_length = self['unparsed_path_length'].get_value()
+
+        b_link_path = to_bytes(to_text(link_path), encoding='utf-16-le')
+        unparsed_idx = len(b_link_path) - unparsed_path_length
+        base_link_path = to_text(b_link_path[:unparsed_idx], encoding='utf-16-le')
+        unparsed_path = to_text(b_link_path[unparsed_idx:], encoding='utf-16-le')
+
+        # Use the common code in SymbolicLinkReparseDataBuffer() to resolve the link target.
+        symlink_buffer = SymbolicLinkReparseDataBuffer()
+        symlink_buffer['flags'] = self['flags'].get_value()
+        symlink_buffer.set_name(substitute_name, print_name)
+        target_path = symlink_buffer.resolve_link(base_link_path) + unparsed_path
+
+        if not target_path.startswith('\\\\'):
+            raise SMBLinkRedirectionError("Cannot resolve link targets that point to a local path", link_path,
+                                          print_name)
+
+        link_share = ntpath.splitdrive(link_path)[0]
+        target_share = ntpath.splitdrive(target_path)[0]
+        if link_share != target_share:
+            raise SMBLinkRedirectionError("Cannot resolve link targets that point to a different host/share",
+                                          link_path, print_name)
+
+        return target_path
 
 
 class SMB2ShareRedirectErrorContext(Structure):

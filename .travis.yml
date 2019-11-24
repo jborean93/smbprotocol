@@ -4,16 +4,12 @@ language: python
 
 dist: bionic
 
-matrix:
-  include:
-  - python: 2.7
-  - python: 3.4
-    dist: trusty
-  - python: 3.5
-    dist: trusty
-  - python: 3.6
-  - python: 3.7
-  - python: 3.8
+python:
+- 2.7
+- 3.5
+- 3.6
+- 3.7
+- 3.8
 
 services:
 - docker
@@ -36,7 +32,7 @@ install:
 - python ./build-scripts/check_samba.py
 
 script:
-- py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+- py.test -v --pep8 --cov smbclient --cov smbprotocol --cov-report term-missing
 
 after_success:
 - coveralls

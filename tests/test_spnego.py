@@ -1,7 +1,20 @@
-from pyasn1.codec.der.decoder import decode
-from pyasn1.type.univ import ObjectIdentifier
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-from smbprotocol.spnego import InitialContextToken, NegotiateToken, MechTypes
+from pyasn1.codec.der.decoder import (
+    decode,
+)
+
+from pyasn1.type.univ import (
+    ObjectIdentifier,
+)
+
+from smbprotocol.spnego import (
+    InitialContextToken,
+    NegotiateToken,
+    MechTypes,
+)
 
 
 class TestSpnego(object):

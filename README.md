@@ -120,13 +120,60 @@ you to set a minimum dialect version if required.
 
 ## Examples
 
-Currently the existing classes expose a very low level interface to the SMB
-protocol which can make things quite complex for people starting to use this
-package. I do plan on making a high-level interface to make things easier for
-users but that's in the backlog.
+There are 2 different APIs you can use with this library.0
 
-For now, the `examples` folder contains some examples of how this package can
-be used.
+* `smbprotocol`: Low level interface that can do whatever you want but quite verbose
+* `smbclient`: Higher level interface that implements the builtin `os` and `os.path` file system functions but for SMB support
+
+The `examples` folder contains some examples of both the high and low level
+interface but for everyday user's it is recommended to use `smbclient` as it
+is a lot simpler.
+
+### smbclient Interface
+
+The higher level interface `smbclient` is designed to make this library easier
+for people to use for simple and common use cases. It is designed to replicate
+the builtin `os` and `os.path` filesystem functions like `os.open()`,
+`os.stat()`, and `os.path.exists()`.
+
+A connection made by `smbclient` is kept in a pool and re-used for future
+requests to the same server until the Python process exists. This makes
+authentication simple and only required for the first call to the server.
+
+You can specify the credentials and other connection parameters on each
+`smbclient` function or register a server with credentials with the following
+kwargs:
+
+* `username`: The username used to connect to the share
+* `password`: The password used to connect to the share
+* `port`: Override the default port (`445`) to connect to
+* `encrypt`: Whether to force encryption on the connection, requires SMBv3 or newer on the remote server (default: `False`)
+* `connection_timeout`: Override the connection timeout in seconds (default: `60`)
+
+If using Kerberos authentication and a Kerberos ticket has already set by
+`kinit` then `smbclient` will automatically use those credentials without
+having to be explicitly set. If no ticket has been retrieved or you wish to use
+different credentials then only the first request for the server in question
+requires the `username` and `password` kwargs.
+
+For example I only need to set the credentials on the first request to create
+the directory and not for the subsequent file creation in that dir.
+
+```
+import smbclient
+
+# Optional - register the credentials with a server
+smbclient.register_session("server", username="user", password="pass")
+
+smbclient.mkdir(r"\\server\share\directory", username="user", password="pass")
+
+with smbclient.open_file(r"\\server\share\directory\file.txt", mode="w") as fd:
+    fd.write(u"file contents")
+```
+
+If you wish to reset the cache you can either start a new Python process or
+call `smbclient.reset_connection_cache()` to close all the connections that
+have been cached by the client.
 
 
 ## Logging
@@ -209,5 +256,4 @@ if you want to implement them yourself;
 
 * Test and support DFS mounts and not just server shares
 * Multiple channel support to speed up large data transfers
-* Create an easier API on top of the `raw` SMB calls that currently exist
 * Lots and lots more...

@@ -14,8 +14,6 @@ environment:
   # https://www.appveyor.com/docs/installed-software/#python
   - PYTHON: Python27
   - PYTHON: Python27-x64
-  - PYTHON: Python34
-  - PYTHON: Python34-x64
   - PYTHON: Python35
   - PYTHON: Python35-x64
   - PYTHON: Python36
@@ -56,4 +54,4 @@ install:
 build: off  # Do not run MSBuild, build stuff at install step
 
 test_script:
-- cmd: py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+- cmd: py.test -v --pep8 --cov smbclient --cov smbprotocol --cov-report term-missing
