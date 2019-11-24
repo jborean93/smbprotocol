@@ -516,6 +516,8 @@ class Session(object):
 
 
 def _split_username_and_domain(username):
+    if not username:
+        return None, None
     try:
         domain, username = username.split("\\", 1)
         return domain, username
