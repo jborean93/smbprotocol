@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 - TBD
+## 1.0.0 - 2019-11-30
 
 * Dropped support for Python 2.6 and Python 3.4
 * Added the `smbclient` package that provides a higher level API for interactive with SMB servers

@@ -16,7 +16,7 @@ except ImportError:
 
 setup(
     name='smbprotocol',
-    version='1.0.0b1',
+    version='1.0.0',
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
