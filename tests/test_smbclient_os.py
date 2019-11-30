@@ -42,6 +42,7 @@ from smbprotocol.reparse_point import (
 HAS_SSPI = False
 try:
     import sspi
+    HAS_SSPI = True
 except ImportError:
     pass
 
