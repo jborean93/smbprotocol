@@ -289,7 +289,7 @@ class Session(object):
         server_mechs = list(
             token['innerContextToken']['negTokenInit']['mechTypes']
         )
-        if MechTypes.MS_KRB5 in server_mechs and MechTypes.KRB5:
+        if MechTypes.MS_KRB5 in server_mechs and MechTypes.KRB5 in server_mechs:
             log.debug("Both MS_KRB5 and KRB5 received in the initial SPNGEO "
                       "token, removing MS_KRB5 to avoid duplication of work")
             server_mechs.remove(MechTypes.MS_KRB5)
