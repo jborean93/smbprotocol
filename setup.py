@@ -9,7 +9,7 @@ from setuptools import setup
 # before uploading package
 try:
     import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
+    long_description = pypandoc.convert_file('README.md', 'rst')
 except ImportError:
     long_description = ''
 
