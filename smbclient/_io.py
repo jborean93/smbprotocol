@@ -485,21 +485,18 @@ class SMBDirectoryIO(SMBRawIO):
     _INVALID_MODE = 'w+'
 
     def query_directory(self, pattern, info_class):
-        idx = 0
+        query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
         while True:
-            entries = self.fd.query_directory(pattern, info_class, flags=QueryDirectoryFlags.SMB2_INDEX_SPECIFIED,
-                                              file_index=idx)
+            try:
+                entries = self.fd.query_directory(pattern, info_class, flags=query_flags)
+            except SMBResponseException as exc:
+                if exc.status == NtStatus.STATUS_NO_MORE_FILES:
+                    break
+                raise
 
-            end = False
+            query_flags = 0  # Only the first request should have set SMB2_RESTART_SCANS
             for entry in entries:
-                idx = entry['next_entry_offset'].get_value()
-                if idx == 0:
-                    end = True
-
                 yield entry
-
-            if end:
-                break
 
     def readable(self):
         return False

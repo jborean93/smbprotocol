@@ -1147,6 +1147,26 @@ def test_rmdir_symlink_with_src(smb_share):
     assert smbclient.listdir(smb_share) == ['dir']
 
 
+def test_scandir_large(smb_share):
+    dir_path = ntpath.join(smb_share, 'directory')
+
+    # Create lots of directories with the maximum name possible to ensure they won't be returned in 1 request.
+    smbclient.mkdir(dir_path)
+    for i in range(150):
+        dirname = str(i).zfill(255)
+        smbclient.mkdir(ntpath.join(smb_share, 'directory', dirname))
+
+    actual = []
+    for entry in smbclient.scandir(dir_path):
+        actual.append(entry.path)
+
+    # Just a test optimisation, remove all the dirs so we don't have to re-enumerate them again in rmtree.
+    for path in actual:
+        smbclient.rmdir(path)
+
+    assert len(actual) == 150
+
+
 def test_scandir(smb_share):
     dir_path = ntpath.join(smb_share, 'directory')
     smbclient.makedirs(dir_path, exist_ok=True)
