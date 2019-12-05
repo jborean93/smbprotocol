@@ -554,6 +554,19 @@ def test_write_byte_file(smb_share):
         assert fd.read() == b"abc"
 
 
+# https://github.com/jborean93/smbprotocol/issues/20
+def test_read_large_text_file(smb_share):
+    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_contents = u"a" * 131074
+
+    with smbclient.open_file(file_path, mode='w') as fd:
+        fd.write(file_contents)
+
+    with smbclient.open_file(file_path) as fd:
+        actual = fd.read()
+        assert len(actual) == 131074
+
+
 def test_write_exclusive_text_file(smb_share):
     file_path = "%s\\%s" % (smb_share, "file.txt")
     file_contents = u"File Contents\nNewline"

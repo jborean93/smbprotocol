@@ -414,14 +414,15 @@ class SMBRawIO(io.RawIOBase):
         remaining_bytes = self.fd.end_of_file - self._offset
         while len(data) < remaining_bytes or self.FILE_TYPE == 'pipe':
             try:
-                data += self.fd.read(self._offset, self._buffer_size)
+                data_part = self.fd.read(self._offset, self._buffer_size)
             except SMBResponseException as exc:
                 if exc.status == NtStatus.STATUS_PIPE_BROKEN:
                     break
                 raise
 
+            data += data_part
             if self.FILE_TYPE != 'pipe':
-                self._offset += len(data)
+                self._offset += len(data_part)
 
         return data
 
