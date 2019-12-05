@@ -2,6 +2,8 @@
 
 ## 1.0.1 - TBD
 
+* Fix issue when reading a large file that exceeds 65KB and raises `STATUS_END_OF_FILE`.
+
 
 ## 1.0.0 - 2019-11-30
 
