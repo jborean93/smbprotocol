@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.1 - TBD
+## 1.0.1 - 2019-12-12
 
 * Fix issue when reading a large file that exceeds 65KB and raises `STATUS_END_OF_FILE`.
 * Fix issue where `listdir`, `scandir`, `walk` would only enumerate a subset of entries in a directories with lots of sub files/folders
