@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 - TBD
+
+* Speed up logging statements for large messages like a read and write message.
+
+
 ## 1.0.1 - 2019-12-12
 
 * Fix issue when reading a large file that exceeds 65KB and raises `STATUS_END_OF_FILE`.
