@@ -1102,7 +1102,7 @@ class Connection(object):
                  "request of %d" % (timeout, credit_request))
 
         echo_msg = SMB2Echo()
-        log.debug(str(echo_msg))
+        log.debug(echo_msg)
         req = self.send(echo_msg, sid=sid, credit_request=credit_request)
 
         log.info("Receiving Echo response")
@@ -1111,7 +1111,7 @@ class Connection(object):
                  % response['credit_response'].get_value())
         echo_resp = SMB2Echo()
         echo_resp.unpack(response['data'].get_value())
-        log.debug(str(echo_resp))
+        log.debug(echo_resp)
 
         return response['credit_response'].get_value()
 
@@ -1442,13 +1442,13 @@ class Connection(object):
             ]
 
         log.info("Sending SMB2 Negotiate message")
-        log.debug(str(neg_req))
+        log.debug(neg_req)
         request = self.send(neg_req)
         self.preauth_integrity_hash_value.append(request.message)
 
         response = self.receive(request, timeout=timeout)
         log.info("Receiving SMB2 Negotiate response")
-        log.debug(str(response))
+        log.debug(response)
         self.preauth_integrity_hash_value.append(response)
 
         smb_response = SMB2NegotiateResponse()

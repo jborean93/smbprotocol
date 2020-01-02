@@ -1204,7 +1204,7 @@ class Open(object):
                                   self.tree_connect.share_name,
                                   self.file_name))
 
-        log.debug(str(create))
+        log.debug(create)
         request = self.connection.send(create,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
@@ -1223,7 +1223,7 @@ class Open(object):
         create_response['create_contexts_length'] = len(create_response['buffer'])
 
         self._connected = True
-        log.debug(str(create_response))
+        log.debug(create_response)
 
         self.file_id = create_response['file_id'].get_value()
         self.tree_connect.session.open_table[self.file_id] = self
@@ -1298,7 +1298,7 @@ class Open(object):
                  "Request for file %s" % (self.tree_connect.session.username,
                                           self.tree_connect.share_name,
                                           self.file_name))
-        log.debug(str(read))
+        log.debug(read)
         request = self.connection.send(read,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
@@ -1311,7 +1311,7 @@ class Open(object):
         response = self.connection.receive(request, wait=wait)
         read_response = SMB2ReadResponse()
         read_response.unpack(response['data'].get_value())
-        log.debug(str(read_response))
+        log.debug(read_response)
 
         return read_response['buffer'].get_value()
 
@@ -1373,7 +1373,7 @@ class Open(object):
                  "for file %s" % (self.tree_connect.session.username,
                                   self.tree_connect.share_name,
                                   self.file_name))
-        log.debug(str(write))
+        log.debug(write)
         request = self.connection.send(write,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
@@ -1386,7 +1386,7 @@ class Open(object):
         response = self.connection.receive(request, wait=wait)
         write_response = SMB2WriteResponse()
         write_response.unpack(response['data'].get_value())
-        log.debug(str(write_response))
+        log.debug(write_response)
 
         return write_response['count'].get_value()
 
@@ -1415,7 +1415,7 @@ class Open(object):
                  "for file %s" % (self.tree_connect.session.username,
                                   self.tree_connect.share_name,
                                   self.file_name))
-        log.debug(str(flush))
+        log.debug(flush)
         request = self.connection.send(flush,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
@@ -1428,7 +1428,7 @@ class Open(object):
         response = self.connection.receive(request)
         flush_response = SMB2FlushResponse()
         flush_response.unpack(response['data'].get_value())
-        log.debug(str(flush_response))
+        log.debug(flush_response)
         return flush_response
 
     def query_directory(self, pattern, file_information_class, flags=None,
@@ -1473,7 +1473,7 @@ class Open(object):
                  "Directory Request for directory %s"
                  % (self.tree_connect.session.username,
                     self.tree_connect.share_name, self.file_name))
-        log.debug(str(query))
+        log.debug(query)
         request = self.connection.send(query,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
@@ -1486,7 +1486,7 @@ class Open(object):
         response = self.connection.receive(request)
         query_response = SMB2QueryDirectoryResponse()
         query_response.unpack(response['data'].get_value())
-        log.debug(str(query_response))
+        log.debug(query_response)
 
         query_request = SMB2QueryDirectoryRequest()
         query_request.unpack(request.message['data'].get_value())
@@ -1528,7 +1528,7 @@ class Open(object):
                  "for file %s" % (self.tree_connect.session.username,
                                   self.tree_connect.share_name,
                                   self.file_name))
-        log.debug(str(close))
+        log.debug(close)
         request = self.connection.send(close,
                                        self.tree_connect.session.session_id,
                                        self.tree_connect.tree_connect_id)
@@ -1551,7 +1551,7 @@ class Open(object):
 
         c_resp = SMB2CloseResponse()
         c_resp.unpack(response['data'].get_value())
-        log.debug(str(c_resp))
+        log.debug(c_resp)
         self._connected = False
         del self.tree_connect.session.open_table[self.file_id]
 

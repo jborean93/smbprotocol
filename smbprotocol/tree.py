@@ -230,7 +230,7 @@ class TreeConnect(object):
 
         log.info("Session: %s - Sending Tree Connect message"
                  % self.session.username)
-        log.debug(str(connect))
+        log.debug(connect)
         request = self.session.connection.send(connect,
                                                sid=self.session.session_id)
 
@@ -239,7 +239,7 @@ class TreeConnect(object):
         response = self.session.connection.receive(request)
         tree_response = SMB2TreeConnectResponse()
         tree_response.unpack(response['data'].get_value())
-        log.debug(str(tree_response))
+        log.debug(tree_response)
 
         # https://msdn.microsoft.com/en-us/library/cc246687.aspx
         self.tree_connect_id = response['tree_id'].get_value()
@@ -280,7 +280,7 @@ class TreeConnect(object):
         req = SMB2TreeDisconnect()
         log.info("Session: %s, Tree: %s - Sending Tree Disconnect message"
                  % (self.session.username, self.share_name))
-        log.debug(str(req))
+        log.debug(req)
         request = self.session.connection.send(req,
                                                sid=self.session.session_id,
                                                tid=self.tree_connect_id)
@@ -290,7 +290,7 @@ class TreeConnect(object):
         res = self.session.connection.receive(request)
         res_disconnect = SMB2TreeDisconnect()
         res_disconnect.unpack(res['data'].get_value())
-        log.debug(str(res_disconnect))
+        log.debug(res_disconnect)
         self._connected = False
         del self.session.tree_connect_table[self.tree_connect_id]
 
@@ -317,7 +317,7 @@ class TreeConnect(object):
         ioctl_request['flags'] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
         log.info("%s - Sending Secure Negotiate Validation message"
                  % log_header)
-        log.debug(str(ioctl_request))
+        log.debug(ioctl_request)
         request = self.session.connection.send(ioctl_request,
                                                sid=self.session.session_id,
                                                tid=self.tree_connect_id)
@@ -326,12 +326,12 @@ class TreeConnect(object):
         response = self.session.connection.receive(request)
         ioctl_resp = SMB2IOCTLResponse()
         ioctl_resp.unpack(response['data'].get_value())
-        log.debug(str(ioctl_resp))
+        log.debug(ioctl_resp)
 
         log.info("%s - Unpacking secure negotiate response info" % log_header)
         val_resp = SMB2ValidateNegotiateInfoResponse()
         val_resp.unpack(ioctl_resp['buffer'].get_value())
-        log.debug(str(val_resp))
+        log.debug(val_resp)
 
         self._verify("server capabilities",
                      val_resp['capabilities'].get_value(),

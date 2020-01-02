@@ -250,7 +250,7 @@ class FileSystemWatcher(object):
 
         log.info("Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request"
                  % (self.open.tree_connect.session.username, self.open.tree_connect.share_name, self.open.file_name))
-        log.debug(str(change_notify))
+        log.debug(change_notify)
         if send:
             request = self.open.connection.send(change_notify, self.open.tree_connect.session.session_id,
                                                 self.open.tree_connect.tree_connect_id)

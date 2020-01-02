@@ -416,14 +416,14 @@ class Session(object):
         log.info("Session: %s - Logging off of SMB Session" % self.username)
         logoff = SMB2Logoff()
         log.info("Session: %s - Sending Logoff message" % self.username)
-        log.debug(str(logoff))
+        log.debug(logoff)
         request = self.connection.send(logoff, sid=self.session_id)
 
         log.info("Session: %s - Receiving Logoff response" % self.username)
         res = self.connection.receive(request)
         res_logoff = SMB2Logoff()
         res_logoff.unpack(res['data'].get_value())
-        log.debug(str(res_logoff))
+        log.debug(res_logoff)
         self._connected = False
         del self.connection.session_table[self.session_id]
 
