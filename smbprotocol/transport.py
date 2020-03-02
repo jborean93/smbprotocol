@@ -91,7 +91,7 @@ class Tcp(object):
             self._sock.shutdown(socket.SHUT_RDWR)
             self._t_recv.join()
             self._sock.close()
-        self._recv_queue.put(None) # close the message processing thread in connection.py
+        self._recv_queue.put(None) #  close the message processing thread in connection.py
 
     @socket_connect
     def send(self, header):
