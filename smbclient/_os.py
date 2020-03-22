@@ -552,7 +552,7 @@ def stat(path, follow_symlinks=True, **kwargs):
         query_info(transaction, FileBasicInformation)
         # volume_label is variable and can return up to the first 32 chars (32 * 2 for UTF-16) + null padding
         query_info(transaction, FileFsVolumeInformation, output_buffer_length=88)
-        query_info(transaction, FileFsFullSizeInformation, output_buffer_length=88)
+        query_info(transaction, FileFsFullSizeInformation)
         query_info(transaction, FileInternalInformation)
         query_info(transaction, FileStandardInformation)
         query_info(transaction, FileAttributeTagInformation)
