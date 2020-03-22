@@ -545,6 +545,11 @@ def stat(path, follow_symlinks=True, **kwargs):
             st_file_attributes: An int representing the Windows FILE_ATTRIBUTES_* constants.
             st_reparse_tag: An int representing the Windows IO_REPARSE_TAG_* constants. This is set to 0 unless
                 follow_symlinks=False and the path is a reparse point. See smbprotocol.reparse_point.ReparseTags.
+            st_full_size_total_allocation_units: Full size of the filesystem in units
+            st_full_size_caller_available_units: Available size of the filesystem (For the logged user) in units
+            st_full_size_actual_available_units: Available size of the filesystem in units
+            st_full_size_sectors_per_unit: Number of sectors per unit
+            st_full_size_bytes_per_sector: Number of bytes per sector
     """
     raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
