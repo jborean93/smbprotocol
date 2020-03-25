@@ -106,12 +106,14 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
     'st_ctime_ns',
     'st_chgtime_ns',
     'st_file_attributes',
-    'st_reparse_tag',
-    'st_full_size_total_allocation_units',
-    'st_full_size_caller_available_units',
-    'st_full_size_actual_available_units',
-    'st_full_size_sectors_per_unit',
-    'st_full_size_bytes_per_sector',
+    'st_reparse_tag'
+])
+
+
+SMBFullSizeResult = collections.namedtuple('SMBFullSizeResult', [
+    'total_size',
+    'caller_available_size',
+    'actual_available_size',
 ])
 
 
@@ -545,11 +547,6 @@ def stat(path, follow_symlinks=True, **kwargs):
             st_file_attributes: An int representing the Windows FILE_ATTRIBUTES_* constants.
             st_reparse_tag: An int representing the Windows IO_REPARSE_TAG_* constants. This is set to 0 unless
                 follow_symlinks=False and the path is a reparse point. See smbprotocol.reparse_point.ReparseTags.
-            st_full_size_total_allocation_units: Full size of the filesystem in units
-            st_full_size_caller_available_units: Available size of the filesystem (For the logged user) in units
-            st_full_size_actual_available_units: Available size of the filesystem in units
-            st_full_size_sectors_per_unit: Number of sectors per unit
-            st_full_size_bytes_per_sector: Number of bytes per sector
     """
     raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
@@ -557,12 +554,11 @@ def stat(path, follow_symlinks=True, **kwargs):
         query_info(transaction, FileBasicInformation)
         # volume_label is variable and can return up to the first 32 chars (32 * 2 for UTF-16) + null padding
         query_info(transaction, FileFsVolumeInformation, output_buffer_length=88)
-        query_info(transaction, FileFsFullSizeInformation)
         query_info(transaction, FileInternalInformation)
         query_info(transaction, FileStandardInformation)
         query_info(transaction, FileAttributeTagInformation)
 
-    basic_info, fs_volume, full_size, internal_info, standard_info, attribute_tag = transaction.results
+    basic_info, fs_volume, internal_info, standard_info, attribute_tag = transaction.results
 
     reparse_tag = attribute_tag['reparse_tag'].get_value()
 
@@ -608,12 +604,30 @@ def stat(path, follow_symlinks=True, **kwargs):
         st_ctime_ns=ctime_ns,
         st_chgtime_ns=chgtime_ns,
         st_file_attributes=file_attributes.get_value(),
-        st_reparse_tag=reparse_tag,
-        st_full_size_total_allocation_units=full_size['total_allocation_units'].get_value(),
-        st_full_size_caller_available_units=full_size['caller_available_units'].get_value(),
-        st_full_size_actual_available_units=full_size['actual_available_units'].get_value(),
-        st_full_size_sectors_per_unit=full_size['sectors_per_unit'].get_value(),
-        st_full_size_bytes_per_sector=full_size['bytes_per_sector'].get_value()
+        st_reparse_tag=reparse_tag
+    )
+
+
+def get_full_size_information(path, **kwargs):
+    """
+    Get full size information about the file system.
+
+    :param path: The path to the file or directory to get the file system full size information.
+    :param kwargs: Common SMB Session arguments for smbclient.
+    :return: A tuple representing the full size result:
+                total_size: Total size of the file system
+                caller_available_size: Available size for the logged user of the file system
+                actual_available_size: Available size of the file system
+    """
+    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES, **kwargs)
+    with SMBFileTransaction(raw) as transaction:
+        query_info(transaction, FileFsFullSizeInformation)
+    full_size = transaction.results[0]
+    unit_in_bytes = full_size['sectors_per_unit'].get_value() * full_size['bytes_per_sector'].get_value()
+    return SMBFullSizeResult(
+        total_size=full_size['total_allocation_units'].get_value() * unit_in_bytes,
+        caller_available_size=full_size['caller_available_units'].get_value() * unit_in_bytes,
+        actual_available_size=full_size['actual_available_units'].get_value() * unit_in_bytes
     )
 
 
