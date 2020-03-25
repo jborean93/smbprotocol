@@ -113,7 +113,7 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
 SMBFullSizeResult = collections.namedtuple('SMBFullSizeResult', [
     'total_size',
     'caller_available_size',
-    'actual_available_size',
+    'actual_available_size'
 ])
 
 
@@ -619,7 +619,8 @@ def get_full_size_information(path, **kwargs):
                 caller_available_size: Available size for the logged user of the file system
                 actual_available_size: Available size of the file system
     """
-    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES, **kwargs)
+    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
+                   **kwargs)
     with SMBFileTransaction(raw) as transaction:
         query_info(transaction, FileFsFullSizeInformation)
     full_size = transaction.results[0]
