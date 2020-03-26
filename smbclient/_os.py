@@ -110,7 +110,7 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
 ])
 
 
-SMBFullSizeResult = collections.namedtuple('SMBFullSizeResult', [
+SMBStatVolumeResult = collections.namedtuple('SMBStatVolumeResult', [
     'total_size',
     'caller_available_size',
     'actual_available_size',
@@ -625,7 +625,7 @@ def stat_volume(path, **kwargs):
         query_info(transaction, FileFsFullSizeInformation)
     full_size = transaction.results[0]
     unit_in_bytes = full_size['sectors_per_unit'].get_value() * full_size['bytes_per_sector'].get_value()
-    return SMBFullSizeResult(
+    return SMBStatVolumeResult(
         total_size=full_size['total_allocation_units'].get_value() * unit_in_bytes,
         caller_available_size=full_size['caller_available_units'].get_value() * unit_in_bytes,
         actual_available_size=full_size['actual_available_units'].get_value() * unit_in_bytes
