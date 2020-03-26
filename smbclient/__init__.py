@@ -18,7 +18,6 @@ from smbclient._io import (
 
 from smbclient._os import (
     copyfile,
-    get_full_size_information,
     link,
     listdir,
     lstat,
@@ -34,6 +33,7 @@ from smbclient._os import (
     rmdir,
     scandir,
     stat,
+    stat_volume,
     symlink,
     truncate,
     unlink,
