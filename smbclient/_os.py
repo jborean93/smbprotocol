@@ -106,14 +106,14 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
     'st_ctime_ns',
     'st_chgtime_ns',
     'st_file_attributes',
-    'st_reparse_tag'
+    'st_reparse_tag',
 ])
 
 
 SMBFullSizeResult = collections.namedtuple('SMBFullSizeResult', [
     'total_size',
     'caller_available_size',
-    'actual_available_size'
+    'actual_available_size',
 ])
 
 
@@ -608,11 +608,11 @@ def stat(path, follow_symlinks=True, **kwargs):
     )
 
 
-def get_full_size_information(path, **kwargs):
+def stat_volume(path, **kwargs):
     """
-    Get full size information about the file system.
+    Get stat of a volume. Currently the volume size information is returned.
 
-    :param path: The path to the file or directory to get the file system full size information.
+    :param path: The path to the file or directory on a file system volume to stat.
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: A tuple representing the full size result:
                 total_size: Total size of the file system
