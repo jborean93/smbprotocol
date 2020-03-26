@@ -52,6 +52,7 @@ from smbprotocol.file_info import (
     FileLinkInformation,
     FileRenameInformation,
     FileStandardInformation,
+    FileFsFullSizeInformation
 )
 
 from smbprotocol.ioctl import (
@@ -106,6 +107,13 @@ SMBStatResult = collections.namedtuple('SMBStatResult', [
     'st_chgtime_ns',
     'st_file_attributes',
     'st_reparse_tag',
+])
+
+
+SMBStatVolumeResult = collections.namedtuple('SMBStatVolumeResult', [
+    'total_size',
+    'caller_available_size',
+    'actual_available_size',
 ])
 
 
@@ -596,7 +604,31 @@ def stat(path, follow_symlinks=True, **kwargs):
         st_ctime_ns=ctime_ns,
         st_chgtime_ns=chgtime_ns,
         st_file_attributes=file_attributes.get_value(),
-        st_reparse_tag=reparse_tag,
+        st_reparse_tag=reparse_tag
+    )
+
+
+def stat_volume(path, **kwargs):
+    """
+    Get stat of a volume. Currently the volume size information is returned.
+
+    :param path: The path to the file or directory on a file system volume to stat.
+    :param kwargs: Common SMB Session arguments for smbclient.
+    :return: A tuple representing the full size result:
+                total_size: Total size of the file system
+                caller_available_size: Available size for the logged user of the file system
+                actual_available_size: Available size of the file system
+    """
+    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
+                   **kwargs)
+    with SMBFileTransaction(raw) as transaction:
+        query_info(transaction, FileFsFullSizeInformation)
+    full_size = transaction.results[0]
+    unit_in_bytes = full_size['sectors_per_unit'].get_value() * full_size['bytes_per_sector'].get_value()
+    return SMBStatVolumeResult(
+        total_size=full_size['total_allocation_units'].get_value() * unit_in_bytes,
+        caller_available_size=full_size['caller_available_units'].get_value() * unit_in_bytes,
+        actual_available_size=full_size['actual_available_units'].get_value() * unit_in_bytes
     )
 
 

@@ -33,6 +33,7 @@ from smbclient._os import (
     rmdir,
     scandir,
     stat,
+    stat_volume,
     symlink,
     truncate,
     unlink,
