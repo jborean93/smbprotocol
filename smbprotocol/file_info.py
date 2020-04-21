@@ -832,6 +832,26 @@ class FileStreamInformation(Structure):
         super(FileStreamInformation, self).__init__()
 
 
+class FileFsFullSizeInformation(Structure):
+    """
+    [MS-FSCC] 2.5.4 FileFsFullSizeInformation
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/63768db7-9012-4209-8cca-00781e7322f5
+    """
+
+    INFO_TYPE = InfoType.SMB2_0_INFO_FILESYSTEM
+    INFO_CLASS = FileSystemInformationClass.FILE_FS_FULL_SIZE_INFORMATION
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('total_allocation_units', IntField(size=8, unsigned=False)),
+            ('caller_available_units', IntField(size=8, unsigned=False)),
+            ('actual_available_units', IntField(size=8, unsigned=False)),
+            ('sectors_per_unit', IntField(size=4)),
+            ('bytes_per_sector', IntField(size=4)),
+        ])
+        super(FileFsFullSizeInformation, self).__init__()
+
+
 class FileFsObjectIdInformation(Structure):
     """
     [MS-FSCC] 2.5.6 FileFsObjectIdInformation

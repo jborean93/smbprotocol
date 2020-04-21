@@ -26,6 +26,7 @@ from smbprotocol.file_info import (
     FileNamesInformation,
     FileRenameInformation,
     FileStandardInformation,
+    FileFsFullSizeInformation
 )
 
 from smbprotocol.structure import (
@@ -822,3 +823,37 @@ class TestFileFsVolumeInformation(object):
         assert actual['volume_label_length'].get_value() == 8
         assert actual['supports_objects'].get_value() is False
         assert actual['volume_label'].get_value() == u"café"
+
+
+class TestFileFsFullSizeInformation(object):
+
+    DATA = b"\xa4\x6f\xd6\x01\x00\x00\x00\x00" \
+           b"\x9c\x41\x12\x01\x00\x00\x00\x00" \
+           b"\x9c\x41\x12\x01\x00\x00\x00\x00" \
+           b"\x02\x00\x00\x00" \
+           b"\x00\x02\x00\x00"
+
+    def test_create_message(self):
+        message = FileFsFullSizeInformation()
+        message['total_allocation_units'] = 30830500
+        message['caller_available_units'] = 17973660
+        message['actual_available_units'] = 17973660
+        message['sectors_per_unit'] = 2
+        message['bytes_per_sector'] = 512
+
+        actual = message.pack()
+        assert len(message) == 32
+        assert actual == self.DATA
+
+    def test_parse_message(self):
+        actual = FileFsFullSizeInformation()
+        data = actual.unpack(self.DATA)
+
+        assert len(actual) == 32
+        assert data == b""
+
+        assert actual['total_allocation_units'].get_value() == 30830500
+        assert actual['caller_available_units'].get_value() == 17973660
+        assert actual['actual_available_units'].get_value() == 17973660
+        assert actual['sectors_per_unit'].get_value() == 2
+        assert actual['bytes_per_sector'].get_value() == 512
