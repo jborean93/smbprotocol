@@ -932,3 +932,23 @@ class TextField(BytesField):
 
     def _to_string(self):
         return self.value
+
+
+class NullTerminatedTextField(TextField):
+
+    def set_value(self, value):
+        if value is None:
+            value = u"\x00"
+        elif isinstance(value, text_type):
+            value = u"%s\x00" % value
+        return super(NullTerminatedTextField, self).set_value(value)
+
+    def get_value(self):
+        text_value = super(NullTerminatedTextField, self).get_value()
+        if text_value and text_value[-1] == u"\x00":
+            # remove the null terminated character
+            return text_value[:-1]
+        return text_value
+
+    def _to_string(self):
+        return self.get_value()
