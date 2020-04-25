@@ -19,6 +19,9 @@ from smbprotocol.exceptions import (
 )
 
 from smbprotocol.ioctl import (
+    CtlCode,
+    DFSReferralRequest,
+    DFSReferralResponse,
     IOCTLFlags,
     SMB2IOCTLRequest,
     SMB2IOCTLResponse,
@@ -43,7 +46,6 @@ from smbprotocol.open import (
     SMB2SetInfoRequest,
     SMB2SetInfoResponse,
 )
-
 
 # Not defined on Python 2.6 so try and get the attribute with a sane default
 SEEK_SET = getattr(io, 'SEEK_SET', 0)
@@ -125,6 +127,50 @@ def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_
         return query_resp['buffer'].get_value()
 
     transaction += (ioctl_req, _receive_resp)
+
+
+def ioctl_request_blocking(raw, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, input_buffer=b""):
+    """
+    Sends an IOCTL request to the server and return the response.
+
+    :param raw: SMBRawIO
+    :param ctl_code: The IOCTL Code of the request.
+    :param output_size: Specify the max output response allowed from the server.
+    :param flags: Specify custom flags to be set on the IOCTL request.
+    :param input_buffer: Specify an optional input buffer for the request.
+    """
+    ioctl_req = SMB2IOCTLRequest()
+    ioctl_req['ctl_code'] = ctl_code
+    ioctl_req['file_id'] = raw.fd.file_id
+    ioctl_req['max_output_response'] = output_size
+    ioctl_req['flags'] = flags
+    ioctl_req['buffer'] = input_buffer
+    request = raw.fd.connection.send(ioctl_req, raw.fd.tree_connect.session.session_id,
+                                     raw.fd.tree_connect.tree_connect_id)
+
+    response = raw.fd.connection.receive(request)
+    query_resp = SMB2IOCTLResponse()
+    query_resp.unpack(response['data'].get_value())
+    return query_resp['buffer'].get_value()
+
+
+def get_dfs_referral_entry(raw, path):
+    """
+    Get the dfs referral entry of the path
+
+    :param raw: SMBRawIO
+    :param path: smb path
+    :return: DFSReferralEntry
+    """
+    dfs_referral = DFSReferralRequest()
+    dfs_referral['request_file_name'] = path
+    dfs_response_data = ioctl_request_blocking(raw, CtlCode.FSCTL_DFS_GET_REFERRALS,
+                                               flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
+                                               input_buffer=dfs_referral.pack(), output_size=4096)
+    dfs_response = DFSReferralResponse()
+    dfs_response.unpack(dfs_response_data)
+    entries = dfs_response.fields['referral_entries'].get_value()
+    return entries[0]
 
 
 def query_info(transaction, info_class, flags=0, output_buffer_length=None):
@@ -246,16 +292,34 @@ class SMBFileTransaction(object):
         self.results = tuple(responses)
 
 
-class SMBRawIO(io.RawIOBase):
+def fix_smb_prefix(path):
+    """
+    Fix the smb prefix with two back slash if there is only one slash.
+    :param path: path
+    :return: path
+    """
+    if path.startswith("\\\\"):
+        return path
+    return "\\%s" % path
 
+
+class SMBRawIO(io.RawIOBase):
     FILE_TYPE = None  # 'file', 'dir', or None (for unknown)
     _INVALID_MODE = ''
 
     def __init__(self, path, mode='r', share_access=None, desired_access=None, file_attributes=None,
                  create_options=0, buffer_size=MAX_PAYLOAD_SIZE, **kwargs):
         tree, fd_path = get_smb_tree(path, **kwargs)
-        self.share_access = share_access
         self.fd = Open(tree, fd_path)
+        if tree.is_dfs_share:
+            dfs_referral_entry = get_dfs_referral_entry(self, path)
+            network_address = fix_smb_prefix(dfs_referral_entry["network_address"].get_value()).lower()
+            dfs_path = fix_smb_prefix(dfs_referral_entry["dfs_path"].get_value()).lower()
+            if network_address != dfs_path:
+                path = "%s%s" % (network_address, path[len(dfs_path):])
+                tree, fd_path = get_smb_tree(path, **kwargs)
+                self.fd = Open(tree, fd_path)
+        self.share_access = share_access
         self._mode = mode
         self._name = path
         self._offset = 0
