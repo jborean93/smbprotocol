@@ -729,7 +729,7 @@ class TestDFSReferralRequest(object):
     def test_create_message(self):
         message = DFSReferralRequest()
         message['max_referral_level'] = 4
-        message['request_file_name'] = '\\\\server\\shares\\share'
+        message['request_file_name'] = u'\\\\server\\shares\\share'
         expected = b"\x04\x00" \
                    b"\\\x00\\\x00s\x00e\x00r\x00v\x00e\x00r\x00" \
                    b"\\\x00s\x00h\x00a\x00r\x00e\x00s\x00\\\x00s\x00h\x00a\x00r\x00e\x00\x00\x00"
@@ -791,9 +791,9 @@ class TestDFSReferralEntry(object):
         message['dfs_alternate_path_offset'] = 76
         message['network_address_offset'] = 118
         message['service_site_guid'] = b"\xff" * 16
-        message['dfs_path'] = '\\server\\shares\\share'
-        message['dfs_alternate_path'] = '\\server\\shares\\share'
-        message['network_address'] = '\\smbserver\\shares\\share'
+        message['dfs_path'] = u'\\server\\shares\\share'
+        message['dfs_alternate_path'] = u'\\server\\shares\\share'
+        message['network_address'] = u'\\smbserver\\shares\\share'
         expected = b'\x04\x00' \
                    b'"\x00' \
                    b'\x01\x00' \
