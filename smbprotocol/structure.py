@@ -904,11 +904,14 @@ class BoolField(Field):
 
 class TextField(BytesField):
 
-    def __init__(self, encoding='utf-16-le', **kwargs):
+    def __init__(self, encoding='utf-16-le', null_terminated=False, **kwargs):
         self.encoding = encoding
+        self.null_terminated = null_terminated
         super(TextField, self).__init__(**kwargs)
 
     def _pack_value(self, value):
+        if self.null_terminated:
+            value += u"\x00"
         return to_bytes(value, encoding=self.encoding)
 
     def _parse_value(self, value):
@@ -918,6 +921,9 @@ class TextField(BytesField):
             text_value = to_text(value, encoding=self.encoding)
         elif isinstance(value, text_type):
             text_value = value
+            if text_value and text_value[-1] == u"\x00":
+                # remove the null terminated character
+                text_value = text_value[:-1]
         elif isinstance(value, types.LambdaType):
             text_value = value
         else:
@@ -928,27 +934,10 @@ class TextField(BytesField):
 
     def _get_packed_size(self):
         text_value = self._get_calculated_value(self.value)
-        return len(to_bytes(text_value, encoding=self.encoding))
+        size = len(to_bytes(text_value, encoding=self.encoding))
+        if self.null_terminated:
+            size += 2
+        return size
 
     def _to_string(self):
         return self.value
-
-
-class NullTerminatedTextField(TextField):
-
-    def set_value(self, value):
-        if value is None:
-            value = u"\x00"
-        elif isinstance(value, text_type):
-            value = u"%s\x00" % value
-        return super(NullTerminatedTextField, self).set_value(value)
-
-    def get_value(self):
-        text_value = super(NullTerminatedTextField, self).get_value()
-        if text_value and text_value[-1] == u"\x00":
-            # remove the null terminated character
-            return text_value[:-1]
-        return text_value
-
-    def _to_string(self):
-        return self.get_value()

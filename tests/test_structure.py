@@ -34,7 +34,6 @@ from smbprotocol.structure import (
     IntField,
     InvalidFieldDefinition,
     ListField,
-    NullTerminatedTextField,
     Structure,
     StructureField,
     TextField,
@@ -1504,6 +1503,8 @@ class TestTextField(object):
         field = self.StructureTest()['field']
         expected = 19
         actual = len(field)
+        if field.null_terminated:
+            expected += 2
         assert actual == expected
 
     def test_to_string(self):
@@ -1524,6 +1525,8 @@ class TestTextField(object):
         expected = b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f" \
                    b"\x72\x6c\x64\x20\x2d\x20\x63\x61" \
                    b"\x66\xc3\xa9"
+        if field.null_terminated:
+            expected += u"\x00".encode(field.encoding)
         actual = field.pack()
         assert actual == expected
 
@@ -1544,9 +1547,12 @@ class TestTextField(object):
         field.set_value(lambda s: self.STRING_VALUE)
         expected = self.STRING_VALUE
         actual = field.get_value()
+        actual_length = 19
+        if field.null_terminated:
+            actual_length += 2
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
-        assert len(field) == 19
+        assert len(field) == actual_length
 
     def test_set_bytes(self):
         field = self.StructureTest()['field']
@@ -1577,113 +1583,30 @@ class TestTextField(object):
         field = structure['field']
         field.encoding = 'utf-16-le'
         field.set_value(self.STRING_VALUE)
+        actual_length = 36
+        if field.null_terminated:
+            actual_length += 2
 
-        assert len(field) == 36
+        assert len(field) == actual_length
         actual = field.get_value()
         assert actual == self.STRING_VALUE
         actual_pack = field.pack()
-        assert actual_pack == self.STRING_VALUE.encode('utf-16-le')
+        expected_bytes = self.STRING_VALUE.encode('utf-16-le')
+        if field.null_terminated:
+            expected_bytes += u"\x00".encode(field.encoding)
+        assert actual_pack == expected_bytes
 
         field.set_value("")
         field.unpack(actual_pack)
         assert field.get_value() == self.STRING_VALUE
 
 
-class TestNullTerminatedField(object):
-
-    STRING_VALUE = u"Hello World - café"
+class TestTextFieldNullTerminated(TestTextField):
 
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([
-                ('field', NullTerminatedTextField(encoding='utf-8', default=TestNullTerminatedField.STRING_VALUE))
+                ('field', TextField(encoding='utf-8',
+                                    default=TestTextFieldNullTerminated.STRING_VALUE, null_terminated=True))
             ])
-            super(TestNullTerminatedField.StructureTest, self).__init__()
-
-    def test_get_size(self):
-        field = self.StructureTest()['field']
-        expected = 20
-        actual = len(field)
-        assert actual == expected
-
-    def test_to_string(self):
-        field = self.StructureTest()['field']
-        expected = "Hello World - café"  # Need to rely on native string for Python 2 support
-        actual = str(field)
-        assert actual == expected
-        assert field.get_value() == self.STRING_VALUE  # Make's sure the value is a unicode string
-
-    def test_get_value(self):
-        field = self.StructureTest()['field']
-        expected = self.STRING_VALUE
-        actual = field.get_value()
-        assert actual == expected
-
-    def test_pack(self):
-        field = self.StructureTest()['field']
-        expected = b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f" \
-                   b"\x72\x6c\x64\x20\x2d\x20\x63\x61" \
-                   b"\x66\xc3\xa9\x00"
-        actual = field.pack()
-        assert actual == expected
-
-    def test_unpack(self):
-        field = self.StructureTest()['field']
-        field.unpack(b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f"
-                     b"\x72\x6c\x64\x20\x2d\x20\x63\x61"
-                     b"\x66\xc3\xa9\x00")
-        expected = self.STRING_VALUE
-        actual = field.get_value()
-        assert actual == expected
-
-    def test_set_lambda(self):
-        structure = self.StructureTest()
-        field = structure['field']
-        field.name = "field"
-        field.structure = self.StructureTest
-        field.set_value(lambda s: self.STRING_VALUE)
-        expected = self.STRING_VALUE
-        actual = field.get_value()
-        assert isinstance(field.value, types.LambdaType)
-        assert actual == expected
-        assert len(field) == 19
-
-    def test_set_bytes(self):
-        field = self.StructureTest()['field']
-        field.set_value(self.STRING_VALUE.encode('utf-8'))
-        expected = self.STRING_VALUE
-        actual = field.get_value()
-        assert isinstance(field.value, six.text_type)
-        assert actual == expected
-
-    def test_set_none(self):
-        field = self.StructureTest()['field']
-        field.set_value(None)
-        expected = u""
-        actual = field.get_value()
-        assert isinstance(field.value, six.text_type)
-        assert actual == expected
-
-    def test_set_invalid(self):
-        field = self.StructureTest()['field']
-        field.name = "field"
-        with pytest.raises(TypeError) as exc:
-            field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " \
-                                 "type list to a text string"
-
-    def test_set_with_different_encoding(self):
-        structure = self.StructureTest()
-        field = structure['field']
-        field.encoding = 'utf-16-le'
-        field.set_value(self.STRING_VALUE)
-
-        assert len(field) == 38
-        actual = field.get_value()
-        assert actual == self.STRING_VALUE
-        actual_pack = field.pack()
-        assert actual_pack == b"%s\x00\x00" % self.STRING_VALUE.encode('utf-16-le')
-
-        field.set_value("")
-        field.unpack(actual_pack)
-        assert field.get_value() == self.STRING_VALUE
+            super(TestTextFieldNullTerminated.StructureTest, self).__init__()

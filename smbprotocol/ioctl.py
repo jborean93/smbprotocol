@@ -25,9 +25,9 @@ from smbprotocol.structure import (
     FlagField,
     IntField,
     ListField,
-    NullTerminatedTextField,
     Structure,
     StructureField,
+    TextField,
     UuidField,
 )
 
@@ -639,7 +639,7 @@ class DFSReferralRequest(Structure):
     def __init__(self):
         self.fields = OrderedDict([
             ('max_referral_level', IntField(size=2, default=4)),
-            ('request_file_name', NullTerminatedTextField()),
+            ('request_file_name', TextField(null_terminated=True)),
         ])
         super(DFSReferralRequest, self).__init__()
 
@@ -695,12 +695,12 @@ class DFSReferralEntry(Structure):
             ('dfs_alternate_path_offset', IntField(size=2)),
             ('network_address_offset', IntField(size=2)),
             ('service_site_guid', UuidField()),
-            ('dfs_path', NullTerminatedTextField(
-                size=lambda s: s.fields['dfs_alternate_path_offset'].get_value() - s.fields[
-                    'dfs_path_offset'].get_value())),
-            ('dfs_alternate_path', NullTerminatedTextField(
-                size=lambda s: s.fields['network_address_offset'].get_value() - s.fields[
-                    'dfs_alternate_path_offset'].get_value())),
-            ('network_address', NullTerminatedTextField()),
+            ('dfs_path', TextField(null_terminated=True,
+                                   size=lambda s: s.fields['dfs_alternate_path_offset'].get_value() - s.fields[
+                                       'dfs_path_offset'].get_value())),
+            ('dfs_alternate_path', TextField(null_terminated=True,
+                                             size=lambda s: s.fields['network_address_offset'].get_value() - s.fields[
+                                                 'dfs_alternate_path_offset'].get_value())),
+            ('network_address', TextField(null_terminated=True)),
         ])
         super(DFSReferralEntry, self).__init__()
