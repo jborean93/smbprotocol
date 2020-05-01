@@ -19,28 +19,30 @@ from smbprotocol.tree import (
     TreeConnect,
 )
 
-_CLIENT_GUID = uuid.uuid4()
 _SMB_CONNECTIONS = {}
 
 
-def delete_session(server, port=445):
+def delete_session(server, port=445, connection_cache=None):
     """
     Deletes the connection in the connection pool for the server specified. This will also close all sessions
     associated with the connection.
 
     :param server: The server name to close/delete.
     :param port: The port used for the server.
+    :param connection_cache: Connection cache to be used with
     """
     connection_key = "%s:%s" % (server, port)
 
-    global _SMB_CONNECTIONS
-    connection = _SMB_CONNECTIONS.get(connection_key, None)
+    if connection_cache is None:
+        connection_cache = _SMB_CONNECTIONS
+    connection = connection_cache.get(connection_key, None)
     if connection:
-        del _SMB_CONNECTIONS[connection_key]
+        del connection_cache[connection_key]
         connection.disconnect(close=True)
 
 
-def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, connection_timeout=60):
+def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
+                 connection_cache=None):
     """
     Returns an active Tree connection and file path including the tree based on the UNC path passed in and other
     connection arguments. The opened connection is registered in a pool and re-used if a connection is made to the same
@@ -54,6 +56,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
         back to False.
     :param connection_timeout: Override the timeout used for the initial connection.
+    :param connection_cache: Connection cache to be used with
     :return: The TreeConnect and file path including the tree based on the UNC path passed in.
     """
     path_split = [p for p in ntpath.normpath(path).split("\\") if p]
@@ -64,7 +67,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     share_path = "\\\\%s\\%s" % (server, path_split[1])
 
     session = register_session(server, username=username, password=password, port=port, encrypt=encrypt,
-                               connection_timeout=connection_timeout)
+                               connection_timeout=connection_timeout, connection_cache=connection_cache)
 
     tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
     if not tree:
@@ -78,7 +81,8 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     return tree, file_path
 
 
-def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60):
+def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
+                     connection_cache=None):
     """
     Creates an active connection and session to the server specified. This can be manually called to register the
     credentials of a specific server instead of defining it on the first function connecting to the server. The opened
@@ -93,17 +97,19 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
     :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
         back to False.
     :param connection_timeout: Override the timeout used for the initial connection.
+    :param connection_cache: Connection cache to be used with
     :return: The Session that was registered or already existed in the pool.
     """
     connection_key = "%s:%s" % (server, port)
 
-    global _SMB_CONNECTIONS
-    connection = _SMB_CONNECTIONS.get(connection_key, None)
+    if connection_cache is None:
+        connection_cache = _SMB_CONNECTIONS
+    connection = connection_cache.get(connection_key, None)
 
     if not connection:
-        connection = Connection(_CLIENT_GUID, server, port)
+        connection = Connection(uuid.uuid4(), server, port)
         connection.connect(timeout=connection_timeout)
-        _SMB_CONNECTIONS[connection_key] = connection
+        connection_cache[connection_key] = connection
 
     # Find the first session in the connection session list that match the username specified, if not username then
     # just use the first session found or fall back to creating a new one with implicit auth/kerberos.
@@ -122,18 +128,19 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
 
 
 # Make sure we run the function to close all the sessions when we exit Python
-def reset_connection_cache(fail_on_error=True):
+def reset_connection_cache(fail_on_error=True, connection_cache=None):
     """
     Closes all the connections/sessions that have been pooled in the SMB Client. This allows a user to reset their
     client in case of an unknown problem or they just wish to reset all the connections. It is also run on exit of the
     Python interpreter to ensure the SMB connections are closed.
     """
-    global _SMB_CONNECTIONS
+    if connection_cache is None:
+        connection_cache = _SMB_CONNECTIONS
 
-    for name, connection in list(_SMB_CONNECTIONS.items()):
+    for name, connection in list(connection_cache.items()):
         try:
             connection.disconnect()
-            del _SMB_CONNECTIONS[name]
+            del connection_cache[name]
         except Exception as e:
             if fail_on_error:
                 raise
