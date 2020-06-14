@@ -1504,7 +1504,7 @@ class TestTextField(object):
         expected = 19
         actual = len(field)
         if field.null_terminated:
-            expected += 2
+            expected += len(u"\x00".encode(field.encoding))
         assert actual == expected
 
     def test_to_string(self):
@@ -1549,7 +1549,7 @@ class TestTextField(object):
         actual = field.get_value()
         actual_length = 19
         if field.null_terminated:
-            actual_length += 2
+            actual_length += len(u"\x00".encode(field.encoding))
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
         assert len(field) == actual_length
@@ -1585,7 +1585,7 @@ class TestTextField(object):
         field.set_value(self.STRING_VALUE)
         actual_length = 36
         if field.null_terminated:
-            actual_length += 2
+            actual_length += len(u"\x00".encode(field.encoding))
 
         assert len(field) == actual_length
         actual = field.get_value()
@@ -1606,7 +1606,9 @@ class TestTextFieldNullTerminated(TestTextField):
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([
-                ('field', TextField(encoding='utf-8',
-                                    default=TestTextFieldNullTerminated.STRING_VALUE, null_terminated=True))
+                ('field', TextField(
+                    encoding='utf-8',
+                    default=TestTextFieldNullTerminated.STRING_VALUE,
+                    null_terminated=True))
             ])
             super(TestTextFieldNullTerminated.StructureTest, self).__init__()
