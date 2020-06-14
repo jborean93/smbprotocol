@@ -312,13 +312,7 @@ class SMBRawIO(io.RawIOBase):
         tree, fd_path = get_smb_tree(path, **kwargs)
         self.fd = Open(tree, fd_path)
         if tree.is_dfs_share:
-            dfs_referral_entry = get_dfs_referral_entry(self, path)
-            network_address = fix_smb_prefix(dfs_referral_entry["network_address"].get_value()).lower()
-            dfs_path = fix_smb_prefix(dfs_referral_entry["dfs_path"].get_value()).lower()
-            if network_address != dfs_path:
-                path = "%s%s" % (network_address, path[len(dfs_path):])
-                tree, fd_path = get_smb_tree(path, **kwargs)
-                self.fd = Open(tree, fd_path)
+            self._connect_to_dfs(path, **kwargs)
         self.share_access = share_access
         self._mode = mode
         self._name = path
@@ -353,6 +347,23 @@ class SMBRawIO(io.RawIOBase):
         }.get(self.FILE_TYPE, 0)
 
         super(SMBRawIO, self).__init__()
+
+    def _connect_to_dfs(self, path, **kwargs):
+        try:
+            dfs_referral_entry = get_dfs_referral_entry(self, path)
+            network_address = fix_smb_prefix(
+                dfs_referral_entry["network_address"].get_value()).lower()
+            dfs_path = fix_smb_prefix(
+                dfs_referral_entry["dfs_path"].get_value()).lower()
+            if network_address != dfs_path:
+                path = "%s%s" % (network_address, path[len(dfs_path):])
+                tree, fd_path = get_smb_tree(path, **kwargs)
+                self.fd = Open(tree, fd_path)
+        except SMBResponseException as exc:
+            # If dfs is unavailable we will give up connecting to the dfs and
+            # maintain the current connection
+            if exc.status != NtStatus.STATUS_DFS_UNAVAILABLE:
+                raise
 
     def __enter__(self):
         self.open()
