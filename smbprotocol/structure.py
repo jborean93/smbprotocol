@@ -936,8 +936,34 @@ class TextField(BytesField):
         text_value = self._get_calculated_value(self.value)
         size = len(to_bytes(text_value, encoding=self.encoding))
         if self.null_terminated:
-            size += 2
+            char_len = len("\x00".encode(self.encoding))
+            size += char_len
         return size
 
     def _to_string(self):
         return self.value
+
+    def _unpack_null_terminated(self, data):
+        char_len = len("\x00".encode(self.encoding))
+        value = b""
+        while data:
+            char = data[:char_len]
+            data = data[char_len:]
+            value += char
+            if char == b"\x00" * char_len:
+                break
+        super(TextField, self).unpack(value)
+        return data
+
+    def unpack(self, data):
+        """
+        Takes in a byte string and set's the field value based on field
+        definition.
+
+        :param structure: The message structure class object
+        :param data: The byte string of the data to unpack
+        :return: The remaining data for subsequent fields
+        """
+        if self.null_terminated and self.size is None:
+            return self._unpack_null_terminated(data)
+        return super(TextField, self).unpack(data)
