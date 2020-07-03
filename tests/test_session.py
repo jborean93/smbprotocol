@@ -20,7 +20,6 @@ from smbprotocol.exceptions import (
 )
 
 from smbprotocol.session import (
-    NtlmContext,
     Session,
     SMB2Logoff,
     SMB2SessionSetupRequest,
@@ -119,36 +118,6 @@ class TestSMB2Logoff(object):
         assert len(actual) == 4
         assert actual['structure_size'].get_value() == 4
         assert actual['reserved'].get_value() == 0
-
-
-class TestNtlmContext(object):
-
-    def test_no_username_fail(self):
-        with pytest.raises(SMBException) as exc:
-            NtlmContext(None, None)
-        assert str(exc.value) == "The username must be set when using NTLM " \
-                                 "authentication"
-
-    def test_no_password_fail(self):
-        with pytest.raises(SMBException) as exc:
-            NtlmContext("username", None)
-        assert str(exc.value) == "The password must be set when using NTLM " \
-                                 "authentication"
-
-    def test_username_without_domain(self):
-        actual = NtlmContext("username", "password")
-        assert actual.domain == ""
-        assert actual.username == "username"
-
-    def test_username_in_netlogon_form(self):
-        actual = NtlmContext("DOMAIN\\username", "password")
-        assert actual.domain == "DOMAIN"
-        assert actual.username == "username"
-
-    def test_username_in_upn_form(self):
-        actual = NtlmContext("username@DOMAIN.LOCAL", "password")
-        assert actual.domain == ""
-        assert actual.username == "username@DOMAIN.LOCAL"
 
 
 class TestSession(object):
@@ -334,16 +303,5 @@ class TestSession(object):
             assert len(session.signing_key) == 16
             assert session.signing_key != session.session_key
             assert session.signing_required
-        finally:
-            connection.disconnect(True)
-
-    def test_invalid_user(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        try:
-            session = Session(connection, "fakeuser", "fakepass")
-            with pytest.raises(SMBAuthenticationError) as exc:
-                session.connect()
-            assert "Failed to authenticate with server: " in str(exc.value)
         finally:
             connection.disconnect(True)

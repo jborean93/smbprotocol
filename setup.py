@@ -20,14 +20,12 @@ setup(
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
-        'ntlm-auth>=1.2.0',
         'pyasn1',
+        'pyspnego',
         'six',
     ],
     extras_require={
-        'kerberos:sys_platform=="win32"': [
-            'pywin32',
-        ],
+        'kerberos:sys_platform=="win32"': [],
         'kerberos:sys_platform!="win32"': [
             'gssapi>=1.4.1',
         ],
