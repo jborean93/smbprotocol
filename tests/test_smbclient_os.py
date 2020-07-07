@@ -39,13 +39,6 @@ from smbprotocol.reparse_point import (
     ReparseTags,
 )
 
-HAS_SSPI = False
-try:
-    import sspi
-    HAS_SSPI = True
-except ImportError:
-    pass
-
 
 @pytest.mark.parametrize('path', [
     '\\\\only_server',
@@ -61,8 +54,8 @@ def test_reset_connection(smb_share):
     smbclient.reset_connection_cache()
 
     # Once we've reset the connection it should fail because we didn't set any credentials.
-    # Won't work if pywin32 is installed as implicit auth is available.
-    if not HAS_SSPI:
+    # Won't work on Windows as implicit auth is available.
+    if os.name != 'nt':
         expected = 'Failed to authenticate with server'
         with pytest.raises(SMBAuthenticationError, match=expected):
             smbclient.stat(smb_share)
@@ -73,7 +66,7 @@ def test_delete_session(smb_share):
     smbclient.delete_session(server)
 
     # Once we've closed the connection it should fail because we didn't set any credentials
-    if not HAS_SSPI:
+    if os.name != 'nt':
         expected = 'Failed to authenticate with server'
         with pytest.raises(SMBAuthenticationError, match=expected):
             smbclient.stat(smb_share)

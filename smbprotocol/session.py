@@ -35,6 +35,7 @@ from smbprotocol.connection import (
 
 from smbprotocol.exceptions import (
     NtStatus,
+    SMBAuthenticationError,
     SMBException,
     SMBResponseException,
 )
@@ -243,8 +244,7 @@ class Session(object):
         # SMB 3.1.1+
         # Preauth integrity value computed for the exhange of SMB2
         # SESSION_SETUP request and response for this session
-        self.preauth_integrity_hash_value = \
-            connection.preauth_integrity_hash_value
+        self.preauth_integrity_hash_value = connection.preauth_integrity_hash_value
 
     def connect(self):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
@@ -252,9 +252,16 @@ class Session(object):
                                 options=spnego.NegotiateOptions.session_key)
 
         in_token = self.connection.gss_negotiate_token
-        out_token = context.step(in_token)
 
-        while not context.complete or out_token is not None:
+        while not context.complete or not in_token:
+            try:
+                out_token = context.step(in_token)
+            except spnego.exceptions.SpnegoError as err:
+                raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
+
+            if not out_token:
+                break
+
             session_setup = SMB2SessionSetupRequest()
             session_setup['security_mode'] = self.connection.client_security_mode
             session_setup['buffer'] = out_token
@@ -278,10 +285,7 @@ class Session(object):
             setup_response.unpack(response['data'].get_value())
 
             in_token = setup_response['buffer'].get_value()
-            if not in_token:
-                break
 
-            out_token = context.step(in_token)
             status = response['status'].get_value()
             if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
                 log.info("More processing is required for SMB2_SESSION_SETUP")
