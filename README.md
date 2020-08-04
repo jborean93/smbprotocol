@@ -31,12 +31,10 @@ backlog for features that would be nice to have in this library.
 ## Requirements
 
 * Python 2.6, 2.7, 3.4+
-* For Kerberos auth
-    * [python-gssapi](https://github.com/pythongssapi/python-gssapi) on Linux
-    * [pywin32](https://github.com/mhammond/pywin32) on Windows
+* For Kerberos auth on Linux
+    * [python-gssapi](https://github.com/pythongssapi/python-gssapi)
 
-To use Kerberos authentication, further dependencies are required, to install
-these dependencies run
+To use Kerberos authentication on Linux, further dependencies are required, to install these dependencies run
 
 ```
 # for Debian/Ubuntu/etc:
@@ -48,15 +46,12 @@ sudo yum install gcc python-devel krb5-devel krb5-workstation python-devel
 pip install smbprotocol[kerberos]
 ```
 
-Kerberos auth with Windows just requires the `pywin32` package to be installed
-and the Windows host to be joined to that domain. On Linux the python-gssapi
-library must be installed and smbprotocol requires a particular GSSAPI
-extension to be available to work. This extension should be installed on the
-majority of MIT or Heimdal Kerberos installs but it isn't guaranteed. To
-verify that Kerberos is available on Linux you can run the following check in
-a Python console:
+Kerberos auth with Windows should just work out of the box with the `pyspnego` library but on Linux, the
+`python-gssapi` library must be installed and `smbprotocol` requires a particular GSSAPI extension to be available to
+work. This extension should be installed on the majority of MIT or Heimdal Kerberos installs but that is not a
+guarantee. To verify that Kerberos is available on Linux you can run the following check in a Python console:
 
-```
+```python
 try:
     from gssapi.raw import inquire_sec_context_by_oid
     print("python-gssapi extension is available")
@@ -64,9 +59,8 @@ except ImportError as exc:
     print("python-gssapi extension is not available: %s" % str(exc))
 ```
 
-If it isn't available, then either a newer version of the system's gssapi
-implementation needs to be setup and python-gssapi compiled against that newer
-version.
+If it isn't available, then either a newer version of the system's gssapi implementation needs to be setup and
+python-gssapi compiled against that newer version. In the absence of this extension, only NTLM auth is used.
 
 
 ## Installation

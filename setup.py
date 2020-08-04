@@ -16,18 +16,15 @@ except ImportError:
 
 setup(
     name='smbprotocol',
-    version='1.0.2.dev0',
+    version='1.1.0.dev0',
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
-        'ntlm-auth>=1.2.0',
-        'pyasn1',
+        'pyspnego',
         'six',
     ],
     extras_require={
-        'kerberos:sys_platform=="win32"': [
-            'pywin32',
-        ],
+        'kerberos:sys_platform=="win32"': [],
         'kerberos:sys_platform!="win32"': [
             'gssapi>=1.4.1',
         ],

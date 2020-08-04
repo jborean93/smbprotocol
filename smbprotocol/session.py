@@ -3,6 +3,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import logging
+import spnego
 
 from collections import (
     OrderedDict,
@@ -22,14 +23,6 @@ from cryptography.hazmat.primitives.kdf.kbkdf import (
     Mode,
 )
 
-from ntlm_auth.ntlm import (
-    NtlmContext as Ntlm,
-)
-
-from pyasn1.codec.der import (
-    decoder,
-)
-
 from smbprotocol import (
     Commands,
     Dialects,
@@ -47,12 +40,6 @@ from smbprotocol.exceptions import (
     SMBResponseException,
 )
 
-from smbprotocol.spnego import (
-    InitialContextToken,
-    MechTypes,
-    ObjectIdentifier,
-)
-
 from smbprotocol.structure import (
     BytesField,
     EnumField,
@@ -60,28 +47,6 @@ from smbprotocol.structure import (
     IntField,
     Structure,
 )
-
-from smbprotocol.structure import (
-    _bytes_to_hex,
-)
-
-HAVE_SSPI = False
-try:  # pragma: no cover
-    import sspi
-    import sspicon
-    import win32security
-    HAVE_SSPI = True
-except ImportError:  # pragma: no cover
-    pass
-
-HAVE_GSSAPI = False
-try:  # pragma: no cover
-    import gssapi
-    # Needed to get the session key for signing and encryption
-    from gssapi.raw import inquire_sec_context_by_oid
-    HAVE_GSSAPI = True
-except ImportError:  # pragma: no cover
-    pass
 
 log = logging.getLogger(__name__)
 
@@ -279,57 +244,61 @@ class Session(object):
         # SMB 3.1.1+
         # Preauth integrity value computed for the exhange of SMB2
         # SESSION_SETUP request and response for this session
-        self.preauth_integrity_hash_value = \
-            connection.preauth_integrity_hash_value
+        self.preauth_integrity_hash_value = connection.preauth_integrity_hash_value
 
     def connect(self):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
-        token, rdata = decoder.decode(self.connection.gss_negotiate_token,
-                                      asn1Spec=InitialContextToken())
-        server_mechs = list(
-            token['innerContextToken']['negTokenInit']['mechTypes']
-        )
-        if MechTypes.MS_KRB5 in server_mechs and MechTypes.KRB5 in server_mechs:
-            log.debug("Both MS_KRB5 and KRB5 received in the initial SPNGEO "
-                      "token, removing MS_KRB5 to avoid duplication of work")
-            server_mechs.remove(MechTypes.MS_KRB5)
+        context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
+                                options=spnego.NegotiateOptions.session_key)
 
-        # loop through the Mechs until we get a successful auth
-        response = session_key = None
-        errors = {}
-        for mech in server_mechs:
-            mech_key = "Unknown (%s)" % str(mech)
-            for name, value in vars(MechTypes).items():
-                if isinstance(value, ObjectIdentifier) and value == mech:
-                    mech_key = "%s (%s)" % (name, str(value))
-                    break
+        in_token = self.connection.gss_negotiate_token
 
-            log.info("Attempting auth with mech %s" % mech_key)
+        while not context.complete or not in_token:
             try:
-                response, session_key = self._authenticate_session(mech)
-                break
-            except Exception as exc:
-                log.warning("Failed auth for mech %s: %s"
-                            % (mech_key, str(exc)))
-                errors[str(mech_key)] = str(exc)
-                pass
+                out_token = context.step(in_token)
+            except spnego.exceptions.SpnegoError as err:
+                raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
 
-        if response is None:
-            raise SMBAuthenticationError("Failed to authenticate with server: "
-                                         "%s" % str(errors))
+            if not out_token:
+                break
+
+            session_setup = SMB2SessionSetupRequest()
+            session_setup['security_mode'] = self.connection.client_security_mode
+            session_setup['buffer'] = out_token
+
+            log.info("Sending SMB2_SESSION_SETUP request message")
+            request = self.connection.send(session_setup, sid=self.session_id, credit_request=256)
+            self.preauth_integrity_hash_value.append(request.message)
+
+            log.info("Receiving SMB2_SESSION_SETUP response message")
+            try:
+                response = self.connection.receive(request)
+            except SMBResponseException as exc:
+                if exc.status != NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
+                    raise exc
+                mid = request.message['message_id'].get_value()
+                del self.connection.outstanding_requests[mid]
+                response = exc.header
+
+            self.session_id = response['session_id'].get_value()
+            setup_response = SMB2SessionSetupResponse()
+            setup_response.unpack(response['data'].get_value())
+
+            in_token = setup_response['buffer'].get_value()
+
+            status = response['status'].get_value()
+            if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
+                log.info("More processing is required for SMB2_SESSION_SETUP")
+                self.preauth_integrity_hash_value.append(response)
 
         log.info("Setting session id to %s" % self.session_id)
-        setup_response = SMB2SessionSetupResponse()
-        setup_response.unpack(response['data'].get_value())
         self._connected = True
 
         # TODO: remove from preauth session table and move to session_table
         self.connection.session_table[self.session_id] = self
 
         # session_key is the first 16 bytes, padded 0 if less than 16
-        padding_len = 16 - len(session_key) if len(session_key) < 16 else 0
-        session_key += b"\x00" * padding_len
-        self.session_key = session_key[:16]
+        self.session_key = context.session_key[:16].ljust(16, b"\x00")
 
         if self.connection.dialect >= Dialects.SMB_3_1_1:
             preauth_hash = b"\x00" * 64
@@ -337,43 +306,30 @@ class Session(object):
             for message in self.preauth_integrity_hash_value:
                 preauth_hash = hash_al(preauth_hash + message.pack()).digest()
 
-            self.signing_key = self._smb3kdf(self.session_key,
-                                             b"SMBSigningKey\x00",
-                                             preauth_hash)
-            self.application_key = self._smb3kdf(self.session_key,
-                                                 b"SMBAppKey\x00",
-                                                 preauth_hash)
-            self.encryption_key = self._smb3kdf(self.session_key,
-                                                b"SMBC2SCipherKey\x00",
-                                                preauth_hash)
-            self.decryption_key = self._smb3kdf(self.session_key,
-                                                b"SMBS2CCipherKey\x00",
-                                                preauth_hash)
+            self.signing_key = self._smb3kdf(self.session_key, b"SMBSigningKey\x00", preauth_hash)
+            self.application_key = self._smb3kdf(self.session_key, b"SMBAppKey\x00", preauth_hash)
+            self.encryption_key = self._smb3kdf(self.session_key, b"SMBC2SCipherKey\x00", preauth_hash)
+            self.decryption_key = self._smb3kdf(self.session_key, b"SMBS2CCipherKey\x00", preauth_hash)
+
         elif self.connection.dialect >= Dialects.SMB_3_0_0:
-            self.signing_key = self._smb3kdf(self.session_key,
-                                             b"SMB2AESCMAC\x00",
-                                             b"SmbSign\x00")
-            self.application_key = self._smb3kdf(self.session_key,
-                                                 b"SMB2APP\x00", b"SmbRpc\x00")
-            self.encryption_key = self._smb3kdf(self.session_key,
-                                                b"SMB2AESCCM\x00",
-                                                b"ServerIn \x00")
-            self.decryption_key = self._smb3kdf(self.session_key,
-                                                b"SMB2AESCCM\x00",
-                                                b"ServerOut\x00")
+            self.signing_key = self._smb3kdf(self.session_key, b"SMB2AESCMAC\x00", b"SmbSign\x00")
+            self.application_key = self._smb3kdf(self.session_key, b"SMB2APP\x00", b"SmbRpc\x00")
+            self.encryption_key = self._smb3kdf(self.session_key, b"SMB2AESCCM\x00", b"ServerIn \x00")
+            self.decryption_key = self._smb3kdf(self.session_key, b"SMB2AESCCM\x00", b"ServerOut\x00")
+
         else:
             self.signing_key = self.session_key
             self.application_key = self.session_key
 
         flags = setup_response['session_flags']
-        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA) or \
-                self.require_encryption:
+        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA) or self.require_encryption:
             # make sure the connection actually supports encryption
             if not self.connection.supports_encryption:
-                raise SMBException("SMB encryption is required but the "
-                                   "connection does not support it")
+                raise SMBException("SMB encryption is required but the connection does not support it")
+
             self.encrypt_data = True
             self.signing_required = False  # encryption covers signing
+
         else:
             self.encrypt_data = False
 
@@ -384,16 +340,14 @@ class Session(object):
             self.application_key = None
             self.encryption_key = None
             self.decryption_key = None
+
             if self.signing_required or self.encrypt_data:
                 self.session_id = None
-                raise SMBException("SMB encryption or signing was required "
-                                   "but session was authenticated as a guest "
-                                   "which does not support encryption or "
-                                   "signing")
+                raise SMBException("SMB encryption or signing was required but session was authenticated as a guest "
+                                   "which does not support encryption or signing")
 
         if self.signing_required:
-            log.info("Verifying the SMB Setup Session signature as auth is "
-                     "successful")
+            log.info("Verifying the SMB Setup Session signature as auth is successful")
             self.connection.verify_signature(response, self.session_id, force=True)
 
     def disconnect(self, close=True):
@@ -427,68 +381,6 @@ class Session(object):
         self._connected = False
         del self.connection.session_table[self.session_id]
 
-    def _authenticate_session(self, mech):
-        if mech in [MechTypes.KRB5, MechTypes.MS_KRB5] and HAVE_GSSAPI:
-            context = GSSAPIContext(username=self.username,
-                                    password=self.password,
-                                    server=self.connection.server_name)
-        elif mech in [MechTypes.KRB5, MechTypes.MS_KRB5, MechTypes.NTLMSSP] \
-                and HAVE_SSPI:
-            context = SSPIContext(username=self.username,
-                                  password=self.password,
-                                  server=self.connection.server_name)
-        elif mech == MechTypes.NTLMSSP:
-            context = NtlmContext(username=self.username,
-                                  password=self.password)
-        else:
-            raise NotImplementedError("Mech Type %s is not yet supported"
-                                      % mech)
-
-        response = None
-        token_gen = context.step()
-        out_token = next(token_gen)
-        while not context.complete or out_token is not None:
-            session_setup = SMB2SessionSetupRequest()
-            session_setup['security_mode'] = \
-                self.connection.client_security_mode
-            session_setup['buffer'] = out_token
-
-            log.info("Sending SMB2_SESSION_SETUP request message")
-            request = self.connection.send(session_setup,
-                                           sid=self.session_id,
-                                           credit_request=256)
-            self.preauth_integrity_hash_value.append(request.message)
-
-            log.info("Receiving SMB2_SESSION_SETUP response message")
-            try:
-                response = self.connection.receive(request)
-            except SMBResponseException as exc:
-                if exc.status != NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
-                    raise exc
-                mid = request.message['message_id'].get_value()
-                del self.connection.outstanding_requests[mid]
-                response = exc.header
-
-            self.session_id = response['session_id'].get_value()
-            session_resp = SMB2SessionSetupResponse()
-            session_resp.unpack(response['data'].get_value())
-
-            in_token = session_resp['buffer'].get_value()
-            if not in_token:
-                break
-
-            out_token = token_gen.send(in_token)
-            status = response['status'].get_value()
-            if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
-                log.info("More processing is required for SMB2_SESSION_SETUP")
-                self.preauth_integrity_hash_value.append(response)
-
-        # Once the context is established, we need the session key which is
-        # used to derive the signing and sealing keys for SMB
-        session_key = context.get_session_key()
-
-        return response, session_key
-
     def _smb3kdf(self, ki, label, context):
         """
         See SMB 3.x key derivation function
@@ -513,217 +405,3 @@ class Session(object):
             backend=default_backend()
         )
         return kdf.derive(ki)
-
-
-def _split_username_and_domain(username):
-    if not username:
-        return None, None
-    try:
-        domain, username = username.split("\\", 1)
-        return domain, username
-    except ValueError:
-        return "", username
-
-
-class NtlmContext(object):
-
-    def __init__(self, username, password):
-        if username is None:
-            raise SMBAuthenticationError("The username must be set when using "
-                                         "NTLM authentication")
-        if password is None:
-            raise SMBAuthenticationError("The password must be set when using "
-                                         "NTLM authentication")
-
-        log.info("Setting up NTLM Security Context for user %s" % username)
-        self.domain, self.username = _split_username_and_domain(username)
-        self.context = Ntlm(self.username, password, domain=self.domain)
-
-    @property
-    def complete(self):
-        return self.context.complete
-
-    def step(self):
-        log.info("NTLM: Generating Negotiate message")
-        msg1 = self.context.step()
-        log.debug("NTLM: Negotiate message: %s" % _bytes_to_hex(msg1))
-        msg2 = yield msg1
-
-        log.info("NTLM: Parsing Challenge message and generating Authentication message")
-        log.debug("NTLM: Challenge message: %s" % _bytes_to_hex(msg2))
-        msg3 = self.context.step(input_token=msg2)
-
-        yield msg3
-
-    def get_session_key(self):
-        # The session_key was only recently added in ntlm-auth, we have the
-        # fallback to the non-public interface for older versions where we
-        # know this still works. This should be removed once ntlm-auth no
-        # longer requires these older versions (>=1.4.0).
-        return getattr(self.context, 'session_key',
-                       self.context._session_security.exported_session_key)
-
-
-class GSSAPIContext(object):
-
-    def __init__(self, username, password, server):
-        log.info("Setting up GSSAPI Security Context for Kerberos auth")
-        self.creds = self._acquire_creds(username, password)
-
-        server_spn = "cifs@%s" % server
-        log.debug("GSSAPI Server SPN Target: %s" % server_spn)
-        server_name = gssapi.Name(base=server_spn,
-                                  name_type=gssapi.NameType.hostbased_service)
-        self.context = gssapi.SecurityContext(name=server_name,
-                                              creds=self.creds,
-                                              usage='initiate')
-
-    @property
-    def complete(self):
-        return self.context.complete
-
-    def step(self):
-        in_token = None
-        while not self.context.complete:
-            log.info("GSSAPI: gss_init_sec_context called")
-            out_token = self.context.step(in_token)
-            in_token = yield out_token
-
-    def get_session_key(self):
-        # GSS_C_INQ_SSPI_SESSION_KEY
-        session_key_oid = gssapi.OID.from_int_seq("1.2.840.113554.1.2.2.5.5")
-        context_data = gssapi.raw.inquire_sec_context_by_oid(self.context,
-                                                             session_key_oid)
-
-        return context_data[0]
-
-    def _acquire_creds(self, username, password):
-        # 3 use cases with Kerberos Auth
-        #   1. Both the user and pass is supplied so we want to create a new
-        #      ticket with the pass
-        #   2. Only the user is supplied so we will attempt to get the cred
-        #      from the existing store
-        #   3. The user is not supplied so we will attempt to get the default
-        #      cred from the existing store
-        log.info("GSSAPI: Acquiring credentials handle")
-        if username and password:
-            log.debug("GSSAPI: Acquiring credentials handle for user %s with "
-                      "password" % username)
-            user = gssapi.Name(base=username,
-                               name_type=gssapi.NameType.user)
-            bpass = password.encode('utf-8')
-            try:
-                creds = gssapi.raw.acquire_cred_with_password(user, bpass,
-                                                              usage='initiate')
-            except AttributeError:
-                raise SMBAuthenticationError("Cannot get GSSAPI credential "
-                                             "with password as the necessary "
-                                             "GSSAPI extensions are not "
-                                             "available")
-            except gssapi.exceptions.GSSError as er:
-                raise SMBAuthenticationError("Failed to acquire GSSAPI "
-                                             "credential with password: %s"
-                                             % str(er))
-            # acquire_cred_with_password returns a wrapper, we want the creds
-            # object inside this wrapper
-            creds = creds.creds
-        elif username:
-            log.debug("GSSAPI: Acquiring credentials handle for user %s from "
-                      "existing cache" % username)
-            user = gssapi.Name(base=username,
-                               name_type=gssapi.NameType.user)
-
-            try:
-                creds = gssapi.Credentials(name=user, usage='initiate')
-            except gssapi.exceptions.MissingCredentialsError as er:
-                raise SMBAuthenticationError("Failed to acquire GSSAPI "
-                                             "credential for user %s from the "
-                                             "exisiting cache: %s"
-                                             % (str(user), str(er)))
-        else:
-            log.debug("GSSAPI: Acquiring credentials handle for default user "
-                      "in cache")
-            try:
-                creds = gssapi.Credentials(name=None, usage='initiate')
-            except gssapi.exceptions.GSSError as er:
-                raise SMBAuthenticationError("Failed to acquire default "
-                                             "GSSAPI credential from the "
-                                             "existing cache: %s" % str(er))
-            user = creds.name
-
-        log.info("GSSAPI: Acquired credentials for user %s" % str(user))
-        return creds
-
-
-class SSPIContext(object):
-
-    def __init__(self, username, password, server):
-        log.info("Setting up SSPI Security Context for Windows auth")
-        self._call_counter = 0
-
-        flags = sspicon.ISC_REQ_INTEGRITY | \
-            sspicon.ISC_REQ_CONFIDENTIALITY | \
-            sspicon.ISC_REQ_REPLAY_DETECT | \
-            sspicon.ISC_REQ_SEQUENCE_DETECT | \
-            sspicon.ISC_REQ_MUTUAL_AUTH
-
-        domain, username = _split_username_and_domain(username)
-        # We could use the MECH to derive the package name but we are just
-        # better off using Negotiate and lettings Windows do all the heavy
-        # lifting.
-        self._context = sspi.ClientAuth(
-            pkg_name='Negotiate',
-            auth_info=(username, domain, password),
-            targetspn="cifs/%s" % server,
-            scflags=flags
-        )
-
-    @property
-    def complete(self):
-        return self._context.authenticated
-
-    def step(self):
-        in_token = None
-        while not self.complete:
-            log.info("SSPI: InitializeSecurityContext called")
-            out_token = self._step(in_token)
-            in_token = yield out_token if out_token != b"" else None
-
-    def get_session_key(self):
-        return self._context.ctxt.QueryContextAttributes(sspicon.SECPKG_ATTR_SESSION_KEY)
-
-    def _step(self, token):
-        success_codes = [
-            sspicon.SEC_E_OK,
-            sspicon.SEC_I_COMPLETE_AND_CONTINUE,
-            sspicon.SEC_I_COMPLETE_NEEDED,
-            sspicon.SEC_I_CONTINUE_NEEDED
-        ]
-
-        if token:
-            sec_token = win32security.PySecBufferType(
-                self._context.pkg_info['MaxToken'],
-                sspicon.SECBUFFER_TOKEN
-            )
-            sec_token.Buffer = token
-
-            sec_buffer = win32security.PySecBufferDescType()
-            sec_buffer.append(sec_token)
-        else:
-            sec_buffer = None
-
-        rc, out_buffer = self._context.authorize(sec_buffer_in=sec_buffer)
-        self._call_counter += 1
-        if rc not in success_codes:
-            rc_name = "Unknown Error"
-            for name, value in vars(sspicon).items():
-                if isinstance(value, int) and name.startswith("SEC_") and \
-                        value == rc:
-                    rc_name = name
-                    break
-            raise SMBAuthenticationError(
-                "InitializeSecurityContext failed on call %d: (%d) %s 0x%s"
-                % (self._call_counter, rc, rc_name, format(rc, 'x'))
-            )
-
-        return out_buffer[0].Buffer
