@@ -91,7 +91,7 @@ stages:
 
     - task: PublishTestResults@2
       inputs:
-        ggtestResultsFiles: '**/test-*.xml'
+        testResultsFiles: '**/test-*.xml'
         testRunTitle: $(Agent.OS) - $(Build.BuildNumber) - Python $(python.version)
       displayName: Publish test results
       condition: succeededOrFailed()
