@@ -1,0 +1,238 @@
+trigger:
+  branches:
+    include:
+    - master
+  tags:
+    include:
+    - v*
+  paths:
+    exclude:
+    - CHANGELOG.md
+    - LICENSE
+    - README.md
+
+schedules:
+- cron: 0 14 * * 0
+  displayName: Weekly CI build
+  branches:
+    include:
+    - master
+  always: true
+
+stages:
+- stage: Test
+  jobs:
+
+  - job: Test_Linux
+    pool:
+      vmImage: ubuntu-18.04
+    variables:
+      smb_port: 445
+      smb_user: smbuser
+      smb_pass: smbpass
+      smb_share: share
+    strategy:
+      matrix:
+        Python27:
+          python.version: 2.7
+        Python35:
+          python.version: 3.5
+        Python36:
+          python.version: 3.6
+        Python37:
+          python.version: 3.7
+        Python38:
+          python.version: 3.8
+
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: $(python.version)
+
+    - script: >
+        docker run -d
+        -p $(smb_port):445
+        -v $(pwd)/build-scripts:/app
+        -w /app
+        -e SMB_USER=$(smb_user)
+        -e SMB_PASSWORD=$(smb_pass)
+        -e SMB_SHARE=$(smb_share)
+        centos:7
+        /bin/bash
+        /app/setup_samba.sh
+      displayName: Start up Docker SMB host
+
+    - script: |
+        echo "Installing baseline pip packages"
+        python -m pip install --upgrade pip setuptools wheel coverage -c tests/constraints.txt
+
+        echo "Installing test requirements"
+        python -m pip install -r requirements-test.txt -c tests/constraints.txt
+
+        echo "Installing package"
+        python -m pip install . -c tests/constraints.txt
+      displayName: Install
+
+    - script: |
+        python -m pycodestyle smbclient smbprotocol --verbose --show-source --statistics
+      displayName: Lint
+
+    - script: |
+        # Make sure the container is up and running
+        python ./build-scripts/check_samba.py
+        pytest -v --junitxml junit/test-results.xml --cov smbclient --cov smbprotocol --cov-report xml --cov-report term-missing
+      env:
+        SMB_SERVER: localhost
+        SMB_PORT: $(smb_port)
+        SMB_USER: $(smb_user)
+        SMB_PASSWORD: $(smb_pass)
+        SMB_SHARE: $(smb_share)
+      displayName: Test
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/test-*.xml'
+        testRunTitle: $(Agent.OS) - $(Build.BuildNumber) - Python $(python.version)
+      displayName: Publish test results
+      condition: succeededOrFailed()
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: $(System.DefaultWorkingDirectory)/**/coverage.xml
+
+    - script: |
+        bash <(curl -s https://codecov.io/bash)
+      displayName: Upload to codecov.io
+      continueOnError: true
+      timeoutInMinutes: 5
+
+  - job: Test_Windows
+    variables:
+      smb_share: share
+    pool:
+      vmImage: windows-2019
+    strategy:
+      matrix:
+        Python27-x86:
+          python.version: 2.7
+          python.arch: x86
+        Python27-x64:
+          python.version: 2.7
+          python.arch: x64
+        Python35-x86:
+          python.version: 3.5
+          python.arch: x86
+        Python35-x64:
+          python.version: 3.5
+          python.arch: x64
+        Python36-x86:
+          python.version: 3.6
+          python.arch: x86
+        Python36-x64:
+          python.version: 3.6
+          python.arch: x64
+        Python37-x86:
+          python.version: 3.7
+          python.arch: x86
+        Python37-x64:
+          python.version: 3.7
+          python.arch: x64
+        Python38-x86:
+          python.version: 3.8
+          python.arch: x86
+        Python38-x64:
+          python.version: 3.8
+          python.arch: x64
+
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: $(python.version)
+        architecture: $(python.arch)
+
+    - powershell: |
+        New-Item -Path C:\share -ItemType Directory > $null
+        New-Item -Path C:\share-encrypted -ItemType Directory > $null
+        New-SmbShare -Name $(smb_share) -Path C:\share -EncryptData $false -FullAccess Everyone > $null
+        New-SmbShare -Name $(smb_share)-encrypted -Path C:\share-encrypted -EncryptData $true -FullAccess Everyone > $null
+        Set-SmbServerConfiguration -RequireSecuritySignature $true -Force
+      displayName: Set up SMB server shares
+
+    - script: |
+        echo "Installing baseline pip packages"
+        python -m pip install --upgrade pip setuptools wheel coverage -c tests/constraints.txt
+
+        echo "Installing test requirements"
+        python -m pip install -r requirements-test.txt -c tests/constraints.txt
+
+        echo "Installing package"
+        python -m pip install . -c tests/constraints.txt
+      displayName: Install
+
+    - script: |
+        python -m pycodestyle smbclient smbprotocol --verbose --show-source --statistics
+      displayName: Lint
+
+    - script: |
+        pytest -v --junitxml junit/test-results.xml --cov smbclient --cov smbprotocol --cov-report xml --cov-report term-missing
+      env:
+        SMB_SERVER: localhost
+        SMB_SHARE: $(smb_share)
+      displayName: Test
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/test-*.xml'
+        testRunTitle: $(Agent.OS) - $(Build.BuildNumber) - Python $(python.version) $(python.arch)
+      displayName: Publish test results
+      condition: succeededOrFailed()
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: $(System.DefaultWorkingDirectory)/**/coverage.xml
+
+    - script: |
+        choco.exe install codecov --yes --no-progress
+        codecov.exe -f coverage.xml
+      displayName: Upload to codecov.io
+      continueOnError: true
+      timeoutInMinutes: 5
+
+- stage: Publish
+  jobs:
+
+  - job: Publish
+    pool:
+      vmImage: ubuntu-18.04
+
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: 3.8
+
+    - script: |
+        python -m pip install twine wheel -c tests/constraints.txt
+      displayName: Install build requirements
+
+    - script: |
+        python setup.py bdist_wheel --universal
+        python setup.py sdist
+      displayName: Build universal wheel and sdist
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: dist
+        artifactName: wheels
+
+    - task: TwineAuthenticate@1
+      displayName: Twine Authenticate
+      condition: and(succeeded(), startsWith(variables['build.sourceBranch'], 'refs/tags/v'))
+      inputs:
+        pythonUploadServiceConnection: pypi
+
+    - script: |
+        python -m twine upload -r pypi --config-file $(PYPIRC_PATH) dist/*
+      condition: and(succeeded(), startsWith(variables['build.sourceBranch'], 'refs/tags/v'))
+      displayName: Publish artifact to Pypi

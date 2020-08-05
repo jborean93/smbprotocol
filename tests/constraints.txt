@@ -1,0 +1,2 @@
+# Other constraints
+pytest >= 3.6 ; python_version > "2.7"  # Make sure other Python versions use a newer version of pytest
