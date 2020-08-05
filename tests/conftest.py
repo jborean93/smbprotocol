@@ -26,14 +26,12 @@ def smb_real():
     port = os.environ.get('SMB_PORT', 445)
     share = os.environ.get('SMB_SHARE', 'share')
 
-    if username and password and server:
+    if server:
         share = r"\\%s\%s" % (server, share)
         encrypted_share = "%s-encrypted" % share
         return username, password, server, int(port), share, encrypted_share
     else:
-        pytest.skip("SMB_USER, SMB_PASSWORD, SMB_PORT, SMB_SHARE, "
-                    "environment variables were not set, integration tests "
-                    "will be skipped")
+        pytest.skip("The SMB_SHARE env var was not set, integration tests will be skipped")
 
 
 @pytest.fixture(params=[

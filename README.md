@@ -1,10 +1,11 @@
 # smbprotocol
 SMBv2 and v3 Client for both Python 2 and 3.
 
+
+[![Build Status](https://dev.azure.com/jborean93/jborean93/_apis/build/status/jborean93.smbprotocol?branchName=master)](https://dev.azure.com/jborean93/jborean93/_build/latest?definitionId=4&branchName=master)
+[![codecov](https://codecov.io/gh/jborean93/smbprotocol/branch/master/graph/badge.svg)](https://codecov.io/gh/jborean93/smbprotocol)
+[![PyPI version](https://badge.fury.io/py/smbprotocol.svg)](https://badge.fury.io/py/smbprotocol)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jborean93/smbprotocol/blob/master/LICENSE)
-[![Travis Build](https://travis-ci.org/jborean93/smbprotocol.svg)](https://travis-ci.org/jborean93/smbprotocol)
-[![AppVeyor Build](https://ci.appveyor.com/api/projects/status/github/jborean93/smbprotocol?svg=true)](https://ci.appveyor.com/project/jborean93/smbprotocol)
-[![Coverage](https://coveralls.io/repos/jborean93/smbprotocol/badge.svg)](https://coveralls.io/r/jborean93/smbprotocol)
 
 SMB is a network file sharing protocol and has numerous iterations over the
 years. This library implements the SMBv2 and SMBv3 protocol based on the
@@ -30,7 +31,7 @@ backlog for features that would be nice to have in this library.
 
 ## Requirements
 
-* Python 2.6, 2.7, 3.4+
+* Python 2.7, 3.5+
 * For Kerberos auth on Linux
     * [python-gssapi](https://github.com/pythongssapi/python-gssapi)
 
