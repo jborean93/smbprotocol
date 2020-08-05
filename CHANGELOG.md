@@ -2,9 +2,10 @@
 
 ## 1.1.0 - TBD
 
-* Speed up logging statements for large messages like a read and write message.
-* Changed authentication dep to [pyspnego](https://github.com/jborean93/pyspnego) that handles all the authentication work.
+* Speed up logging statements for large messages like a read and write message
+* Changed authentication dep to [pyspnego](https://github.com/jborean93/pyspnego) that handles all the authentication work
 * Fixed up authentication against hosts that don't present the initial GSSAPI token like Azure File Storage
+* Added `STATUS_SERVER_UNAVAILABLE` to the list of known exception codes
 
 
 ## 1.0.1 - 2019-12-12
