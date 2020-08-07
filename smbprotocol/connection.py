@@ -833,7 +833,7 @@ class Connection(object):
         # used for SMB 3.x for secure negotiate verification on tree connect
         self.negotiated_dialects = []
         self.client_capabilities = Capabilities.SMB2_GLOBAL_CAP_LARGE_MTU | \
-            Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
+            Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION | Capabilities.SMB2_GLOBAL_CAP_DFS
 
         self.client_security_mode = \
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED if \

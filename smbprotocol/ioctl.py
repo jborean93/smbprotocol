@@ -27,7 +27,6 @@ from smbprotocol.structure import (
     ListField,
     Structure,
     StructureField,
-    TextField,
     UuidField,
 )
 
@@ -111,40 +110,6 @@ class SockAddrFamily(object):
     """
     INTER_NETWORK = 0x0002
     INTER_NETWORK_V6 = 0x0017
-
-
-class DFSReferralHeaderFlags(object):
-    """
-    [MS-DFSC]
-
-    2.2.4
-    Dfs referral header flags
-    """
-    REFERRAL_SERVERS = 0x00000001
-    STORAGE_SERVERS = 0x00000002
-    TARGET_FAIL_BACK = 0x00000004
-
-
-class DFSServerTypes(object):
-    """
-    [MS-DFSC]
-
-    2.2.5.3
-    Dfs server types
-    """
-    NON_ROOT_TARGETS = 0x0000
-    ROOT_TARGETS = 0x0001
-
-
-class DFSReferralEntryFlags(object):
-    """
-    [MS-DFSC]
-
-    2.2.5.3 & 2.2.5.4
-    Dfs referral entry flags
-    """
-    NAME_LIST_REFERRAL = 0x0002
-    TARGET_SET_BOUNDARY = 0x0004
 
 
 class SMB2IOCTLRequest(Structure):
@@ -626,81 +591,3 @@ class SMB2ValidateNegotiateInfoResponse(Structure):
             ))
         ])
         super(SMB2ValidateNegotiateInfoResponse, self).__init__()
-
-
-class DFSReferralRequest(Structure):
-    """
-    [MS-DFSC] 2.2.2
-
-    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsc/663c9b38-41b8-4faa-b6f6-a4576b4cea62
-    """
-    COMMAND = Commands.SMB2_IOCTL
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('max_referral_level', IntField(size=2, default=4)),
-            ('request_file_name', TextField(null_terminated=True)),
-        ])
-        super(DFSReferralRequest, self).__init__()
-
-
-class DFSReferralResponse(Structure):
-    """
-    [MS-DFSC] 2.2.4
-
-    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsc/bd1a7a9d-dfee-4dc6-ba37-bfeb329a7bfa
-    """
-    COMMAND = Commands.SMB2_IOCTL
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('path_consumed', IntField(size=2)),
-            ('number_of_referrals', IntField(size=2)),
-            ('referral_header_flags', FlagField(size=4, flag_type=DFSReferralHeaderFlags)),
-            ('referral_entries', ListField(
-                list_count=lambda s: s['number_of_referrals'].get_value(),
-                list_type=StructureField(
-                    structure_type=DFSReferralEntry
-                ),
-                unpack_func=lambda s, b: self._create_dfs_referral_entry(b)
-            ))
-        ])
-        super(DFSReferralResponse, self).__init__()
-
-    def _create_dfs_referral_entry(self, data):
-        results = []
-        for _ in range(self.fields['number_of_referrals'].get_value()):
-            dfs_referral_entry = DFSReferralEntry()
-            data = dfs_referral_entry.unpack(data)
-            results.append(dfs_referral_entry)
-        return results
-
-
-class DFSReferralEntry(Structure):
-    """
-    [MS-DFSC] 2.2.5.4
-
-    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsc/c3b2fa74-3d4f-4b4b-b2a6-9d92959ef02b
-    """
-    COMMAND = Commands.SMB2_IOCTL
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('version_number', IntField(size=2)),
-            ('size', IntField(size=2)),
-            ('server_type', FlagField(size=2, flag_type=DFSServerTypes)),
-            ('referral_entry_flags', FlagField(size=2, flag_type=DFSReferralEntryFlags)),
-            ('time_to_live', IntField(size=4)),
-            ('dfs_path_offset', IntField(size=2)),
-            ('dfs_alternate_path_offset', IntField(size=2)),
-            ('network_address_offset', IntField(size=2)),
-            ('service_site_guid', UuidField()),
-            ('dfs_path', TextField(null_terminated=True,
-                                   size=lambda s: s.fields['dfs_alternate_path_offset'].get_value() - s.fields[
-                                       'dfs_path_offset'].get_value())),
-            ('dfs_alternate_path', TextField(null_terminated=True,
-                                             size=lambda s: s.fields['network_address_offset'].get_value() - s.fields[
-                                                 'dfs_alternate_path_offset'].get_value())),
-            ('network_address', TextField(null_terminated=True)),
-        ])
-        super(DFSReferralEntry, self).__init__()

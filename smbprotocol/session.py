@@ -266,6 +266,7 @@ class Session(object):
                 break
 
             session_setup = SMB2SessionSetupRequest()
+            session_setup['capabilities'] = Capabilities.SMB2_GLOBAL_CAP_DFS
             session_setup['security_mode'] = self.connection.client_security_mode
             session_setup['buffer'] = out_token
 

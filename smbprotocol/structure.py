@@ -3,6 +3,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import copy
+import math
 import struct
 import textwrap
 import types
@@ -943,27 +944,24 @@ class TextField(BytesField):
     def _to_string(self):
         return self.value
 
-    def _unpack_null_terminated(self, data):
-        char_len = len("\x00".encode(self.encoding))
-        value = b""
-        while data:
-            char = data[:char_len]
-            data = data[char_len:]
-            value += char
-            if char == b"\x00" * char_len:
-                break
-        super(TextField, self).unpack(value)
-        return data
-
     def unpack(self, data):
-        """
-        Takes in a byte string and set's the field value based on field
-        definition.
+        null_byte = u"\x00".encode(self.encoding)
 
-        :param structure: The message structure class object
-        :param data: The byte string of the data to unpack
-        :return: The remaining data for subsequent fields
-        """
         if self.null_terminated and self.size is None:
-            return self._unpack_null_terminated(data)
-        return super(TextField, self).unpack(data)
+            # If the size wasn't specified and the string contains a null terminator, cut off the bytes there.
+            null_index = data.find(null_byte)
+            if null_index != -1:
+                # In the case of UTF-16 we might be the index in the middle of a char, make sure we round up and get
+                # the boundary of each char.
+                actual_index = math.ceil(null_index / len(null_byte)) * len(null_byte)
+
+                self.set_value(data[0:actual_index])
+                return data[actual_index + len(null_byte):]
+
+        size = self._get_calculated_size(self.size, data)
+        raw_value = data[0:size]
+        if self.null_terminated and raw_value.endswith(null_byte):
+            raw_value = raw_value[:len(null_byte) * -1]
+
+        self.set_value(raw_value)
+        return data[size:]
