@@ -14,8 +14,8 @@ from smbprotocol.connection import (
 )
 
 from smbprotocol.exceptions import (
+    AccessDenied,
     SMBException,
-    SMBResponseException,
 )
 
 from smbprotocol.session import (
@@ -213,11 +213,8 @@ class TestTreeConnect(object):
         tree = TreeConnect(session, smb_real[5])
         try:
             session.connect()
-            with pytest.raises(SMBResponseException) as exc:
+            with pytest.raises(AccessDenied) as exc:
                 tree.connect()
-            assert str(exc.value) == "Received unexpected status from the " \
-                                     "server: (3221225506) " \
-                                     "STATUS_ACCESS_DENIED: 0xc0000022"
         finally:
             connection.disconnect(True)
 

@@ -34,10 +34,10 @@ from smbprotocol.connection import (
 )
 
 from smbprotocol.exceptions import (
+    MoreProcessingRequired,
     NtStatus,
     SMBAuthenticationError,
     SMBException,
-    SMBResponseException,
 )
 
 from smbprotocol.structure import (
@@ -273,9 +273,7 @@ class Session(object):
             log.info("Receiving SMB2_SESSION_SETUP response message")
             try:
                 response = self.connection.receive(request)
-            except SMBResponseException as exc:
-                if exc.status != NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
-                    raise exc
+            except MoreProcessingRequired as exc:
                 mid = request.message['message_id'].get_value()
                 del self.connection.outstanding_requests[mid]
                 response = exc.header

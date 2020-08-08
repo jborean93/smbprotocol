@@ -32,6 +32,7 @@ from smbprotocol.create_contexts import (
 )
 
 from smbprotocol.exceptions import (
+    EndOfFile,
     SMBException,
     SMBUnsupportedFeature,
 )
@@ -2346,11 +2347,8 @@ class TestOpen(object):
             req = connection.send(read_msg, sid=session.session_id,
                                   tid=tree.tree_connect_id)
 
-            with pytest.raises(SMBException) as exc:
+            with pytest.raises(EndOfFile) as exc:
                 open._close_response(req)
-            assert str(exc.value) == "Received unexpected status from the " \
-                                     "server: (3221225489) " \
-                                     "STATUS_END_OF_FILE: 0xc0000011"
         finally:
             connection.disconnect(True)
 

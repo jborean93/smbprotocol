@@ -5,6 +5,7 @@
 * Speed up logging statements for large messages like a read and write message
 * Changed authentication dep to [pyspnego](https://github.com/jborean93/pyspnego) that handles all the authentication work
 * Fixed up authentication against hosts that don't present the initial GSSAPI token like Azure File Storage
+* Added specific exception types for every `NtStatus` value to make it easier to catch only specific exceptions
 * Added `STATUS_SERVER_UNAVAILABLE` to the list of known exception codes
 
 
