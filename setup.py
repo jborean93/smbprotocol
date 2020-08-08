@@ -37,6 +37,7 @@ setup(
     url='https://github.com/jborean93/smbprotocol',
     description='Interact with a server using the SMB 2/3 Protocol',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     keywords='smb smb2 smb3 cifs python',
     license='MIT',
     classifiers=[
