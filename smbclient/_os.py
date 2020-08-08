@@ -35,6 +35,8 @@ from smbprotocol._text import (
 )
 
 from smbprotocol.exceptions import (
+    NoEASOnFile,
+    NoSuchFile,
     NtStatus,
     SMBOSError,
     SMBResponseException,
@@ -230,10 +232,8 @@ def listdir(path, search_pattern="*", **kwargs):
             raw_filenames = dir_fd.query_directory(search_pattern, FileInformationClass.FILE_NAMES_INFORMATION)
             return list(e['file_name'].get_value().decode('utf-16-le') for e in raw_filenames if
                         e['file_name'].get_value().decode('utf-16-le') not in ['.', '..'])
-        except SMBResponseException as exc:
-            if exc.status == NtStatus.STATUS_NO_SUCH_FILE:
-                return []
-            raise
+        except NoSuchFile:
+            return []
 
 
 def lstat(path, **kwargs):

@@ -6,6 +6,7 @@ import binascii
 import errno
 import ntpath
 import os
+import six
 import socket
 
 from collections import (
@@ -77,8 +78,8 @@ class NtStatus(object):
     STATUS_PASSWORD_EXPIRED = 0xC0000071
     STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
     STATUS_PIPE_BUSY = 0xC00000AE
-    STATUS_PIPE_CLOSING = 0xC00000B1
     STATUS_PIPE_DISCONNECTED = 0xC00000B0
+    STATUS_PIPE_CLOSING = 0xC00000B1
     STATUS_FILE_IS_A_DIRECTORY = 0xC00000BA
     STATUS_NOT_SUPPORTED = 0xC00000BB
     STATUS_BAD_NETWORK_NAME = 0xC00000CC
@@ -107,6 +108,11 @@ class SMBAuthenticationError(SMBException):
 
 
 class SMBOSError(OSError, SMBException):
+    """Wrapper for OSError with smbprotocol specific details.
+
+    This is a wrapper for OSError for use in smbclient. It is designed to translate the raw SMBResponseException that
+    smbprotocol raises into an error that is compatible with OSError.
+    """
 
     def __init__(self, ntstatus, filename, filename2=None):
         self.ntstatus = ntstatus
@@ -217,21 +223,45 @@ class SMBUnsupportedFeature(SMBException):
         return str(dialect_field)
 
 
+class _SMBErrorRegistry(type):
+    __registry = {}
+
+    def __init__(cls, name, bases, attributes):
+        super(_SMBErrorRegistry, cls).__init__(name, bases, attributes)
+
+        # Special case for the base SMBResponseException doesn't need to have _STATUS_CODE
+        if cls.__module__ == _SMBErrorRegistry.__module__ and cls.__name__ == 'SMBResponseException':
+            return
+
+        if not hasattr(cls, '_STATUS_CODE'):
+            raise ValueError('%s.%s does not have the _STATUS_CODE class attribute set'
+                             % (cls.__module__, cls.__name__))
+
+        cls.__registry[cls._STATUS_CODE] = cls
+
+    def __call__(cls, header, status):
+        new_cls = cls.__registry.get(status, cls)
+        return super(_SMBErrorRegistry, new_cls).__call__(header, status)
+
+
+@six.add_metaclass(_SMBErrorRegistry)
 class SMBResponseException(SMBException):
+    """Base SMB response status exception.
+
+    This is the base exception that is used when processing the status of an SMB response received from the server.
+    When being called it may create one of the inherited types depending on whether the status is known or not. Each
+    inherited class must implement _STATUS_CODE representing the NtStatus error it is for and may implement
+    _BASE_MESSAGE to provide a better explanation of the error.
+    """
+
+    _BASE_MESSAGE = 'Unknown error.'
+
+    def __init__(self, header, status):  # type: (any, int) -> None
+        self.header = header
+        self.status = status
 
     @property
-    def header(self):
-        # the full message that was returned by the server
-        return self.args[0]
-
-    @property
-    def status(self):
-        # the raw int status value, used by method that catch this exception
-        # for control flow
-        return self.args[1]
-
-    @property
-    def error_details(self):
+    def error_details(self):  # type: () -> List[any]
         # list of error_details returned by the server, currently used in
         # the SMB 3.1.1 error response for certain situations
         error = SMB2ErrorResponse()
@@ -244,61 +274,307 @@ class SMBResponseException(SMBException):
             if self.status == NtStatus.STATUS_STOPPED_ON_SYMLINK:
                 error_data = SMB2SymbolicLinkErrorResponse()
                 error_data.unpack(raw_data)
+
             elif self.status == NtStatus.STATUS_BAD_NETWORK_NAME and \
                     error_id == ErrorContextId.SMB2_ERROR_ID_SHARE_REDIRECT:
                 error_data = SMB2ShareRedirectErrorContext()
                 error_data.unpack(raw_data)
+
             else:
                 # unknown context data so we just set it the raw bytes
                 error_data = raw_data
+
             error_details.append(error_data)
 
         return error_details
 
     @property
-    def message(self):
-        error_details_msg = ""
-        for error_detail in self.error_details:
-            if isinstance(error_detail, SMB2SymbolicLinkErrorResponse):
-                detail_msg = self._get_symlink_error_detail_msg(error_detail)
-            elif isinstance(error_detail, SMB2ShareRedirectErrorContext):
-                detail_msg = self._get_share_redirect_detail_msg(error_detail)
+    def message(self):  # type: () -> str
+        error_details = []
+
+        for detail in self.error_details:
+            if isinstance(detail, SMB2SymbolicLinkErrorResponse):
+                flag = str(detail['flags'])
+                print_name = detail.get_print_name()
+                sub_name = detail.get_substitute_name()
+                error_details.append("Flag: %s, Print Name: %s, Substitute Name: %s" % (flag, print_name, sub_name))
+
+            elif isinstance(detail, SMB2ShareRedirectErrorContext):
+                ip_addresses = []
+                for ip_addr in detail['ip_addr_move_list'].get_value():
+                    ip_addresses.append(ip_addr.get_ipaddress())
+
+                resource_name = to_text(detail['resource_name'].get_value(), encoding='utf-16-le')
+                error_details.append("IP Addresses: '%s', Resource Name: %s"
+                                     % ("', '".join(ip_addresses), resource_name))
+
             else:
                 # unknown error details in response, output raw bytes
-                detail_msg = "Raw: %s" % binascii.hexlify(error_detail).decode('utf-8')
+                error_details.append("Raw: %s" % to_text(binascii.hexlify(detail)))
 
-            # the first details message is set differently
-            if error_details_msg == "":
-                error_details_msg = "%s - %s" % (error_details_msg, detail_msg)
-            else:
-                error_details_msg = "%s, %s" % (error_details_msg, detail_msg)
+        error_msg = '%s %s: 0x%s' % (self._BASE_MESSAGE, str(self.header['status']), format(self.status, 'x').zfill(8))
+        if error_details:
+            error_msg += " - %s" % ", ".join(error_details)
 
-        status_hex = format(self.status, 'x')
-        error_message = "%s: 0x%s%s" % (str(self.header['status']),
-                                        status_hex, error_details_msg)
-        return "Received unexpected status from the server: %s" % error_message
+        return to_native("Received unexpected status from the server: %s" % error_msg)
 
     def __str__(self):
         return self.message
 
-    def _get_share_redirect_detail_msg(self, error_detail):
-        ip_addresses = []
-        for ip_addr in error_detail['ip_addr_move_list'].get_value():
-            ip_addresses.append(ip_addr.get_ipaddress())
 
-        resource_name = error_detail['resource_name'].get_value(). \
-            decode('utf-16-le')
-        detail_msg = "IP Addresses: '%s', Resource Name: %s" \
-                     % ("', '".join(ip_addresses), resource_name)
-        return detail_msg
+class StatusPending(SMBResponseException):
+    _BASE_MESSAGE = "The operation that was requested is pending completion."
+    _STATUS_CODE = NtStatus.STATUS_PENDING
 
-    def _get_symlink_error_detail_msg(self, error_detail):
-        flag = str(error_detail['flags'])
-        print_name = error_detail.get_print_name()
-        sub_name = error_detail.get_substitute_name()
-        detail_msg = "Flag: %s, Print Name: %s, Substitute Name: %s" \
-                     % (flag, print_name, sub_name)
-        return detail_msg
+
+class NotifyCleanup(SMBResponseException):
+    _BASE_MESSAGE = "Indicates that a notify change request has been completed due to closing the handle that made " \
+                    "the notify change request."
+    _STATUS_CODE = NtStatus.STATUS_NOTIFY_CLEANUP
+
+
+class NotifyEnumDir(SMBResponseException):
+    _BASE_MESSAGE = "Indicates that a notify change request is being completed and that the information is not " \
+                    "being returned in the caller's buffer. The caller now needs to enumerate the files to find " \
+                    "the changes."
+    _STATUS_CODE = NtStatus.STATUS_NOTIFY_ENUM_DIR
+
+
+class BufferOverflow(SMBResponseException):
+    _BASE_MESSAGE = "The data was too large to fit into the specified buffer."
+    _STATUS_CODE = NtStatus.STATUS_BUFFER_OVERFLOW
+
+
+class NoMoreFiles(SMBResponseException):
+    _BASE_MESSAGE = "No more files were found which match the file specification."
+    _STATUS_CODE = NtStatus.STATUS_NO_MORE_FILES
+
+
+class EndOfFile(SMBResponseException):
+    _BASE_MESSAGE = "The end-of-file marker has been reached. There is no valid data in the file beyond this marker."
+    _STATUS_CODE = NtStatus.STATUS_END_OF_FILE
+
+
+class InvalidEAName(SMBResponseException):
+    _BASE_MESSAGE = "The specified extended attribute (EA) name contains at least one illegal character."
+    _STATUS_CODE = NtStatus.STATUS_INVALID_EA_NAME
+
+
+class EAListInconsistent(SMBResponseException):
+    _BASE_MESSAGE = "The extended attribute (EA) list is inconsistent."
+    _STATUS_CODE = NtStatus.STATUS_EA_LIST_INCONSISTENT
+
+
+class StoppedOnSymlink(SMBResponseException):
+    _BASE_MESSAGE = "The create operation stopped after reaching a symbolic link."
+    _STATUS_CODE = NtStatus.STATUS_STOPPED_ON_SYMLINK
+
+
+class InfoLengthMismatch(SMBResponseException):
+    _BASE_MESSAGE = "The specified information record length does not match the length that is required for the " \
+                    "specified information class."
+    _STATUS_CODE = NtStatus.STATUS_INFO_LENGTH_MISMATCH
+
+
+class InvalidParameter(SMBResponseException):
+    _BASE_MESSAGE = "An invalid parameter was passed to a service or function."
+    _STATUS_CODE = NtStatus.STATUS_INVALID_PARAMETER
+
+
+class NoSuchFile(SMBResponseException):
+    _BASE_MESSAGE = "The file does not exist."
+    _STATUS_CODE = NtStatus.STATUS_NO_SUCH_FILE
+
+
+class MoreProcessingRequired(SMBResponseException):
+    _BASE_MESSAGE = "The specified I/O request packet (IRP) cannot be disposed of because the I/O operation is not " \
+                    "complete."
+    _STATUS_CODE = NtStatus.STATUS_MORE_PROCESSING_REQUIRED
+
+
+class AccessDenied(SMBResponseException):
+    _BASE_MESSAGE = "A process has requested access to an object but has not been granted those access rights."
+    _STATUS_CODE = NtStatus.STATUS_ACCESS_DENIED
+
+
+class BufferTooSmall(SMBResponseException):
+    _BASE_MESSAGE = "The buffer is too small to contain the entry. No information has been written to the buffer."
+    _STATUS_CODE = NtStatus.STATUS_BUFFER_TOO_SMALL
+
+
+class ObjectNameInvalid(SMBResponseException):
+    _BASE_MESSAGE = "The object name is invalid."
+    _STATUS_CODE = NtStatus.STATUS_OBJECT_NAME_INVALID
+
+
+class ObjectNameNotFound(SMBResponseException):
+    _BASE_MESSAGE = "The object name is not found."
+    _STATUS_CODE = NtStatus.STATUS_OBJECT_NAME_NOT_FOUND
+
+
+class ObjectNameCollision(SMBResponseException):
+    _BASE_MESSAGE = "The object name already exists."
+    _STATUS_CODE = NtStatus.STATUS_OBJECT_NAME_COLLISION
+
+
+class ObjectPathInvalid(SMBResponseException):
+    _BASE_MESSAGE = "The object path component was not a directory object."
+    _STATUS_CODE = NtStatus.STATUS_OBJECT_PATH_INVALID
+
+
+class ObjectPathNotFound(SMBResponseException):
+    _BASE_MESSAGE = "The path does not exist."
+    _STATUS_CODE = NtStatus.STATUS_OBJECT_PATH_NOT_FOUND
+
+
+class ObjectPathSyntaxBad(SMBResponseException):
+    _BASE_MESSAGE = "The object path component was not a directory object."
+    _STATUS_CODE = NtStatus.STATUS_OBJECT_PATH_SYNTAX_BAD
+
+
+class SharingViolation(SMBResponseException):
+    _BASE_MESSAGE = "A file cannot be opened because the share access flags are incompatible."
+    _STATUS_CODE = NtStatus.STATUS_SHARING_VIOLATION
+
+
+class EASNotSupported(SMBResponseException):
+    _BASE_MESSAGE = "An operation involving EAs failed because the file system does not support EAs."
+    _STATUS_CODE = NtStatus.STATUS_EAS_NOT_SUPPORTED
+
+
+class EATooLarge(SMBResponseException):
+    _BASE_MESSAGE = "An EA operation failed because the EA set is too large."
+    _STATUS_CODE = NtStatus.STATUS_EA_TOO_LARGE
+
+
+class NonExistentEAEntry(SMBResponseException):
+    _BASE_MESSAGE = "An EA operation failed because the name or EA index is invalid."
+    _STATUS_CODE = NtStatus.STATUS_NONEXISTENT_EA_ENTRY
+
+
+class NoEASOnFile(SMBResponseException):
+    _BASE_MESSAGE = "The file for which EAs were requested has no EAs."
+    _STATUS_CODE = NtStatus.STATUS_NO_EAS_ON_FILE
+
+
+class EACorruptError(SMBResponseException):
+    _BASE_MESSAGE = "The EA is corrupt and cannot be read."
+    _STATUS_CODE = NtStatus.STATUS_EA_CORRUPT_ERROR
+
+
+class PrivilegeNotHeld(SMBResponseException):
+    _BASE_MESSAGE = "A required privilege is not held by the client."
+    _STATUS_CODE = NtStatus.STATUS_PRIVILEGE_NOT_HELD
+
+
+class LogonFailure(SMBResponseException):
+    _BASE_MESSAGE = "The attempted logon is invalid. This is either due to a bad username or authentication " \
+                    "information."
+    _STATUS_CODE = NtStatus.STATUS_LOGON_FAILURE
+
+
+class PasswordExpired(SMBResponseException):
+    _BASE_MESSAGE = "The user account password has expired."
+    _STATUS_CODE = NtStatus.STATUS_PASSWORD_EXPIRED
+
+
+class InsufficientResources(SMBResponseException):
+    _BASE_MESSAGE = "Insufficient system resources exist to complete the API."
+    _STATUS_CODE = NtStatus.STATUS_INSUFFICIENT_RESOURCES
+
+
+class PipeBusy(SMBResponseException):
+    _BASE_MESSAGE = "The specified pipe is set to complete operations and there are current I/O operations queued " \
+                    "so that it cannot be changed to queue operations."
+    _STATUS_CODE = NtStatus.STATUS_PIPE_BUSY
+
+
+class PipeClosing(SMBResponseException):
+    _BASE_MESSAGE = "The specified named pipe is in the closing state."
+    _STATUS_CODE = NtStatus.STATUS_PIPE_CLOSING
+
+
+class PipeDisconnected(SMBResponseException):
+    _BASE_MESSAGE = "The specified named pipe is in the disconnected state."
+    _STATUS_CODE = NtStatus.STATUS_PIPE_DISCONNECTED
+
+
+class FileIsADirectory(SMBResponseException):
+    _BASE_MESSAGE = "The file that was specified as a target is a directory, and the caller specified that it could " \
+                    "be anything but a directory."
+    _STATUS_CODE = NtStatus.STATUS_FILE_IS_A_DIRECTORY
+
+
+class NotSupported(SMBResponseException):
+    _BASE_MESSAGE = "The request is not supported."
+    _STATUS_CODE = NtStatus.STATUS_NOT_SUPPORTED
+
+
+class BadNetworkName(SMBResponseException):
+    _BASE_MESSAGE = "The specified share name cannot be found on the remote server."
+    _STATUS_CODE = NtStatus.STATUS_BAD_NETWORK_NAME
+
+
+class RequestNotAccepted(SMBResponseException):
+    _BASE_MESSAGE = "No more connections can be made to this remote computer at this time because the computer has " \
+                    "already accepted the maximum number of connections."
+    _STATUS_CODE = NtStatus.STATUS_REQUEST_NOT_ACCEPTED
+
+
+class PipeEmpty(SMBResponseException):
+    _BASE_MESSAGE = "Used to indicate that a read operation was done on an empty pipe."
+    _STATUS_CODE = NtStatus.STATUS_PIPE_EMPTY
+
+
+class InternalError(SMBResponseException):
+    _BASE_MESSAGE = "An internal error occurred."
+    _STATUS_CODE = NtStatus.STATUS_INTERNAL_ERROR
+
+
+class DirectoryNotEmpty(SMBResponseException):
+    _BASE_MESSAGE = "Indicates that the directory trying to be deleted is not empty."
+    _STATUS_CODE = NtStatus.STATUS_DIRECTORY_NOT_EMPTY
+
+
+class StatusNotADirectory(SMBResponseException):
+    _BASE_MESSAGE = "A requested opened file is not a directory."
+    _STATUS_CODE = NtStatus.STATUS_NOT_A_DIRECTORY
+
+
+class Cancelled(SMBResponseException):
+    _BASE_MESSAGE = "The I/O request was canceled."
+    _STATUS_CODE = NtStatus.STATUS_CANCELLED
+
+
+class CannotDelete(SMBResponseException):
+    _BASE_MESSAGE = "An attempt has been made to remove a file or directory that cannot be deleted."
+    _STATUS_CODE = NtStatus.STATUS_CANNOT_DELETE
+
+
+class FileClosed(SMBResponseException):
+    _BASE_MESSAGE = "An I/O request other than close and several other special case operations was attempted using " \
+                    "a file object that had already been closed."
+    _STATUS_CODE = NtStatus.STATUS_FILE_CLOSED
+
+
+class PipeBroken(SMBResponseException):
+    _BASE_MESSAGE = "The pipe operation has failed because the other end of the pipe has been closed."
+    _STATUS_CODE = NtStatus.STATUS_PIPE_BROKEN
+
+
+class UserSessionDeleted(SMBResponseException):
+    _BASE_MESSAGE = "The remote user session has been deleted."
+    _STATUS_CODE = NtStatus.STATUS_USER_SESSION_DELETED
+
+
+class NotAReparsePoint(SMBResponseException):
+    _BASE_MESSAGE = "The NTFS file or directory is not a reparse point."
+    _STATUS_CODE = NtStatus.STATUS_NOT_A_REPARSE_POINT
+
+
+class ServerUnavailable(SMBResponseException):
+    _BASE_MESSAGE = "The file server is temporarily unavailable."
+    _STATUS_CODE = NtStatus.STATUS_SERVER_UNAVAILABLE
 
 
 class ErrorContextId(object):

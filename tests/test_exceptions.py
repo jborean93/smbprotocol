@@ -125,12 +125,11 @@ class TestSMBResponseException(object):
         error_resp = SMB2ErrorResponse()
         header = self._get_header(error_resp)
         try:
-            raise SMBResponseException(header, header['status'].get_value(),
-                                       header['message_id'].get_value())
+            raise SMBResponseException(header, header['status'].get_value())
         except SMBResponseException as exc:
             assert exc.error_details == []
-            exp_resp = "Received unexpected status from the server: " \
-                       "(3221225485) STATUS_INVALID_PARAMETER: 0xc000000d"
+            exp_resp = "Received unexpected status from the server: An invalid parameter was passed to a service or " \
+                       "function. (3221225485) STATUS_INVALID_PARAMETER: 0xc000000d"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
@@ -147,17 +146,14 @@ class TestSMBResponseException(object):
         header = self._get_header(error_resp,
                                   NtStatus.STATUS_STOPPED_ON_SYMLINK)
         try:
-            raise SMBResponseException(header, header['status'].get_value(),
-                                       header['message_id'].get_value())
+            raise SMBResponseException(header, header['status'].get_value())
         except SMBResponseException as exc:
             assert len(exc.error_details) == 1
             err1 = exc.error_details[0]
             assert isinstance(err1, SMB2SymbolicLinkErrorResponse)
-            exp_resp = "Received unexpected status from the server: " \
-                       "(2147483693) STATUS_STOPPED_ON_SYMLINK: 0x8000002d " \
-                       "- Flag: (0) SYMLINK_FLAG_ABSOLUTE, " \
-                       r"Print Name: C:\temp\folder, " \
-                       r"Substitute Name: \??\C:\temp\folder"
+            exp_resp = "Received unexpected status from the server: The create operation stopped after reaching a " \
+                       "symbolic link. (2147483693) STATUS_STOPPED_ON_SYMLINK: 0x8000002d - Flag: (0) " \
+                       "SYMLINK_FLAG_ABSOLUTE, Print Name: C:\\temp\\folder, Substitute Name: \\??\\C:\\temp\\folder"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
             assert exc.status == NtStatus.STATUS_STOPPED_ON_SYMLINK
@@ -180,15 +176,14 @@ class TestSMBResponseException(object):
         header = self._get_header(error_resp,
                                   NtStatus.STATUS_BAD_NETWORK_NAME)
         try:
-            raise SMBResponseException(header, header['status'].get_value(),
-                                       header['message_id'].get_value())
+            raise SMBResponseException(header, header['status'].get_value())
         except SMBResponseException as exc:
             assert len(exc.error_details) == 1
             err1 = exc.error_details[0]
             assert isinstance(err1, SMB2ShareRedirectErrorContext)
-            exp_resp = "Received unexpected status from the server: " \
-                       "(3221225676) STATUS_BAD_NETWORK_NAME: 0xc00000cc - " \
-                       "IP Addresses: '192.168.1.100', Resource Name: resource"
+            exp_resp = "Received unexpected status from the server: The specified share name cannot be found on " \
+                       "the remote server. (3221225676) STATUS_BAD_NETWORK_NAME: 0xc00000cc - IP Addresses: " \
+                       "'192.168.1.100', Resource Name: resource"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
             assert exc.status == NtStatus.STATUS_BAD_NETWORK_NAME
@@ -200,14 +195,12 @@ class TestSMBResponseException(object):
         error_resp['error_data'] = [cont_resp]
         header = self._get_header(error_resp)
         try:
-            raise SMBResponseException(header, header['status'].get_value(),
-                                       header['message_id'].get_value())
+            raise SMBResponseException(header, header['status'].get_value())
         except SMBResponseException as exc:
             assert len(exc.error_details) == 1
             assert exc.error_details[0] == b"\x01\x02\x03\x04"
-            exp_resp = "Received unexpected status from the server: " \
-                       "(3221225485) STATUS_INVALID_PARAMETER: 0xc000000d - " \
-                       "Raw: 01020304"
+            exp_resp = "Received unexpected status from the server: An invalid parameter was passed to a service " \
+                       "or function. (3221225485) STATUS_INVALID_PARAMETER: 0xc000000d - Raw: 01020304"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
@@ -223,15 +216,13 @@ class TestSMBResponseException(object):
         ]
         header = self._get_header(error_resp)
         try:
-            raise SMBResponseException(header, header['status'].get_value(),
-                                       header['message_id'].get_value())
+            raise SMBResponseException(header, header['status'].get_value())
         except SMBResponseException as exc:
             assert len(exc.error_details) == 2
             assert exc.error_details[0] == b"\x01\x02\x03\x04"
             assert exc.error_details[1] == b"\x05\x06\x07\x08"
-            exp_resp = "Received unexpected status from the server: " \
-                       "(3221225485) STATUS_INVALID_PARAMETER: 0xc000000d - " \
-                       "Raw: 01020304, Raw: 05060708"
+            exp_resp = "Received unexpected status from the server: An invalid parameter was passed to a service " \
+                       "or function. (3221225485) STATUS_INVALID_PARAMETER: 0xc000000d - Raw: 01020304, Raw: 05060708"
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
 
@@ -254,6 +245,11 @@ class TestSMBResponseException(object):
         assert error_context['error_data_length'].get_value() == 4
         assert error_context['error_id'].get_value() == ErrorContextId.SMB2_ERROR_ID_DEFAULT
         assert error_context['error_context_data'].get_value() == b"\x01\x02\x03\x04"
+
+    def test_inherited_exception_no_code(self):
+        with pytest.raises(ValueError, match="MyError does not have the _STATUS_CODE class attribute set"):
+            class MyError(SMBResponseException):
+                pass
 
     def _get_header(self, data, status=NtStatus.STATUS_INVALID_PARAMETER):
         header = SMB2HeaderResponse()

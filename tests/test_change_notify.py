@@ -16,7 +16,8 @@ from smbprotocol.connection import (
 )
 
 from smbprotocol.exceptions import (
-    SMBResponseException,
+    InvalidParameter,
+    NotifyCleanup,
 )
 
 from smbprotocol.session import Session
@@ -383,8 +384,7 @@ class TestChangeNotify(object):
 
             open.close()
 
-            expected = "Received unexpected status from the server: (267) STATUS_NOTIFY_CLEANUP"
-            with pytest.raises(SMBResponseException, match=re.escape(expected)):
+            with pytest.raises(NotifyCleanup):
                 watcher.wait()
         finally:
             connection.disconnect(True)
@@ -451,8 +451,7 @@ class TestChangeNotify(object):
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)
-            expected = "Received unexpected status from the server: (3221225485) STATUS_INVALID_PARAMETER"
-            with pytest.raises(SMBResponseException, match=re.escape(expected)):
+            with pytest.raises(InvalidParameter):
                 watcher.wait()
         finally:
             connection.disconnect(True)

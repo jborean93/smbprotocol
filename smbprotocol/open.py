@@ -19,9 +19,8 @@ from smbprotocol.create_contexts import (
 )
 
 from smbprotocol.exceptions import (
-    NtStatus,
+    FileClosed,
     SMBException,
-    SMBResponseException,
     SMBUnsupportedFeature,
 )
 
@@ -1540,14 +1539,10 @@ class Open(object):
                                self.tree_connect.share_name))
         try:
             response = self.connection.receive(request)
-        except SMBResponseException as exc:
-            # check if it was already closed
-            if exc.status == NtStatus.STATUS_FILE_CLOSED:
-                self._connected = False
-                self.tree_connect.session.open_table.pop(self.file_id, None)
-                return
-            # else raise the exception
-            raise exc
+        except FileClosed:
+            self._connected = False
+            self.tree_connect.session.open_table.pop(self.file_id, None)
+            return
 
         c_resp = SMB2CloseResponse()
         c_resp.unpack(response['data'].get_value())

@@ -13,7 +13,8 @@ from smbprotocol import (
 )
 
 from smbprotocol.exceptions import (
-    NtStatus,
+    NoMoreFiles,
+    PipeBroken,
     SMBOSError,
     SMBResponseException,
 )
@@ -415,10 +416,8 @@ class SMBRawIO(io.RawIOBase):
         while len(data) < remaining_bytes or self.FILE_TYPE == 'pipe':
             try:
                 data_part = self.fd.read(self._offset, self._buffer_size)
-            except SMBResponseException as exc:
-                if exc.status == NtStatus.STATUS_PIPE_BROKEN:
-                    break
-                raise
+            except PipeBroken:
+                break
 
             data += data_part
             if self.FILE_TYPE != 'pipe':
@@ -439,11 +438,8 @@ class SMBRawIO(io.RawIOBase):
 
         try:
             file_bytes = self.fd.read(self._offset, len(b))
-        except SMBResponseException as exc:
-            if exc.status == NtStatus.STATUS_PIPE_BROKEN:
-                file_bytes = b""
-            else:
-                raise
+        except PipeBroken:
+            file_bytes = b""
 
         b[:len(file_bytes)] = file_bytes
 
@@ -489,10 +485,8 @@ class SMBDirectoryIO(SMBRawIO):
         while True:
             try:
                 entries = self.fd.query_directory(pattern, info_class, flags=query_flags)
-            except SMBResponseException as exc:
-                if exc.status == NtStatus.STATUS_NO_MORE_FILES:
-                    break
-                raise
+            except NoMoreFiles:
+                break
 
             query_flags = 0  # Only the first request should have set SMB2_RESTART_SCANS
             for entry in entries:

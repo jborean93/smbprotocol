@@ -15,7 +15,8 @@ from smbprotocol.connection import (
 )
 
 from smbprotocol.exceptions import (
-    SMBResponseException,
+    Cancelled,
+    NotifyEnumDir,
 )
 
 from smbprotocol.structure import (
@@ -281,17 +282,16 @@ class FileSystemWatcher(object):
     def _on_response(self):
         try:
             self.open.connection.receive(self._request)
-        except SMBResponseException as exc:
-            if exc.status == NtStatus.STATUS_CANCELLED:
-                self.is_cancelled = True
-            elif exc.status == NtStatus.STATUS_NOTIFY_ENUM_DIR:
-                # output_buffer_length was 0 so we only need to notify the caller that a change occurred, set an empty
-                # action list.
-                self._file_actions = []
-            else:
-                self._t_exc = exc
+
+        except Cancelled:
+            self.is_cancelled = True
+        except NotifyEnumDir:
+            # output_buffer_length was 0 so we only need to notify the caller that a change occurred, set an empty
+            # action list.
+            self._file_actions = []
         except Exception as exc:
             self._t_exc = exc
+
         finally:
             log.debug("Firing response event for %s change notify" % self.open.file_name)
             self.response_event.set()
