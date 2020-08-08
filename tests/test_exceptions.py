@@ -246,6 +246,11 @@ class TestSMBResponseException(object):
         assert error_context['error_id'].get_value() == ErrorContextId.SMB2_ERROR_ID_DEFAULT
         assert error_context['error_context_data'].get_value() == b"\x01\x02\x03\x04"
 
+    def test_inherited_exception_no_code(self):
+        with pytest.raises(ValueError, match="MyError does not have the _STATUS_CODE class attribute set"):
+            class MyError(SMBResponseException):
+                pass
+
     def _get_header(self, data, status=NtStatus.STATUS_INVALID_PARAMETER):
         header = SMB2HeaderResponse()
         header['status'] = status
