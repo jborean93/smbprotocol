@@ -1204,7 +1204,7 @@ class Connection(object):
             header['command'] = message.COMMAND
             header['credit_request'] = credit_request if credit_request else credit_charge
             header['message_id'] = current_id
-            header['session_id'] = session_id or 0
+            header['session_id'] = session_id if session_id and session_id > 0 else 0
             header['data'] = message.pack()
             header['next_command'] = next_command
 
@@ -1232,6 +1232,13 @@ class Connection(object):
             else:
                 request = Request(header, type(message), self, session_id=session_id)
                 self.outstanding_requests[header['message_id'].get_value()] = request
+
+            # Make sure the preauth integrity values are updated for a negotiate or session setup message.
+            if message.COMMAND == Commands.SMB2_NEGOTIATE:
+                self.preauth_integrity_hash_value.append(b_header)
+
+            elif message.COMMAND == Commands.SMB2_SESSION_SETUP:
+                self.preauth_session_table[session_id].preauth_integrity_hash_value.append(b_header)
 
             requests.append(request)
 
@@ -1287,6 +1294,14 @@ class Connection(object):
                     credit_response = header['credit_response'].get_value()
                     with self.sequence_lock:
                         self.sequence_window['high'] += credit_response if credit_response > 0 else 1
+
+                    command = header['command'].get_value()
+                    status = header['status'].get_value()
+                    if command == Commands.SMB2_NEGOTIATE:
+                        self.preauth_integrity_hash_value.append(b_header)
+
+                    elif command == Commands.SMB2_SESSION_SETUP and status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
+                        self.preauth_session_table[message_id] = b_header
 
                     with request.response_event_lock:
                         if header['flags'].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
@@ -1444,12 +1459,10 @@ class Connection(object):
         log.info("Sending SMB2 Negotiate message")
         log.debug(neg_req)
         request = self.send(neg_req)
-        self.preauth_integrity_hash_value.append(request.message)
 
         response = self.receive(request, timeout=timeout)
         log.info("Receiving SMB2 Negotiate response")
         log.debug(response)
-        self.preauth_integrity_hash_value.append(response)
 
         smb_response = SMB2NegotiateResponse()
         smb_response.unpack(response['data'].get_value())
