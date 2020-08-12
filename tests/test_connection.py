@@ -1095,7 +1095,9 @@ class TestConnection(object):
         connection.connect()
         try:
             session.connect()
-            header = connection.preauth_integrity_hash_value[-2]
+            b_header = connection.preauth_integrity_hash_value[-2]
+            header = SMB2HeaderResponse()
+            header.unpack(b_header)
             # just set some random values for verification failure
             header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             header['signature'] = b"\xff" * 16
@@ -1112,7 +1114,9 @@ class TestConnection(object):
         try:
             session.connect()
             # just get some random message
-            header = connection.preauth_integrity_hash_value[-1]
+            b_header = connection.preauth_integrity_hash_value[-1]
+            header = SMB2HeaderResponse()
+            header.unpack(b_header)
             enc_header = connection._encrypt(header.pack(), session)
             assert isinstance(enc_header, SMB2TransformHeader)
             enc_header['flags'] = 5
@@ -1130,7 +1134,9 @@ class TestConnection(object):
         try:
             session.connect()
             # just get some random message
-            header = connection.preauth_integrity_hash_value[-1]
+            b_header = connection.preauth_integrity_hash_value[-1]
+            header = SMB2HeaderResponse()
+            header.unpack(b_header)
             enc_header = connection._encrypt(header.pack(), session)
             assert isinstance(enc_header, SMB2TransformHeader)
             enc_header['session_id'] = 100

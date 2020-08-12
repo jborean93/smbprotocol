@@ -133,7 +133,8 @@ class TestSession(object):
             assert session.decryption_key is None
             assert not session.encrypt_data
             assert session.encryption_key is None
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert not session.require_encryption
             assert session.session_id is not None
             assert session.session_key == session.application_key
@@ -153,7 +154,8 @@ class TestSession(object):
             assert session.decryption_key is None
             assert not session.encrypt_data
             assert session.encryption_key is None
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert not session.require_encryption
             assert session.session_id is not None
             assert session.session_key == session.application_key
@@ -175,7 +177,8 @@ class TestSession(object):
             assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
@@ -198,7 +201,8 @@ class TestSession(object):
             assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
@@ -221,7 +225,8 @@ class TestSession(object):
             assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
@@ -246,7 +251,8 @@ class TestSession(object):
             assert session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
@@ -296,7 +302,8 @@ class TestSession(object):
             assert not session.encrypt_data
             assert len(session.encryption_key) == 16
             assert session.encryption_key != session.session_key
-            assert len(session.preauth_integrity_hash_value) == 5
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
             assert not session.require_encryption
             assert session.session_id is not None
             assert len(session.session_key) == 16
