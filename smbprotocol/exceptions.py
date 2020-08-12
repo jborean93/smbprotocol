@@ -46,6 +46,7 @@ class NtStatus(object):
     not an exhaustive list but common values that are returned.
     """
     STATUS_SUCCESS = 0x00000000
+    STATUS_NETWORK_NAME_DELETED = 0xC00000C9
     STATUS_PENDING = 0x00000103
     STATUS_NOTIFY_CLEANUP = 0x0000010B
     STATUS_NOTIFY_ENUM_DIR = 0x0000010C
@@ -93,6 +94,9 @@ class NtStatus(object):
     STATUS_FILE_CLOSED = 0xC0000128
     STATUS_PIPE_BROKEN = 0xC000014B
     STATUS_USER_SESSION_DELETED = 0xC0000203
+    STATUS_NOT_FOUND = 0xC0000225
+    STATUS_PATH_NOT_COVERED = 0xC0000257
+    STATUS_DFS_UNAVAILABLE = 0xC000026D
     STATUS_NOT_A_REPARSE_POINT = 0xC0000275
     STATUS_SERVER_UNAVAILABLE = 0xC0000466
 
@@ -239,7 +243,8 @@ class _SMBErrorRegistry(type):
 
         cls.__registry[cls._STATUS_CODE] = cls
 
-    def __call__(cls, header, status):
+    def __call__(cls, header, status=None):
+        status = status or header['status'].get_value()
         new_cls = cls.__registry.get(status, cls)
         return super(_SMBErrorRegistry, new_cls).__call__(header, status)
 
@@ -256,7 +261,7 @@ class SMBResponseException(SMBException):
 
     _BASE_MESSAGE = 'Unknown error.'
 
-    def __init__(self, header, status):  # type: (any, int) -> None
+    def __init__(self, header, status=None):  # type: (any, int) -> None
         self.header = header
         self.status = status
 
@@ -320,6 +325,11 @@ class SMBResponseException(SMBException):
 
     def __str__(self):
         return self.message
+
+
+class NetworkNameDelegated(SMBResponseException):
+    _BASE_MESSAGE = "The network name was deleted."
+    _STATUS_CODE = NtStatus.STATUS_NETWORK_NAME_DELETED
 
 
 class StatusPending(SMBResponseException):
@@ -565,6 +575,21 @@ class PipeBroken(SMBResponseException):
 class UserSessionDeleted(SMBResponseException):
     _BASE_MESSAGE = "The remote user session has been deleted."
     _STATUS_CODE = NtStatus.STATUS_USER_SESSION_DELETED
+
+
+class NotFound(SMBResponseException):
+    _BASE_MESSAGE = "The object was not found."
+    _STATUS_CODE = NtStatus.STATUS_NOT_FOUND
+
+
+class PathNotCovered(SMBResponseException):
+    _BASE_MESSAGE = "The contacted server does not support the indicated part of the DFS namespace."
+    _STATUS_CODE = NtStatus.STATUS_PATH_NOT_COVERED
+
+
+class DfsUnavailable(SMBResponseException):
+    _BASE_MESSAGE = "DFS is unavailable on the contacted server."
+    _STATUS_CODE = NtStatus.STATUS_DFS_UNAVAILABLE
 
 
 class NotAReparsePoint(SMBResponseException):
