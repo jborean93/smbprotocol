@@ -116,7 +116,7 @@ class ClientConfig(object):
 
         ipc_tree = get_smb_tree(u'\\\\%s\\IPC$' % value)[0]
         try:
-            domain_referral_response = _dfs_request(ipc_tree, u'')
+            domain_referral_response = dfs_request(ipc_tree, u'')
         except InvalidParameter:
             log.warning("Specified domain controller %s return STATUS_INVALID_PARAMETER, cannot use as DFS domain "
                         "cache source" % value)
@@ -172,7 +172,7 @@ class ClientConfig(object):
             self.domain_controller = domain_controller
 
 
-def _dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
+def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
     """ Send a DFS Referral request to the IPC tree and return the referrals. """
     site_name = ClientConfig().site
     if site_name:
@@ -276,7 +276,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             # If the path is a valid domain name but our domain referral is not currently valid, issue a DC referral
             # to our known domain controller.
             ipc_tree = get_smb_tree(u"\\\\%s\\IPC$" % client_config.domain_controller, **get_kwargs)[0]
-            referral_response = _dfs_request(ipc_tree, domain_referral.domain_name)
+            referral_response = dfs_request(ipc_tree, domain_referral.domain_name)
             domain_referral.process_dc_referral(referral_response)
 
             # TODO: Check if the 2nd path is SYSVOL or NETLOGON and do step 10
@@ -284,7 +284,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
         if domain_referral:
             # Use the dc hint as the source for the root referral request
             ipc_tree = get_smb_tree(u"\\%s\\IPC$" % domain_referral.dc_hint, **get_kwargs)[0]
-            referral_response = _dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
+            referral_response = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
             client_config.cache_referral(referral_response)
             referral = client_config.lookup_referral(path_split)
             path = path.replace(referral.dfs_path, referral.target_hint.target_path, 1)
@@ -307,7 +307,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
             # The share could be a DFS root, issue a root referral request to the hostname and cache the result.
             ipc_tree = get_smb_tree(ipc_path, **get_kwargs)[0]
-            referral = _dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
+            referral = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
             client_config.cache_referral(referral)
             return get_smb_tree(path, **get_kwargs)
 

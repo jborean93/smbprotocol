@@ -5,6 +5,8 @@
 import io
 
 from smbclient._pool import (
+    ClientConfig,
+    dfs_request,
     get_smb_tree,
 )
 
@@ -14,6 +16,7 @@ from smbprotocol import (
 
 from smbprotocol.exceptions import (
     NoMoreFiles,
+    PathNotCovered,
     PipeBroken,
     SMBOSError,
     SMBResponseException,
@@ -340,6 +343,19 @@ class SMBRawIO(io.RawIOBase):
                 self._create_options,
                 send=(transaction is None),
             )
+        except PathNotCovered:
+            # Path is on a DFS root that is linked to another server.
+            client_config = ClientConfig()
+            referral = dfs_request(self.fd.tree_connect, self.name[1:])
+            client_config.cache_referral(referral)
+            info = client_config.lookup_referral([p for p in self.name.split("\\") if p])
+            new_path = self.name.replace(info.dfs_path, info.target_hint.target_path, 1)
+
+            tree, fd_path = get_smb_tree(new_path)
+            self.fd = Open(tree, fd_path)
+            self.open(transaction=transaction)
+            return
+
         except SMBResponseException as exc:
             raise SMBOSError(exc.status, self.name)
 
