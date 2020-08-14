@@ -157,6 +157,16 @@ class ReferralEntry:
             for e in self._referrals
         ]
 
+    def __iter__(self):  # type: () -> Iterator[DFSTarget]
+        """ Iterates through the target_list with a priority being the hinted value. """
+        yield self.target_list[self._target_hint_idx]
+
+        for idx, target in enumerate(self.target_list):
+            if idx == self._target_hint_idx:
+                continue
+
+            yield target
+
 
 class DFSReferralRequestFlags:
     """

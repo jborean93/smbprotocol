@@ -182,6 +182,10 @@ def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
 
     else:
         dfs_referral = DFSReferralRequest()
+
+    # DFS paths only have 1 leading slash.
+    if path.startswith(u"\\\\"):
+        path = path[1:]
     dfs_referral['request_file_name'] = path
 
     ioctl_req = SMB2IOCTLRequest()
