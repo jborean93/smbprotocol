@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 - TBD
+## 1.1.0 - 2020-08-14
 
 * Speed up logging statements for large messages like a read and write message
 * Changed authentication dep to [pyspnego](https://github.com/jborean93/pyspnego) that handles all the authentication work
