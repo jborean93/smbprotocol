@@ -13,7 +13,12 @@ store dos attributes = yes
 vfs objects = xattr_tdb streams_xattr
 
 [dfs]
+comment = Test Samba DFS Root
 path = /srv/samba/dfsroot
+browsable = yes
+guest ok = no
+read only = no
+create mask = 0755
 msdfs root = yes
 
 [$SMB_SHARE]
@@ -43,8 +48,8 @@ useradd $SMB_USER -G smbgroup
 mkdir -p /srv/samba/dfsroot
 chmod -R 0755 /srv/samba/dfsroot
 chown -R $SMB_USER:smbgroup /srv/samba/dfsroot
-ln -s msdfs:127.0.0.1\\share /srv/samba/dfsroot/$SMB_SHARE
-ln -s msdfs:127.0.0.1\\missing,127.0.0.1\\share-encrypted /srv/samba/dfsroot/$SMB_SHARE-encrypted
+ln -s msdfs:localhost\\$SMB_SHARE /srv/samba/dfsroot/$SMB_SHARE
+ln -s msdfs:localhost\\missing,localhost\\$SMB_SHARE-encrypted /srv/samba/dfsroot/$SMB_SHARE-encrypted
 
 mkdir -p /srv/samba/$SMB_SHARE
 chmod -R 0755 /srv/samba/$SMB_SHARE

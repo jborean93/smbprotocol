@@ -2,6 +2,8 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from __future__ import division
+
 import copy
 import math
 import struct
@@ -945,6 +947,7 @@ class TextField(BytesField):
         return self.value
 
     def unpack(self, data):
+        import base64
         null_byte = u"\x00".encode(self.encoding)
 
         if self.null_terminated and self.size is None:
@@ -953,7 +956,7 @@ class TextField(BytesField):
             if null_index != -1:
                 # In the case of UTF-16 we might be the index in the middle of a char, make sure we round up and get
                 # the boundary of each char.
-                actual_index = math.ceil(null_index / len(null_byte)) * len(null_byte)
+                actual_index = int(math.ceil(null_index / len(null_byte)) * len(null_byte))
 
                 self.set_value(data[0:actual_index])
                 return data[actual_index + len(null_byte):]

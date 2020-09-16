@@ -1897,3 +1897,26 @@ def test_xattr_dont_follow(smb_share):
 
     smbclient.removexattr(dst_filename, b"KEY", follow_symlinks=False)
     assert smbclient.listxattr(dst_filename, follow_symlinks=False) == []
+
+
+def test_dfs_path(smb_dfs_share):
+    actual_listdir = smbclient.listdir(smb_dfs_share)
+    assert actual_listdir == []
+
+    test_dir = ntpath.join(smb_dfs_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_dfs_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    for info in smbclient.scandir(smb_dfs_share):
+        if info.name == 'test file.txt':
+            assert info.path == test_file
+            assert not info.is_dir()
+            assert info.is_file()
+
+        else:
+            assert info.path == test_dir
+            assert info.is_dir()
+            assert not info.is_file()

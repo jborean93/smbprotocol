@@ -18,6 +18,7 @@ from smbprotocol import (
 from smbprotocol.exceptions import (
     NoMoreFiles,
     ObjectNameNotFound,
+    ObjectPathNotFound,
     PathNotCovered,
     PipeBroken,
     SMBOSError,
@@ -269,6 +270,7 @@ class SMBRawIO(io.RawIOBase):
         self._offset = 0
         self._flush = False
         self._buffer_size = buffer_size
+        self.__kwargs = kwargs  # Used in open for DFS referrals
 
         if desired_access is None:
             desired_access = 0
@@ -347,9 +349,9 @@ class SMBRawIO(io.RawIOBase):
                 self._create_options,
                 send=(transaction is None),
             )
-        except (PathNotCovered, ObjectNameNotFound) as exc:
+        except (PathNotCovered, ObjectNameNotFound, ObjectPathNotFound) as exc:
             # The MS-DFSC docs status that STATUS_PATH_NOT_COVERED is used when encountering a link to a different
-            # server but Samba seems to return STATUS_OBJECT_NAME_NOT_FOUND so just handle both.
+            # server but Samba seems to return the generic name or path not found.
             if not self.fd.tree_connect.is_dfs_share:
                 raise SMBOSError(exc.status, self.name)
 
@@ -363,7 +365,7 @@ class SMBRawIO(io.RawIOBase):
                 new_path = self.name.replace(info.dfs_path, target.target_path, 1)
 
                 try:
-                    tree, fd_path = get_smb_tree(new_path)
+                    tree, fd_path = get_smb_tree(new_path, **self.__kwargs)
                     self.fd = Open(tree, fd_path)
                     self.open(transaction=transaction)
 

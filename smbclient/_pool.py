@@ -48,12 +48,12 @@ log = logging.getLogger(__name__)
 _SMB_CONNECTIONS = {}
 
 
-class _Config(type):
+class _ConfigSingleton(type):
     __instances = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls.__instances:
-            cls.__instances[cls] = super(_Config, cls).__call__(*args, **kwargs)
+            cls.__instances[cls] = super(_ConfigSingleton, cls).__call__(*args, **kwargs)
 
         else:
             # Allow users to initialise and set multiple config options like ConfigType(key=value) even when the object
@@ -63,7 +63,7 @@ class _Config(type):
         return cls.__instances[cls]
 
 
-@six.add_metaclass(_Config)
+@six.add_metaclass(_ConfigSingleton)
 class ClientConfig(object):
     """SMB Client global settings
 
@@ -105,6 +105,7 @@ class ClientConfig(object):
 
     @domain_controller.setter
     def domain_controller(self, value):
+        """ Setting the domain controller will try to get any DFS domain referrals for future lookups. """
         if self._domain_controller == value:
             return
 
@@ -159,9 +160,10 @@ class ClientConfig(object):
         domain_controller = None
         for key, value in config.items():
             if key.startswith('_'):
-                raise ValueError('Cannot set private attribute')
+                raise ValueError('Cannot set private attribute %s' % key)
 
             elif key == 'domain_controller':
+                # This must be set last in case we are setting any username/password used for a domain referral lookup.
                 domain_controller = value
 
             else:
@@ -282,8 +284,6 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             ipc_tree = get_smb_tree(u"\\\\%s\\IPC$" % client_config.domain_controller, **get_kwargs)[0]
             referral_response = dfs_request(ipc_tree, domain_referral.domain_name)
             domain_referral.process_dc_referral(referral_response)
-
-            # TODO: Check if the 2nd path is SYSVOL or NETLOGON and do step 10
 
         if domain_referral:
             # Use the dc hint as the source for the root referral request

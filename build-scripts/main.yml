@@ -21,7 +21,12 @@
         vfs objects = xattr_tdb streams_xattr
 
         [dfs]
+        comment = Test Samba DFS Root
         path = /srv/samba/dfsroot
+        browsable = yes
+        guest ok = no
+        read only = no
+        create mask = 0755
         msdfs root = yes
 
         [share]
@@ -78,9 +83,9 @@
       mode: '755'
       owner: smbuser
     loop:
-    - src: msdfs:127.0.0.1\\share
+    - src: msdfs:localhost\\share
       dest: /srv/samba/dfsroot/share
-    - src: msdfs:127.0.0.1\\missing,msdfs:127.0.0.1\\share-encrypted
+    - src: msdfs:localhost\\missing,msdfs:localhost\\share-encrypted
       dest: /srv/samba/dfsroot/share-encrypted
 
   - name: set selinux permissions for samba dir

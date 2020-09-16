@@ -250,8 +250,11 @@ class Session(object):
 
     def connect(self):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
-        context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
-                                options=spnego.NegotiateOptions.session_key)
+        try:
+            context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
+                                    options=spnego.NegotiateOptions.session_key)
+        except spnego.exceptions.SpnegoError as err:
+            raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
 
         self.connection.preauth_session_table[self.session_id] = self
         in_token = self.connection.gss_negotiate_token

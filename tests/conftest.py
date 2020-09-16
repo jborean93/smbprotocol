@@ -51,3 +51,26 @@ def smb_share(request, smb_real):
         yield share_path
     finally:
         rmtree(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+
+
+@pytest.fixture(params=[
+    ('', None),  # Root, no referral targets
+    ('share', 4),  # Simple referral to a single target
+    ('share-encrypted', 5),  # Referral to 2 targets, first is known to be broken
+])
+def smb_dfs_share(request, smb_real):
+    test_folder = u"Pýtæs†-[%s] 💩" % time.time()
+
+    if request.param[1]:
+        target_share_path = u"%s\\%s" % (smb_real[request.param[1]], test_folder)
+        dfs_path = u'\\\\%s\\dfs\\%s\\%s' % (smb_real[2], request.param[0], test_folder)
+
+    else:
+        target_share_path = u"\\\\%s\\dfs\\%s" % (smb_real[2], test_folder)
+        dfs_path = target_share_path
+
+    mkdir(target_share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+    try:
+        yield dfs_path
+    finally:
+        rmtree(target_share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])

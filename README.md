@@ -237,10 +237,12 @@ bash commands;
 export SMB_USER=smbuser
 export SMB_PASSWORD=smbpassword
 export SMB_PORT=445
-export SMB_SERVER=127.0.0.1
+export SMB_SERVER=localhost
 export SMB_SHARE=share
 
-docker run -d \
+docker run \
+    --detach \
+    --rm \
     --privileged=true \
     -p $SMB_PORT:445 \
     -v $(pwd)/build-scripts:/app \
@@ -249,7 +251,7 @@ docker run -d \
     -e SMB_PASSWORD=$SMB_PASSWORD \
     -e SMB_SHARE=$SMB_SHARE \
     centos:7 \
-    /bin/bash /app/setup_samba.sh;
+    /bin/bash /app/setup_samba.sh
 ```
 
 
