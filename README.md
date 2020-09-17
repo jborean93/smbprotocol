@@ -24,6 +24,7 @@ years. This library implements the SMBv2 and SMBv3 protocol based on the
 * Read and writing of files and pipes
 * Sending IOCTL commands
 * Sending of multiple messages in one packet (compounding)
+* Experimental support for both standalone and DFS server shares
 
 This is definitely not feature complete as SMB is quite a complex protocol, see
 backlog for features that would be nice to have in this library.
@@ -37,7 +38,7 @@ backlog for features that would be nice to have in this library.
 
 To use Kerberos authentication on Linux, further dependencies are required, to install these dependencies run
 
-```
+```bash
 # for Debian/Ubuntu/etc:
 sudo apt-get install gcc python-dev libkrb5-dev
 pip install smbprotocol[kerberos]
@@ -68,7 +69,7 @@ python-gssapi compiled against that newer version. In the absence of this extens
 
 To install smbprotocol, simply run
 
-```
+```bash
 pip install smbprotocol
 
 # To install with Kerberos support
@@ -100,7 +101,7 @@ By default, the negotiation process will use the latest dialect that is
 supported by the server but this can be overridden if required. When this is
 done by the following code
 
-```
+```python
 import uuid
 
 from smbprotocol.connection import Connection, Dialects
@@ -129,15 +130,41 @@ is a lot simpler.
 The higher level interface `smbclient` is designed to make this library easier
 for people to use for simple and common use cases. It is designed to replicate
 the builtin `os` and `os.path` filesystem functions like `os.open()`,
-`os.stat()`, and `os.path.exists()`.
+`os.stat()`, and `os.path.exists()`. It is also designed to handle connections
+to a DFS target unlike `smbprotocol`.
 
 A connection made by `smbclient` is kept in a pool and re-used for future
 requests to the same server until the Python process exists. This makes
-authentication simple and only required for the first call to the server.
+authentication simple and only required for the first call to the server. Any
+DFS referrals are also cached in that Python process. This optimises any
+future requests to that same DFS namespace.
 
-You can specify the credentials and other connection parameters on each
-`smbclient` function or register a server with credentials with the following
-kwargs:
+The functions in `smbclient` have a global config object that can be used to
+set any connection defaults to use for any future connections. It can also be
+used to specify any domain based DFS settings for more advanced setups. It is
+recommended to use `ClientConfig()` to set any global credentials like so:
+
+```python
+import smbclient
+
+smbclient.ClientConfig(username='user', password='password')
+```
+
+The `ClientConfig` is a singleton and any future instanciations of that
+object will just update the keys being set. You can set the following keys on
+the `ClientConfig`:
+
+* `client_guid`: The client GUID to identify the client to the server on a new connection
+* `username`: The default username to use when creating a new SMB session if explicit credentials weren't set
+* `password`: The default password to use for authentication
+* `domain_controller`: The domain controller hostname. This is useful for environments with DFS servers as it is used to identify the DFS domain information automatically
+* `site`: THe name of the domain site the client is part of. This is used to optimise the DFS servers the client will receive if multiple are available
+* `skip_dfs`: Whether to skip doing any DFS resolution, useful if there is a bug or you don't want to waste any roundtrip requesting referrals 
+
+As well as setting the default credentials on the `ClientConfig` you can also
+specify the credentials and other connection parameters on each `smbclient`
+function or when registering a new server. These functions accept the
+following kwargs:
 
 * `username`: The username used to connect to the share
 * `password`: The password used to connect to the share
@@ -148,16 +175,19 @@ kwargs:
 If using Kerberos authentication and a Kerberos ticket has already set by
 `kinit` then `smbclient` will automatically use those credentials without
 having to be explicitly set. If no ticket has been retrieved or you wish to use
-different credentials then only the first request for the server in question
-requires the `username` and `password` kwargs.
+different credentials then set the default credentials on the `ClientConfig`
+or specify `username` and `password` on the first request to the server.
 
 For example I only need to set the credentials on the first request to create
 the directory and not for the subsequent file creation in that dir.
 
-```
+```python
 import smbclient
 
-# Optional - register the credentials with a server
+# Optional - specify the default credentials to use on the global config object
+smbclient.ClientConfig(username='user', password='pass')
+
+# Optional - register the credentials with a server (overrides ClientConfig for that server)
 smbclient.register_session("server", username="user", password="pass")
 
 smbclient.mkdir(r"\\server\share\directory", username="user", password="pass")
@@ -188,7 +218,7 @@ is sent out from the client so it can get very verbose.
 To this module, you need to install some pre-requisites first. This can be done
 by running;
 
-```
+```bash
 pip install -r requirements-test.txt
 
 # you can also run tox by installing tox
@@ -197,7 +227,7 @@ pip install tox
 
 From there to run the basic tests run;
 
-```
+```bash
 py.test -v --pep8 --cov smbprotocol --cov-report term-missing
 
 # or with tox 2.7, 2.7, 3.4, 3.5, and 3.6
@@ -215,16 +245,6 @@ To run these tests set the following variables;
 
 From here running `tox` or `py.test` with these environment variables set will
 activate the integration tests.
-
-To set up a Windows host that will work with these tests run the following in
-PowerShell;
-
-```powershell
-New-Item -Path C:\share -ItemType Directory > $null
-New-Item -Path C:\share-encrypted -ItemType Directory > $null
-New-SmbShare -Name $env:SMB_SHARE -Path C:\share -EncryptData $false -FullAccess Everyone > $null
-New-SmbShare -Name "$($env:SMB_SHARE)-encrypted" -Path C:\share-encrypted -EncryptData $true -FullAccess Everyone > $null
-```
 
 This requires either Windows 10 or Server 2016 as they support Dialect 3.1.1
 which is required by the tests.
@@ -260,6 +280,5 @@ docker run \
 Here is a list of features that I would like to incorporate, PRs are welcome
 if you want to implement them yourself;
 
-* Test and support DFS mounts and not just server shares
 * Multiple channel support to speed up large data transfers
 * Lots and lots more...

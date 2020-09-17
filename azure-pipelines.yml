@@ -177,6 +177,7 @@ stages:
         New-DfsnFolder -Path "$dfsPath\$baseShareName" -TargetPath "\\$env:COMPUTERNAME\$baseShareName" > $null
         New-DfsnFolder -Path "$dfsPath\$baseShareName-encrypted" -TargetPath "\\$env:COMPUTERNAME\missing" > $null
         New-DfsnFolderTarget -Path "$dfsPath\$baseShareName-encrypted" -TargetPath "\\$env:COMPUTERNAME\$baseShareName-encrypted" > $null
+        New-DfsnFolder -Path "$dfsPath\broken" -TargetPath "\\$env:COMPUTERNAME\missing" > $null
       displayName: Set up SMB server shares
 
     - script: |

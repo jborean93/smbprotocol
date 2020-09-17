@@ -50,6 +50,7 @@ chmod -R 0755 /srv/samba/dfsroot
 chown -R $SMB_USER:smbgroup /srv/samba/dfsroot
 ln -s msdfs:localhost\\$SMB_SHARE /srv/samba/dfsroot/$SMB_SHARE
 ln -s msdfs:localhost\\missing,localhost\\$SMB_SHARE-encrypted /srv/samba/dfsroot/$SMB_SHARE-encrypted
+ln -s msdfs:localhost\\missing /srv/samba/dfsroot/broken
 
 mkdir -p /srv/samba/$SMB_SHARE
 chmod -R 0755 /srv/samba/$SMB_SHARE

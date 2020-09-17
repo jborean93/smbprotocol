@@ -924,9 +924,6 @@ class TextField(BytesField):
             text_value = to_text(value, encoding=self.encoding)
         elif isinstance(value, text_type):
             text_value = value
-            if text_value and text_value[-1] == u"\x00":
-                # remove the null terminated character
-                text_value = text_value[:-1]
         elif isinstance(value, types.LambdaType):
             text_value = value
         else:

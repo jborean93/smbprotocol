@@ -56,7 +56,7 @@ class DomainEntry:
         self._domain_hint_idx = None  # type: Optional[int]
 
     @property
-    def domain_name(self):
+    def domain_name(self):  # type: () -> str
         """ The domain DFS path. """
         return self._referral.dfs_path
 
@@ -76,12 +76,12 @@ class DomainEntry:
             raise ValueError("The specific domain hint does not exist in this domain cache entry")
 
     @property
-    def is_expired(self):
+    def is_expired(self):  # type: () -> bool
         """ Whether the hint has expired or not. """
         return ((time.time() - self._start_time) - self._referral['time_to_live'].get_value()) >= 0
 
     @property
-    def is_valid(self):
+    def is_valid(self):  # type: () -> bool
         """ Whether the domain entry has had a DC referral response or not. """
         return self._domain_hint_idx is not None and not self.is_expired
 
@@ -321,6 +321,10 @@ class DFSReferralEntryV1(Structure):
         ])
         super(DFSReferralEntryV1, self).__init__()
 
+    @property
+    def network_address(self):
+        return self['share_name'].get_value()
+
     def process_string_buffer(self, buffer, entry_offset):
         # The V1 entry does not use a string buffer so this is a no-op.
         pass
@@ -359,7 +363,7 @@ class DFSReferralEntryV2(Structure):
                 continue
 
             field = TextField(null_terminated=True, encoding='utf-16-le')
-            field.unpack(buffer[self['%s_offset' % field_name].get_value() - entry_offset:])
+            field.unpack(buffer[field_offset - entry_offset:])
             setattr(self, field_name, field.get_value())
 
 
@@ -403,7 +407,7 @@ class DFSReferralEntryV3(Structure):
             if field_offset == 0:
                 continue
 
-            string_offset = self['%s_offset' % field_name].get_value() - entry_offset
+            string_offset = field_offset - entry_offset
             if is_name_list and field_name == 'network_address':
                 value = []
                 for _ in range(self['dfs_alternate_path_offset'].get_value()):

@@ -87,6 +87,8 @@
       dest: /srv/samba/dfsroot/share
     - src: msdfs:localhost\\missing,msdfs:localhost\\share-encrypted
       dest: /srv/samba/dfsroot/share-encrypted
+    - src: msdfs:localhost\\missing
+      dest: /srv/samba/dfsroot/broken
 
   - name: set selinux permissions for samba dir
     command: chcon -R -t samba_share_t /srv/samba/

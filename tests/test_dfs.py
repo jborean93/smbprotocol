@@ -2,11 +2,10 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import base64
 import pytest
+import time
 
 from smbprotocol._text import (
-    to_bytes,
     to_native,
     to_text,
 )
@@ -19,10 +18,101 @@ from smbprotocol.dfs import (
     DFSReferralRequestEx,
     DFSReferralRequestFlags,
     DFSReferralResponse,
+    DomainEntry,
 )
 
 # 'MUSICAL SYMBOL G CLEF' https://www.fileformat.info/info/unicode/char/1d11e/index.htm
 UNICODE_TEXT = u'ÜseӜ' + to_text(b"\xF0\x9D\x84\x9E")
+
+DOMAIN_REFERRAL = DFSReferralResponse()
+DOMAIN_REFERRAL.unpack(b"\x00\x00"
+                       b"\x02\x00"
+                       b"\x00\x00\x00\x00"
+                       b"\x03\x00"
+                       b"\x12\x00"
+                       b"\x00\x00"
+                       b"\x02\x00"
+                       b"\x58\x02\x00\x00"
+                       b"\x24\x00"
+                       b"\x00\x00"
+                       b"\x00\x00"
+                       b"\x03\x00"
+                       b"\x12\x00"
+                       b"\x00\x00"
+                       b"\x02\x00"
+                       b"\x58\x02\x00\x00"
+                       b"\x22\x00"
+                       b"\x00\x00"
+                       b"\x00\x00"
+                       b"\x5C\x00\x44\x00\x4F\x00\x4D\x00"
+                       b"\x41\x00\x49\x00\x4E\x00\x00\x00"
+                       b"\x5C\x00\x64\x00\x6F\x00\x6D\x00"
+                       b"\x61\x00\x69\x00\x6E\x00\x2E\x00"
+                       b"\x74\x00\x65\x00\x73\x00\x74\x00"
+                       b"\x00\x00")
+
+DC_REFERRAL = DFSReferralResponse()
+DC_REFERRAL.unpack(b"\x00\x00"
+                   b"\x01\x00"
+                   b"\x00\x00\x00\x00"
+                   b"\x03\x00"
+                   b"\x12\x00"
+                   b"\x00\x00"
+                   b"\x02\x00"
+                   b"\x58\x02\x00\x00"
+                   b"\x12\x00"
+                   b"\x02\x00"
+                   b"\x2C\x00"
+                   b"\x5C\x00\x64\x00\x6F\x00\x6D\x00"
+                   b"\x61\x00\x69\x00\x6E\x00\x2E\x00"
+                   b"\x74\x00\x65\x00\x73\x00\x74\x00"
+                   b"\x00\x00"
+                   b"\x5C\x00\x44\x00\x43\x00\x30\x00"
+                   b"\x31\x00\x2E\x00\x64\x00\x6F\x00"
+                   b"\x6D\x00\x61\x00\x69\x00\x6E\x00"
+                   b"\x2E\x00\x74\x00\x65\x00\x73\x00"
+                   b"\x74\x00\x00\x00"
+                   b"\x5C\x00\x44\x00\x43\x00\x30\x00"
+                   b"\x31\x00\x2E\x00\x64\x00\x6F\x00"
+                   b"\x6D\x00\x61\x00\x69\x00\x6E\x00"
+                   b"\x2E\x00\x74\x00\x65\x00\x73\x00"
+                   b"\x74\x00\x32\x00\x00\x00")
+
+
+class TestDomainEntry(object):
+
+    def test_domain_entry(self):
+        domain_entry = DomainEntry(DOMAIN_REFERRAL['referral_entries'].get_value()[0])
+        assert domain_entry.domain_list == []
+        assert domain_entry.domain_name == u'\\DOMAIN'
+        assert not domain_entry.is_expired
+        assert not domain_entry.is_valid
+
+        domain_entry._start_time = time.time() - 700
+        assert domain_entry.is_expired
+
+    def test_process_dc_referral(self):
+        domain_entry = DomainEntry(DOMAIN_REFERRAL['referral_entries'].get_value()[0])
+        domain_entry.process_dc_referral(DC_REFERRAL)
+        assert domain_entry.dc_hint == u'\\DC01.domain.test'
+        assert domain_entry.domain_list == [u'\\DC01.domain.test', u'\\DC01.domain.test2']
+        assert domain_entry.domain_name == u'\\DOMAIN'
+        assert not domain_entry.is_expired
+        assert domain_entry.is_valid
+
+        domain_entry.dc_hint = u'\\DC01.domain.test2'
+        assert domain_entry.dc_hint == u'\\DC01.domain.test2'
+
+        domain_entry._start_time = time.time() - 700
+        assert domain_entry.is_expired
+        assert not domain_entry.is_valid
+
+    def test_process_dc_referral_invalid_hint(self):
+        domain_entry = DomainEntry(DOMAIN_REFERRAL['referral_entries'].get_value()[0])
+        domain_entry.process_dc_referral(DC_REFERRAL)
+
+        with pytest.raises(ValueError, match="The specific domain hint does not exist in this domain cache entry"):
+            domain_entry.dc_hint = 'invalid'
 
 
 class TestDFSReferralRequest(object):
@@ -132,17 +222,115 @@ class TestDFSReferralRequestEx(object):
 
 class TestDFSReferralResponse(object):
 
-    def test_create_message(self):
-        # TODO: Test this out
-        return
-
     def test_parse_message_v1(self):
-        # TODO: Test this out
-        return
+        actual = DFSReferralResponse()
+        data = b"\x00\x00" \
+               b"\x02\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x01\x00" \
+               b"\x18\x00" \
+               b"\x01\x00" \
+               b"\x00\x00" \
+               b"\x5c\x00\x44\x00\x4f\x00\x4d\x00" \
+               b"\x41\x00\x49\x00\x4e\x00\x00\x00" \
+               b"\x01\x00" \
+               b"\x18\x00" \
+               b"\x00\x00" \
+               b"\x00\x00" \
+               b"\x5c\x00\x44\x00\x4f\x00\x4d\x00" \
+               b"\x41\x00\x49\x00\x4e\x00\x00\x00"
+        actual.unpack(data)
+
+        assert isinstance(actual, DFSReferralResponse)
+        assert actual['path_consumed'].get_value() == 0
+        assert actual['number_of_referrals'].get_value() == 2
+        assert actual['referral_header_flags'].get_value() == 0
+        assert len(actual['referral_entries'].get_value()) == 2
+
+        entry1 = actual['referral_entries'][0]
+        assert isinstance(entry1, DFSReferralEntryV1)
+        assert entry1['version_number'].get_value() == 1
+        assert entry1['size'].get_value() == 24
+        assert entry1['server_type'].get_value() == 1
+        assert entry1['referral_entry_flags'].get_value() == 0
+        assert entry1['share_name'].get_value() == u'\\DOMAIN'
+        assert entry1.network_address == u'\\DOMAIN'
+
+        entry2 = actual['referral_entries'][1]
+        assert isinstance(entry2, DFSReferralEntryV1)
+        assert entry2['version_number'].get_value() == 1
+        assert entry2['size'].get_value() == 24
+        assert entry2['server_type'].get_value() == 0
+        assert entry2['referral_entry_flags'].get_value() == 0
+        assert entry2['share_name'].get_value() == u'\\DOMAIN'
+        assert entry2.network_address == u'\\DOMAIN'
 
     def test_parse_message_v2(self):
-        # TODO: Test this out
-        return
+        actual = DFSReferralResponse()
+        data = b"\x00\x00" \
+               b"\x02\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x02\x00" \
+               b"\x16\x00" \
+               b"\x00\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x58\x02\x00\x00" \
+               b"\x2C\x00" \
+               b"\x00\x00" \
+               b"\x00\x00" \
+               b"\x02\x00" \
+               b"\x16\x00" \
+               b"\x00\x00" \
+               b"\x00\x00" \
+               b"\x00\x00\x00\x00" \
+               b"\x58\x02\x00\x00" \
+               b"\x26\x00" \
+               b"\x00\x00" \
+               b"\x00\x00" \
+               b"\x5c\x00\x44\x00\x4f\x00\x4d\x00" \
+               b"\x41\x00\x49\x00\x4e\x00\x00\x00" \
+               b"\x5c\x00\x64\x00\x6f\x00\x6d\x00" \
+               b"\x61\x00\x69\x00\x6e\x00\x2e\x00" \
+               b"\x6c\x00\x6f\x00\x63\x00\x61\x00" \
+               b"\x6c\x00\x00\x00"
+        actual.unpack(data)
+
+        assert isinstance(actual, DFSReferralResponse)
+        assert actual['path_consumed'].get_value() == 0
+        assert actual['number_of_referrals'].get_value() == 2
+        assert actual['referral_header_flags'].get_value() == 0
+        assert len(actual['referral_entries'].get_value()) == 2
+
+        entry1 = actual['referral_entries'][0]
+        assert isinstance(entry1, DFSReferralEntryV2)
+        assert entry1['version_number'].get_value() == 2
+        assert entry1['size'].get_value() == 22
+        assert entry1['server_type'].get_value() == 0
+        assert entry1['referral_entry_flags'].get_value() == 0
+        assert entry1['proximity'].get_value() == 0
+        assert entry1['time_to_live'].get_value() == 600
+        assert entry1['dfs_path_offset'].get_value() == 44
+        assert entry1['dfs_alternate_path_offset'].get_value() == 0
+        assert entry1['network_address_offset'].get_value() == 0
+        assert entry1.dfs_path == u"\\DOMAIN"
+        assert entry1.dfs_alternate_path is None
+        assert entry1.network_address is None
+
+        entry2 = actual['referral_entries'][1]
+        assert isinstance(entry2, DFSReferralEntryV2)
+        assert entry2['version_number'].get_value() == 2
+        assert entry2['size'].get_value() == 22
+        assert entry2['server_type'].get_value() == 0
+        assert entry2['referral_entry_flags'].get_value() == 0
+        assert entry2['proximity'].get_value() == 0
+        assert entry2['time_to_live'].get_value() == 600
+        assert entry2['dfs_path_offset'].get_value() == 38
+        assert entry2['dfs_alternate_path_offset'].get_value() == 0
+        assert entry2['network_address_offset'].get_value() == 0
+        assert entry2.dfs_path == u"\\domain.local"
+        assert entry2.dfs_alternate_path is None
+        assert entry2.network_address is None
 
     def test_parse_message_v3_name_list_referral(self):
         actual = DFSReferralResponse()
