@@ -158,7 +158,6 @@ the `ClientConfig`:
 * `username`: The default username to use when creating a new SMB session if explicit credentials weren't set
 * `password`: The default password to use for authentication
 * `domain_controller`: The domain controller hostname. This is useful for environments with DFS servers as it is used to identify the DFS domain information automatically
-* `site`: THe name of the domain site the client is part of. This is used to optimise the DFS servers the client will receive if multiple are available
 * `skip_dfs`: Whether to skip doing any DFS resolution, useful if there is a bug or you don't want to waste any roundtrip requesting referrals 
 
 As well as setting the default credentials on the `ClientConfig` you can also

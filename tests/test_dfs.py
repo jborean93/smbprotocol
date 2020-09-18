@@ -18,65 +18,20 @@ from smbprotocol.dfs import (
     DFSReferralRequestEx,
     DFSReferralRequestFlags,
     DFSReferralResponse,
+    DFSTarget,
     DomainEntry,
+    ReferralEntry,
+)
+
+from .conftest import (
+    DC_REFERRAL,
+    DOMAIN_REFERRAL,
+    TARGET_REFERRAL,
+    ROOT_REFERRAL,
 )
 
 # 'MUSICAL SYMBOL G CLEF' https://www.fileformat.info/info/unicode/char/1d11e/index.htm
 UNICODE_TEXT = u'ÜseӜ' + to_text(b"\xF0\x9D\x84\x9E")
-
-DOMAIN_REFERRAL = DFSReferralResponse()
-DOMAIN_REFERRAL.unpack(b"\x00\x00"
-                       b"\x02\x00"
-                       b"\x00\x00\x00\x00"
-                       b"\x03\x00"
-                       b"\x12\x00"
-                       b"\x00\x00"
-                       b"\x02\x00"
-                       b"\x58\x02\x00\x00"
-                       b"\x24\x00"
-                       b"\x00\x00"
-                       b"\x00\x00"
-                       b"\x03\x00"
-                       b"\x12\x00"
-                       b"\x00\x00"
-                       b"\x02\x00"
-                       b"\x58\x02\x00\x00"
-                       b"\x22\x00"
-                       b"\x00\x00"
-                       b"\x00\x00"
-                       b"\x5C\x00\x44\x00\x4F\x00\x4D\x00"
-                       b"\x41\x00\x49\x00\x4E\x00\x00\x00"
-                       b"\x5C\x00\x64\x00\x6F\x00\x6D\x00"
-                       b"\x61\x00\x69\x00\x6E\x00\x2E\x00"
-                       b"\x74\x00\x65\x00\x73\x00\x74\x00"
-                       b"\x00\x00")
-
-DC_REFERRAL = DFSReferralResponse()
-DC_REFERRAL.unpack(b"\x00\x00"
-                   b"\x01\x00"
-                   b"\x00\x00\x00\x00"
-                   b"\x03\x00"
-                   b"\x12\x00"
-                   b"\x00\x00"
-                   b"\x02\x00"
-                   b"\x58\x02\x00\x00"
-                   b"\x12\x00"
-                   b"\x02\x00"
-                   b"\x2C\x00"
-                   b"\x5C\x00\x64\x00\x6F\x00\x6D\x00"
-                   b"\x61\x00\x69\x00\x6E\x00\x2E\x00"
-                   b"\x74\x00\x65\x00\x73\x00\x74\x00"
-                   b"\x00\x00"
-                   b"\x5C\x00\x44\x00\x43\x00\x30\x00"
-                   b"\x31\x00\x2E\x00\x64\x00\x6F\x00"
-                   b"\x6D\x00\x61\x00\x69\x00\x6E\x00"
-                   b"\x2E\x00\x74\x00\x65\x00\x73\x00"
-                   b"\x74\x00\x00\x00"
-                   b"\x5C\x00\x44\x00\x43\x00\x30\x00"
-                   b"\x31\x00\x2E\x00\x64\x00\x6F\x00"
-                   b"\x6D\x00\x61\x00\x69\x00\x6E\x00"
-                   b"\x2E\x00\x74\x00\x65\x00\x73\x00"
-                   b"\x74\x00\x32\x00\x00\x00")
 
 
 class TestDomainEntry(object):
@@ -113,6 +68,60 @@ class TestDomainEntry(object):
 
         with pytest.raises(ValueError, match="The specific domain hint does not exist in this domain cache entry"):
             domain_entry.dc_hint = 'invalid'
+
+
+class TestReferralEntry(object):
+
+    def test_root_referral_entry(self):
+        referral_entry = ReferralEntry(ROOT_REFERRAL)
+        assert referral_entry.dfs_path == u'\\domain.test\\dfs'
+        assert not referral_entry.is_expired
+        assert not referral_entry.is_link
+        assert referral_entry.is_root
+        assert not referral_entry.target_failback
+
+    def test_target_referral_entry(self):
+        referral_entry = ReferralEntry(TARGET_REFERRAL)
+        target1 = DFSTarget(u'\\dc01.domain.test\\c$', True)
+        target2 = DFSTarget(u'\\server2019.domain.test\\c$', False)
+
+        assert referral_entry.dfs_path == u'\\domain.test\\dfs\\dc'
+        assert not referral_entry.is_expired
+        assert referral_entry.is_link
+        assert not referral_entry.is_root
+        assert not referral_entry.target_failback
+        assert referral_entry.target_hint == DFSTarget(u'\\dc01.domain.test\\c$', True)
+        assert referral_entry.target_list == [target1, target2]
+
+        referral_entry._start_time = time.time() - 2000
+        assert referral_entry.is_expired
+
+        for idx, target in enumerate(referral_entry):
+            assert isinstance(target, DFSTarget)
+            if idx == 0:
+                assert target == target1
+
+            else:
+                assert target == target2
+        assert idx == 1
+
+        referral_entry.target_hint = target2
+        assert referral_entry.target_hint == target2
+
+        for idx, target in enumerate(referral_entry):
+            assert isinstance(target, DFSTarget)
+            if idx == 0:
+                assert target == target2
+
+            else:
+                assert target == target1
+        assert idx == 1
+
+    def test_target_referral_invalid_hint(self):
+        referral_entry = ReferralEntry(TARGET_REFERRAL)
+
+        with pytest.raises(ValueError, match="The specific target hint does not exist in this referral entry"):
+            referral_entry.target_hint = DFSTarget(u'fake', False)
 
 
 class TestDFSReferralRequest(object):

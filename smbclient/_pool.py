@@ -16,8 +16,6 @@ from smbprotocol.connection import (
 from smbprotocol.dfs import (
     DFSReferralEntryFlags,
     DFSReferralRequest,
-    DFSReferralRequestEx,
-    DFSReferralRequestFlags,
     DFSReferralResponse,
     DomainEntry,
     ReferralEntry,
@@ -78,19 +76,16 @@ class ClientConfig(object):
         domain_controller (Optional[str]): The domain controller hostname. When set the config will send a DFS referral
             request to this hostname to populate the domain cache used for DFS connections or when connecting to
             `SYSVOL` or `NETLOGON`
-        site (Optional[str]): The name of the domain site the client is part of. This is used for DFS referral requests
-            to specify a domain site name that can be used by the DFS service to prioritise the DFS target to return.
         skip_dfs (bool): Whether to skip using any DFS referral checks and treat any path as a normal path. This is
             only useful if there are problems with the DFS resolver or you wish to avoid the extra round trip(s) the
             resolver requires.
     """
 
-    def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, site=None,
-                 skip_dfs=False, **kwargs):
+    def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, skip_dfs=False,
+                 **kwargs):
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username
         self.password = password
-        self.site = site
         self.skip_dfs = skip_dfs
         self._domain_controller = None  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
@@ -157,37 +152,26 @@ class ClientConfig(object):
             return hits[0]
 
     def set(self, **config):
-        domain_controller = None
+        domain_controller = False
         for key, value in config.items():
             if key.startswith('_'):
                 raise ValueError('Cannot set private attribute %s' % key)
 
             elif key == 'domain_controller':
                 # This must be set last in case we are setting any username/password used for a domain referral lookup.
-                domain_controller = value
+                domain_controller = True
 
             else:
                 setattr(self, key, value)
 
         # Make sure we set this last in case different credentials were specified in the config
         if domain_controller:
-            self.domain_controller = domain_controller
+            self.domain_controller = config['domain_controller']
 
 
 def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
     """ Send a DFS Referral request to the IPC tree and return the referrals. """
-    site_name = ClientConfig().site
-    if site_name:
-        dfs_referral = DFSReferralRequestEx()
-        dfs_referral['request_flags'].set_flag(DFSReferralRequestFlags.SITE_NAME)
-        dfs_referral['site_name'] = site_name
-
-    else:
-        dfs_referral = DFSReferralRequest()
-
-    # DFS paths only have 1 leading slash.
-    if path.startswith(u"\\\\"):
-        path = path[1:]
+    dfs_referral = DFSReferralRequest()
     dfs_referral['request_file_name'] = path
 
     ioctl_req = SMB2IOCTLRequest()

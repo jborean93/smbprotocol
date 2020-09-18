@@ -25,7 +25,6 @@ from cryptography.hazmat.primitives.kdf.kbkdf import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
 )
 
@@ -36,9 +35,13 @@ from smbprotocol.connection import (
 
 from smbprotocol.exceptions import (
     MoreProcessingRequired,
-    NtStatus,
     SMBAuthenticationError,
     SMBException,
+)
+
+from smbprotocol.header import (
+    Commands,
+    NtStatus,
 )
 
 from smbprotocol.structure import (

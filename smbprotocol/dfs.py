@@ -106,6 +106,7 @@ class ReferralEntry:
 
     def __init__(self, referral):  # type: (DFSReferralResponse) -> None
         referrals = referral['referral_entries'].get_value()
+        self._referral_header_flags = referral['referral_header_flags']
         self._referrals = referrals  # type: List[Union[DFSReferralEntryV1, DFSReferralEntryV2, DFSReferralEntryV3]]
         self._start_time = time.time()  # type: float
         self._target_hint_idx = 0  # type: int
@@ -122,9 +123,9 @@ class ReferralEntry:
     def is_link(self):  # type: () -> bool
         return not self.is_root
 
-    @property
-    def is_interlink(self):  # type: () -> bool
-        return False
+    # @property
+    # def is_interlink(self):  # type: () -> bool
+    #     return False
 
     @property
     def is_expired(self):  # type: () -> bool
@@ -133,7 +134,7 @@ class ReferralEntry:
 
     @property
     def target_failback(self):  # type: () -> bool
-        return False
+        return self._referral_header_flags.has_flag(DFSReferralHeaderFlags.TARGET_FAIL_BACK)
 
     @property
     def target_hint(self):  # type: () -> DFSTarget

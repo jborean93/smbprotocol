@@ -40,7 +40,7 @@ from smbprotocol.create_contexts import (
     SVHDXOriginatorFlags,
 )
 
-from smbprotocol.exceptions import (
+from smbprotocol.header import (
     NtStatus,
 )
 

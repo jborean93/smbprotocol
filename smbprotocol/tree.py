@@ -9,12 +9,15 @@ from collections import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
 )
 
 from smbprotocol.exceptions import (
     SMBException,
+)
+
+from smbprotocol.header import (
+    Commands,
 )
 
 from smbprotocol.ioctl import (

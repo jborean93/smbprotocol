@@ -15,7 +15,6 @@ from smbprotocol.connection import (
 )
 
 from smbprotocol.exceptions import (
-    SMBAuthenticationError,
     SMBException,
 )
 

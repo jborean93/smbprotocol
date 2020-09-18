@@ -23,6 +23,11 @@ from smbprotocol._text import (
     to_text,
 )
 
+from smbprotocol.header import (
+    NtStatus,
+    SMB2HeaderResponse,
+)
+
 from smbprotocol.reparse_point import (
     SymbolicLinkReparseDataBuffer,
 )
@@ -35,70 +40,6 @@ from smbprotocol.structure import (
     Structure,
     StructureField,
 )
-
-
-class NtStatus(object):
-    """
-    [MS-ERREF] https://msdn.microsoft.com/en-au/library/cc704588.aspx
-
-    2.3.1 NTSTATUS Values
-    These values are set in the status field of an SMB2Header response. This is
-    not an exhaustive list but common values that are returned.
-    """
-    STATUS_SUCCESS = 0x00000000
-    STATUS_NETWORK_NAME_DELETED = 0xC00000C9
-    STATUS_PENDING = 0x00000103
-    STATUS_NOTIFY_CLEANUP = 0x0000010B
-    STATUS_NOTIFY_ENUM_DIR = 0x0000010C
-    STATUS_BUFFER_OVERFLOW = 0x80000005
-    STATUS_NO_MORE_FILES = 0x80000006
-    STATUS_END_OF_FILE = 0xC0000011
-    STATUS_INVALID_EA_NAME = 0x80000013
-    STATUS_EA_LIST_INCONSISTENT = 0x80000014
-    STATUS_STOPPED_ON_SYMLINK = 0x8000002D
-    STATUS_INFO_LENGTH_MISMATCH = 0xC0000004
-    STATUS_INVALID_PARAMETER = 0xC000000D
-    STATUS_NO_SUCH_FILE = 0xC000000F
-    STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
-    STATUS_ACCESS_DENIED = 0xC0000022
-    STATUS_BUFFER_TOO_SMALL = 0xC0000023
-    STATUS_OBJECT_NAME_INVALID = 0xC0000033
-    STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
-    STATUS_OBJECT_NAME_COLLISION = 0xC0000035
-    STATUS_OBJECT_PATH_INVALID = 0xC0000039
-    STATUS_OBJECT_PATH_NOT_FOUND = 0xC000003A
-    STATUS_OBJECT_PATH_SYNTAX_BAD = 0xC000003B
-    STATUS_SHARING_VIOLATION = 0xC0000043
-    STATUS_EAS_NOT_SUPPORTED = 0xC000004F
-    STATUS_EA_TOO_LARGE = 0xC0000050
-    STATUS_NONEXISTENT_EA_ENTRY = 0xC0000051
-    STATUS_NO_EAS_ON_FILE = 0xC0000052
-    STATUS_EA_CORRUPT_ERROR = 0xC0000053
-    STATUS_PRIVILEGE_NOT_HELD = 0xC0000061
-    STATUS_LOGON_FAILURE = 0xC000006D
-    STATUS_PASSWORD_EXPIRED = 0xC0000071
-    STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
-    STATUS_PIPE_BUSY = 0xC00000AE
-    STATUS_PIPE_DISCONNECTED = 0xC00000B0
-    STATUS_PIPE_CLOSING = 0xC00000B1
-    STATUS_FILE_IS_A_DIRECTORY = 0xC00000BA
-    STATUS_NOT_SUPPORTED = 0xC00000BB
-    STATUS_BAD_NETWORK_NAME = 0xC00000CC
-    STATUS_REQUEST_NOT_ACCEPTED = 0xC00000D0
-    STATUS_PIPE_EMPTY = 0xC00000D9
-    STATUS_INTERNAL_ERROR = 0xC00000E5
-    STATUS_DIRECTORY_NOT_EMPTY = 0xC0000101
-    STATUS_NOT_A_DIRECTORY = 0xC0000103
-    STATUS_CANCELLED = 0xC0000120
-    STATUS_CANNOT_DELETE = 0xC0000121
-    STATUS_FILE_CLOSED = 0xC0000128
-    STATUS_PIPE_BROKEN = 0xC000014B
-    STATUS_USER_SESSION_DELETED = 0xC0000203
-    STATUS_NOT_FOUND = 0xC0000225
-    STATUS_PATH_NOT_COVERED = 0xC0000257
-    STATUS_DFS_UNAVAILABLE = 0xC000026D
-    STATUS_NOT_A_REPARSE_POINT = 0xC0000275
-    STATUS_SERVER_UNAVAILABLE = 0xC0000466
 
 
 class SMBException(Exception):
@@ -243,10 +184,17 @@ class _SMBErrorRegistry(type):
 
         cls.__registry[cls._STATUS_CODE] = cls
 
-    def __call__(cls, header, status=None):
-        status = status or header['status'].get_value()
-        new_cls = cls.__registry.get(status, cls)
-        return super(_SMBErrorRegistry, new_cls).__call__(header, status)
+    def __call__(cls, header=None):
+        if header:
+            new_cls = cls.__registry[header['status'].get_value()]
+
+        else:
+            header = SMB2HeaderResponse()
+            header['status'] = cls._STATUS_CODE
+            header['data'] = SMB2ErrorResponse()
+            new_cls = cls
+
+        return super(_SMBErrorRegistry, new_cls).__call__(header)
 
 
 @six.add_metaclass(_SMBErrorRegistry)
@@ -261,9 +209,8 @@ class SMBResponseException(SMBException):
 
     _BASE_MESSAGE = 'Unknown error.'
 
-    def __init__(self, header, status=None):  # type: (any, int) -> None
+    def __init__(self, header):  # type: (SMB2HeaderResponse) -> None
         self.header = header
-        self.status = status
 
     @property
     def error_details(self):  # type: () -> List[any]
@@ -322,6 +269,10 @@ class SMBResponseException(SMBException):
             error_msg += " - %s" % ", ".join(error_details)
 
         return to_native("Received unexpected status from the server: %s" % error_msg)
+
+    @property
+    def status(self):
+        return self.header['status'].get_value()
 
     def __str__(self):
         return self.message
