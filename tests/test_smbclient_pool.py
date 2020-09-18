@@ -10,11 +10,8 @@ from smbprotocol.exceptions import (
 )
 
 from .conftest import (
-    DC_REFERRAL,
     DOMAIN_NAME,
     DOMAIN_REFERRAL,
-    TARGET_REFERRAL,
-    ROOT_REFERRAL,
 )
 
 

@@ -9,6 +9,10 @@ import six
 import uuid
 import warnings
 
+from smbprotocol._text import (
+    to_text,
+)
+
 from smbprotocol.connection import (
     Connection,
 )
@@ -172,7 +176,7 @@ class ClientConfig(object):
 def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
     """ Send a DFS Referral request to the IPC tree and return the referrals. """
     dfs_referral = DFSReferralRequest()
-    dfs_referral['request_file_name'] = path
+    dfs_referral['request_file_name'] = to_text(path)
 
     ioctl_req = SMB2IOCTLRequest()
     ioctl_req['ctl_code'] = CtlCode.FSCTL_DFS_GET_REFERRALS

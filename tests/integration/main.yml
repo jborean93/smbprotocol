@@ -1,0 +1,350 @@
+- hosts: all
+  vars_prompt:
+  - name: artifact_url_prompt
+    prompt: Please enter the Azure Pipelines wheels download URL
+    private: no
+
+  tasks:
+  - set_fact:
+      artifact_url: '{{ artifact_url_prompt }}'
+
+- name: get network adapter for each Windows host
+  hosts: windows
+  gather_facts: no
+  tasks:
+  - name: get network connection for private adapter
+    win_shell: |
+      foreach ($instance in (Get-CimInstance -ClassName Win32_NetworkAdapter -Filter "Netenabled='True'")) {
+          $instance_config = Get-CimInstance -ClassName WIn32_NetworkAdapterConfiguration -Filter "Index = '$($instance.Index)'"
+          if ($instance_config.IPAddress -contains "{{ansible_host}}") {
+              $instance.NetConnectionID
+          }
+      }
+    changed_when: no
+    register: network_connection_name_raw
+
+  - name: fail if we didn't get a network connection name
+    fail:
+      msg: Failed to get the Windows network connection name
+    when: network_connection_name_raw.stdout_lines | count != 1
+
+  - name: set fact of network connection name
+    set_fact:
+      network_connection_name: '{{ network_connection_name_raw.stdout | trim }}'
+
+  - name: allow SMB traffic in
+    win_firewall_rule:
+      name: File and Printer Sharing (SMB-In)
+      state: present
+      enabled: yes
+
+- name: create Domain Controller
+  hosts: win_controller
+  gather_facts: no
+  tasks:
+  - name: set the DNS for the specified adapter to localhost
+    win_dns_client:
+      adapter_name: '{{ network_connection_name }}'
+      ipv4_addresses: 127.0.0.1
+
+  - name: ensure domain exists and DC is promoted as a domain controller
+    win_domain:
+      dns_domain_name: '{{ domain_name }}'
+      safe_mode_password: '{{ domain_password }}'
+    register: domain_setup_res
+
+  - name: reboot DC if required after install
+    win_reboot:
+    when: domain_setup_res.reboot_required
+
+  - name: create domain username
+    win_domain_user:
+      name: '{{ domain_username }}'
+      upn: '{{ domain_upn }}'
+      description: '{{ domain_username }} Domain Account'
+      password: '{{ domain_password }}'
+      password_never_expires: yes
+      update_password: on_create
+      groups:
+      - Domain Admins
+      state: present
+    register: domain_user_result
+    # ADWS may not be online after first reboot, need to keep on retrying
+    retries: 30
+    delay: 15
+    until: domain_user_result is successful
+
+  - name: test out domain user that was created
+    win_whoami:
+    register: become_res
+    failed_when: become_res.upn != domain_upn
+    become: yes
+    become_method: runas
+    vars:
+      ansible_become_user: '{{ domain_upn }}'
+      ansible_become_pass: '{{ domain_password }}'
+
+- name: join Windows host to domain
+  hosts: win_children
+  gather_facts: no
+  tasks:
+  - name: set the DNS for the private adapter to point to the DC
+    win_dns_client:
+      adapter_names: '{{ network_connection_name }}'
+      ipv4_addresses: '{{ hostvars[groups["win_controller"][0]]["ansible_host"] }}'
+
+  - name: join host to domain
+    win_domain_membership:
+      dns_domain_name: '{{ domain_name }}'
+      domain_admin_user: '{{ domain_upn }}'
+      domain_admin_password: '{{ domain_password }}'
+      state: domain
+    register: domain_join_result
+
+  - name: reboot host to finalise domain join
+    win_reboot:
+    when: domain_join_result.reboot_required
+
+  - name: test out domain user logon
+    win_whoami:
+    register: become_res
+    failed_when: become_res.upn != domain_upn
+    become: yes
+    become_method: runas
+    vars:
+      ansible_become_user: '{{ domain_upn }}'
+      ansible_become_pass: '{{ domain_password }}'
+
+- name: setup up DFS server on domain
+  hosts: SERVER2019
+  gather_facts: no
+  tasks:
+  - name: install DFS features
+    win_feature:
+      name:
+      - FS-DFS-Namespace
+      state: present
+    register: dfs_install
+
+  - name: reboot after install DFS feature
+    win_reboot:
+    when: dfs_install.reboot_required
+
+  - name: create DFS root folder
+    win_file:
+      path: C:\DFSRoots\dfs
+      state: directory
+
+  - name: create the root DFS share
+    win_share:
+      name: dfs
+      path: C:\DFSRoots\dfs
+      state: present
+      full: Everyone
+
+  - name: configure DFS server
+    win_shell: |
+      $ErrorActionPreference = 'Stop'
+      $changed = $false
+      $dfs = Get-DfsnRoot -Domain '{{ domain_name }}' -ErrorAction SilentlyContinue
+      if (-not $dfs) {
+          $null = New-DfsnRoot -Path '\\{{ domain_name }}\dfs' -Type DomainV2 -TargetPath '\\{{ inventory_hostname }}.{{ domain_name }}\dfs'
+          $changed = $true
+      }
+
+      $folder = Get-DfsnFolder -Path '\\{{ domain_name }}\dfs\dc' -ErrorAction SilentlyContinue
+      if (-not $folder) {
+          $null = New-DfsnFolder -Path '\\{{ domain_name }}\dfs\dc' -TargetPath '\\fake-server\share\folder'
+          $null = New-DfsnFolderTarget -Path '\\{{ domain_name }}\dfs\dc' -TargetPath '\\{{ groups['win_controller'][0] }}.{{ domain_name }}\c$'
+          $changed = $true
+      }
+
+      $changed
+    register: dfs_config
+    changed_when: dfs_config.stdout | trim | bool
+    become: yes
+    become_method: runas
+    vars:
+      ansible_become_user: '{{ domain_upn }}'
+      ansible_become_pass: '{{ domain_password }}'
+
+- name: set up Python interpreters on test Windows host
+  hosts: SERVER2012R2
+  gather_facts: no
+  tasks:
+  - name: install Python interpreters
+    win_package:
+      path: '{{ item.url }}'
+      arguments: '{{ item.arguments }}'
+      product_id: '{{ item.product_id }}'
+      state: present
+    with_items:
+    - url: https://www.python.org/ftp/python/2.7.18/python-2.7.18.msi
+      product_id: '{A5F504DF-2ED9-4A2D-A2F3-9D2750DD42D5}'
+      arguments: TARGETDIR="C:\Program Files\Python27-32" ALLUSERS=1
+    - url: https://www.python.org/ftp/python/2.7.18/python-2.7.18.amd64.msi
+      product_id: '{A5F504DF-2ED9-4A2D-A2F3-9D2750DD42D6}'
+      arguments: TARGETDIR="C:\Program Files\Python27" ALLUSERS=1
+    - url: https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe
+      product_id: '{522FB3CA-6871-4466-9465-F9D65B59A345}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.5.4/python-3.5.4-amd64.exe
+      product_id: '{84848A30-C77B-4442-B84C-08B7B4DA1B01}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.6.8/python-3.6.8.exe
+      product_id: '{B56829C6-1C25-469E-B351-1467C6295566}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.6.8/python-3.6.8-amd64.exe
+      product_id: '{E1155302-B578-4D8C-8431-FAE677FBC58C}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.7.8/python-3.7.8.exe
+      product_id: '{EC08EC27-DBBB-4120-9D7C-6A3CB11BB5F2}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.7.8/python-3.7.8-amd64.exe
+      product_id: '{0EEFE4AC-ED52-4F6F-A726-A9030991B75D}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.8.3/python-3.8.3.exe
+      product_id: '{D1EFF389-2F77-4A46-8AFD-4F37BC6F1F99}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.8.3/python-3.8.3-amd64.exe
+      product_id: '{245A2BD7-1E51-448C-810D-356286B18BA8}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+
+  - name: ensure virtualenv package is installed for each Python install
+    win_command: '"{{ item }}\python.exe" -m pip install virtualenv'
+    args:
+      creates: '{{ item }}\Scripts\virtualenv.exe'
+    with_items: '{{ python_interpreters }}'
+
+  - name: create virtualenv for each Python install
+    win_command: '"{{ item }}\python.exe" -m virtualenv "{{ python_venv_path }}\{{ item | win_basename }}"'
+    args:
+      creates: '{{ python_venv_path }}\{{ item | win_basename }}'
+    with_items: '{{ python_interpreters }}'
+
+  - name: download wheel artifacts
+    win_get_url:
+      url: '{{ artifact_url }}'
+      dest: C:\temp\wheels.zip
+
+  - name: extract wheel from archive
+    win_unzip:
+      src: C:\temp\wheels.zip
+      dest: C:\temp
+
+  - name: install smbprotocol wheel into virtualenv
+    win_shell: |
+      &'{{ python_venv_path }}\{{ item | win_basename }}\Scripts\pip.exe' install --no-index --find-links=C:/temp/wheels --no-deps smbprotocol
+      &'{{ python_venv_path }}\{{ item | win_basename }}\Scripts\pip.exe' install --find-links=C:/temp/wheels smbprotocol pytest
+    args:
+      creates: '{{ python_venv_path }}\{{ item | win_basename }}\Lib\site-packages\smbprotocol'
+    with_items: '{{ python_interpreters }}'
+
+  - name: template out test integration file
+    win_template:
+      src: test_integration.py.tmpl
+      dest: C:\temp\test_integration.py
+      block_start_string: '{!!'
+      block_end_string: '!!}'
+    tags:
+    - template
+
+- name: set up Linux host
+  hosts: linux_children
+  gather_facts: no
+  become: yes
+  handlers:
+  - name: restart NetworkManager.service
+    service:
+      name: NetworkManager
+      state: restarted
+
+  tasks:
+  - name: install base packages
+    yum:
+      name:
+      - dnsmasq
+      - epel-release
+      - gcc
+      - gssntlmssp
+      - krb5-devel
+      - krb5-workstation
+      - python2
+      - python2-devel
+      - python3
+      - python3-devel
+      - vim
+      state: present
+
+  - name: ensure virtualenv is installed on base Python interpreters
+    pip:
+      name:
+      - virtualenv
+      - wheel
+      executable: '{{ item }}'
+    with_items:
+    - /usr/bin/pip2
+    - /usr/bin/pip3
+
+  - name: setup NetworkManager to use dnsmasq
+    copy:
+      dest: /etc/NetworkManager/conf.d/dns.conf
+      content: |
+        [main]
+        dns=dnsmasq
+    notify: restart NetworkManager.service
+
+  - name: set dnsmasq to forward requests for domain to DC
+    copy:
+      dest: /etc/NetworkManager/dnsmasq.d/{{ domain_name }}
+      content: server=/{{ domain_name }}/{{ hostvars[groups['win_controller'][0]]["ansible_host"] }}
+    notify: restart NetworkManager.service
+
+  - name: template krb5.conf file
+    template:
+      src: krb5.conf.tmpl
+      dest: /etc/krb5.conf
+
+  - name: download wheel artifacts
+    get_url:
+      url: '{{ artifact_url }}'
+      dest: ~/wheels.zip
+    become: no
+
+  - name: extract wheel artifacts
+    unarchive:
+      src: ~/wheels.zip
+      dest: ~/
+      remote_src: yes
+    become: no
+
+  - name: find the universal wheel
+    find:
+      paths: ~/wheels
+      patterns: smbprotocol-*-py2.py3-none-any.whl
+      recurse: no
+      file_type: file
+    become: no
+    register: wheel_artifact
+
+  - name: create a virtualenv for each Python interpeter
+    pip:
+      name:
+      - gssapi
+      - pytest
+      - wheel
+      - '{{ wheel_artifact.files[0].path }}'
+      virtualenv: '{{ python_venv_path }}/{{ item | basename }}'
+      virtualenv_python: '{{ item }}'
+    become: no
+    with_items: '{{ python_interpreters }}'
+
+  - name: template out test integration file
+    template:
+      src: test_integration.py.tmpl
+      dest: ~/test_integration.py
+      block_start_string: '{!!'
+      block_end_string: '!!}'
+    tags:
+    - template
+    become: no

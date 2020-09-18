@@ -1,0 +1,56 @@
+all:
+  children:
+    windows:
+      children:
+        win_controller:
+          hosts:
+            DC01:
+              ansible_host: 192.168.65.10
+              vagrant_box: jborean93/WindowsServer2019
+        win_children:
+          hosts:
+            SERVER2012R2:
+              ansible_host: 192.168.65.11
+              vagrant_box: jborean93/WindowsServer2012R2
+            SERVER2019:
+              ansible_host: 192.168.65.12
+              vagrant_box: jborean93/WindowsServer2019
+      vars:
+        ansible_connection: psrp
+        ansible_port: 5985
+        python_interpreters:
+        - C:\Program Files\Python27
+        - C:\Program Files (x86)\Python27-32
+        - C:\Program Files\Python35
+        - C:\Program Files (x86)\Python35-32
+        - C:\Program Files\Python36
+        - C:\Program Files (x86)\Python36-32
+        - C:\Program Files\Python37
+        - C:\Program Files (x86)\Python37-32
+        - C:\Program Files\Python38
+        - C:\Program Files (x86)\Python38-32
+        python_venv_path: C:\temp\venv
+
+    linux:
+      children:
+        linux_children:
+          hosts:
+            CENTOS8:
+              ansible_host: 192.168.65.13
+              vagrant_box: centos/8
+
+      vars:
+        ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+        python_interpreters:
+        - /usr/bin/python2
+        - /usr/bin/python3
+        python_venv_path: ~/venv
+
+  vars:
+    ansible_user: vagrant
+    ansible_password: vagrant
+
+    domain_name: smb.test
+    domain_username: smb
+    domain_password: Password01
+    domain_upn: '{{ domain_username }}@{{ domain_name | upper }}'

@@ -1,0 +1,82 @@
+# Copyright: (c) 2020, Jordan Borean (@jborean93) <jborean93@gmail.com>
+# MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
+import ntpath
+import pytest
+import smbclient
+
+from smbclient.shutil import (
+    rmtree,
+)
+
+USERNAME = '{{ domain_upn }}'
+PASSWORD = '{{ domain_password }}'
+DOMAIN_NAME = '{{ domain_name }}'
+DFS_HOST = 'SERVER2019.{{ domain_name }}'
+DOMAIN_CONTROLLER = 'DC01.{{ domain_name }}'
+TEST_DFS_PATH = '\\\\{{ domain_name }}\\dfs\\dc'
+smbclient.ClientConfig(username=USERNAME, password=PASSWORD)
+
+
+@pytest.fixture()
+def smb_share():
+    test_path = ntpath.join(TEST_DFS_PATH, 'test folder')
+    actual_path = '\\\\' + ntpath.join(DOMAIN_CONTROLLER, 'c$', 'test folder')
+
+    smbclient.mkdir(actual_path)
+    try:
+        yield test_path
+    finally:
+         rmtree(actual_path)
+
+
+def test_connect_to_domain_target(smb_share):
+    actual = smbclient.listdir(smb_share)
+    assert actual == []
+
+    test_dir = ntpath.join(smb_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    for info in smbclient.scandir(smb_share):
+        if info.name == 'test file.txt':
+            assert info.path == test_file
+            assert not info.is_dir()
+            assert info.is_file()
+
+        else:
+            assert info.path == test_dir
+            assert info.is_dir()
+            assert not info.is_file()
+
+
+def test_connect_to_domain_target_with_dc_set(smb_share):
+    smbclient.ClientConfig(domain_controller=DOMAIN_CONTROLLER)
+
+    try:
+        actual = smbclient.listdir(smb_share)
+        assert actual == []
+
+        test_dir = ntpath.join(smb_share, 'test folder')
+        smbclient.mkdir(test_dir)
+
+        test_file = ntpath.join(smb_share, 'test file.txt')
+        with smbclient.open_file(test_file, mode='wb') as fd:
+            fd.write(b'test data')
+
+        for info in smbclient.scandir(smb_share):
+            if info.name == 'test file.txt':
+                assert info.path == test_file
+                assert not info.is_dir()
+                assert info.is_file()
+
+            else:
+                assert info.path == test_dir
+                assert info.is_dir()
+                assert not info.is_file()
+
+    finally:
+        smbclient.ClientConfig(domain_controller=None)

@@ -1,0 +1,43 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Require YAML module
+require 'yaml'
+
+# Read YAML file with box details
+inventory = YAML.load_file('inventory.yml')
+
+Vagrant.configure("2") do |config|
+  inventory['all']['children'].each do |group,group_details|
+    group_details['children'].each do |sub_group,sub_group_details|
+      sub_group_details['hosts'].each do |server,details|
+
+        config.vm.define server do |srv|
+          srv.vm.box = details['vagrant_box']
+          srv.vm.hostname = server
+          srv.vm.network :private_network, ip: details['ansible_host']
+
+          srv.vm.provider :virtualbox do |v|
+            v.name = File.basename(File.dirname(__FILE__)) + "_" + server + "_" + Time.now.to_i.to_s
+            v.gui = false
+            v.memory = 4096
+            v.cpus = 2
+          end
+
+          srv.vm.provider :libvirt do |l|
+            l.memory = 4096
+            l.cpus = 2
+          end
+
+          if group == "linux"
+            srv.vm.provision "shell", inline: <<-SHELL
+              sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+              systemctl restart sshd.service
+            SHELL
+          end
+        end
+
+      end
+    end
+  end
+end
