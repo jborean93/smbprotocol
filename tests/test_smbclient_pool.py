@@ -80,3 +80,23 @@ def test_config_domain_cache_not_dfs_endpoint(reset_config, monkeypatch, mocker)
     assert domain_referral is None
     assert warning_mock.call_count == 1
     assert 'cannot use as DFS domain cache source' in warning_mock.call_args[0][0]
+
+
+def test_reset_connection_error_fail(mocker):
+    connection_mock = mocker.MagicMock()
+    connection_mock.disconnect.side_effect = Exception("exception")
+
+    with pytest.raises(Exception, match="exception"):
+        pool.reset_connection_cache(connection_cache={'conn': connection_mock})
+
+
+def test_reset_connection_error_warning(monkeypatch, mocker):
+    connection_mock = mocker.MagicMock()
+    connection_mock.disconnect.side_effect = Exception("exception")
+    warning_mock = mocker.MagicMock()
+    monkeypatch.setattr(pool.warnings, 'warn', warning_mock)
+
+    pool.reset_connection_cache(fail_on_error=False, connection_cache={'conn': connection_mock})
+
+    assert warning_mock.call_count == 1
+    assert warning_mock.call_args[0][0] == 'Failed to close connection conn: exception'
