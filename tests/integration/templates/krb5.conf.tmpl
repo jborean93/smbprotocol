@@ -1,0 +1,12 @@
+[libdefaults]
+  default_realm = {{ domain_name | upper}}
+
+[realms]
+  {{ domain_name | upper }} = {
+    kdc = {{ groups['win_controller'][0] | lower }}.{{ domain_name | lower }}
+    admin_server = {{ groups['win_controller'][0] | lower }}.{{ domain_name | lower }}
+  }
+
+[domain_realm]
+  {{ domain_name | lower }} = {{ domain_name | upper }}
+  .{{ domain_name | lower }} = {{ domain_name | upper }}

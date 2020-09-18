@@ -5,6 +5,7 @@
 import logging
 
 from smbclient._pool import (
+    ClientConfig,
     delete_session,
     register_session,
     reset_connection_cache,
@@ -44,6 +45,7 @@ from smbclient._os import (
     removexattr,
     setxattr,
     SMBStatResult,
+    SMBStatVolumeResult,
     XATTR_CREATE,
     XATTR_REPLACE,
 )

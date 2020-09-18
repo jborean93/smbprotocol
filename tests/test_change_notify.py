@@ -3,7 +3,6 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import pytest
-import re
 import threading
 import uuid
 

@@ -6,7 +6,7 @@ from collections import (
     OrderedDict,
 )
 
-from smbprotocol.exceptions import (
+from smbprotocol.header import (
     NtStatus,
 )
 

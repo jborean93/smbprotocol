@@ -1,0 +1,26 @@
+- name: run integration tests on Windows
+  hosts: SERVER2012R2
+  gather_facts: no
+  tags:
+  - windows
+
+  tasks:
+  - name: run integration tests
+    win_command: '"{{ python_venv_path }}\{{ item | win_basename }}\Scripts\python.exe" -m pytest C:\temp\test_integration.py -v'
+    with_items: '{{ python_interpreters }}'
+    become: yes
+    become_method: runas
+    vars:
+      ansible_become_user: '{{ domain_upn }}'
+      ansible_become_pass: '{{ domain_password }}'
+
+- name: run integration tests on Linux
+  hosts: linux_children
+  gather_facts: no
+  tags:
+  - linux
+
+  tasks:
+  - name: run integration tests
+    command: '"{{ python_venv_path }}/{{ item | basename }}/bin/python" -m pytest ~/test_integration.py -v'
+    with_items: '{{ python_interpreters }}'

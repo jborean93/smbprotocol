@@ -9,14 +9,14 @@ from collections import (
     OrderedDict,
 )
 
-from smbprotocol.connection import (
-    Commands,
-    NtStatus,
-)
-
 from smbprotocol.exceptions import (
     Cancelled,
     NotifyEnumDir,
+)
+
+from smbprotocol.header import (
+    Commands,
+    NtStatus,
 )
 
 from smbprotocol.structure import (

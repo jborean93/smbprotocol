@@ -3,8 +3,11 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import io
+import logging
 
 from smbclient._pool import (
+    ClientConfig,
+    dfs_request,
     get_smb_tree,
 )
 
@@ -14,6 +17,9 @@ from smbprotocol import (
 
 from smbprotocol.exceptions import (
     NoMoreFiles,
+    ObjectNameNotFound,
+    ObjectPathNotFound,
+    PathNotCovered,
     PipeBroken,
     SMBOSError,
     SMBResponseException,
@@ -44,6 +50,8 @@ from smbprotocol.open import (
     SMB2SetInfoRequest,
     SMB2SetInfoResponse,
 )
+
+log = logging.getLogger(__name__)
 
 
 # Not defined on Python 2.6 so try and get the attribute with a sane default
@@ -262,6 +270,7 @@ class SMBRawIO(io.RawIOBase):
         self._offset = 0
         self._flush = False
         self._buffer_size = buffer_size
+        self.__kwargs = kwargs  # Used in open for DFS referrals
 
         if desired_access is None:
             desired_access = 0
@@ -340,6 +349,40 @@ class SMBRawIO(io.RawIOBase):
                 self._create_options,
                 send=(transaction is None),
             )
+        except (PathNotCovered, ObjectNameNotFound, ObjectPathNotFound) as exc:
+            # The MS-DFSC docs status that STATUS_PATH_NOT_COVERED is used when encountering a link to a different
+            # server but Samba seems to return the generic name or path not found.
+            if not self.fd.tree_connect.is_dfs_share:
+                raise SMBOSError(exc.status, self.name)
+
+            # Path is on a DFS root that is linked to another server.
+            client_config = ClientConfig()
+            referral = dfs_request(self.fd.tree_connect, self.name[1:])
+            client_config.cache_referral(referral)
+            info = client_config.lookup_referral([p for p in self.name.split("\\") if p])
+
+            for target in info:
+                new_path = self.name.replace(info.dfs_path, target.target_path, 1)
+
+                try:
+                    tree, fd_path = get_smb_tree(new_path, **self.__kwargs)
+                    self.fd = Open(tree, fd_path)
+                    self.open(transaction=transaction)
+
+                except SMBResponseException as link_exc:
+                    log.warning("Failed to connect to DFS link target %s: %s" % (str(target), link_exc))
+
+                else:
+                    # Record the target that worked for future reference.
+                    info.target_hint = target
+                    break
+
+            else:
+                # None of the targets worked so raise the original error.
+                raise SMBOSError(exc.status, self.name)
+
+            return
+
         except SMBResponseException as exc:
             raise SMBOSError(exc.status, self.name)
 

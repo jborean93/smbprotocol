@@ -12,12 +12,22 @@
     copy:
       content: |
         [global]
+        host msdfs = yes
         workgroup = WORKGROUP
         valid users = @smbgroup
         server signing = mandatory
         ea support = yes
         store dos attributes = yes
         vfs objects = xattr_tdb streams_xattr
+
+        [dfs]
+        comment = Test Samba DFS Root
+        path = /srv/samba/dfsroot
+        browsable = yes
+        guest ok = no
+        read only = no
+        create mask = 0755
+        msdfs root = yes
 
         [share]
         comment = Test Samba Share
@@ -28,7 +38,7 @@
         create mask = 0755
 
         [share-encrypted]
-        command = Test Encrypted Samba Share
+        comment = Test Encrypted Samba Share
         path = /srv/samba/share-encrypted
         browsable = yes
         guest ok = no
@@ -60,8 +70,25 @@
       mode: '755'
       owner: smbuser
     loop:
+    - dfsroot
     - share
     - share-encrypted
+
+  - name: create dfsroot link targets
+    file:
+      src: '{{ item.src }}'
+      dest: '{{ item.dest }}'
+      state: link
+      group: smbgroup
+      mode: '755'
+      owner: smbuser
+    loop:
+    - src: msdfs:localhost\\share
+      dest: /srv/samba/dfsroot/share
+    - src: msdfs:localhost\\missing,msdfs:localhost\\share-encrypted
+      dest: /srv/samba/dfsroot/share-encrypted
+    - src: msdfs:localhost\\missing
+      dest: /srv/samba/dfsroot/broken
 
   - name: set selinux permissions for samba dir
     command: chcon -R -t samba_share_t /srv/samba/

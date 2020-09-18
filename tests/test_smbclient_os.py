@@ -10,6 +10,7 @@ import ntpath
 import os
 import pytest
 import re
+import six
 import smbclient  # Tests that we expose this in smbclient/__init__.py
 import stat
 
@@ -1408,6 +1409,15 @@ def test_stat_symlink_dont_follow(smb_share):
     assert stat.S_ISLNK(actual.st_mode)
 
 
+def test_stat_volume(smb_share):
+    actual = smbclient.stat_volume(smb_share)
+
+    assert isinstance(actual, smbclient.SMBStatVolumeResult)
+    assert isinstance(actual.actual_available_size, six.integer_types)
+    assert isinstance(actual.total_size, six.integer_types)
+    assert isinstance(actual.caller_available_size, six.integer_types)
+
+
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
                     reason="cannot create symlinks on Samba")
 def test_symlink_file_missing_src(smb_share):
@@ -1897,3 +1907,35 @@ def test_xattr_dont_follow(smb_share):
 
     smbclient.removexattr(dst_filename, b"KEY", follow_symlinks=False)
     assert smbclient.listxattr(dst_filename, follow_symlinks=False) == []
+
+
+def test_dfs_path(smb_dfs_share):
+    actual_listdir = smbclient.listdir(smb_dfs_share)
+    assert actual_listdir == []
+
+    test_dir = ntpath.join(smb_dfs_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_dfs_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    for info in smbclient.scandir(smb_dfs_share):
+        if info.name == 'test file.txt':
+            assert info.path == test_file
+            assert not info.is_dir()
+            assert info.is_file()
+
+        else:
+            assert info.path == test_dir
+            assert info.is_dir()
+            assert not info.is_file()
+
+
+def test_broken_dfs_path(smb_real):
+    dfs_path = u'\\\\' + ntpath.join(smb_real[2], 'dfs', 'broken')
+
+    # The message returned differs based on whether the server is Samba or Windows. Just make sure we do raise an
+    # error and that it doesn't continuously loop.
+    with pytest.raises(SMBOSError):
+        smbclient.listdir(dfs_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])

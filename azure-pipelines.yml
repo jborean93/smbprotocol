@@ -50,7 +50,9 @@ stages:
         versionSpec: $(python.version)
 
     - script: >
-        docker run -d
+        docker run
+        --detach
+        --rm
         -p $(smb_port):445
         -v $(pwd)/build-scripts:/app
         -w /app
@@ -152,11 +154,30 @@ stages:
         architecture: $(python.arch)
 
     - powershell: |
+        $baseShareName = '$(smb_share)'
         New-Item -Path C:\share -ItemType Directory > $null
         New-Item -Path C:\share-encrypted -ItemType Directory > $null
-        New-SmbShare -Name $(smb_share) -Path C:\share -EncryptData $false -FullAccess Everyone > $null
-        New-SmbShare -Name $(smb_share)-encrypted -Path C:\share-encrypted -EncryptData $true -FullAccess Everyone > $null
+        New-Item -Path C:\DFSRoots\dfs -ItemType Directory > $null
+        New-SmbShare -Name $baseShareName -Path C:\share -EncryptData $false -FullAccess Everyone > $null
+        New-SmbShare -Name "$baseShareName-encrypted" -Path C:\share-encrypted -EncryptData $true -FullAccess Everyone > $null
+        New-SmbShare -Name dfs -Path C:\DFSRoots\dfs -FullAccess Everyone > $null
         Set-SmbServerConfiguration -RequireSecuritySignature $true -Force
+
+        Install-WindowsFeature FS-DFS-Namespace
+        $dfsPath = "\\$env:COMPUTERNAME\dfs"
+        $dfsParams = @{
+            Path = $dfsPath
+            TargetPath = $dfsPath
+            Type = 'Standalone'
+            EnableSiteCosting = $true
+            State = 'Online'
+            TargetState = 'Online'
+        }
+        New-DfsnRoot @dfsParams
+        New-DfsnFolder -Path "$dfsPath\$baseShareName" -TargetPath "\\$env:COMPUTERNAME\$baseShareName" > $null
+        New-DfsnFolder -Path "$dfsPath\$baseShareName-encrypted" -TargetPath "\\$env:COMPUTERNAME\missing" > $null
+        New-DfsnFolderTarget -Path "$dfsPath\$baseShareName-encrypted" -TargetPath "\\$env:COMPUTERNAME\$baseShareName-encrypted" > $null
+        New-DfsnFolder -Path "$dfsPath\broken" -TargetPath "\\$env:COMPUTERNAME\missing" > $null
       displayName: Set up SMB server shares
 
     - script: |

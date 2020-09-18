@@ -35,9 +35,7 @@ from smbprotocol._text import (
 )
 
 from smbprotocol.exceptions import (
-    NoEASOnFile,
     NoSuchFile,
-    NtStatus,
     SMBOSError,
     SMBResponseException,
 )
@@ -55,6 +53,10 @@ from smbprotocol.file_info import (
     FileRenameInformation,
     FileStandardInformation,
     FileFsFullSizeInformation
+)
+
+from smbprotocol.header import (
+    NtStatus,
 )
 
 from smbprotocol.ioctl import (

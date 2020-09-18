@@ -25,7 +25,6 @@ from cryptography.hazmat.primitives.kdf.kbkdf import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
 )
 
@@ -36,9 +35,13 @@ from smbprotocol.connection import (
 
 from smbprotocol.exceptions import (
     MoreProcessingRequired,
-    NtStatus,
     SMBAuthenticationError,
     SMBException,
+)
+
+from smbprotocol.header import (
+    Commands,
+    NtStatus,
 )
 
 from smbprotocol.structure import (
@@ -250,8 +253,11 @@ class Session(object):
 
     def connect(self):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
-        context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
-                                options=spnego.NegotiateOptions.session_key)
+        try:
+            context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
+                                    options=spnego.NegotiateOptions.session_key)
+        except spnego.exceptions.SpnegoError as err:
+            raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
 
         self.connection.preauth_session_table[self.session_id] = self
         in_token = self.connection.gss_negotiate_token
@@ -266,6 +272,7 @@ class Session(object):
                 break
 
             session_setup = SMB2SessionSetupRequest()
+            session_setup['capabilities'] = Capabilities.SMB2_GLOBAL_CAP_DFS
             session_setup['security_mode'] = self.connection.client_security_mode
             session_setup['buffer'] = out_token
 

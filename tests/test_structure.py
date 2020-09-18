@@ -16,12 +16,15 @@ from datetime import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
 )
 
 from smbprotocol.connection import (
     Capabilities,
+)
+
+from smbprotocol.header import (
+    Commands,
 )
 
 from smbprotocol.structure import (
@@ -1262,7 +1265,7 @@ class TestEnumField(object):
         with pytest.raises(ValueError) as exc:
             field.set_value(0x13)
         assert str(exc.value) == "Enum value 19 does not exist in enum type " \
-                                 "<class 'smbprotocol.Commands'>"
+                                 "<class 'smbprotocol.header.Commands'>"
 
 
 class TestFlagField(object):
@@ -1503,6 +1506,8 @@ class TestTextField(object):
         field = self.StructureTest()['field']
         expected = 19
         actual = len(field)
+        if field.null_terminated:
+            expected += len(u"\x00".encode(field.encoding))
         assert actual == expected
 
     def test_to_string(self):
@@ -1523,6 +1528,8 @@ class TestTextField(object):
         expected = b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f" \
                    b"\x72\x6c\x64\x20\x2d\x20\x63\x61" \
                    b"\x66\xc3\xa9"
+        if field.null_terminated:
+            expected += u"\x00".encode(field.encoding)
         actual = field.pack()
         assert actual == expected
 
@@ -1543,9 +1550,12 @@ class TestTextField(object):
         field.set_value(lambda s: self.STRING_VALUE)
         expected = self.STRING_VALUE
         actual = field.get_value()
+        actual_length = 19
+        if field.null_terminated:
+            actual_length += len(u"\x00".encode(field.encoding))
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
-        assert len(field) == 19
+        assert len(field) == actual_length
 
     def test_set_bytes(self):
         field = self.StructureTest()['field']
@@ -1576,13 +1586,32 @@ class TestTextField(object):
         field = structure['field']
         field.encoding = 'utf-16-le'
         field.set_value(self.STRING_VALUE)
+        actual_length = 36
+        if field.null_terminated:
+            actual_length += len(u"\x00".encode(field.encoding))
 
-        assert len(field) == 36
+        assert len(field) == actual_length
         actual = field.get_value()
         assert actual == self.STRING_VALUE
         actual_pack = field.pack()
-        assert actual_pack == self.STRING_VALUE.encode('utf-16-le')
+        expected_bytes = self.STRING_VALUE.encode('utf-16-le')
+        if field.null_terminated:
+            expected_bytes += u"\x00".encode(field.encoding)
+        assert actual_pack == expected_bytes
 
         field.set_value("")
         field.unpack(actual_pack)
         assert field.get_value() == self.STRING_VALUE
+
+
+class TestTextFieldNullTerminated(TestTextField):
+
+    class StructureTest(Structure):
+        def __init__(self):
+            self.fields = OrderedDict([
+                ('field', TextField(
+                    encoding='utf-8',
+                    default=TestTextFieldNullTerminated.STRING_VALUE,
+                    null_terminated=True))
+            ])
+            super(TestTextFieldNullTerminated.StructureTest, self).__init__()

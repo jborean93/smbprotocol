@@ -2,7 +2,10 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from __future__ import division
+
 import copy
+import math
 import struct
 import textwrap
 import types
@@ -904,11 +907,14 @@ class BoolField(Field):
 
 class TextField(BytesField):
 
-    def __init__(self, encoding='utf-16-le', **kwargs):
+    def __init__(self, encoding='utf-16-le', null_terminated=False, **kwargs):
         self.encoding = encoding
+        self.null_terminated = null_terminated
         super(TextField, self).__init__(**kwargs)
 
     def _pack_value(self, value):
+        if self.null_terminated:
+            value += u"\x00"
         return to_bytes(value, encoding=self.encoding)
 
     def _parse_value(self, value):
@@ -928,7 +934,34 @@ class TextField(BytesField):
 
     def _get_packed_size(self):
         text_value = self._get_calculated_value(self.value)
-        return len(to_bytes(text_value, encoding=self.encoding))
+        size = len(to_bytes(text_value, encoding=self.encoding))
+        if self.null_terminated:
+            char_len = len("\x00".encode(self.encoding))
+            size += char_len
+        return size
 
     def _to_string(self):
         return self.value
+
+    def unpack(self, data):
+        import base64
+        null_byte = u"\x00".encode(self.encoding)
+
+        if self.null_terminated and self.size is None:
+            # If the size wasn't specified and the string contains a null terminator, cut off the bytes there.
+            null_index = data.find(null_byte)
+            if null_index != -1:
+                # In the case of UTF-16 we might be the index in the middle of a char, make sure we round up and get
+                # the boundary of each char.
+                actual_index = int(math.ceil(null_index / len(null_byte)) * len(null_byte))
+
+                self.set_value(data[0:actual_index])
+                return data[actual_index + len(null_byte):]
+
+        size = self._get_calculated_size(self.size, data)
+        raw_value = data[0:size]
+        if self.null_terminated and raw_value.endswith(null_byte):
+            raw_value = raw_value[:len(null_byte) * -1]
+
+        self.set_value(raw_value)
+        return data[size:]

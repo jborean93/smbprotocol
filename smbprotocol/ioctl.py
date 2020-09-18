@@ -10,13 +10,16 @@ from collections import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
 )
 
 from smbprotocol.connection import (
     Capabilities,
     SecurityMode,
+)
+
+from smbprotocol.header import (
+    Commands,
 )
 
 from smbprotocol.structure import (

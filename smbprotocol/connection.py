@@ -44,7 +44,6 @@ from threading import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
     MAX_PAYLOAD_SIZE,
 )
@@ -55,10 +54,18 @@ from smbprotocol._text import (
 )
 
 from smbprotocol.exceptions import (
-    NtStatus,
     SMB2SymbolicLinkErrorResponse,
     SMBException,
     SMBResponseException,
+)
+
+from smbprotocol.header import (
+    Commands,
+    NtStatus,
+    Smb2Flags,
+    SMB2HeaderAsync,
+    SMB2HeaderRequest,
+    SMB2HeaderResponse,
 )
 
 from smbprotocol.open import (
@@ -87,22 +94,6 @@ except ImportError:  # pragma: no cover
     from Queue import Queue
 
 log = logging.getLogger(__name__)
-
-
-class Smb2Flags(object):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.1.2 SMB2 Packet Header - SYNC Flags
-    Indicates various processing rules that need to be done on the SMB2 packet.
-    """
-    SMB2_FLAGS_SERVER_TO_REDIR = 0x00000001
-    SMB2_FLAGS_ASYNC_COMMAND = 0x00000002
-    SMB2_FLAGS_RELATED_OPERATIONS = 0x00000004
-    SMB2_FLAGS_SIGNED = 0x00000008
-    SMB2_FLAGS_PRIORITY_MASK = 0x00000070
-    SMB2_FLAGS_DFS_OPERATIONS = 0x10000000
-    SMB2_FLAGS_REPLAY_OPERATIONS = 0x20000000
 
 
 class SecurityMode(object):
@@ -190,143 +181,6 @@ class Ciphers(object):
         except UnsupportedAlgorithm:  # pragma: no cover
             pass
         return supported_ciphers
-
-
-class SMB2HeaderAsync(Structure):
-    """
-    [MS-SMB2] 2.2.1.1 SMB2 Packer Header - ASYNC
-    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/ea4560b7-90da-4803-82b5-344754b92a79
-
-    The SMB2 Packet header for async commands.
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b"\xfeSMB",
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('channel_sequence', IntField(size=2)),
-            ('reserved', IntField(size=2)),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands,
-            )),
-            ('credit_request', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('async_id', IntField(size=8)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField())
-        ])
-        super(SMB2HeaderAsync, self).__init__()
-
-
-class SMB2HeaderRequest(Structure):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.1.2 SMB2 Packet Header - SYNC
-    This is the header definition that contains the ChannelSequence/Reserved
-    instead of the Status field used for a Packet request.
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b"\xfeSMB",
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('channel_sequence', IntField(size=2)),
-            ('reserved', IntField(size=2)),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands
-            )),
-            ('credit_request', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('process_id', IntField(size=4)),
-            ('tree_id', IntField(size=4)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField())
-        ])
-        super(SMB2HeaderRequest, self).__init__()
-
-
-class SMB2HeaderResponse(Structure):
-    """
-    [MS-SMB2] v53.0 2017-09-15
-
-    2.2.1.2 SMB2 Packet Header - SYNC
-    The header definition for an SMB Response that contains the Status field
-    instead of the ChannelSequence/Reserved used for a Packet response.
-    """
-
-    def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b'\xfeSMB',
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('status', EnumField(
-                size=4,
-                enum_type=NtStatus,
-                enum_strict=False
-            )),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands,
-                enum_strict=False,
-            )),
-            ('credit_response', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('reserved', IntField(size=4)),
-            ('tree_id', IntField(size=4)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField()),
-        ])
-        super(SMB2HeaderResponse, self).__init__()
 
 
 class SMB2NegotiateRequest(Structure):
@@ -833,7 +687,7 @@ class Connection(object):
         # used for SMB 3.x for secure negotiate verification on tree connect
         self.negotiated_dialects = []
         self.client_capabilities = Capabilities.SMB2_GLOBAL_CAP_LARGE_MTU | \
-            Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION
+            Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION | Capabilities.SMB2_GLOBAL_CAP_DFS
 
         self.client_security_mode = \
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED if \
@@ -1031,7 +885,7 @@ class Connection(object):
                     original_path = tree_share_name + to_text(old_create['buffer_path'].get_value(),
                                                               encoding='utf-16-le')
 
-                    exp = SMBResponseException(response, status)
+                    exp = SMBResponseException(response)
                     reparse_buffer = next((e for e in exp.error_details
                                            if isinstance(e, SMB2SymbolicLinkErrorResponse)))
                     new_path = reparse_buffer.resolve_path(original_path)[len(tree_share_name):]
@@ -1072,7 +926,7 @@ class Connection(object):
 
                     return new_response
                 elif status not in [NtStatus.STATUS_SUCCESS, NtStatus.STATUS_PENDING]:
-                    raise SMBResponseException(response, status)
+                    raise SMBResponseException(response)
                 else:
                     break
 

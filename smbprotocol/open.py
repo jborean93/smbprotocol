@@ -9,7 +9,6 @@ from collections import (
 )
 
 from smbprotocol import (
-    Commands,
     Dialects,
     MAX_PAYLOAD_SIZE,
 )
@@ -39,6 +38,10 @@ from smbprotocol.file_info import (
     # originally defined here.
     FileAttributes,
     FileInformationClass,
+)
+
+from smbprotocol.header import (
+    Commands,
 )
 
 from smbprotocol.structure import (

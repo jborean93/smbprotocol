@@ -21,7 +21,7 @@ from smbprotocol.connection import (
 from smbprotocol.exceptions import (
     ErrorContextId,
     IpAddrType,
-    NtStatus,
+    NetworkNameDelegated,
     SMBAuthenticationError,
     SMBException,
     SMBLinkRedirectionError,
@@ -34,6 +34,10 @@ from smbprotocol.exceptions import (
     SMB2ShareRedirectErrorContext,
     SMB2SymbolicLinkErrorResponse,
     SymbolicLinkErrorFlags,
+)
+
+from smbprotocol.header import (
+    NtStatus,
 )
 
 
@@ -125,7 +129,7 @@ class TestSMBResponseException(object):
         error_resp = SMB2ErrorResponse()
         header = self._get_header(error_resp)
         try:
-            raise SMBResponseException(header, header['status'].get_value())
+            raise SMBResponseException(header)
         except SMBResponseException as exc:
             assert exc.error_details == []
             exp_resp = "Received unexpected status from the server: An invalid parameter was passed to a service or " \
@@ -133,6 +137,14 @@ class TestSMBResponseException(object):
             assert exc.message == exp_resp
             assert str(exc) == exp_resp
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
+
+    def test_throw_exception_without_header(self):
+        actual = NetworkNameDelegated()
+        assert isinstance(actual, NetworkNameDelegated)
+        assert actual.status == NetworkNameDelegated._STATUS_CODE
+        assert str(actual) == "Received unexpected status from the server: The network name was deleted. " \
+                              "(3221225673) STATUS_NETWORK_NAME_DELETED: 0xc00000c9"
+        assert actual.error_details == []
 
     def test_throw_exception_with_symlink_redir(self):
         symlnk_redir = SMB2SymbolicLinkErrorResponse()
@@ -146,7 +158,7 @@ class TestSMBResponseException(object):
         header = self._get_header(error_resp,
                                   NtStatus.STATUS_STOPPED_ON_SYMLINK)
         try:
-            raise SMBResponseException(header, header['status'].get_value())
+            raise SMBResponseException(header)
         except SMBResponseException as exc:
             assert len(exc.error_details) == 1
             err1 = exc.error_details[0]
@@ -176,7 +188,7 @@ class TestSMBResponseException(object):
         header = self._get_header(error_resp,
                                   NtStatus.STATUS_BAD_NETWORK_NAME)
         try:
-            raise SMBResponseException(header, header['status'].get_value())
+            raise SMBResponseException(header)
         except SMBResponseException as exc:
             assert len(exc.error_details) == 1
             err1 = exc.error_details[0]
@@ -195,7 +207,7 @@ class TestSMBResponseException(object):
         error_resp['error_data'] = [cont_resp]
         header = self._get_header(error_resp)
         try:
-            raise SMBResponseException(header, header['status'].get_value())
+            raise SMBResponseException(header)
         except SMBResponseException as exc:
             assert len(exc.error_details) == 1
             assert exc.error_details[0] == b"\x01\x02\x03\x04"
@@ -216,7 +228,7 @@ class TestSMBResponseException(object):
         ]
         header = self._get_header(error_resp)
         try:
-            raise SMBResponseException(header, header['status'].get_value())
+            raise SMBResponseException(header)
         except SMBResponseException as exc:
             assert len(exc.error_details) == 2
             assert exc.error_details[0] == b"\x01\x02\x03\x04"

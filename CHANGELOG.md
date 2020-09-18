@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 - TBD
+
+* Added experimental support for DFS shares when using `smbclient` function
+* Added `smbclient.ClientConfig()` to set global default options on new connections
+* Moved the SMB Header structures to `smbprotocol.header`
+* Added `null_terminated` option for a `TextField` value
+
 ## 1.1.0 - 2020-08-14
 
 * Speed up logging statements for large messages like a read and write message

@@ -24,6 +24,7 @@ from smbprotocol.session import (
     SMB2Logoff,
     SMB2SessionSetupRequest,
     SMB2SessionSetupResponse,
+    spnego as pyspnego,
 )
 
 
@@ -271,6 +272,20 @@ class TestSession(object):
                 session.connect()
             assert str(exc.value) == "SMB encryption is required but the " \
                                      "connection does not support it"
+        finally:
+            connection.disconnect(True)
+
+    def test_connect_fail(self, smb_real, monkeypatch, mocker):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+        try:
+            monkeypatch.setattr(pyspnego, 'client',
+                                mocker.MagicMock(side_effect=pyspnego.exceptions.NoCredentialError()))
+            session = Session(connection, smb_real[0], smb_real[1])
+
+            with pytest.raises(SMBAuthenticationError, match="Failed to authenticate with server"):
+                session.connect()
+
         finally:
             connection.disconnect(True)
 
