@@ -89,9 +89,9 @@ from smbprotocol.transport import (
 )
 
 try:
-    from queue import Queue
+    from queue import Queue, Empty
 except ImportError:  # pragma: no cover
-    from Queue import Queue
+    from Queue import Queue, Empty
 
 log = logging.getLogger(__name__)
 
@@ -1107,7 +1107,21 @@ class Connection(object):
 
     def _process_message_thread(self, msg_queue):
         while True:
-            b_msg = msg_queue.get()
+            # Wait for a max of 10 minutes before sending an echo that tells the SMB server the client is still
+            # available. This stops the server from closing the connection and the associated sessions on a long lived
+            # connection. A brief test shows Windows kills a connection at ~16 minutes so 10 minutes is a safe choice.
+            # https://github.com/jborean93/smbprotocol/issues/31
+            try:
+                b_msg = msg_queue.get(timeout=600)
+            except Empty:
+                log.debug("Sending SMB2 Echo to keep connection alive")
+                for sid in self.session_table.keys():
+                    req = self.send(SMB2Echo(), sid=sid)
+                    # Set this reserved field to 1 as we use that internally to check whether the outstanding requests
+                    # queue should be cleared in this thread or not.
+                    req.message['reserved'] = 1
+
+                continue
 
             # The socket will put None in the queue if it is closed, signalling the end of the connection.
             if b_msg is None:
@@ -1163,6 +1177,11 @@ class Connection(object):
 
                         request.response = header
                         request.response_event.set()
+
+                        # When we send a ping in this thread we want to make sure it doesn't linger in the outstanding
+                        # request queue.
+                        if request.message['reserved'].get_value() == 1:
+                            del self.outstanding_requests[message_id]
             except Exception as exc:
                 # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
                 self._t_exc = exc

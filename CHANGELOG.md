@@ -6,6 +6,7 @@
 * Added `smbclient.ClientConfig()` to set global default options on new connections
 * Moved the SMB Header structures to `smbprotocol.header`
 * Added `null_terminated` option for a `TextField` value
+* Fix broken pipe errors that occur on long running connections by sending a echo request for each connection session every 10 minutes
 
 ## 1.1.0 - 2020-08-14
 
