@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 - TBD
+## 1.2.0 - 2020-09-22
 
 * Added experimental support for DFS shares when using `smbclient` function
 * Added `smbclient.ClientConfig()` to set global default options on new connections
