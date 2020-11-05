@@ -137,6 +137,12 @@ class SMB2HeaderAsync(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('protocol_id', BytesField(
                 size=4,
@@ -181,6 +187,12 @@ class SMB2HeaderRequest(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('protocol_id', BytesField(
                 size=4,
@@ -226,6 +238,12 @@ class SMB2HeaderResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize default fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('protocol_id', BytesField(
                 size=4,

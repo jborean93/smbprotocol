@@ -124,6 +124,12 @@ class ReparseDataBuffer(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('reparse_tag', EnumField(
                 size=4,
@@ -151,6 +157,12 @@ class SymbolicLinkReparseDataBuffer(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('substitute_name_offset', IntField(size=2)),
             ('substitute_name_length', IntField(size=2)),
@@ -167,12 +179,32 @@ class SymbolicLinkReparseDataBuffer(Structure):
         super(SymbolicLinkReparseDataBuffer, self).__init__()
 
     def get_substitute_name(self):
+        """
+        Gets the name of the child.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._get_name('substitute')
 
     def get_print_name(self):
+        """
+        Returns the name of the print
+
+        Args:
+            self: (todo): write your description
+        """
         return self._get_name('print')
 
     def set_name(self, substitute_name, print_name):
+        """
+        Set the name.
+
+        Args:
+            self: (todo): write your description
+            substitute_name: (str): write your description
+            print_name: (str): write your description
+        """
         b_substitute_name = to_bytes(to_text(substitute_name), encoding='utf-16-le')
         b_print_name = to_bytes(to_text(print_name), encoding='utf-16-le')
 
@@ -183,6 +215,13 @@ class SymbolicLinkReparseDataBuffer(Structure):
         self['buffer'] = b_substitute_name + b_print_name
 
     def resolve_link(self, path):
+        """
+        Resolve link of a syml path.
+
+        Args:
+            self: (todo): write your description
+            path: (str): write your description
+        """
         link_target = self.get_substitute_name()
 
         if self['flags'].get_value() == SymbolicLinkFlags.SYMLINK_FLAG_ABSOLUTE:
@@ -197,6 +236,13 @@ class SymbolicLinkReparseDataBuffer(Structure):
         return ntpath.abspath(link_target)
 
     def _get_name(self, prefix):
+        """
+        Get the name of the field.
+
+        Args:
+            self: (todo): write your description
+            prefix: (str): write your description
+        """
         offset = self['%s_name_offset' % prefix].get_value()
         length = self['%s_name_length' % prefix].get_value()
         b_name = self['buffer'].get_value()[offset:offset + length]

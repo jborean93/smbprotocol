@@ -137,6 +137,14 @@ def samefile(path1, path2, **kwargs):
 
 
 def _exists(path, symlink_default, follow_symlinks, **kwargs):
+    """
+    .. versionadded :: 0.
+
+    Args:
+        path: (str): write your description
+        symlink_default: (str): write your description
+        follow_symlinks: (bool): write your description
+    """
     try:
         stat(path, follow_symlinks=follow_symlinks, **kwargs)
         return True
@@ -150,6 +158,14 @@ def _exists(path, symlink_default, follow_symlinks, **kwargs):
 
 
 def _stat_ismode(path, check, follow, **kwargs):
+    """
+    .. version of os.
+
+    Args:
+        path: (str): write your description
+        check: (bool): write your description
+        follow: (bool): write your description
+    """
     try:
         return check(stat(path, follow_symlinks=follow, **kwargs).st_mode)
     except SMBOSError as err:

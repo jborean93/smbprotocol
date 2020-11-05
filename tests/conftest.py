@@ -156,6 +156,11 @@ TARGET_REFERRAL.unpack(b"\x26\x00"
 
 @pytest.fixture(scope='module')
 def smb_real():
+    """
+    Returns the real real real real real real real real - time connection.
+
+    Args:
+    """
     # for these tests to work the server at SMB_SERVER must support dialect
     # 3.1.1, without this some checks will fail as we test 3.1.1 specific
     # features
@@ -178,6 +183,13 @@ def smb_real():
     ('share-encrypted', 5),
 ])
 def smb_share(request, smb_real):
+    """
+    Share share share share share
+
+    Args:
+        request: (todo): write your description
+        smb_real: (todo): write your description
+    """
     # Use some non ASCII chars to test out edge cases by default.
     share_path = u"%s\\%s" % (smb_real[request.param[1]], u"Pýtæs†-[%s] 💩" % time.time())
 
@@ -198,6 +210,13 @@ def smb_share(request, smb_real):
     ('share-encrypted', 5),  # Referral to 2 targets, first is known to be broken
 ])
 def smb_dfs_share(request, smb_real):
+    """
+    Context manager that yields a generator that yields a list of share_reals.
+
+    Args:
+        request: (todo): write your description
+        smb_real: (todo): write your description
+    """
     test_folder = u"Pýtæs†-[%s] 💩" % time.time()
 
     if request.param[1]:

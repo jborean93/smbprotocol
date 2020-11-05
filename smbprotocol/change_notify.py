@@ -83,6 +83,12 @@ class FileNotifyInformation(Structure):
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/634043d7-7b39-47e9-9e26-bda64685e4c9
     """
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('next_entry_offset', IntField(size=4)),
             ('action', EnumField(
@@ -111,6 +117,12 @@ class SMB2ChangeNotifyRequest(Structure):
     COMMAND = Commands.SMB2_CHANGE_NOTIFY
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -141,6 +153,12 @@ class SMB2ChangeNotifyResponse(Structure):
     COMMAND = Commands.SMB2_CHANGE_NOTIFY
 
     def __init__(self):
+        """
+        Initialize the field.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -224,6 +242,12 @@ class FileSystemWatcher(object):
 
     @property
     def cancelled(self):
+        """
+        Returns the request.
+
+        Args:
+            self: (todo): write your description
+        """
         """ States whether the change notify request was cancelled or not. """""
         return self._request is not None and self._request.cancelled is True
 
@@ -261,6 +285,13 @@ class FileSystemWatcher(object):
             return change_notify, self._start_response
 
     def _start_response(self, request):
+        """
+        Start the request.
+
+        Args:
+            self: (todo): write your description
+            request: (todo): write your description
+        """
         self._request = request
         self._t_on_response.start()
 
@@ -280,6 +311,12 @@ class FileSystemWatcher(object):
         return self.result
 
     def _on_response(self):
+        """
+        Called when the request.
+
+        Args:
+            self: (todo): write your description
+        """
         try:
             self.open.connection.receive(self._request)
 

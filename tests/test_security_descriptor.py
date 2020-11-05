@@ -20,6 +20,12 @@ from smbprotocol.security_descriptor import (
 class TestSIDPacket(object):
 
     def test_create_message(self):
+        """
+        Create a message that the message.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = "S-1-1-0"
         message = SIDPacket()
         message.from_string(sid)
@@ -34,6 +40,12 @@ class TestSIDPacket(object):
         assert str(message) == sid
 
     def test_create_domain_sid(self):
+        """
+        Create a new domain.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = "S-1-5-21-3242954042-3778974373-1659123385-1104"
         message = SIDPacket()
         message.from_string(sid)
@@ -52,12 +64,24 @@ class TestSIDPacket(object):
         assert str(message) == sid
 
     def test_parse_string_fail_no_s(self):
+        """
+        Parse a string that a string.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = SIDPacket()
         with pytest.raises(ValueError) as exc:
             sid.from_string("A-1-1-0")
         assert str(exc.value) == "A SID string must start with S-"
 
     def test_parse_string_fail_too_small(self):
+        """
+        Parse a string that contains a string of a string.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = SIDPacket()
         with pytest.raises(ValueError) as exc:
             sid.from_string("S-1")
@@ -66,6 +90,12 @@ class TestSIDPacket(object):
                                  " S-1-0"
 
     def test_parse_message(self):
+        """
+        Takes a test message from a test.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SIDPacket()
         data = b"\x01" \
                b"\x01" \
@@ -85,6 +115,12 @@ class TestSIDPacket(object):
         assert sub_auth[0] == 0
 
     def test_parse_message_domain_sid(self):
+        """
+        Parse a single auth token.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SIDPacket()
         data = b"\x01" \
                b"\x05" \
@@ -115,6 +151,12 @@ class TestSIDPacket(object):
 class TestAccessAllowedAce(object):
 
     def test_create_message(self):
+        """
+        Create a new message.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
 
@@ -135,6 +177,12 @@ class TestAccessAllowedAce(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse the test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = AccessAllowedAce()
         data = b"\x00" \
                b"\x00" \
@@ -159,6 +207,12 @@ class TestAccessAllowedAce(object):
 class TestAccessDeniedAce(object):
 
     def test_create_message(self):
+        """
+        Create a new message.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
 
@@ -179,6 +233,12 @@ class TestAccessDeniedAce(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = AccessDeniedAce()
         data = b"\x01" \
                b"\x00" \
@@ -202,6 +262,12 @@ class TestAccessDeniedAce(object):
 class TestSystemAuditAce(object):
 
     def test_create_message(self):
+        """
+        Create a new message for a message.
+
+        Args:
+            self: (todo): write your description
+        """
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
 
@@ -222,6 +288,12 @@ class TestSystemAuditAce(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SystemAuditAce()
         data = b"\x02" \
                b"\x00" \
@@ -245,6 +317,12 @@ class TestSystemAuditAce(object):
 class TestAclPacket(object):
 
     def test_create_message(self):
+        """
+        Create a message
+
+        Args:
+            self: (todo): write your description
+        """
         sid1 = SIDPacket()
         sid1.from_string("S-1-1-0")
         sid2 = SIDPacket()
@@ -307,6 +385,12 @@ class TestAclPacket(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = AclPacket()
         data = b"\x02" \
                b"\x00" \
@@ -379,6 +463,12 @@ class TestAclPacket(object):
 class TestSMB2SDBuffer(object):
 
     def test_create_message(self):
+        """
+        Create a message
+
+        Args:
+            self: (todo): write your description
+        """
         sid1 = SIDPacket()
         sid1.from_string("S-1-1-0")
         sid2 = SIDPacket()
@@ -454,6 +544,12 @@ class TestSMB2SDBuffer(object):
         assert actual == expected
 
     def test_create_message_sacl_group(self):
+        """
+        Create a new icls message
+
+        Args:
+            self: (todo): write your description
+        """
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
 
@@ -499,6 +595,12 @@ class TestSMB2SDBuffer(object):
         assert actual == expected
 
     def test_parse_message_sacl_group(self):
+        """
+        Parse a single message group.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2CreateSDBuffer()
         data = b"\x01" \
                b"\x00" \
@@ -558,6 +660,12 @@ class TestSMB2SDBuffer(object):
         assert not actual.get_dacl()
 
     def test_parse_message(self):
+        """
+        Parse a test message
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2CreateSDBuffer()
         data = b"\x01" \
                b"\x00" \

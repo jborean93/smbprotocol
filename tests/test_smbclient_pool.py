@@ -17,6 +17,11 @@ from .conftest import (
 
 @pytest.fixture()
 def reset_config():
+    """
+    Reset a reset configuration.
+
+    Args:
+    """
     config = pool.ClientConfig()
     client_guid = config.client_guid
     username = config.username
@@ -33,11 +38,23 @@ def reset_config():
 
 
 def test_client_config_private_key(reset_config):
+    """
+    Test if the client config.
+
+    Args:
+        reset_config: (todo): write your description
+    """
     with pytest.raises(ValueError, match='Cannot set private attribute _domain_controller'):
         pool.ClientConfig().set(_domain_controller='test')
 
 
 def test_set_config_option(reset_config):
+    """
+    Set the default config option.
+
+    Args:
+        reset_config: (todo): write your description
+    """
     pool.ClientConfig(username='test')
     assert pool.ClientConfig().username == 'test'
     pool.ClientConfig(username=None)
@@ -45,6 +62,14 @@ def test_set_config_option(reset_config):
 
 
 def test_config_domain_cache(reset_config, monkeypatch, mocker):
+    """
+    Sets the global domain config domain.
+
+    Args:
+        reset_config: (todo): write your description
+        monkeypatch: (todo): write your description
+        mocker: (todo): write your description
+    """
     dfs_mock = mocker.MagicMock()
     dfs_mock.return_value = DOMAIN_REFERRAL
     monkeypatch.setattr(pool, 'get_smb_tree', mocker.MagicMock())
@@ -63,6 +88,14 @@ def test_config_domain_cache(reset_config, monkeypatch, mocker):
 
 
 def test_config_domain_cache_not_dfs_endpoint(reset_config, monkeypatch, mocker):
+    """
+    Checks if a mock configuration has a rolling.
+
+    Args:
+        reset_config: (todo): write your description
+        monkeypatch: (todo): write your description
+        mocker: (todo): write your description
+    """
     dfs_mock = mocker.MagicMock()
     dfs_mock.side_effect = InvalidParameter()
     warning_mock = mocker.MagicMock()
@@ -80,6 +113,12 @@ def test_config_domain_cache_not_dfs_endpoint(reset_config, monkeypatch, mocker)
 
 
 def test_reset_connection_error_fail(mocker):
+    """
+    Reset the connection to the connection pool.
+
+    Args:
+        mocker: (str): write your description
+    """
     connection_mock = mocker.MagicMock()
     connection_mock.disconnect.side_effect = Exception("exception")
 
@@ -88,6 +127,13 @@ def test_reset_connection_error_fail(mocker):
 
 
 def test_reset_connection_error_warning(monkeypatch, mocker):
+    """
+    Reset connection traceback.
+
+    Args:
+        monkeypatch: (todo): write your description
+        mocker: (str): write your description
+    """
     connection_mock = mocker.MagicMock()
     connection_mock.disconnect.side_effect = Exception("exception")
     warning_mock = mocker.MagicMock()

@@ -31,6 +31,12 @@ from smbprotocol.session import (
 class TestSMB2SessionSetupRequest(object):
 
     def test_create_message(self):
+        """
+        Creates a test.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SessionSetupRequest()
         message['security_mode'] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
         message['buffer'] = b"\x01\x02\x03\x04"
@@ -48,6 +54,12 @@ class TestSMB2SessionSetupRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SessionSetupRequest()
         data = b"\x19\x00" \
                b"\x00" \
@@ -73,6 +85,12 @@ class TestSMB2SessionSetupRequest(object):
 class TestSMB2SessionSetupResponse(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SessionSetupResponse()
         message['session_flags'] = 1
         message['buffer'] = b"\x04\x03\x02\x01"
@@ -86,6 +104,12 @@ class TestSMB2SessionSetupResponse(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SessionSetupResponse()
         data = b"\x09\x00" \
                b"\x01\x00" \
@@ -104,6 +128,12 @@ class TestSMB2SessionSetupResponse(object):
 class TestSMB2Logoff(object):
 
     def test_create_message(self):
+        """
+        Creates a test message
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2Logoff()
         expected = b"\x04\x00" \
                    b"\x00\x00"
@@ -112,6 +142,12 @@ class TestSMB2Logoff(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2Logoff()
         data = b"\x04\x00" \
                b"\x00\x00"
@@ -124,6 +160,13 @@ class TestSMB2Logoff(object):
 class TestSession(object):
 
     def test_dialect_2_0_2(self, smb_real):
+        """
+        Connects to the sqlite.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)
         session = Session(connection, smb_real[0], smb_real[1],
@@ -145,6 +188,13 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_2_1_0(self, smb_real):
+        """
+        Establish the sqlalchemy session.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
         session = Session(connection, smb_real[0], smb_real[1],
@@ -166,6 +216,13 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_3_0_0(self, smb_real):
+        """
+        Establish the sqlite connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -190,6 +247,13 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_3_0_2(self, smb_real):
+        """
+        Encrypts the session smbic.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -214,6 +278,13 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_3_1_1(self, smb_real):
+        """
+        Encrypt the sqlalchemy session.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -240,6 +311,13 @@ class TestSession(object):
             session.disconnect()
 
     def test_require_encryption(self, smb_real):
+        """
+        Establish a new session.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1], True)
@@ -264,6 +342,13 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_require_encryption_not_supported(self, smb_real):
+        """
+        Check if the connection is supported.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
         try:
@@ -276,6 +361,15 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_connect_fail(self, smb_real, monkeypatch, mocker):
+        """
+        Connect to a connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+            monkeypatch: (todo): write your description
+            mocker: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         try:
@@ -290,6 +384,13 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_setup_session_with_ms_gss_token(self, smb_real):
+        """
+        Create a gssql session.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         connection.gss_negotiate_token = b"\x60\x76\x06\x06\x2b\x06\x01\x05" \

@@ -28,6 +28,12 @@ class TestSMB2HeaderAsync(object):
            b"\x00\x00\x00\x00\x00\x00\x00\x00"
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         header = SMB2HeaderAsync()
         header['command'] = Commands.SMB2_CANCEL
         header['message_id'] = 1
@@ -38,6 +44,12 @@ class TestSMB2HeaderAsync(object):
         assert actual == self.DATA
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2HeaderAsync()
         assert actual.unpack(self.DATA + b"\x01\x02\x03\x04") == b""
 
@@ -61,6 +73,12 @@ class TestSMB2HeaderAsync(object):
 class TestSMB2HeaderRequest(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         header = SMB2HeaderRequest()
         header['command'] = Commands.SMB2_SESSION_SETUP
         header['message_id'] = 1
@@ -86,6 +104,12 @@ class TestSMB2HeaderRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2HeaderRequest()
         data = b"\xfe\x53\x4d\x42" \
                b"\x40\x00" \
@@ -125,6 +149,12 @@ class TestSMB2HeaderRequest(object):
 class TestSMB2HeaderResponse(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         header = SMB2HeaderResponse()
         header['command'] = Commands.SMB2_SESSION_SETUP
         header['message_id'] = 1
@@ -148,6 +178,12 @@ class TestSMB2HeaderResponse(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parses a message to the response.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2HeaderResponse()
         data = b"\xfe\x53\x4d\x42" \
                b"\x40\x00" \
