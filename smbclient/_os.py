@@ -772,6 +772,11 @@ def utime(path, times=None, ns=None, follow_symlinks=True, **kwargs):
         time_ns = getattr(time, 'time_ns', None)
         if not time_ns:
             def time_ns():  # pragma: no cover
+                """
+                Returns the number of seconds in seconds.
+
+                Args:
+                """
                 return int(time.time()) * 1000000000
 
         atime = mtime = (time_ns() // 100) + DateTimeField.EPOCH_FILETIME
@@ -968,6 +973,13 @@ def setxattr(path, attribute, value, flags=0, follow_symlinks=True, **kwargs):
 
 
 def _delete(raw_type, path, **kwargs):
+    """
+    Delete a file.
+
+    Args:
+        raw_type: (str): write your description
+        path: (str): write your description
+    """
     # Ensures we delete the symlink (if present) and don't follow it down.
     co = CreateOptions.FILE_OPEN_REPARSE_POINT
     co |= {
@@ -998,6 +1010,13 @@ def _delete(raw_type, path, **kwargs):
 
 
 def _get_extended_attributes(path, follow_symlinks=True, **kwargs):
+    """
+    Gets attributes of a file.
+
+    Args:
+        path: (str): write your description
+        follow_symlinks: (bool): write your description
+    """
     raw = SMBRawIO(path, mode='r', share_access='r', desired_access=FilePipePrinterAccessMask.FILE_READ_EA,
                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
 
@@ -1016,6 +1035,12 @@ def _get_extended_attributes(path, follow_symlinks=True, **kwargs):
 
 
 def _get_reparse_point(path, **kwargs):
+    """
+    Returns a : class.
+
+    Args:
+        path: (str): write your description
+    """
     raw = SMBRawIO(path, mode='r', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
                    create_options=CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
 
@@ -1029,6 +1054,14 @@ def _get_reparse_point(path, **kwargs):
 
 
 def _rename_information(src, dst, replace_if_exists=False, **kwargs):
+    """
+    Rename a file or directory.
+
+    Args:
+        src: (todo): write your description
+        dst: (todo): write your description
+        replace_if_exists: (bool): write your description
+    """
     verb = 'replace' if replace_if_exists else 'rename'
     norm_src = ntpath.normpath(src)
     norm_dst = ntpath.normpath(dst)
@@ -1052,6 +1085,18 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
 
 def _set_basic_information(path, creation_time=0, last_access_time=0, last_write_time=0, change_time=0,
                            file_attributes=0, follow_symlinks=True, **kwargs):
+    """
+    Set basic information about a file.
+
+    Args:
+        path: (str): write your description
+        creation_time: (todo): write your description
+        last_access_time: (todo): write your description
+        last_write_time: (todo): write your description
+        change_time: (todo): write your description
+        file_attributes: (str): write your description
+        follow_symlinks: (bool): write your description
+    """
     raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
 
@@ -1068,12 +1113,26 @@ def _set_basic_information(path, creation_time=0, last_access_time=0, last_write
 class SMBDirEntry(object):
 
     def __init__(self, raw, dir_info):
+        """
+        Initialize the directory.
+
+        Args:
+            self: (todo): write your description
+            raw: (str): write your description
+            dir_info: (str): write your description
+        """
         self._smb_raw = raw
         self._dir_info = dir_info
         self._stat = None
         self._lstat = None
 
     def __str__(self):
+        """
+        The native python datatype representation.
+
+        Args:
+            self: (todo): write your description
+        """
         return '<{0}: {1!r}>'.format(self.__class__.__name__, to_native(self.name))
 
     @property
@@ -1196,6 +1255,13 @@ class SMBDirEntry(object):
 
     @classmethod
     def from_path(cls, path, **kwargs):
+        """
+        Create a statentry object from a file path.
+
+        Args:
+            cls: (todo): write your description
+            path: (str): write your description
+        """
         file_stat = stat(path, **kwargs)
 
         # A DirEntry only needs these 2 properties to be set
@@ -1208,6 +1274,13 @@ class SMBDirEntry(object):
         return dir_entry
 
     def _link_target_type_check(self, check):
+        """
+        Check if the target type of the same type
+
+        Args:
+            self: (todo): write your description
+            check: (bool): write your description
+        """
         try:
             return check(self.stat(follow_symlinks=True).st_mode)
         except OSError as err:

@@ -124,7 +124,18 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
     :return: The dst path.
     """
     def wrap_not_implemented(function_name):
+        """
+        Wrap a implemented. implemented.
+
+        Args:
+            function_name: (str): write your description
+        """
         def raise_not_implemented(*args, **kwargs):
+            """
+            Raise a function raise an error.
+
+            Args:
+            """
             raise NotImplementedError("%s is unavailable on this platform as a local operation" % function_name)
 
         return raise_not_implemented
@@ -379,9 +390,19 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
     """
     if ignore_errors:
         def onerror(*args):
+            """
+            Wrapper function to the given args.
+
+            Args:
+            """
             pass
     elif onerror is None:
         def onerror(*args):
+            """
+            Decorator for the given callable.
+
+            Args:
+            """
             raise
 
     if islink(path, **kwargs):
@@ -425,6 +446,15 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
 
 
 def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
+    """
+    Copies a file or directory.
+
+    Args:
+        src: (todo): write your description
+        dst: (array): write your description
+        follow_symlinks: (bool): write your description
+        copy_meta_func: (todo): write your description
+    """
     # Need to check if dst is a UNC path before checking if it's a dir in smbclient.path before checking to see if it's
     # a local directory. If either one is a dir, join the filename of src onto dst.
     if ntpath.normpath(dst).startswith('\\\\') and isdir(dst, **kwargs):
@@ -438,6 +468,13 @@ def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
 
 
 def _get_file_stat(path, follow_symlinks=True, **kwargs):
+    """
+    Return the stat of a file
+
+    Args:
+        path: (str): write your description
+        follow_symlinks: (bool): write your description
+    """
     if path.startswith('//') or path.startswith('\\\\'):
         return smbclient_stat(path, follow_symlinks=follow_symlinks, **kwargs)
     else:
@@ -449,6 +486,14 @@ def _get_file_stat(path, follow_symlinks=True, **kwargs):
 
 
 def _local_chmod(path, mode, follow_symlinks):
+    """
+    Change the permissions.
+
+    Args:
+        path: (str): write your description
+        mode: (str): write your description
+        follow_symlinks: (bool): write your description
+    """
     if sys.version_info[0] < 3:
         if not follow_symlinks:
             if not hasattr(os, 'lchmod'):
@@ -461,6 +506,16 @@ def _local_chmod(path, mode, follow_symlinks):
 
 
 def _set_file_basic_info(file_path, follow_symlinks, read_only=None, atime_ns=None, mtime_ns=None, **kwargs):
+    """
+    Set basic information about a file.
+
+    Args:
+        file_path: (str): write your description
+        follow_symlinks: (bool): write your description
+        read_only: (bool): write your description
+        atime_ns: (todo): write your description
+        mtime_ns: (todo): write your description
+    """
     co = 0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT
 
     # Need to check if we need to change the attributes if the read_only flag is set. We can't just blindly set the

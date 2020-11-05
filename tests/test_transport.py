@@ -14,6 +14,12 @@ from smbprotocol.transport import (
 class TestDirectTcpPacket(object):
 
     def test_create_message(self):
+        """
+        Create a test message for the test.
+
+        Args:
+            self: (todo): write your description
+        """
         message = DirectTCPPacket()
         message['smb2_message'] = b"\xfe\x53\x4d\x42"
         expected = b"\x00\x00\x00\x04" \
@@ -25,6 +31,12 @@ class TestDirectTcpPacket(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = DirectTCPPacket()
         data = b"\x00\x00\x00\x04" \
                b"\xfe\x53\x4d\x42"
@@ -41,6 +53,12 @@ class TestDirectTcpPacket(object):
 class TestTcp(object):
 
     def test_normal_fail_message_too_big(self):
+        """
+        Test if the big test test.
+
+        Args:
+            self: (todo): write your description
+        """
         tcp = Tcp("0.0.0.0", 0, None)
         tcp._connected = True
         with pytest.raises(ValueError) as exc:
@@ -50,6 +68,12 @@ class TestTcp(object):
                                  "16777215"
 
     def test_invalid_host(self):
+        """
+        Validate the test host.
+
+        Args:
+            self: (todo): write your description
+        """
         tcp = Tcp("fake-host", 445, None)
         with pytest.raises(ValueError, match=re.escape("Failed to connect to 'fake-host:445': ")):
             tcp.send(b"")

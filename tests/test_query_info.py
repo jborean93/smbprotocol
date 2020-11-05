@@ -6,6 +6,11 @@ import pytest
 
 
 def test_query_info_deprecation():
+    """
+    Test if the test information about the test.
+
+    Args:
+    """
     with pytest.warns(DeprecationWarning) as record:
         from smbprotocol import query_info
 

@@ -50,6 +50,13 @@ class DomainEntry:
     """
 
     def __init__(self, referral):  # type: (DFSReferralEntryV3) -> None
+        """
+        Initialize the domain.
+
+        Args:
+            self: (todo): write your description
+            referral: (str): write your description
+        """
         self.domain_list = []
         self._referral = referral  # type: DFSReferralEntryV3
         self._start_time = time.time()  # type: float
@@ -67,6 +74,13 @@ class DomainEntry:
 
     @dc_hint.setter
     def dc_hint(self, value):  # type: (str) -> None
+        """
+        Gets / sets of unicode
+
+        Args:
+            self: (todo): write your description
+            value: (todo): write your description
+        """
         for idx, target in enumerate(self.domain_list):
             if target == value:
                 self._domain_hint_idx = idx
@@ -86,6 +100,13 @@ class DomainEntry:
         return self._domain_hint_idx is not None and not self.is_expired
 
     def process_dc_referral(self, referral):  # type: (DFSReferralResponse) -> None
+        """
+        Process dc dcral hostname.
+
+        Args:
+            self: (todo): write your description
+            referral: (str): write your description
+        """
         if self._domain_hint_idx is None:
             self._domain_hint_idx = 0
 
@@ -105,6 +126,13 @@ class ReferralEntry:
     """
 
     def __init__(self, referral):  # type: (DFSReferralResponse) -> None
+        """
+        Initialize the underlying header.
+
+        Args:
+            self: (todo): write your description
+            referral: (str): write your description
+        """
         referrals = referral['referral_entries'].get_value()
         self._referral_header_flags = referral['referral_header_flags']
         self._referrals = referrals  # type: List[Union[DFSReferralEntryV1, DFSReferralEntryV2, DFSReferralEntryV3]]
@@ -113,14 +141,32 @@ class ReferralEntry:
 
     @property
     def dfs_path(self):  # type: () -> str
+        """
+        Dfs the dfs path of the dataframe.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._referrals[self._target_hint_idx].dfs_path
 
     @property
     def is_root(self):  # type: () -> bool
+        """
+        Return true if the target is a root.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._referrals[self._target_hint_idx]['server_type'].has_flag(DFSServerTypes.ROOT_TARGETS)
 
     @property
     def is_link(self):  # type: () -> bool
+        """
+        Return true if the link is a link.
+
+        Args:
+            self: (todo): write your description
+        """
         return not self.is_root
 
     # @property
@@ -129,19 +175,44 @@ class ReferralEntry:
 
     @property
     def is_expired(self):  # type: () -> bool
+        """
+        Returns true if this analysis is expired.
+
+        Args:
+            self: (todo): write your description
+        """
         referral = self._referrals[self._target_hint_idx]
         return ((time.time() - self._start_time) - referral['time_to_live'].get_value()) >= 0
 
     @property
     def target_failback(self):  # type: () -> bool
+        """
+        Returns the target flags.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._referral_header_flags.has_flag(DFSReferralHeaderFlags.TARGET_FAIL_BACK)
 
     @property
     def target_hint(self):  # type: () -> DFSTarget
+        """
+        Returns the target hint value.
+
+        Args:
+            self: (todo): write your description
+        """
         return self.target_list[self._target_hint_idx]
 
     @target_hint.setter
     def target_hint(self, value):  # type: (DFSTarget) -> None
+        """
+        Set the target target_hint.
+
+        Args:
+            self: (todo): write your description
+            value: (todo): write your description
+        """
         for idx, target in enumerate(self.target_list):
             if target == value:
                 self._target_hint_idx = idx
@@ -152,6 +223,12 @@ class ReferralEntry:
 
     @property
     def target_list(self):  # type: () -> List[DFSTarget]
+        """
+        Returns a list of all target_list.
+
+        Args:
+            self: (todo): write your description
+        """
         return [
             DFSTarget(target_path=e.network_address,
                       set_boundary=e['referral_entry_flags'].has_flag(DFSReferralEntryFlags.TARGET_SET_BOUNDARY))
@@ -217,6 +294,12 @@ class DFSReferralRequest(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('max_referral_level', IntField(size=2, default=4)),
             ('request_file_name', TextField(null_terminated=True)),
@@ -232,6 +315,12 @@ class DFSReferralRequestEx(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('max_referral_level', IntField(size=2, default=4)),
             ('request_flags', FlagField(size=2, flag_type=DFSReferralRequestFlags)),
@@ -267,6 +356,12 @@ class DFSReferralResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('path_consumed', IntField(size=2)),
             ('number_of_referrals', IntField(size=2)),
@@ -280,6 +375,13 @@ class DFSReferralResponse(Structure):
         super(DFSReferralResponse, self).__init__()
 
     def _create_dfs_referral_entry(self, data):
+        """
+        Parse entry entry.
+
+        Args:
+            self: (todo): write your description
+            data: (array): write your description
+        """
         results = []
         for _ in range(self.fields['number_of_referrals'].get_value()):
             b_version = data[:1]
@@ -313,6 +415,12 @@ class DFSReferralEntryV1(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize field values
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version_number', IntField(size=2, default=1)),
             ('size', IntField(size=2)),
@@ -324,9 +432,23 @@ class DFSReferralEntryV1(Structure):
 
     @property
     def network_address(self):
+        """
+        The network address.
+
+        Args:
+            self: (todo): write your description
+        """
         return self['share_name'].get_value()
 
     def process_string_buffer(self, buffer, entry_offset):
+        """
+        Process a buffer buffer.
+
+        Args:
+            self: (todo): write your description
+            buffer: (todo): write your description
+            entry_offset: (str): write your description
+        """
         # The V1 entry does not use a string buffer so this is a no-op.
         pass
 
@@ -339,6 +461,12 @@ class DFSReferralEntryV2(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version_number', IntField(size=2, default=2)),
             ('size', IntField(size=2)),
@@ -356,6 +484,14 @@ class DFSReferralEntryV2(Structure):
         super(DFSReferralEntryV2, self).__init__()
 
     def process_string_buffer(self, buffer, entry_offset):
+        """
+        Process a buffer buffer.
+
+        Args:
+            self: (todo): write your description
+            buffer: (todo): write your description
+            entry_offset: (str): write your description
+        """
         buffer_fields = ['dfs_path', 'dfs_alternate_path', 'network_address']
 
         for field_name in buffer_fields:
@@ -378,6 +514,12 @@ class DFSReferralEntryV3(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version_number', IntField(size=2, default=3)),
             ('size', IntField(size=2)),
@@ -398,6 +540,14 @@ class DFSReferralEntryV3(Structure):
         super(DFSReferralEntryV3, self).__init__()
 
     def process_string_buffer(self, buffer, entry_offset):
+        """
+        Process a string buffer.
+
+        Args:
+            self: (todo): write your description
+            buffer: (todo): write your description
+            entry_offset: (str): write your description
+        """
         is_name_list = self['referral_entry_flags'].has_flag(DFSReferralEntryFlags.NAME_LIST_REFERRAL)
         buffer_fields = ['dfs_path', 'network_address']
         if not is_name_list:

@@ -138,6 +138,12 @@ class SIDPacket(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('revision', IntField(
                 size=1,
@@ -160,6 +166,12 @@ class SIDPacket(Structure):
         super(SIDPacket, self).__init__()
 
     def __str__(self):
+        """
+        Str : class : revision. sub - 1.
+
+        Args:
+            self: (todo): write your description
+        """
         revision = self['revision'].get_value()
         id_authority = self['identifier_authority'].get_value()
         sub_authorities = self['sub_authorities'].get_value()
@@ -198,6 +210,12 @@ class AccessAllowedAce(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize a dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('ace_type', EnumField(
                 size=1,
@@ -232,6 +250,12 @@ class AccessDeniedAce(Structure):
     """
 
     def __init__(self):
+        """
+        Returns a dict of - like structure
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('ace_type', EnumField(
                 size=1,
@@ -267,6 +291,12 @@ class SystemAuditAce(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize a dict of dicts.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('ace_type', EnumField(
                 size=1,
@@ -307,6 +337,12 @@ class AclPacket(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('acl_revision', EnumField(
                 size=1,
@@ -331,6 +367,14 @@ class AclPacket(Structure):
         super(AclPacket, self).__init__()
 
     def _unpack_aces(self, structure, data):
+        """
+        Unpack the binary data.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+            data: (array): write your description
+        """
         aces = []
         while data != b"":
             ace_type = struct.unpack("<B", data[:1])[0]
@@ -361,6 +405,12 @@ class SMB2CreateSDBuffer(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields. fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('revision', IntField(
                 size=1,
@@ -385,38 +435,97 @@ class SMB2CreateSDBuffer(Structure):
         super(SMB2CreateSDBuffer, self).__init__()
 
     def get_owner(self):
+        """
+        Gets the owner of the user.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._get_sid_from_buffer('offset_owner')
 
     def set_owner(self, sid):
+        """
+        Sets the owner of the object.
+
+        Args:
+            self: (todo): write your description
+            sid: (str): write your description
+        """
         self._buffer['owner'] = sid
         self._rebuild_buffer()
 
     def get_group(self):
+        """
+        : return group object.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._get_sid_from_buffer('offset_group')
 
     def set_group(self, sid):
+        """
+        Set the group.
+
+        Args:
+            self: (todo): write your description
+            sid: (int): write your description
+        """
         self._buffer['group'] = sid
         self._rebuild_buffer()
 
     def get_sacl(self):
+        """
+        Gets a list of acls object
+
+        Args:
+            self: (todo): write your description
+        """
         return self._get_acl_from_buffer('offset_sacl', SDControl.SACL_PRESENT)
 
     def set_sacl(self, acl):
+        """
+        Sets acls for acl
+
+        Args:
+            self: (todo): write your description
+            acl: (todo): write your description
+        """
         if acl:
             self['control'].set_flag(SDControl.SACL_PRESENT)
         self._buffer["sacl"] = acl
         self._rebuild_buffer()
 
     def get_dacl(self):
+        """
+        Gets acls object
+
+        Args:
+            self: (todo): write your description
+        """
         return self._get_acl_from_buffer('offset_dacl', SDControl.DACL_PRESENT)
 
     def set_dacl(self, acl):
+        """
+        Set thecl
+
+        Args:
+            self: (todo): write your description
+            acl: (todo): write your description
+        """
         if acl:
             self['control'].set_flag(SDControl.DACL_PRESENT)
         self._buffer["dacl"] = acl
         self._rebuild_buffer()
 
     def _get_sid_from_buffer(self, offset_field):
+        """
+        Retrieves sid from a byte string offset.
+
+        Args:
+            self: (todo): write your description
+            offset_field: (str): write your description
+        """
         offset = self[offset_field].get_value()
         if offset == 0:
             return None
@@ -427,6 +536,14 @@ class SMB2CreateSDBuffer(Structure):
         return sid
 
     def _get_acl_from_buffer(self, offset_field, flag):
+        """
+        Returns aclclclclcls from aclcl
+
+        Args:
+            self: (todo): write your description
+            offset_field: (str): write your description
+            flag: (todo): write your description
+        """
         if not self['control'].has_flag(flag):
             return None
 
@@ -439,6 +556,12 @@ class SMB2CreateSDBuffer(Structure):
         return acl
 
     def _rebuild_buffer(self):
+        """
+        Rebuild the buffer
+
+        Args:
+            self: (todo): write your description
+        """
         buffer = b""
         offset_count = 20
 

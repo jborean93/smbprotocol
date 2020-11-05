@@ -37,6 +37,12 @@ from smbprotocol.ioctl import (
 class TestSMB2IOCTLRequest(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2IOCTLRequest()
         message['ctl_code'] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
         message['file_id'] = b"\xff" * 16
@@ -63,6 +69,12 @@ class TestSMB2IOCTLRequest(object):
         assert actual == expected
 
     def test_create_message_no_buffer(self):
+        """
+        Create a message buffer buffer buffer buffer.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2IOCTLRequest()
         message['ctl_code'] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
         message['file_id'] = b"\xff" * 16
@@ -85,6 +97,12 @@ class TestSMB2IOCTLRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2IOCTLRequest()
         data = b"\x39\x00" \
                b"\x00\x00" \
@@ -121,6 +139,12 @@ class TestSMB2IOCTLRequest(object):
 class TestSMB2SrvCopyChunkCopy(object):
 
     def test_create_message(self):
+        """
+        Creates a message
+
+        Args:
+            self: (todo): write your description
+        """
         chunk1 = SMB2SrvCopyChunk()
         chunk1['source_offset'] = 0
         chunk1['target_offset'] = 10
@@ -156,6 +180,12 @@ class TestSMB2SrvCopyChunkCopy(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvCopyChunkCopy()
         data = b"\x11\x11\x11\x11\x11\x11\x11\x11" \
                b"\x11\x11\x11\x11\x11\x11\x11\x11" \
@@ -191,6 +221,12 @@ class TestSMB2SrvCopyChunkCopy(object):
 class TestSMB2SrvCopyChunk(object):
 
     def test_create_message(self):
+        """
+        Creates a message that message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SrvCopyChunk()
         message['source_offset'] = 1234
         message['target_offset'] = 5678
@@ -204,6 +240,12 @@ class TestSMB2SrvCopyChunk(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvCopyChunk()
         data = b"\xd2\x04\x00\x00\x00\x00\x00\x00" \
                b"\x2e\x16\x00\x00\x00\x00\x00\x00" \
@@ -220,6 +262,12 @@ class TestSMB2SrvCopyChunk(object):
 class TestSMB2SrcReadHashRequest(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SrvReadHashRequest()
         message['hash_version'] = HashVersion.SRV_HASH_VER_2
         message['hash_retrieval_type'] = \
@@ -236,6 +284,12 @@ class TestSMB2SrcReadHashRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvReadHashRequest()
         data = b"\x01\x00\x00\x00" \
                b"\x02\x00\x00\x00" \
@@ -255,6 +309,12 @@ class TestSMB2SrcReadHashRequest(object):
 class TestSMB2SrvNetworkResiliencyRequest(object):
 
     def test_create_message(self):
+        """
+        Creates a message
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SrvNetworkResiliencyRequest()
         message['timeout'] = 100
         expected = b"\x64\x00\x00\x00" \
@@ -264,6 +324,12 @@ class TestSMB2SrvNetworkResiliencyRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Test message received test.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvNetworkResiliencyRequest()
         data = b"\x64\x00\x00\x00" \
                b"\x00\x00\x00\x00"
@@ -276,6 +342,12 @@ class TestSMB2SrvNetworkResiliencyRequest(object):
 class TestSMB2ValidateNegotiateInfoRequest(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2ValidateNegotiateInfoRequest()
         message['capabilities'] = 8
         message['guid'] = b"\x11" * 16
@@ -293,6 +365,12 @@ class TestSMB2ValidateNegotiateInfoRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2ValidateNegotiateInfoRequest()
         data = b"\x08\x00\x00\x00" \
                b"\x11\x11\x11\x11\x11\x11\x11\x11" \
@@ -314,6 +392,12 @@ class TestSMB2ValidateNegotiateInfoRequest(object):
 class TestSMB2IOCTLResponse(object):
 
     def test_create_message(self):
+        """
+        Convert test message
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2IOCTLResponse()
         message['ctl_code'] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
         message['file_id'] = b"\xff" * 16
@@ -339,6 +423,12 @@ class TestSMB2IOCTLResponse(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2IOCTLResponse()
         data = b"\x31\x00\x00\x00" \
                b"\x04\x02\x14\x00" \
@@ -370,6 +460,12 @@ class TestSMB2IOCTLResponse(object):
 class TestSMB2SrvCopyChunkResponse(object):
 
     def test_create_message(self):
+        """
+        Creates a message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SrvCopyChunkResponse()
         message['chunks_written'] = 2
         message['chunk_bytes_written'] = 10
@@ -382,6 +478,12 @@ class TestSMB2SrvCopyChunkResponse(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvCopyChunkResponse()
         data = b"\x02\x00\x00\x00" \
                b"\x0a\x00\x00\x00" \
@@ -396,6 +498,12 @@ class TestSMB2SrvCopyChunkResponse(object):
 class TestSMB2SrvSnapshotArray(object):
 
     def test_create_message(self):
+        """
+        Create a test message to be sent.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SrvSnapshotArray()
         message['snapshot_array_size'] = 2
         message['snapshots'] = b"\x00\x00\x00\x00"
@@ -408,6 +516,12 @@ class TestSMB2SrvSnapshotArray(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Convert the test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvSnapshotArray()
         data = b"\x00\x00\x00\x00" \
                b"\x00\x00\x00\x00" \
@@ -424,6 +538,12 @@ class TestSMB2SrvSnapshotArray(object):
 class TestSMB2SrvRequestResumeKey(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2SrvRequestResumeKey()
         message['resume_key'] = b"\xff" * 24
         expected = b"\xff\xff\xff\xff\xff\xff\xff\xff" \
@@ -435,6 +555,12 @@ class TestSMB2SrvRequestResumeKey(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2SrvRequestResumeKey()
         data = b"\xff\xff\xff\xff\xff\xff\xff\xff" \
                b"\xff\xff\xff\xff\xff\xff\xff\xff" \
@@ -449,6 +575,12 @@ class TestSMB2SrvRequestResumeKey(object):
 class TestSMB2NetworkInterfaceInfo(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         addr1 = SockAddrIn()
         addr1.set_ipaddress("10.0.2.15")
         sock_addr1 = SockAddrStorage()
@@ -498,6 +630,12 @@ class TestSMB2NetworkInterfaceInfo(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Test the test message to make it.
+
+        Args:
+            self: (todo): write your description
+        """
         data = b"\x98\x00\x00\x00" \
                b"\x02\x00\x00\x00" \
                b"\x00\x00\x00\x00" \
@@ -547,6 +685,12 @@ class TestSMB2NetworkInterfaceInfo(object):
 class TestSockAddrStorage(object):
 
     def test_create_message_ipv4(self):
+        """
+        Create ipv4 address.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SockAddrStorage()
         message['family'] = SockAddrFamily.INTER_NETWORK
         sock_addr = SockAddrIn()
@@ -562,6 +706,12 @@ class TestSockAddrStorage(object):
         assert actual == expected
 
     def test_create_message_ipv6(self):
+        """
+        Create ipv6 address.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SockAddrStorage()
         message['family'] = SockAddrFamily.INTER_NETWORK_V6
         sock_addr = SockAddrIn6()
@@ -579,6 +729,12 @@ class TestSockAddrStorage(object):
         assert actual == expected
 
     def test_parse_message_ipv4(self):
+        """
+        The ipv4 ipv4 address.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SockAddrStorage()
         data = b"\x02\x00" \
                b"\x00\x00" \
@@ -594,6 +750,12 @@ class TestSockAddrStorage(object):
             "10.0.2.15"
 
     def test_parse_message_ipv6(self):
+        """
+        Send ipv6 address.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SockAddrStorage()
         data = b"\x17\x00" \
                b"\x00\x00" \
@@ -614,6 +776,12 @@ class TestSockAddrStorage(object):
 class TestSockAddrIn(object):
 
     def test_create_message(self):
+        """
+        Create a message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SockAddrIn()
         message.set_ipaddress("10.0.2.15")
         expected = b"\x00\x00" \
@@ -624,6 +792,12 @@ class TestSockAddrIn(object):
         assert actual == expected
 
     def test_create_message_subnet(self):
+        """
+        Create a new subnet.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SockAddrIn()
         message.set_ipaddress("255.255.255.255")
         expected = b"\x00\x00" \
@@ -634,6 +808,12 @@ class TestSockAddrIn(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        The test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SockAddrIn()
         data = b"\x00\x00" \
                b"\x0a\x00\x02\x0f" \
@@ -649,6 +829,12 @@ class TestSockAddrIn(object):
 class TestSockAddrIn6(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SockAddrIn6()
         message.set_ipaddress("fe80:0000:0000:0000:894a:2dbc:1d9c:2da1")
         expected = b"\x00\x00" \
@@ -661,6 +847,12 @@ class TestSockAddrIn6(object):
         assert actual == expected
 
     def test_set_ipaddress_invalid_format(self):
+        """
+        Set the ipv6 address.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SockAddrIn6()
         with pytest.raises(ValueError) as exc:
             message.set_ipaddress("fe80::894a:2dbc:1d9c:2da1")
@@ -668,6 +860,12 @@ class TestSockAddrIn6(object):
                                  "in the full form without concatenation"
 
     def test_parse_message(self):
+        """
+        Send a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SockAddrIn6()
         data = b"\x00\x00" \
                b"\x00\x00\x00\x00" \
@@ -689,6 +887,12 @@ class TestSockAddrIn6(object):
 class TestSMB2ValidateNegotiateInfoResponse(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2ValidateNegotiateInfoResponse()
         message['capabilities'] = 8
         message['guid'] = b"\xff" * 16
@@ -704,6 +908,12 @@ class TestSMB2ValidateNegotiateInfoResponse(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parses a message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2ValidateNegotiateInfoResponse()
         data = b"\x08\x00\x00\x00" \
                b"\xff\xff\xff\xff\xff\xff\xff\xff" \

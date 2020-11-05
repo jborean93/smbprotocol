@@ -6,6 +6,13 @@ from smbprotocol.connection import Connection
 
 
 def test_connection(server, port):
+    """
+    Test if a simple connection
+
+    Args:
+        server: (str): write your description
+        port: (int): write your description
+    """
     conn = Connection(uuid.uuid4(), server, port=port)
     print("Opening connection to %s:%d" % (server, port))
     conn.connect(timeout=5)

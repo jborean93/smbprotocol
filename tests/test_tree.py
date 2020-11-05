@@ -33,6 +33,12 @@ from smbprotocol.tree import (
 class TestSMB2TreeConnectRequest(object):
 
     def test_create_message(self):
+        """
+        Creates a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2TreeConnectRequest()
         message['flags'] = 2
         message['buffer'] = "\\\\127.0.0.1\\c$".encode("utf-16-le")
@@ -49,6 +55,12 @@ class TestSMB2TreeConnectRequest(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2TreeConnectRequest()
         data = b"\x09\x00" \
                b"\x02\x00" \
@@ -71,6 +83,12 @@ class TestSMB2TreeConnectRequest(object):
 class TestSMB2TreeConnectResponse(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2TreeConnectResponse()
         message['share_type'] = 1
         message['share_flags'] = 2
@@ -87,6 +105,12 @@ class TestSMB2TreeConnectResponse(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2TreeConnectResponse()
         data = b"\x10\x00" \
                b"\x01" \
@@ -107,6 +131,12 @@ class TestSMB2TreeConnectResponse(object):
 class TestSMB2TreeDisconnect(object):
 
     def test_create_message(self):
+        """
+        Creates a message
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2TreeDisconnect()
         expected = b"\x04\x00" \
                    b"\x00\x00"
@@ -115,6 +145,12 @@ class TestSMB2TreeDisconnect(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2TreeDisconnect()
         data = b"\x04\x00" \
                b"\x00\x00"
@@ -127,6 +163,13 @@ class TestSMB2TreeDisconnect(object):
 class TestTreeConnect(object):
 
     def test_dialect_2_0_2(self, smb_real):
+        """
+        Encrypts the sqlite3 connection to the database.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)
         session = Session(connection, smb_real[0], smb_real[1], False)
@@ -143,6 +186,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_dialect_2_1_0(self, smb_real):
+        """
+        Encrypts the two smbic sqlite 2.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
         session = Session(connection, smb_real[0], smb_real[1], False)
@@ -159,6 +209,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_dialect_3_0_0(self, smb_real):
+        """
+        Encrypts a random connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_0)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -175,6 +232,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_dialect_3_0_2(self, smb_real):
+        """
+        Encrypts a random connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -191,6 +255,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_dialect_3_1_1(self, smb_real):
+        """
+        Connects the connection between two smbicb.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -207,6 +278,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_dialect_2_encrypted_share(self, smb_real):
+        """
+        Closes the connection to the connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_1_0)
         session = Session(connection, smb_real[0], smb_real[1], False)
@@ -219,6 +297,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_dialect_3_encrypted_share(self, smb_real):
+        """
+        Encrypts the connection to the connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_1_1)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -235,6 +320,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_secure_negotiation_verification_failed(self, smb_real):
+        """
+        Establish a connection to ack.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
         session = Session(connection, smb_real[0], smb_real[1])
@@ -250,6 +342,13 @@ class TestTreeConnect(object):
             connection.disconnect(True)
 
     def test_secure_ignore_negotiation_verification_failed(self, smb_real):
+        """
+        Encrypts the verification message.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_3_0_2)
         session = Session(connection, smb_real[0], smb_real[1])

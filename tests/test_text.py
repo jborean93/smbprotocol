@@ -12,24 +12,44 @@ from smbprotocol._text import (
 
 
 def test_text_to_bytes_default():
+    """
+    Convert text to bytes.
+
+    Args:
+    """
     expected = b"\x61\x62\x63"
     actual = to_bytes(u"abc")
     assert actual == expected
 
 
 def test_text_to_bytes_diff_encoding():
+    """
+    Convert text to bytes.
+
+    Args:
+    """
     expected = b"\x61\x00\x62\x00\x63\x00"
     actual = to_bytes(u"abc", encoding='utf-16-le')
     assert actual == expected
 
 
 def test_bytes_to_bytes():
+    """
+    Convert to bytes object to bytes.
+
+    Args:
+    """
     expected = b"\x01\x02\x03\x04"
     actual = to_bytes(b"\x01\x02\x03\x04")
     assert actual == expected
 
 
 def test_native_to_bytes():
+    """
+    Convert the native python 2.
+
+    Args:
+    """
     # Python 3 the default string type is unicode so the expected value will
     # be "abc" in UTF-16 form while Python 2 "abc" is the bytes representation
     # already
@@ -42,24 +62,44 @@ def test_native_to_bytes():
 
 
 def test_text_to_text():
+    """
+    Convert text to text.
+
+    Args:
+    """
     expected = u"abc"
     actual = to_text(u"abc")
     assert actual == expected
 
 
 def test_byte_to_text():
+    """
+    Convert text to text.
+
+    Args:
+    """
     expected = u"abc"
     actual = to_text(b"\x61\x62\x63")
     assert actual == expected
 
 
 def test_byte_to_text_diff_encoding():
+    """
+    Test if the test text to a string.
+
+    Args:
+    """
     expected = u"abc"
     actual = to_text(b"\x61\x00\x62\x00\x63\x00", encoding='utf-16-le')
     assert actual == expected
 
 
 def test_native_to_unicode():
+    """
+    Convert unicode
+
+    Args:
+    """
     if PY3:
         expected = u"a\x00b\x00c\x00"
     else:
@@ -69,6 +109,11 @@ def test_native_to_unicode():
 
 
 def test_to_native():
+    """
+    Convert to native native python types.
+
+    Args:
+    """
     if PY3:
         assert str(to_native).startswith("<function to_text")
     else:

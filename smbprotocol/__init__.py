@@ -9,6 +9,13 @@ try:
 except ImportError:  # pragma: no cover
     class NullHandler(logging.Handler):
         def emit(self, record):
+            """
+            Emit a record.
+
+            Args:
+                self: (todo): write your description
+                record: (todo): write your description
+            """
             pass
 
 logger = logging.getLogger(__name__)

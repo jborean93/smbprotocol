@@ -78,6 +78,12 @@ class SMB2SessionSetupRequest(Structure):
     COMMAND = Commands.SMB2_SESSION_SETUP
 
     def __init__(self):
+        """
+        Initialize a dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -120,6 +126,12 @@ class SMB2SessionSetupResponse(Structure):
     COMMAND = Commands.SMB2_SESSION_SETUP
 
     def __init__(self):
+        """
+        Initialize the session
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -155,6 +167,12 @@ class SMB2Logoff(Structure):
     COMMAND = Commands.SMB2_LOGOFF
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -252,6 +270,12 @@ class Session(object):
         self.preauth_integrity_hash_value = []
 
     def connect(self):
+        """
+        Connect to the smtp server.
+
+        Args:
+            self: (todo): write your description
+        """
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
         try:
             context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,

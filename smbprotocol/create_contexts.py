@@ -154,6 +154,12 @@ class SMB2CreateContextRequest(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('next', IntField(size=4)),
             ('name_offset', IntField(
@@ -193,6 +199,13 @@ class SMB2CreateContextRequest(Structure):
         super(SMB2CreateContextRequest, self).__init__()
 
     def _buffer_data_offset(self, structure):
+        """
+        Return offset of the offset.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         if structure['data_length'].get_value() == 0:
             return 0
         else:
@@ -200,6 +213,13 @@ class SMB2CreateContextRequest(Structure):
                    len(structure['buffer_name']) + len(structure['padding'])
 
     def _padding_size(self, structure):
+        """
+        Return the size of the structure.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         if structure['data_length'].get_value() == 0:
             return 0
 
@@ -208,6 +228,13 @@ class SMB2CreateContextRequest(Structure):
         return mod if mod == 0 else 8 - mod
 
     def _padding2_size(self, structure):
+        """
+        Returns the padding size in bytes
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         data_length = len(structure['buffer_name']) + \
             len(structure['padding']) + len(structure['buffer_data'])
         mod = data_length % 8
@@ -278,6 +305,12 @@ class SMB2CreateEABuffer(Structure):
     NAME = CreateContextName.SMB2_CREATE_EA_BUFFER
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             # 0 if no more entries, otherwise offset after ea_value
             ('next_entry_offset', IntField(size=4)),
@@ -310,6 +343,13 @@ class SMB2CreateEABuffer(Structure):
         super(SMB2CreateEABuffer, self).__init__()
 
     def _padding_size(self, structure):
+        """
+        Returns the padding size of a structure.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         if structure['next_entry_offset'].get_value() == 0:
             return 0
 
@@ -354,6 +394,12 @@ class SMB2CreateDurableHandleRequest(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST
 
     def __init__(self):
+        """
+        Initialize dict. fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('durable_request', BytesField(size=16, default=b"\x00" * 16))
         ])
@@ -368,6 +414,12 @@ class SMB2CreateDurableHandleResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the dict.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('reserved', IntField(size=8))
         ])
@@ -384,6 +436,12 @@ class SMB2CreateDurableHandleReconnect(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT
 
     def __init__(self):
+        """
+        Initialize the field dict.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('data', BytesField(size=16))
         ])
@@ -401,6 +459,12 @@ class SMB2CreateQueryMaximalAccessRequest(Structure):
     NAME = CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST
 
     def __init__(self):
+        """
+        Method to initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('timestamp', DateTimeField())
         ])
@@ -416,6 +480,12 @@ class SMB2CreateQueryMaximalAccessResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize all enum fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('query_status', EnumField(
                 size=4,
@@ -439,6 +509,12 @@ class SMB2CreateAllocationSize(Structure):
     NAME = CreateContextName.SMB2_CREATE_ALLOCATION_SIZE
 
     def __init__(self):
+        """
+        Initialize the field.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('allocation_size', IntField(size=8))
         ])
@@ -456,6 +532,12 @@ class SMB2CreateTimewarpToken(Structure):
     NAME = CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
 
     def __init__(self):
+        """
+        Initialize datetime object
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('timestamp', DateTimeField())
         ])
@@ -472,6 +554,12 @@ class SMB2CreateRequestLease(Structure):
     NAME = CreateContextName.SMB2_CREATE_REQUEST_LEASE
 
     def __init__(self):
+        """
+        Initialize dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('lease_key', BytesField(size=16)),
             ('lease_state', FlagField(
@@ -492,6 +580,12 @@ class SMB2CreateResponseLease(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('lease_key', BytesField(size=16)),
             ('lease_state', FlagField(
@@ -517,6 +611,12 @@ class SMB2CreateQueryOnDiskIDResponse(Structure):
     NAME = CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID
 
     def __init__(self):
+        """
+        Initialize the fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('disk_file_id', IntField(size=8)),
             ('volume_id', IntField(size=8)),
@@ -540,6 +640,12 @@ class SMB2CreateRequestLeaseV2(Structure):
     NAME = CreateContextName.SMB2_CREATE_REQUEST_LEASE_V2
 
     def __init__(self):
+        """
+        Initialize a dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('lease_key', BytesField(size=16)),
             ('lease_state', FlagField(
@@ -566,6 +672,12 @@ class SMB2CreateResponseLeaseV2(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('lease_key', BytesField(size=16)),
             ('lease_state', FlagField(
@@ -596,6 +708,12 @@ class SMB2CreateDurableHandleRequestV2(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2
 
     def __init__(self):
+        """
+        Initialize dict field.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             # timeout in milliseconds
             ('timeout', IntField(size=4)),
@@ -620,6 +738,12 @@ class SMB2CreateDurableHandleReconnectV2(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2
 
     def __init__(self):
+        """
+        Initialize a dict.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('file_id', BytesField(size=16)),
             ('create_guid', UuidField(size=16)),
@@ -640,6 +764,12 @@ class SMB2CreateDurableHandleResponseV2(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the dict
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('timeout', IntField(size=4)),
             ('flags', FlagField(
@@ -662,6 +792,12 @@ class SMB2CreateAppInstanceId(Structure):
     NAME = CreateContextName.SMB2_CREATE_APP_INSTANCE_ID
 
     def __init__(self):
+        """
+        Initialize fieldfield field.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -684,6 +820,12 @@ class SMB2SVHDXOpenDeviceContextRequest(Structure):
     NAME = CreateContextName.SVHDX_OPEN_DEVICE_CONTEXT
 
     def __init__(self):
+        """
+        Initialize device properties
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version', IntField(
                 size=4,
@@ -725,6 +867,12 @@ class SMB2SVHDXOpenDeviceContextResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize hdx display
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version', IntField(
                 size=4,
@@ -768,6 +916,12 @@ class SMB2SVHDXOpenDeviceContextV2Request(Structure):
     NAME = CreateContextName.SVHDX_OPEN_DEVICE_CONTEXT
 
     def __init__(self):
+        """
+        Initialize hdx display
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version', IntField(
                 size=4,
@@ -814,6 +968,12 @@ class SMB2SVHDXOpenDeviceContextV2Response(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize hdx display
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('version', IntField(
                 size=4,
@@ -863,6 +1023,12 @@ class SMB2CreateAppInstanceVersion(Structure):
     NAME = CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION
 
     def __init__(self):
+        """
+        Initialize default fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,

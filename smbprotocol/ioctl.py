@@ -126,6 +126,12 @@ class SMB2IOCTLRequest(Structure):
     COMMAND = Commands.SMB2_IOCTL
 
     def __init__(self):
+        """
+        Initialize field values.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(size=2, default=57)),
             ('reserved', IntField(size=2, default=0)),
@@ -161,6 +167,13 @@ class SMB2IOCTLRequest(Structure):
         super(SMB2IOCTLRequest, self).__init__()
 
     def _buffer_offset_value(self, structure):
+        """
+        Return the offset of the buffer.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         # The offset from the beginning of the SMB2 header to the value of the
         # buffer, 0 if no buffer is set
         if len(structure['buffer']) > 0:
@@ -181,6 +194,12 @@ class SMB2SrvCopyChunkCopy(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the object fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('source_key', BytesField(size=24)),
             ('chunk_count', IntField(
@@ -210,6 +229,12 @@ class SMB2SrvCopyChunk(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize field fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('source_offset', IntField(size=8)),
             ('target_offset', IntField(size=8)),
@@ -230,6 +255,12 @@ class SMB2SrvReadHashRequest(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize field values.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('hash_type', IntField(
                 size=4,
@@ -259,6 +290,12 @@ class SMB2SrvNetworkResiliencyRequest(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             # timeout is in milliseconds
             ('timeout', IntField(size=4)),
@@ -278,6 +315,12 @@ class SMB2ValidateNegotiateInfoRequest(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('capabilities', FlagField(
                 size=4,
@@ -311,6 +354,12 @@ class SMB2IOCTLResponse(Structure):
     COMMAND = Commands.SMB2_IOCTL
 
     def __init__(self):
+        """
+        Initialize the default values.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(size=2, default=49)),
             ('reserved', IntField(size=2, default=0)),
@@ -340,6 +389,12 @@ class SMB2SrvCopyChunkResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize field values of the field
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('chunks_written', IntField(size=4)),
             ('chunk_bytes_written', IntField(size=4)),
@@ -358,6 +413,12 @@ class SMB2SrvSnapshotArray(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize field fields.
+
+        Args:
+            self: (todo): write your description
+        """
         # TODO: validate this further when working with actual snapshots
         self.fields = OrderedDict([
             ('number_of_snapshots', IntField(size=4)),
@@ -378,6 +439,12 @@ class SMB2SrvRequestResumeKey(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('resume_key', BytesField(size=24)),
             ('context_length', IntField(
@@ -404,6 +471,12 @@ class SMB2NetworkInterfaceInfo(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             # 0 if no more network interfaces
             ('next', IntField(size=4)),
@@ -469,6 +542,12 @@ class SockAddrStorage(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize all the fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('family', EnumField(
                 size=2,
@@ -486,18 +565,39 @@ class SockAddrStorage(Structure):
         super(SockAddrStorage, self).__init__()
 
     def _get_buffer_size(self, structure):
+        """
+        Returns the size of the buffer.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         if structure['family'].get_value() == SockAddrFamily.INTER_NETWORK:
             return 14
         else:
             return 26
 
     def _get_buffer_structure_type(self, structure):
+        """
+        Returns the structure of the structure.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         if structure['family'].get_value() == SockAddrFamily.INTER_NETWORK:
             return SockAddrIn
         else:
             return SockAddrIn6
 
     def _get_reserved_size(self, structure):
+        """
+        Returns the size of the structure.
+
+        Args:
+            self: (todo): write your description
+            structure: (str): write your description
+        """
         if structure['family'].get_value() == SockAddrFamily.INTER_NETWORK:
             return 112
         else:
@@ -513,6 +613,12 @@ class SockAddrIn(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize the field values.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('port', IntField(size=2)),
             ('ipv4_address', BytesField(size=4)),
@@ -521,10 +627,23 @@ class SockAddrIn(Structure):
         super(SockAddrIn, self).__init__()
 
     def get_ipaddress(self):
+        """
+        Returns the ip address.
+
+        Args:
+            self: (todo): write your description
+        """
         addr_bytes = self['ipv4_address'].get_value()
         return socket.inet_ntoa(addr_bytes)
 
     def set_ipaddress(self, address):
+        """
+        Set the ipv6 address.
+
+        Args:
+            self: (todo): write your description
+            address: (str): write your description
+        """
         # set's the ipv4 address field from the address string passed in, this
         # needs to be the full ipv4 address including periods, e.g.
         # 192.168.1.1
@@ -541,6 +660,12 @@ class SockAddrIn6(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize field names in memory.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('port', IntField(size=2)),
             ('flow_info', IntField(size=4)),
@@ -550,6 +675,12 @@ class SockAddrIn6(Structure):
         super(SockAddrIn6, self).__init__()
 
     def get_ipaddress(self):
+        """
+        Get the ipv6 address.
+
+        Args:
+            self: (todo): write your description
+        """
         # get's the full IPv6 Address, note this is the full address and has
         # not been concatenated
         addr_bytes = self['ipv6_address'].get_value()
@@ -557,6 +688,13 @@ class SockAddrIn6(Structure):
         return ":".join([address[i:i + 4] for i in range(0, len(address), 4)])
 
     def set_ipaddress(self, address):
+        """
+        Set the ipv6 address.
+
+        Args:
+            self: (todo): write your description
+            address: (str): write your description
+        """
         # set's the ipv6_address field from the address passed in, note this
         # needs to be the full ipv6 address,
         # e.g. fe80:0000:0000:0000:0000:0000:0000:0000 and not any short form
@@ -577,6 +715,12 @@ class SMB2ValidateNegotiateInfoResponse(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('capabilities', FlagField(
                 size=4,

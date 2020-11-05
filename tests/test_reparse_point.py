@@ -17,14 +17,32 @@ from smbprotocol.reparse_point import (
 class TestReparseTags(object):
 
     def test_tag_is_microsoft(self):
+        """
+        Check if the test tag > = <tag > tag.
+
+        Args:
+            self: (todo): write your description
+        """
         assert ReparseTags.is_reparse_tag_microsoft(ReparseTags.IO_REPARSE_TAG_SYMLINK)
         assert not ReparseTags.is_reparse_tag_microsoft(1)
 
     def test_tag_is_name_surrogate(self):
+        """
+        Check if the name tag is a valid name tag.
+
+        Args:
+            self: (todo): write your description
+        """
         assert ReparseTags.is_reparse_tag_name_surrogate(ReparseTags.IO_REPARSE_TAG_SYMLINK)
         assert not ReparseTags.is_reparse_tag_name_surrogate(ReparseTags.IO_REPARSE_TAG_HSM)
 
     def test_tag_is_directory(self):
+        """
+        Check if the is a tag tag.
+
+        Args:
+            self: (todo): write your description
+        """
         assert ReparseTags.is_reparse_tag_directory(ReparseTags.IO_REPARSE_TAG_CLOUD)
         assert not ReparseTags.is_reparse_tag_directory(ReparseTags.IO_REPARSE_TAG_SYMLINK)
 
@@ -37,6 +55,12 @@ class TestReparseDataBuffer(object):
            b"\x01\x02\x03\x04"
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = ReparseDataBuffer()
         message['reparse_tag'] = ReparseTags.IO_REPARSE_TAG_SYMLINK
         message['data_buffer'] = b"\x01\x02\x03\x04"
@@ -46,6 +70,12 @@ class TestReparseDataBuffer(object):
         assert actual == self.DATA
 
     def test_parse_message(self):
+        """
+        Parses a message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = ReparseDataBuffer()
         data = actual.unpack(self.DATA)
 
@@ -69,6 +99,12 @@ class TestSymbolicLinkReparseDataBuffer(object):
            b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
+        """
+        Create a test message for a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SymbolicLinkReparseDataBuffer()
         message['substitute_name_offset'] = 8
         message['substitute_name_length'] = 16
@@ -82,6 +118,12 @@ class TestSymbolicLinkReparseDataBuffer(object):
         assert actual == self.DATA
 
     def test_create_message_with_set_name(self):
+        """
+        Creates a test message with a message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SymbolicLinkReparseDataBuffer()
         message.set_name(u"\\??\\café", u"café")
         message['flags'] = SymbolicLinkFlags.SYMLINK_FLAG_RELATIVE
@@ -100,6 +142,12 @@ class TestSymbolicLinkReparseDataBuffer(object):
         assert actual == expected
 
     def test_parse_message(self):
+        """
+        Parse a message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SymbolicLinkReparseDataBuffer()
         data = actual.unpack(self.DATA)
 

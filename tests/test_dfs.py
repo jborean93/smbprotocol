@@ -37,6 +37,12 @@ UNICODE_TEXT = u'ÜseӜ' + to_text(b"\xF0\x9D\x84\x9E")
 class TestDomainEntry(object):
 
     def test_domain_entry(self):
+        """
+        Validate a domain entry.
+
+        Args:
+            self: (todo): write your description
+        """
         domain_entry = DomainEntry(DOMAIN_REFERRAL['referral_entries'].get_value()[0])
         assert domain_entry.domain_list == []
         assert domain_entry.domain_name == u'\\DOMAIN'
@@ -47,6 +53,12 @@ class TestDomainEntry(object):
         assert domain_entry.is_expired
 
     def test_process_dc_referral(self):
+        """
+        Checks if the validity.
+
+        Args:
+            self: (todo): write your description
+        """
         domain_entry = DomainEntry(DOMAIN_REFERRAL['referral_entries'].get_value()[0])
         domain_entry.process_dc_referral(DC_REFERRAL)
         assert domain_entry.dc_hint == u'\\DC01.domain.test'
@@ -63,6 +75,12 @@ class TestDomainEntry(object):
         assert not domain_entry.is_valid
 
     def test_process_dc_referral_invalid_hint(self):
+        """
+        Verify that the validity of the dcnm entry is valid.
+
+        Args:
+            self: (todo): write your description
+        """
         domain_entry = DomainEntry(DOMAIN_REFERRAL['referral_entries'].get_value()[0])
         domain_entry.process_dc_referral(DC_REFERRAL)
 
@@ -73,6 +91,12 @@ class TestDomainEntry(object):
 class TestReferralEntry(object):
 
     def test_root_referral_entry(self):
+        """
+        Extract root root entry of a root entry.
+
+        Args:
+            self: (todo): write your description
+        """
         referral_entry = ReferralEntry(ROOT_REFERRAL)
         assert referral_entry.dfs_path == u'\\domain.test\\dfs'
         assert not referral_entry.is_expired
@@ -81,6 +105,12 @@ class TestReferralEntry(object):
         assert not referral_entry.target_failback
 
     def test_target_referral_entry(self):
+        """
+        Test if the target entry is a valid target entry.
+
+        Args:
+            self: (todo): write your description
+        """
         referral_entry = ReferralEntry(TARGET_REFERRAL)
         target1 = DFSTarget(u'\\dc01.domain.test\\c$', True)
         target2 = DFSTarget(u'\\server2019.domain.test\\c$', False)
@@ -118,6 +148,12 @@ class TestReferralEntry(object):
         assert idx == 1
 
     def test_target_referral_invalid_hint(self):
+        """
+        Validate that the target target entry isvalidated.
+
+        Args:
+            self: (todo): write your description
+        """
         referral_entry = ReferralEntry(TARGET_REFERRAL)
 
         with pytest.raises(ValueError, match="The specific target hint does not exist in this referral entry"):
@@ -127,6 +163,12 @@ class TestReferralEntry(object):
 class TestDFSReferralRequest(object):
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         share = u'\\\\server\\shares\\%s' % UNICODE_TEXT
 
         message = DFSReferralRequest()
@@ -147,6 +189,13 @@ class TestDFSReferralRequest(object):
 
     @pytest.mark.parametrize('leftover', [b"", b"\x01\x02\x03\x04"])
     def test_parse_message(self, leftover):
+        """
+        Parses a message to parse.
+
+        Args:
+            self: (todo): write your description
+            leftover: (bool): write your description
+        """
         share = u'\\\\server\\shares\\%s' % UNICODE_TEXT
 
         actual = DFSReferralRequest()
@@ -169,6 +218,12 @@ class TestDFSReferralRequest(object):
 class TestDFSReferralRequestEx(object):
 
     def test_create_message(self):
+        """
+        Create a new share
+
+        Args:
+            self: (todo): write your description
+        """
         share = u'\\\\server\\shares\\%s' % UNICODE_TEXT
 
         message = DFSReferralRequestEx()
@@ -199,6 +254,13 @@ class TestDFSReferralRequestEx(object):
 
     @pytest.mark.parametrize('leftover', [b"", b"\x01\x02\x03\x04"])
     def test_parse_message(self, leftover):
+        """
+        Parses the raw bytes message.
+
+        Args:
+            self: (todo): write your description
+            leftover: (bool): write your description
+        """
         share = u'\\\\server\\shares\\%s' % UNICODE_TEXT
 
         actual = DFSReferralRequestEx()
@@ -232,6 +294,12 @@ class TestDFSReferralRequestEx(object):
 class TestDFSReferralResponse(object):
 
     def test_parse_message_v1(self):
+        """
+        Parses the v1 value.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = DFSReferralResponse()
         data = b"\x00\x00" \
                b"\x02\x00" \
@@ -275,6 +343,12 @@ class TestDFSReferralResponse(object):
         assert entry2.network_address == u'\\DOMAIN'
 
     def test_parse_message_v2(self):
+        """
+        Parses a v2 message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = DFSReferralResponse()
         data = b"\x00\x00" \
                b"\x02\x00" \
@@ -342,6 +416,12 @@ class TestDFSReferralResponse(object):
         assert entry2.network_address is None
 
     def test_parse_message_v3_name_list_referral(self):
+        """
+        Verify the v3 name value.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = DFSReferralResponse()
         data = b"\x00\x00" \
                b"\x02\x00" \
@@ -409,6 +489,12 @@ class TestDFSReferralResponse(object):
         assert entry2.network_address is None
 
     def test_parse_message_v4(self):
+        """
+        Verifies the v4 message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = DFSReferralResponse()
         data = b"\x22\x00" \
                b"\x01\x00" \

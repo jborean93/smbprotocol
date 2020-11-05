@@ -61,6 +61,13 @@ SEEK_END = getattr(io, 'SEEK_END', 2)
 
 
 def _parse_share_access(raw, mode):
+    """
+    Parse access_access
+
+    Args:
+        raw: (bool): write your description
+        mode: (todo): write your description
+    """
     share_access = 0
     if raw:
         share_access_map = {
@@ -82,6 +89,13 @@ def _parse_share_access(raw, mode):
 
 
 def _parse_mode(raw, invalid=""):
+    """
+    Parse the raw mode.
+
+    Args:
+        raw: (bool): write your description
+        invalid: (str): write your description
+    """
     create_disposition = 0
     disposition_map = {
         'r': CreateDisposition.FILE_OPEN,
@@ -128,6 +142,12 @@ def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_
     ioctl_req['buffer'] = input_buffer
 
     def _receive_resp(request):
+        """
+        Receive a response.
+
+        Args:
+            request: (todo): write your description
+        """
         response = transaction.raw.fd.connection.receive(request)
         query_resp = SMB2IOCTLResponse()
         query_resp.unpack(response['data'].get_value())
@@ -154,6 +174,12 @@ def query_info(transaction, info_class, flags=0, output_buffer_length=None):
     query_req['flags'] = flags
 
     def _receive_resp(request):
+        """
+        Receive a response from the request.
+
+        Args:
+            request: (todo): write your description
+        """
         response = transaction.raw.fd.connection.receive(request)
         query_resp = SMB2QueryInfoResponse()
         query_resp.unpack(response['data'].get_value())
@@ -176,6 +202,12 @@ def set_info(transaction, info_buffer):
     set_req['buffer'] = info_buffer
 
     def _receive_resp(request):
+        """
+        Receive a response.
+
+        Args:
+            request: (todo): write your description
+        """
         response = transaction.raw.fd.connection.receive(request)
         set_resp = SMB2SetInfoResponse()
         set_resp.unpack(response['data'].get_value())
@@ -198,6 +230,13 @@ class SMBFileTransaction(object):
         self._actions = []
 
     def __add__(self, other):
+        """
+        Add a new message to the queue.
+
+        Args:
+            self: (todo): write your description
+            other: (todo): write your description
+        """
         send_msg = other[0]
         unpack_func = other[1]
 
@@ -205,9 +244,24 @@ class SMBFileTransaction(object):
         return self
 
     def __enter__(self):
+        """
+        Decor function.
+
+        Args:
+            self: (todo): write your description
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Exit the given exception.
+
+        Args:
+            self: (todo): write your description
+            exc_type: (todo): write your description
+            exc_val: (todo): write your description
+            exc_tb: (todo): write your description
+        """
         self.commit()
 
     def commit(self):
@@ -262,6 +316,20 @@ class SMBRawIO(io.RawIOBase):
 
     def __init__(self, path, mode='r', share_access=None, desired_access=None, file_attributes=None,
                  create_options=0, buffer_size=MAX_PAYLOAD_SIZE, **kwargs):
+        """
+        Initialize a file.
+
+        Args:
+            self: (todo): write your description
+            path: (str): write your description
+            mode: (todo): write your description
+            share_access: (bool): write your description
+            desired_access: (todo): write your description
+            file_attributes: (str): write your description
+            create_options: (todo): write your description
+            buffer_size: (int): write your description
+            MAX_PAYLOAD_SIZE: (int): write your description
+        """
         tree, fd_path = get_smb_tree(path, **kwargs)
         self.share_access = share_access
         self.fd = Open(tree, fd_path)
@@ -301,35 +369,88 @@ class SMBRawIO(io.RawIOBase):
         super(SMBRawIO, self).__init__()
 
     def __enter__(self):
+        """
+        Open the file.
+
+        Args:
+            self: (todo): write your description
+        """
         self.open()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Called when an exception is raised.
+
+        Args:
+            self: (todo): write your description
+            exc_type: (todo): write your description
+            exc_val: (todo): write your description
+            exc_tb: (todo): write your description
+        """
         self.close()
 
     @property
     def closed(self):
+        """
+        Return true if the connection is closed.
+
+        Args:
+            self: (todo): write your description
+        """
         return not self.fd.connected
 
     @property
     def mode(self):
+        """
+        Return the mode.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._mode
 
     @property
     def name(self):
+        """
+        The name of the name
+
+        Args:
+            self: (todo): write your description
+        """
         return self._name
 
     def close(self, transaction=None):
+        """
+        Close the transport.
+
+        Args:
+            self: (todo): write your description
+            transaction: (todo): write your description
+        """
         if transaction:
             transaction += self.fd.close(send=False)
         else:
             self.fd.close()
 
     def flush(self):
+        """
+        Flush the file.
+
+        Args:
+            self: (todo): write your description
+        """
         if self._flush and self.FILE_TYPE != 'pipe':
             self.fd.flush()
 
     def open(self, transaction=None):
+        """
+        Opens a file.
+
+        Args:
+            self: (todo): write your description
+            transaction: (todo): write your description
+        """
         if not self.closed:
             return
 
@@ -524,6 +645,14 @@ class SMBDirectoryIO(SMBRawIO):
     _INVALID_MODE = 'w+'
 
     def query_directory(self, pattern, info_class):
+        """
+        A generator that match the given pattern.
+
+        Args:
+            self: (todo): write your description
+            pattern: (str): write your description
+            info_class: (todo): write your description
+        """
         query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
         while True:
             try:
@@ -536,12 +665,30 @@ class SMBDirectoryIO(SMBRawIO):
                 yield entry
 
     def readable(self):
+        """
+        Returns true if the file is readable.
+
+        Args:
+            self: (todo): write your description
+        """
         return False
 
     def seekable(self):
+        """
+        Returns true if the user is a file object.
+
+        Args:
+            self: (todo): write your description
+        """
         return False
 
     def writable(self):
+        """
+        Returns true if the user can be read.
+
+        Args:
+            self: (todo): write your description
+        """
         return False
 
 
@@ -555,4 +702,10 @@ class SMBPipeIO(SMBRawIO):
     FILE_TYPE = 'pipe'
 
     def seekable(self):
+        """
+        Returns true if the user is a file object.
+
+        Args:
+            self: (todo): write your description
+        """
         return False

@@ -51,6 +51,12 @@ class TestFileNotifyInformation(object):
            b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
+        """
+        Creates a new message
+
+        Args:
+            self: (todo): write your description
+        """
         message = FileNotifyInformation()
         message['action'] = 1
         message['file_name'] = u"café"
@@ -60,6 +66,12 @@ class TestFileNotifyInformation(object):
         assert str(message['file_name']) == to_native(u"café")
 
     def test_parse_message(self):
+        """
+        Reads the test message from a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = FileNotifyInformation()
         assert actual.unpack(self.DATA) == b""
         assert len(actual) == 20
@@ -80,6 +92,12 @@ class TestSMB2ChangeNotifyRequest(object):
            b"\x00\x00\x00\x00"
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2ChangeNotifyRequest()
         message['output_buffer_length'] = 8
         message['file_id'] = b"\xff" * 16
@@ -89,6 +107,12 @@ class TestSMB2ChangeNotifyRequest(object):
         assert actual == self.DATA
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2ChangeNotifyRequest()
         assert actual.unpack(self.DATA) == b""
         assert len(actual) == 32
@@ -108,6 +132,12 @@ class TestSMB2ChangeNotifyResponse(object):
            b"\x01\x02\x03\x04"
 
     def test_create_message(self):
+        """
+        Create a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         message = SMB2ChangeNotifyResponse()
         message['buffer'] = b"\x01\x02\x03\x04"
         actual = message.pack()
@@ -115,6 +145,12 @@ class TestSMB2ChangeNotifyResponse(object):
         assert actual == self.DATA
 
     def test_parse_message(self):
+        """
+        Parse a test message.
+
+        Args:
+            self: (todo): write your description
+        """
         actual = SMB2ChangeNotifyResponse()
         assert actual.unpack(self.DATA) == b""
         assert len(actual) == 12
@@ -127,6 +163,14 @@ class TestSMB2ChangeNotifyResponse(object):
 class TestChangeNotify(object):
 
     def _remove_file(self, tree, name):
+        """
+        Remove a file.
+
+        Args:
+            self: (todo): write your description
+            tree: (str): write your description
+            name: (str): write your description
+        """
         file_open = Open(tree, name)
         file_open.create(
             ImpersonationLevel.Impersonation,
@@ -141,6 +185,13 @@ class TestChangeNotify(object):
         file_open.close()
 
     def test_change_notify_on_dir(self, smb_real):
+        """
+        Test for a directory.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
@@ -168,12 +219,22 @@ class TestChangeNotify(object):
 
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():
+                """
+                Wait for watcher to wait for watcher.
+
+                Args:
+                """
                 watcher.wait()
             watcher_wait_thread = threading.Thread(target=watcher_wait)
             watcher_wait_thread.daemon = True
             watcher_wait_thread.start()
 
             def watcher_event():
+                """
+                Wrap the watcher event.
+
+                Args:
+                """
                 watcher.response_event.wait()
             watcher_event_thread = threading.Thread(target=watcher_event)
             watcher_event_thread.daemon = True
@@ -207,6 +268,13 @@ class TestChangeNotify(object):
             connection.disconnect(True)
 
     def test_change_notify_on_dir_compound(self, smb_real):
+        """
+        Test for a new test to be run.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
 
@@ -256,12 +324,22 @@ class TestChangeNotify(object):
 
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():
+                """
+                Wait for watcher to wait for watcher.
+
+                Args:
+                """
                 watcher.wait()
             watcher_wait_thread = threading.Thread(target=watcher_wait)
             watcher_wait_thread.daemon = True
             watcher_wait_thread.start()
 
             def watcher_event():
+                """
+                Wrap the watcher event.
+
+                Args:
+                """
                 watcher.response_event.wait()
             watcher_event_thread = threading.Thread(target=watcher_event)
             watcher_event_thread.daemon = True
@@ -295,6 +373,13 @@ class TestChangeNotify(object):
             connection.disconnect(True)
 
     def test_change_notify_no_data(self, smb_real):
+        """
+        This method that a thread that was received.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
@@ -322,12 +407,22 @@ class TestChangeNotify(object):
 
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():
+                """
+                Wait for watcher to wait for watcher.
+
+                Args:
+                """
                 watcher.wait()
             watcher_wait_thread = threading.Thread(target=watcher_wait)
             watcher_wait_thread.daemon = True
             watcher_wait_thread.start()
 
             def watcher_event():
+                """
+                Wrap the watcher event.
+
+                Args:
+                """
                 watcher.response_event.wait()
             watcher_event_thread = threading.Thread(target=watcher_event)
             watcher_event_thread.daemon = True
@@ -358,6 +453,13 @@ class TestChangeNotify(object):
             connection.disconnect(True)
 
     def test_change_notify_underlying_close(self, smb_real):
+        """
+        Sends a change to be closed connection.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
@@ -389,6 +491,13 @@ class TestChangeNotify(object):
             connection.disconnect(True)
 
     def test_change_notify_cancel(self, smb_real):
+        """
+        Test for a change.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1], require_encryption=False)
@@ -430,6 +539,13 @@ class TestChangeNotify(object):
             connection.disconnect(True)
 
     def test_change_notify_on_a_file(self, smb_real):
+        """
+        Test if a change is not set.
+
+        Args:
+            self: (todo): write your description
+            smb_real: (todo): write your description
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])

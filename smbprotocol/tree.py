@@ -113,6 +113,12 @@ class SMB2TreeConnectRequest(Structure):
     COMMAND = Commands.SMB2_TREE_CONNECT
 
     def __init__(self):
+        """
+        Initialize a dict of values.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -148,6 +154,12 @@ class SMB2TreeConnectResponse(Structure):
     COMMAND = Commands.SMB2_TREE_CONNECT
 
     def __init__(self):
+        """
+        Initialize a dict of fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -182,6 +194,12 @@ class SMB2TreeDisconnect(Structure):
     COMMAND = Commands.SMB2_TREE_DISCONNECT
 
     def __init__(self):
+        """
+        Initialize fields
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('structure_size', IntField(
                 size=2,
@@ -298,6 +316,12 @@ class TreeConnect(object):
         del self.session.tree_connect_table[self.tree_connect_id]
 
     def _verify_dialect_negotiate(self):
+        """
+        Verify the client verification.
+
+        Args:
+            self: (todo): write your description
+        """
         log_header = "Session: %s, Tree: %s" \
                      % (self.session.username, self.share_name)
         log.info("%s - Running secure negotiate process" % log_header)
@@ -352,6 +376,15 @@ class TreeConnect(object):
                  % (self.session.session_id, self.tree_connect_id))
 
     def _verify(self, check, actual, expected):
+        """
+        Verify that the given check.
+
+        Args:
+            self: (todo): write your description
+            check: (bool): write your description
+            actual: (str): write your description
+            expected: (str): write your description
+        """
         log_header = "Session: %d, Tree: %d"\
                      % (self.session.session_id, self.tree_connect_id)
         if actual != expected:

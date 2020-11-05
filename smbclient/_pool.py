@@ -54,6 +54,12 @@ class _ConfigSingleton(type):
     __instances = {}
 
     def __call__(cls, *args, **kwargs):
+        """
+        Return the callSing.
+
+        Args:
+            cls: (todo): write your description
+        """
         if cls not in cls.__instances:
             cls.__instances[cls] = super(_ConfigSingleton, cls).__call__(*args, **kwargs)
 
@@ -87,6 +93,17 @@ class ClientConfig(object):
 
     def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, skip_dfs=False,
                  **kwargs):
+        """
+        Initialize a client.
+
+        Args:
+            self: (todo): write your description
+            client_guid: (todo): write your description
+            username: (str): write your description
+            password: (str): write your description
+            domain_controller: (todo): write your description
+            skip_dfs: (list): write your description
+        """
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username
         self.password = password
@@ -100,6 +117,12 @@ class ClientConfig(object):
 
     @property
     def domain_controller(self):
+        """
+        Domain controller controller controller.
+
+        Args:
+            self: (todo): write your description
+        """
         return self._domain_controller
 
     @domain_controller.setter
@@ -129,9 +152,23 @@ class ClientConfig(object):
             self._domain_cache.append(DomainEntry(domain_referral))
 
     def cache_referral(self, referral):
+        """
+        Sets the cache for the cache.
+
+        Args:
+            self: (todo): write your description
+            referral: (str): write your description
+        """
         self._referral_cache.append(ReferralEntry(referral))
 
     def lookup_domain(self, domain_name):  # type: (str) -> Optional[DomainEntry]
+        """
+        Lookup a domain by its name.
+
+        Args:
+            self: (todo): write your description
+            domain_name: (str): write your description
+        """
         for domain in self._domain_cache:
             if domain.domain_name.lower() == ("\\" + domain_name.lower()):
                 return domain
@@ -156,6 +193,13 @@ class ClientConfig(object):
             return hits[0]
 
     def set(self, **config):
+        """
+        Set the controller controller.
+
+        Args:
+            self: (todo): write your description
+            config: (dict): write your description
+        """
         domain_controller = False
         for key, value in config.items():
             if key.startswith('_'):

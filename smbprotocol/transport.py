@@ -36,6 +36,12 @@ class DirectTCPPacket(Structure):
     """
 
     def __init__(self):
+        """
+        Initialize fields.
+
+        Args:
+            self: (todo): write your description
+        """
         self.fields = OrderedDict([
             ('stream_protocol_length', IntField(
                 size=4,
@@ -50,7 +56,19 @@ class DirectTCPPacket(Structure):
 
 
 def socket_connect(func):
+    """
+    Connect to a socket.
+
+    Args:
+        func: (callable): write your description
+    """
     def wrapped(self, *args, **kwargs):
+        """
+        Wrapper around a connection.
+
+        Args:
+            self: (todo): write your description
+        """
         if not self._connected:
             log.info("Connecting to DirectTcp socket")
             try:
@@ -74,6 +92,16 @@ class Tcp(object):
     MAX_SIZE = 16777215
 
     def __init__(self, server, port, recv_queue, timeout=None):
+        """
+        Initialize the server.
+
+        Args:
+            self: (todo): write your description
+            server: (todo): write your description
+            port: (int): write your description
+            recv_queue: (todo): write your description
+            timeout: (int): write your description
+        """
         self.server = server
         self.port = port
         self.timeout = timeout
@@ -83,6 +111,12 @@ class Tcp(object):
         self._t_recv = None
 
     def close(self):
+        """
+        Close the socket.
+
+        Args:
+            self: (todo): write your description
+        """
         if self._connected:
             log.info("Disconnecting DirectTcp socket")
             # Send a shutdown to the socket so the select returns and wait until the thread is closed before actually
@@ -94,6 +128,13 @@ class Tcp(object):
 
     @socket_connect
     def send(self, header):
+        """
+        Send a packet to the socket.
+
+        Args:
+            self: (todo): write your description
+            header: (str): write your description
+        """
         b_msg = header
         data_length = len(b_msg)
         if data_length > self.MAX_SIZE:
@@ -109,6 +150,12 @@ class Tcp(object):
             data = data[sent:]
 
     def recv_thread(self):
+        """
+        Receive a message from the socket.
+
+        Args:
+            self: (todo): write your description
+        """
         try:
             while True:
                 select.select([self._sock], [], [])

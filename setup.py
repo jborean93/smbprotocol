@@ -9,6 +9,12 @@ from setuptools import setup
 
 
 def abs_path(rel_path):
+    """
+    Return absolute path relative to rel_path.
+
+    Args:
+        rel_path: (str): write your description
+    """
     return os.path.join(os.path.dirname(__file__), rel_path)
 
 
