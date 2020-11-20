@@ -83,10 +83,11 @@ class ClientConfig(object):
         skip_dfs (bool): Whether to skip using any DFS referral checks and treat any path as a normal path. This is
             only useful if there are problems with the DFS resolver or you wish to avoid the extra round trip(s) the
             resolver requires.
+        session_config (Optional[dict]): Extra kwargs to pass to the Session.
     """
 
     def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, skip_dfs=False,
-                 **kwargs):
+                 session_config=None, **kwargs):
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username
         self.password = password
@@ -94,6 +95,7 @@ class ClientConfig(object):
         self._domain_controller = None  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
         self._referral_cache = []  # type: List[ReferralEntry]
+        self.session_config = session_config  # type: Optional[dict]
 
         # This relies on other attributes so set this last
         self.domain_controller = domain_controller
@@ -238,6 +240,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     client_config = ClientConfig()
     username = username or client_config.username
     password = password or client_config.password
+    session_config = client_config.session_config or {}
 
     # In case we need to nest a call to get_smb_tree, preserve the kwargs here so it's easier to update them in case
     # new kwargs are added.
@@ -248,6 +251,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
         'encrypt': encrypt,
         'connection_timeout': connection_timeout,
         'connection_cache': connection_cache,
+        'session_config': session_config,
     }
 
     # Normalise and check that the path contains at least 2 components, \\server\share
@@ -284,7 +288,8 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
     server = path_split[0]
     session = register_session(server, username=username, password=password, port=port, encrypt=encrypt,
-                               connection_timeout=connection_timeout, connection_cache=connection_cache)
+                               connection_timeout=connection_timeout, connection_cache=connection_cache,
+                               **session_config)
 
     share_path = "\\\\%s\\%s" % (server, path_split[1])
     tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
@@ -311,7 +316,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
 
 def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
-                     connection_cache=None):
+                     connection_cache=None, **kwargs):
     """
     Creates an active connection and session to the server specified. This can be manually called to register the
     credentials of a specific server instead of defining it on the first function connecting to the server. The opened
@@ -327,6 +332,7 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
         back to False.
     :param connection_timeout: Override the timeout used for the initial connection.
     :param connection_cache: Connection cache to be used with
+    :param kwargs: Extra kwargs to pass to the Session.
     :return: The Session that was registered or already existed in the pool.
     """
     connection_key = "%s:%s" % (server.lower(), port)
@@ -344,7 +350,8 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
     # just use the first session found or fall back to creating a new one with implicit auth/kerberos.
     session = next((s for s in connection.session_table.values() if username is None or s.username == username), None)
     if not session:
-        session = Session(connection, username=username, password=password, require_encryption=(encrypt is True))
+        session = Session(connection, username=username, password=password, require_encryption=(encrypt is True),
+                          **kwargs)
         session.connect()
     elif encrypt is not None:
         # We cannot go from encryption to no encryption on an existing session but we can do the opposite.

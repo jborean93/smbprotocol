@@ -168,7 +168,7 @@ class SMB2Logoff(Structure):
 class Session(object):
 
     def __init__(self, connection, username=None, password=None,
-                 require_encryption=True):
+                 require_encryption=True, spnego_client_config=None):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -209,6 +209,8 @@ class Session(object):
         :param require_encryption: Whether any messages sent over the session
             require encryption regardless of the server settings (Dialects 3+),
             needs to be set to False for older dialects.
+        :param spnego_client_config: Configuration options to use when creating
+            the spnego client context.
         """
         log.info("Initialising session with username: %s" % username)
         self._connected = False
@@ -228,6 +230,10 @@ class Session(object):
         self.connection = connection
         self.username = username
         self.password = password
+        if spnego_client_config is None:
+            self.spnego_client_config = {}
+        else:
+            self.spnego_client_config = spnego_client_config
 
         # Table of OpenFile, lookup by OpenFile.file_id
         self.open_table = {}
@@ -255,7 +261,7 @@ class Session(object):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
         try:
             context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
-                                    options=spnego.NegotiateOptions.session_key)
+                                    options=spnego.NegotiateOptions.session_key, **self.spnego_client_config)
         except spnego.exceptions.SpnegoError as err:
             raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
 
