@@ -251,7 +251,6 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
         'encrypt': encrypt,
         'connection_timeout': connection_timeout,
         'connection_cache': connection_cache,
-        'session_config': session_config,
     }
 
     # Normalise and check that the path contains at least 2 components, \\server\share
