@@ -206,7 +206,7 @@ def delete_session(server, port=445, connection_cache=None):
     :param port: The port used for the server.
     :param connection_cache: Connection cache to be used with
     """
-    connection_key = "%s:%s" % (server, port)
+    connection_key = "%s:%s" % (server.lower(), port)
 
     if connection_cache is None:
         connection_cache = _SMB_CONNECTIONS
