@@ -96,8 +96,6 @@ def test_server_side_copy_multiple_chunks(smb_share):
     with smbclient.open_file("%s\\file1" % smb_share, mode='w') as fd:
         fd.write(u"content" * 1024)
 
-    smbclient._os.CHUNK_SIZE = 1024
-
     smbclient.copyfile("%s\\file1" % smb_share, "%s\\dir2\\file1" % smb_share)
 
     src_stat = smbclient.stat("%s\\file1" % smb_share)
