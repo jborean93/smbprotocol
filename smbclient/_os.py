@@ -11,6 +11,7 @@ import ntpath
 import operator
 import os
 import stat as py_stat
+import sys
 import time
 
 from smbclient._io import (
