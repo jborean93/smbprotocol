@@ -114,7 +114,7 @@ def test_write_multiple_chunks_bytes(smb_share):
         max_write_size = 1024
         bytes_written = 0
         while bytes_written < len(b):
-            bytes_written += fd.write(b[bytes_written:bytes_written + max_write_size])
+            bytes_written += fd.write(b[bytes_written:][:max_write_size])
 
     assert smbclient.stat("%s\\file1" % smb_share).st_size == len(b"File Contents\nNewline") * 1024
     with smbclient.open_file("%s\\file1" % smb_share, mode='rb') as fd:
@@ -129,7 +129,7 @@ def test_write_multiple_chunks_text(smb_share):
         max_write_size = 1024
         bytes_written = 0
         while bytes_written < len(text):
-            bytes_written += fd.write(text[bytes_written:bytes_written + max_write_size])
+            bytes_written += fd.write(text[bytes_written:][:max_write_size])
 
     assert smbclient.stat("%s\\file1" % smb_share).st_size == len(u"content") * 1024
     with smbclient.open_file("%s\\file1" % smb_share, mode='r') as fd:
