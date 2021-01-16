@@ -387,7 +387,7 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         elif raw_fd.readable():
             buff_type = io.BufferedReader
         else:
-            buff_type = io.BufferedWriter
+            buff_type = BufferedWriterPlusWriteAll
 
         if buffering == -1:
             buffering = MAX_PAYLOAD_SIZE
