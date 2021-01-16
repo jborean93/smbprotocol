@@ -496,13 +496,16 @@ class SMBRawIO(io.RawIOBase):
         Write buffer b to file, return number of bytes written.
 
         Only makes one system call, so not all of the data may be written.
+        (See also https://linux.die.net/man/2/write .)
+        In particular, the Samba connection may have a smaller MaxWriteSize than the underlying file system,
+        so writing over Samba is more likely to return without writing all the bytes.
         The number of bytes actually written is returned.
         """
         if isinstance(b, memoryview):
             b = b.tobytes()
 
         with SMBFileTransaction(self) as transaction:
-            transaction += self.fd.write(b, offset=self._offset, send=False)
+            transaction += self.fd.write(b[:self.fd.connection.max_write_size], offset=self._offset, send=False)
 
             # Send the request with an SMB2QueryInfoRequest for FileStandardInformation so we can update the end of
             # file stored internally.
