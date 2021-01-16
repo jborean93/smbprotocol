@@ -298,6 +298,13 @@ def makedirs(path, exist_ok=False, **kwargs):
             create_queue.pop(-1)
 
 
+class BufferedWriterPlusWriteAll(io.BufferedWriter):
+    def writeall(self, b, max_write_size=sys.maxsize):
+        bytes_written = 0
+        while bytes_written < len(b):
+            bytes_written += self.write(b[bytes_written:][:max_write_size])
+
+
 def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=None, share_access=None,
               desired_access=None, file_attributes=None, file_type='file', **kwargs):
     """
