@@ -4,6 +4,7 @@
 
 import io
 import logging
+import sys
 
 from smbclient._pool import (
     ClientConfig,
@@ -491,7 +492,7 @@ class SMBRawIO(io.RawIOBase):
 
         return len(file_bytes)
 
-    def write(self, b):
+    def write(self, b, max_write_size=sys.maxsize):
         """
         Write buffer b to file, return number of bytes written.
 
@@ -504,8 +505,10 @@ class SMBRawIO(io.RawIOBase):
         if isinstance(b, memoryview):
             b = b.tobytes()
 
+        max_write_size = min(max_write_size, self.fd.connection.max_write_size)
+
         with SMBFileTransaction(self) as transaction:
-            transaction += self.fd.write(b[:self.fd.connection.max_write_size], offset=self._offset, send=False)
+            transaction += self.fd.write(b[:max_write_size], offset=self._offset, send=False)
 
             # Send the request with an SMB2QueryInfoRequest for FileStandardInformation so we can update the end of
             # file stored internally.
@@ -520,14 +523,14 @@ class SMBRawIO(io.RawIOBase):
 
         return bytes_written
 
-    def writeall(self, b):
+    def writeall(self, b, max_write_size=sys.maxsize):
         """
         Write all the bytes in buffer b, using multiple calls to the stream if necessary.
         """
         bytes_written = 0
         while bytes_written < len(b):
             try:
-                bytes_written += self.write(b[bytes_written:])
+                bytes_written += self.write(b[bytes_written:], max_write_size)
             except PipeBroken:
                 raise
 
