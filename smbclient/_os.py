@@ -298,6 +298,11 @@ def makedirs(path, exist_ok=False, **kwargs):
             create_queue.pop(-1)
 
 
+class TextIOWrapperPlusWriteAll(io.TextIOWrapper):
+    def writeall(self, b):
+        self.raw.writeall(b)
+
+
 def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=None, share_access=None,
               desired_access=None, file_attributes=None, file_type='file', **kwargs):
     """
@@ -389,7 +394,7 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         if 'b' in raw_fd.mode:
             return fd_buffer
 
-        return io.TextIOWrapper(fd_buffer, encoding, errors, newline, line_buffering=line_buffering)
+        return TextIOWrapperPlusWriteAll(fd_buffer, encoding, errors, newline, line_buffering=line_buffering)
     except Exception:
         # If there was a failure in the setup, make sure the file is closed.
         raw_fd.close()

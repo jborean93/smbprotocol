@@ -520,6 +520,17 @@ class SMBRawIO(io.RawIOBase):
 
         return bytes_written
 
+    def writeall(self, b):
+        """
+        Write all the bytes in buffer b, using multiple calls to the stream if necessary.
+        """
+        bytes_written = 0
+        while bytes_written < len(b):
+            try:
+                bytes_written += self.write(b[bytes_written:])
+            except PipeBroken:
+                raise
+
 
 class SMBDirectoryIO(SMBRawIO):
 
