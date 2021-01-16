@@ -11,6 +11,7 @@ import ntpath
 import operator
 import os
 import stat as py_stat
+import sys
 import time
 
 from smbclient._io import (
@@ -299,8 +300,8 @@ def makedirs(path, exist_ok=False, **kwargs):
 
 
 class TextIOWrapperPlusWriteAll(io.TextIOWrapper):
-    def writeall(self, b):
-        self.raw.writeall(b)
+    def writeall(self, b, max_write_size=sys.maxsize):
+        self.raw.writeall(b, max_write_size=max_write_size)
 
 
 def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=None, share_access=None,
