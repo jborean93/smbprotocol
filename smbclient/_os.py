@@ -299,6 +299,11 @@ def makedirs(path, exist_ok=False, **kwargs):
             create_queue.pop(-1)
 
 
+class TextIOWrapperPlusWriteAll(io.TextIOWrapper):
+    def writeall(self, b, max_write_size=sys.maxsize):
+        self.buffer.writeall(b, max_write_size=max_write_size)
+
+
 class BufferedWriterPlusWriteAll(io.BufferedWriter):
     def writeall(self, b, max_write_size=sys.maxsize):
         bytes_written = 0
@@ -397,7 +402,7 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         if 'b' in raw_fd.mode:
             return fd_buffer
 
-        return io.TextIOWrapper(fd_buffer, encoding, errors, newline, line_buffering=line_buffering)
+        return TextIOWrapperPlusWriteAll(fd_buffer, encoding, errors, newline, line_buffering=line_buffering)
     except Exception:
         # If there was a failure in the setup, make sure the file is closed.
         raw_fd.close()
