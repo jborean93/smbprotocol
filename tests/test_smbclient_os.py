@@ -117,6 +117,8 @@ def test_write_multiple_chunks_bytes(smb_share):
             bytes_written += fd.write(b[bytes_written:bytes_written + max_write_size])
 
     assert smbclient.stat("%s\\file1" % smb_share).st_size == len(b"File Contents\nNewline") * 1024
+    with smbclient.open_file("%s\\file1" % smb_share, mode='rb') as fd:
+        assert fd.read() == b"File Contents\nNewline" * 1024
 
 
 def test_write_multiple_chunks_text(smb_share):
@@ -130,6 +132,8 @@ def test_write_multiple_chunks_text(smb_share):
             bytes_written += fd.write(text[bytes_written:bytes_written + max_write_size])
 
     assert smbclient.stat("%s\\file1" % smb_share).st_size == len(u"content") * 1024
+    with smbclient.open_file("%s\\file1" % smb_share, mode='r') as fd:
+        assert fd.read() == u"content" * 1024
 
 
 def test_server_side_copy_large_file(smb_share):
