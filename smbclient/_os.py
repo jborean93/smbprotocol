@@ -301,7 +301,12 @@ def makedirs(path, exist_ok=False, **kwargs):
 
 class TextIOWrapperPlusWriteAll(io.TextIOWrapper):
     def writeall(self, b, max_write_size=sys.maxsize):
-        self._buffer.writeall(b, max_write_size=max_write_size)
+        self.buffer.writeall(b, max_write_size=max_write_size)
+
+
+class BufferedWriterPlusWriteAll(io.BufferedWriter):
+    def writeall(self, b, max_write_size=sys.maxsize):
+        self.raw.writeall(b, max_write_size=max_write_size)
 
 
 def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=None, share_access=None,
@@ -385,7 +390,7 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         elif raw_fd.readable():
             buff_type = io.BufferedReader
         else:
-            buff_type = io.BufferedWriter
+            buff_type = BufferedWriterPlusWriteAll
 
         if buffering == -1:
             buffering = MAX_PAYLOAD_SIZE

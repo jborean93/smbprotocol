@@ -106,7 +106,16 @@ def test_server_side_copy_multiple_chunks(smb_share):
     assert src_stat.st_size == dst_stat.st_size
 
 
-def test_write_multiple_chunks(smb_share):
+def test_write_multiple_chunks_bytes(smb_share):
+    smbclient.mkdir("%s\\dir2" % smb_share)
+    with smbclient.open_file("%s\\file1" % smb_share, mode='wb') as fd:
+        assert isinstance(fd, smbclient._os.BufferedWriterPlusWriteAll)
+        fd.writeall(b"File Contents\nNewline" * 1024, max_write_size=1024)
+
+    assert smbclient.stat("%s\\file1" % smb_share).st_size == len(b"File Contents\nNewline") * 1024
+
+
+def test_write_multiple_chunks_text(smb_share):
     smbclient.mkdir("%s\\dir2" % smb_share)
     with smbclient.open_file("%s\\file1" % smb_share, mode='w') as fd:
         assert isinstance(fd, smbclient._os.TextIOWrapperPlusWriteAll)
