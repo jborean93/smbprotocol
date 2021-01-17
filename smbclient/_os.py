@@ -301,7 +301,13 @@ def makedirs(path, exist_ok=False, **kwargs):
 
 class TextIOWrapperPlusWriteAll(io.TextIOWrapper):
     def writeall(self, b, max_write_size=sys.maxsize):
-        self.buffer.writeall(b, max_write_size=max_write_size)
+        """
+        TextIOWrapper.write() handles the conversion from str to bytes,
+        so we still need TextIOWrapper.write().
+        """
+        bytes_written = 0
+        while bytes_written < len(b):
+            bytes_written += self.write(b[bytes_written:][:max_write_size])
 
 
 class BufferedWriterPlusWriteAll(io.BufferedWriter):
