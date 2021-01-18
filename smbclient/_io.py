@@ -133,7 +133,7 @@ def _chunk_size(connection, length, operation):
     consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
     credit_request = consumed_credits + math.ceil(remaining_length / MAX_PAYLOAD_SIZE)
 
-    return chunk_size, credit_request
+    return chunk_size, int(credit_request)
 
 
 def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, input_buffer=b""):
@@ -544,8 +544,13 @@ class SMBRawIO(io.RawIOBase):
         the length of b as it depends on the underlying connection.
         """
         chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'write')
+        
+        # Python 2 compat, can be removed and just use the else statement.
+        if isinstance(b, memoryview):
+            data = b[:chunk_size].tobytes()
+        else:
+            data = bytes(b[:chunk_size])
 
-        data = bytes(b[:chunk_size])
         write_msg, recv_func = self.fd.write(data, offset=self._offset, send=False)
         request = self.fd.connection.send(
             write_msg,
