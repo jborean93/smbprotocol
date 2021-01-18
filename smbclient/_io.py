@@ -544,7 +544,7 @@ class SMBRawIO(io.RawIOBase):
         the length of b as it depends on the underlying connection.
         """
         chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'write')
-        
+
         # Python 2 compat, can be removed and just use the else statement.
         if isinstance(b, memoryview):
             data = b[:chunk_size].tobytes()
