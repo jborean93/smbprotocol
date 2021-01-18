@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 - TBD
+
+* Changed initial credit request from `256` to `16` when creating the SMB session
+    * This is done to avoid overloading the SMB server
+    * If `smbclient` requires more credits to perform an operation it will request it automatically
+* Improve credit handling when reading and writing large amounts of data to reduce the number of requests being made
+* Fixed up `write()` in `smbclient.open_file()` to be able to write bytes greater than the `max_write_size`
+
+
 ## 1.2.0 - 2020-09-22
 
 * Added experimental support for DFS shares when using `smbclient` function

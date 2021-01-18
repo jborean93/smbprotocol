@@ -110,6 +110,32 @@ def _parse_mode(raw, invalid=""):
     return create_disposition
 
 
+def _chunk_size(connection, length, operation):
+    """
+    Get the maximum size of data we can read/write. Also gets the number of credits to request to optimize subsequent
+    read/write operations for the remaining length.
+
+    :param connection: The SMB connection.
+    :param length: The length of the data we are working with.
+    :param operation: The operation the chunk is for: 'read', 'write', 'transact'
+    :return: The size of the chunk we can use and the number of credits to request for the next operation.
+    """
+    max_size = getattr(connection, 'max_%s_size' % operation)
+    
+    # Determine the maximum data length we can send for the operation. We do this by checking the available credits and
+    # calculating whatever is the smallest; length, negotiated operation size, available credit size).
+    available_credits = connection.sequence_window['high'] - connection.sequence_window['low']
+    chunk_size = min(length, max_size, available_credits * MAX_PAYLOAD_SIZE)
+
+    # Determine how many credits we need to fully optimize subsequent calls for the remaining amount of data. Basically
+    # how many credits we need to send either the remaining data or the max operation size.
+    remaining_length = min(max(0, length - chunk_size), max_size)
+    consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
+    credit_request = consumed_credits + math.ceil(remaining_length / MAX_PAYLOAD_SIZE)
+
+    return chunk_size, credit_request
+
+
 def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, input_buffer=b""):
     """
     Sends an IOCTL request to the server.
@@ -453,46 +479,32 @@ class SMBRawIO(io.RawIOBase):
 
         :return: The byte string read from the SMB file.
         """
-        conn = self.fd.connection
-
         data = bytearray()
-        remaining_length = self.fd.end_of_file - self._offset
-        while remaining_length or self.FILE_TYPE == 'pipe':
-            read_length = max(remaining_length, MAX_PAYLOAD_SIZE)  # We always want to be reading a minimum of 64KiB
+        while True:
+            read_length = min(
+                # We always want to be reading a minimum of 64KiB.
+                max(self.fd.end_of_file - self._offset, MAX_PAYLOAD_SIZE),
+                self.fd.connection.max_read_size  # We can never read more than this.
+            )
 
-            # Determine the maximum size we can read by checking how many credits the client has vs the maximum
-            # negotiated read size from the server.
-            avail_credits = conn.sequence_window['high'] - conn.sequence_window['low']
-            chunk_size = min(read_length, conn.max_read_size, avail_credits * MAX_PAYLOAD_SIZE)
-            consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
-
-            read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
-
-            # The credit request is the same as what we consumed unless we need to read more data than what our
-            # existing credits allow. In that case we want to request more.
-            next_read_credits = math.ceil(min(read_length, conn.max_read_size) / MAX_PAYLOAD_SIZE)
-            credit_request = consumed_credits
-            if next_read_credits > consumed_credits:
-                credit_request += next_read_credits
-
-            try:
-                request = conn.send(read_msg, sid=self.fd.tree_connect.session.session_id,
-                                    tid=self.fd.tree_connect.tree_connect_id, credit_request=credit_request)
-                data_part = recv_func(request)
-            except PipeBroken:
+            buffer = bytearray(b'\x00' * read_length)
+            bytes_read = self.readinto(buffer)
+            if not bytes_read:
                 break
 
-            data += data_part
+            data += buffer[:bytes_read]
+
             if self.FILE_TYPE != 'pipe':
-                self._offset += len(data_part)
-                remaining_length -= len(data_part)
+                self._offset += bytes_read
 
         return bytes(data)
 
     def readinto(self, b):
         """
         Read bytes into a pre-allocated, writable bytes-like object b, and
-        return the number of bytes read.
+        return the number of bytes read. This may read less bytes than
+        requested as it depends on the negotiated read size and SMB credits
+        available.
 
         :param b: bytes-like object to read the data into.
         :return: The number of bytes read.
@@ -500,9 +512,20 @@ class SMBRawIO(io.RawIOBase):
         if self._offset >= self.fd.end_of_file and self.FILE_TYPE != 'pipe':
             return 0
 
+        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'read')
+
+        read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
+        request = self.fd.connection.send(
+            read_msg,
+            sid=self.fd.tree_connect.session.session_id,
+            tid=self.fd.tree_connect.tree_connect_id,
+            credit_request=credit_request
+        )
+
         try:
-            file_bytes = self.fd.read(self._offset, len(b))
+            file_bytes = recv_func(request)
         except PipeBroken:
+            # A pipe will block until it returns the data available or was closed/broken.
             file_bytes = b""
 
         b[:len(file_bytes)] = file_bytes
@@ -520,22 +543,16 @@ class SMBRawIO(io.RawIOBase):
         The number of bytes actually written is returned. This can be less than
         the length of b as it depends on the underlying connection.
         """
-        conn = self.fd.connection
-
-        # Determine the maximum size we can write by checking how many credits the client has vs the maximum negotiated
-        # write size from the server.
-        avail_credits = conn.sequence_window['high'] - conn.sequence_window['low']
-        chunk_size = min(conn.max_write_size, avail_credits * MAX_PAYLOAD_SIZE)
+        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'write')
 
         data = bytes(b[:chunk_size])
         write_msg, recv_func = self.fd.write(data, offset=self._offset, send=False)
-
-        # Determine how many credits we need to send the remaining data so subsequent calls are more efficient.
-        remaining_length = min(max(0, len(b) - chunk_size), conn.max_write_size)
-        consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
-        credit_request = consumed_credits + math.ceil(remaining_length / MAX_PAYLOAD_SIZE)
-        request = conn.send(write_msg, sid=self.fd.tree_connect.session.session_id,
-                            tid=self.fd.tree_connect.tree_connect_id, credit_request=credit_request)
+        request = self.fd.connection.send(
+            write_msg,
+            sid=self.fd.tree_connect.session.session_id,
+            tid=self.fd.tree_connect.tree_connect_id,
+            credit_request=credit_request
+        )
         bytes_written = recv_func(request)
 
         if self.FILE_TYPE != 'pipe':
