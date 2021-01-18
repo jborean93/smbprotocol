@@ -121,7 +121,7 @@ def _chunk_size(connection, length, operation):
     :return: The size of the chunk we can use and the number of credits to request for the next operation.
     """
     max_size = getattr(connection, 'max_%s_size' % operation)
-    
+
     # Determine the maximum data length we can send for the operation. We do this by checking the available credits and
     # calculating whatever is the smallest; length, negotiated operation size, available credit size).
     available_credits = connection.sequence_window['high'] - connection.sequence_window['low']
