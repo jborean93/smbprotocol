@@ -277,7 +277,7 @@ class Session(object):
             session_setup['buffer'] = out_token
 
             log.info("Sending SMB2_SESSION_SETUP request message")
-            request = self.connection.send(session_setup, sid=self.session_id, credit_request=256)
+            request = self.connection.send(session_setup, sid=self.session_id, credit_request=16)
 
             log.info("Receiving SMB2_SESSION_SETUP response message")
             try:

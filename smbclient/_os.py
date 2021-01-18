@@ -359,11 +359,8 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         'pipe': SMBPipeIO,
     }[file_type]
 
-    # buffer_size for this is not the same as the buffering value. We choose the max between the input and
-    # MAX_PAYLOAD_SIZE (SMB2 payload size) to ensure a user can set a higher size but not limit single payload
-    # requests. This is only used readall() requests to the underlying open.
     raw_fd = file_class(path, mode=mode, share_access=share_access, desired_access=desired_access,
-                        file_attributes=file_attributes, buffer_size=max(buffering, MAX_PAYLOAD_SIZE), **kwargs)
+                        file_attributes=file_attributes, **kwargs)
     try:
         raw_fd.open()
 
