@@ -465,7 +465,7 @@ class SMBRawIO(io.RawIOBase):
             avail_credits = conn.sequence_window['high'] - conn.sequence_window['low']
             chunk_size = min(read_length, conn.max_read_size, avail_credits * MAX_PAYLOAD_SIZE)
             consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
-            
+
             read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
 
             # The credit request is the same as what we consumed unless we need to read more data than what our
@@ -526,7 +526,7 @@ class SMBRawIO(io.RawIOBase):
         # write size from the server.
         avail_credits = conn.sequence_window['high'] - conn.sequence_window['low']
         chunk_size = min(conn.max_write_size, avail_credits * MAX_PAYLOAD_SIZE)
-        
+
         data = bytes(b[:chunk_size])
         write_msg, recv_func = self.fd.write(data, offset=self._offset, send=False)
 
@@ -537,7 +537,7 @@ class SMBRawIO(io.RawIOBase):
         request = conn.send(write_msg, sid=self.fd.tree_connect.session.session_id,
                             tid=self.fd.tree_connect.tree_connect_id, credit_request=credit_request)
         bytes_written = recv_func(request)
-        
+
         if self.FILE_TYPE != 'pipe':
             self._offset += bytes_written
             self.fd.end_of_file = max(self.fd.end_of_file, self._offset)
