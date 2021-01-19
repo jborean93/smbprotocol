@@ -186,7 +186,7 @@ class _SMBErrorRegistry(type):
 
     def __call__(cls, header=None):
         if header:
-            new_cls = cls.__registry[header['status'].get_value()]
+            new_cls = cls.__registry.get(header['status'].get_value(), cls)
 
         else:
             header = SMB2HeaderResponse()
@@ -442,6 +442,11 @@ class PasswordExpired(SMBResponseException):
 class InsufficientResources(SMBResponseException):
     _BASE_MESSAGE = "Insufficient system resources exist to complete the API."
     _STATUS_CODE = NtStatus.STATUS_INSUFFICIENT_RESOURCES
+
+
+class PipeNotAvailable(SMBResponseException):
+    _BASE_MESSAGE = "An instance of a named pipe cannot be found in the listening state."
+    _STATUS_CODE = NtStatus.STATUS_PIPE_NOT_AVAILABLE
 
 
 class PipeBusy(SMBResponseException):
