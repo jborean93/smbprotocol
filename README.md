@@ -158,7 +158,8 @@ the `ClientConfig`:
 * `username`: The default username to use when creating a new SMB session if explicit credentials weren't set
 * `password`: The default password to use for authentication
 * `domain_controller`: The domain controller hostname. This is useful for environments with DFS servers as it is used to identify the DFS domain information automatically
-* `skip_dfs`: Whether to skip doing any DFS resolution, useful if there is a bug or you don't want to waste any roundtrip requesting referrals 
+* `skip_dfs`: Whether to skip doing any DFS resolution, useful if there is a bug or you don't want to waste any roundtrip requesting referrals
+* `auth_protocol`: The authentication protocol to use; `negotiate` (default), `kerberos`, or `ntlm`
 
 As well as setting the default credentials on the `ClientConfig` you can also
 specify the credentials and other connection parameters on each `smbclient`
