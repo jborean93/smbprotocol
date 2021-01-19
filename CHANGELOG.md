@@ -9,6 +9,8 @@
 * Fixed up `write()` in `smbclient.open_file()` to be able to write bytes greater than the `max_write_size`
 * Fixed issue when receiving an unknown NtStatus error code from the server
 * Added `PipeBusy` exception for `STATUS_PIPE_NOT_AVAILABLE 0xC00000AD` error responses
+* Fix credit granting calculation when receiving a compound response
+    * Original logic granted `len(responses) - 1` credits than what the server actually given causing errors when the client ran out of credits without it knowing
 
 
 ## 1.2.0 - 2020-09-22

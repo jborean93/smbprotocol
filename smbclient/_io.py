@@ -494,9 +494,6 @@ class SMBRawIO(io.RawIOBase):
 
             data += buffer[:bytes_read]
 
-            if self.FILE_TYPE != 'pipe':
-                self._offset += bytes_read
-
         return bytes(data)
 
     def readinto(self, b):
