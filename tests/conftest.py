@@ -7,6 +7,7 @@ import pytest
 import time
 
 from smbclient import (
+    delete_session,
     mkdir,
 )
 
@@ -180,6 +181,7 @@ def smb_real():
 def smb_share(request, smb_real):
     # Use some non ASCII chars to test out edge cases by default.
     share_path = u"%s\\%s" % (smb_real[request.param[1]], u"Pýtæs†-[%s] 💩" % time.time())
+    delete_session(smb_real[2])
 
     # Test out forward slashes also work with the share-encrypted test
     if request.param[0] == 'share-encrypted':
