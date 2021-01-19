@@ -11,6 +11,8 @@
 * Added `PipeBusy` exception for `STATUS_PIPE_NOT_AVAILABLE 0xC00000AD` error responses
 * Fix credit granting calculation when receiving a compound response
     * Original logic granted `len(responses) - 1` credits than what the server actually given causing errors when the client ran out of credits without it knowing
+* Added `auth_protocol` to `Session`, `ClientConfig`, and `register_session()` to control what authentication protocol is used
+    * This can be `negotiate` (default), `kerberos`, or `ntlm` where `negotiate` selects `kerberos` or `ntlm` depending on what's available
 
 
 ## 1.2.0 - 2020-09-22
