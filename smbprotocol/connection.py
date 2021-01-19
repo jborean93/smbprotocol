@@ -635,7 +635,7 @@ class Connection(object):
         :param require_signing: Whether signing is required on SMB messages
             sent over this connection
         """
-        log.info("Initialising connection, guid: %s, require_singing: %s, "
+        log.info("Initialising connection, guid: %s, require_signing: %s, "
                  "server_name: %s, port: %d"
                  % (guid, require_signing, server_name, port))
         self.server_name = server_name

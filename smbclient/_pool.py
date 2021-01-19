@@ -83,14 +83,17 @@ class ClientConfig(object):
         skip_dfs (bool): Whether to skip using any DFS referral checks and treat any path as a normal path. This is
             only useful if there are problems with the DFS resolver or you wish to avoid the extra round trip(s) the
             resolver requires.
+        auth_protocol (str): The protocol to use for authentication. Possible values are 'negotiate', 'ntlm' or
+            'kerberos'. Defaults to 'negotiate'.
     """
 
     def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, skip_dfs=False,
-                 **kwargs):
+                 auth_protocol='negotiate', **kwargs):
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username
         self.password = password
         self.skip_dfs = skip_dfs
+        self.auth_protocol = auth_protocol
         self._domain_controller = None  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
         self._referral_cache = []  # type: List[ReferralEntry]
@@ -238,6 +241,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     client_config = ClientConfig()
     username = username or client_config.username
     password = password or client_config.password
+    auth_protocol = client_config.auth_protocol
 
     # In case we need to nest a call to get_smb_tree, preserve the kwargs here so it's easier to update them in case
     # new kwargs are added.
@@ -284,7 +288,8 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
     server = path_split[0]
     session = register_session(server, username=username, password=password, port=port, encrypt=encrypt,
-                               connection_timeout=connection_timeout, connection_cache=connection_cache)
+                               connection_timeout=connection_timeout, connection_cache=connection_cache,
+                               auth_protocol=auth_protocol)
 
     share_path = "\\\\%s\\%s" % (server, path_split[1])
     tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
@@ -311,7 +316,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
 
 def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
-                     connection_cache=None):
+                     connection_cache=None, auth_protocol='negotiate'):
     """
     Creates an active connection and session to the server specified. This can be manually called to register the
     credentials of a specific server instead of defining it on the first function connecting to the server. The opened
@@ -327,6 +332,8 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
         back to False.
     :param connection_timeout: Override the timeout used for the initial connection.
     :param connection_cache: Connection cache to be used with
+    :param auth_protocol: The protocol to use for authentication. Possible values are 'negotiate', 'ntlm' or
+        'kerberos'. Defaults to 'negotiate'.
     :return: The Session that was registered or already existed in the pool.
     """
     connection_key = "%s:%s" % (server.lower(), port)
@@ -344,7 +351,8 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
     # just use the first session found or fall back to creating a new one with implicit auth/kerberos.
     session = next((s for s in connection.session_table.values() if username is None or s.username == username), None)
     if not session:
-        session = Session(connection, username=username, password=password, require_encryption=(encrypt is True))
+        session = Session(connection, username=username, password=password, require_encryption=(encrypt is True),
+                          auth_protocol=auth_protocol)
         session.connect()
     elif encrypt is not None:
         # We cannot go from encryption to no encryption on an existing session but we can do the opposite.
