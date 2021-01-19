@@ -1160,8 +1160,14 @@ class Connection(object):
                         self.verify_signature(header, session_id)
 
                     credit_response = header['credit_response'].get_value()
+                    if credit_response == 0 and not self.supports_multi_credit:
+                        # If the dialect does not support credits we still need to adjust our sequence window.
+                        # Otherwise the credit response may be 0 in the case of compound responses and the last
+                        # response contains the credits that were granted.
+                        credit_response += 1
+
                     with self.sequence_lock:
-                        self.sequence_window['high'] += credit_response if credit_response > 0 else 1
+                        self.sequence_window['high'] += credit_response
 
                     command = header['command'].get_value()
                     status = header['status'].get_value()

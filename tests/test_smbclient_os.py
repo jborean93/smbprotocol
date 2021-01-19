@@ -1907,6 +1907,27 @@ def test_xattr_dont_follow(smb_share):
     assert smbclient.listxattr(dst_filename, follow_symlinks=False) == []
 
 
+def test_credit_calculation_with_compound_requests(smb_share):
+    filename = ntpath.join(smb_share, 'file.txt')
+    
+    connection = None
+    with smbclient.open_file(filename, mode='wb') as fd:
+        connection = fd.raw.fd.connection
+
+    # Sending a compound message to make our client credit window out of wack. A stat calls has 5 requests in 1 which
+    # based on the older faulty logic added 4 extra credits we did not have. This should no longer be the case but we
+    # want to test this logic to ensure it doesn't regress in the future.
+    assert smbclient.stat(filename).st_size == 0
+
+    # Write data that should fit in the credits that we have available.
+    available_credits = connection.sequence_window['high'] - connection.sequence_window['low']
+    large_length = available_credits * 65536
+    with smbclient.open_file(filename, buffering=0, mode='wb') as fd:
+        fd.write(b'a' * large_length)
+
+    assert smbclient.stat(filename).st_size == large_length
+
+
 def test_dfs_path(smb_dfs_share):
     actual_listdir = smbclient.listdir(smb_dfs_share)
     assert actual_listdir == []
