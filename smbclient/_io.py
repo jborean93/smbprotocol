@@ -4,6 +4,7 @@
 
 import io
 import logging
+import math
 
 from smbclient._pool import (
     ClientConfig,
@@ -34,7 +35,6 @@ from smbprotocol.ioctl import (
 from smbprotocol.file_info import (
     FileAttributes,
     FileEndOfFileInformation,
-    FileStandardInformation,
 )
 
 from smbprotocol.open import (
@@ -108,6 +108,32 @@ def _parse_mode(raw, invalid=""):
         raise ValueError("Invalid mode value %s, must contain at least r, w, x, or a" % raw)
 
     return create_disposition
+
+
+def _chunk_size(connection, length, operation):
+    """
+    Get the maximum size of data we can read/write. Also gets the number of credits to request to optimize subsequent
+    read/write operations for the remaining length.
+
+    :param connection: The SMB connection.
+    :param length: The length of the data we are working with.
+    :param operation: The operation the chunk is for: 'read', 'write', 'transact'
+    :return: The size of the chunk we can use and the number of credits to request for the next operation.
+    """
+    max_size = getattr(connection, 'max_%s_size' % operation)
+
+    # Determine the maximum data length we can send for the operation. We do this by checking the available credits and
+    # calculating whatever is the smallest; length, negotiated operation size, available credit size).
+    available_credits = connection.sequence_window['high'] - connection.sequence_window['low']
+    chunk_size = min(length, max_size, available_credits * MAX_PAYLOAD_SIZE)
+
+    # Determine how many credits we need to fully optimize subsequent calls for the remaining amount of data. Basically
+    # how many credits we need to send either the remaining data or the max operation size.
+    remaining_length = min(max(0, length - chunk_size), max_size)
+    consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
+    credit_request = consumed_credits + math.ceil(remaining_length / MAX_PAYLOAD_SIZE)
+
+    return chunk_size, int(credit_request)
 
 
 def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, input_buffer=b""):
@@ -261,7 +287,7 @@ class SMBRawIO(io.RawIOBase):
     _INVALID_MODE = ''
 
     def __init__(self, path, mode='r', share_access=None, desired_access=None, file_attributes=None,
-                 create_options=0, buffer_size=MAX_PAYLOAD_SIZE, **kwargs):
+                 create_options=0, **kwargs):
         tree, fd_path = get_smb_tree(path, **kwargs)
         self.share_access = share_access
         self.fd = Open(tree, fd_path)
@@ -269,7 +295,6 @@ class SMBRawIO(io.RawIOBase):
         self._name = path
         self._offset = 0
         self._flush = False
-        self._buffer_size = buffer_size
         self.__kwargs = kwargs  # Used in open for DFS referrals
 
         if desired_access is None:
@@ -454,24 +479,32 @@ class SMBRawIO(io.RawIOBase):
 
         :return: The byte string read from the SMB file.
         """
-        data = b""
-        remaining_bytes = self.fd.end_of_file - self._offset
-        while len(data) < remaining_bytes or self.FILE_TYPE == 'pipe':
-            try:
-                data_part = self.fd.read(self._offset, self._buffer_size)
-            except PipeBroken:
+        data = bytearray()
+        while True:
+            read_length = min(
+                # We always want to be reading a minimum of 64KiB.
+                max(self.fd.end_of_file - self._offset, MAX_PAYLOAD_SIZE),
+                self.fd.connection.max_read_size  # We can never read more than this.
+            )
+
+            buffer = bytearray(b'\x00' * read_length)
+            bytes_read = self.readinto(buffer)
+            if not bytes_read:
                 break
 
-            data += data_part
-            if self.FILE_TYPE != 'pipe':
-                self._offset += len(data_part)
+            data += buffer[:bytes_read]
 
-        return data
+            if self.FILE_TYPE != 'pipe':
+                self._offset += bytes_read
+
+        return bytes(data)
 
     def readinto(self, b):
         """
         Read bytes into a pre-allocated, writable bytes-like object b, and
-        return the number of bytes read.
+        return the number of bytes read. This may read less bytes than
+        requested as it depends on the negotiated read size and SMB credits
+        available.
 
         :param b: bytes-like object to read the data into.
         :return: The number of bytes read.
@@ -479,9 +512,20 @@ class SMBRawIO(io.RawIOBase):
         if self._offset >= self.fd.end_of_file and self.FILE_TYPE != 'pipe':
             return 0
 
+        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'read')
+
+        read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
+        request = self.fd.connection.send(
+            read_msg,
+            sid=self.fd.tree_connect.session.session_id,
+            tid=self.fd.tree_connect.tree_connect_id,
+            credit_request=credit_request
+        )
+
         try:
-            file_bytes = self.fd.read(self._offset, len(b))
+            file_bytes = recv_func(request)
         except PipeBroken:
+            # A pipe will block until it returns the data available or was closed/broken.
             file_bytes = b""
 
         b[:len(file_bytes)] = file_bytes
@@ -496,23 +540,29 @@ class SMBRawIO(io.RawIOBase):
         Write buffer b to file, return number of bytes written.
 
         Only makes one system call, so not all of the data may be written.
-        The number of bytes actually written is returned.
+        The number of bytes actually written is returned. This can be less than
+        the length of b as it depends on the underlying connection.
         """
+        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'write')
+
+        # Python 2 compat, can be removed and just use the else statement.
         if isinstance(b, memoryview):
-            b = b.tobytes()
+            data = b[:chunk_size].tobytes()
+        else:
+            data = bytes(b[:chunk_size])
 
-        with SMBFileTransaction(self) as transaction:
-            transaction += self.fd.write(b, offset=self._offset, send=False)
+        write_msg, recv_func = self.fd.write(data, offset=self._offset, send=False)
+        request = self.fd.connection.send(
+            write_msg,
+            sid=self.fd.tree_connect.session.session_id,
+            tid=self.fd.tree_connect.tree_connect_id,
+            credit_request=credit_request
+        )
+        bytes_written = recv_func(request)
 
-            # Send the request with an SMB2QueryInfoRequest for FileStandardInformation so we can update the end of
-            # file stored internally.
-            if self.FILE_TYPE != 'pipe':
-                query_info(transaction, FileStandardInformation)
-
-        bytes_written = transaction.results[0]
         if self.FILE_TYPE != 'pipe':
             self._offset += bytes_written
-            self.fd.end_of_file = transaction.results[1]['end_of_file'].get_value()
+            self.fd.end_of_file = max(self.fd.end_of_file, self._offset)
             self._flush = True
 
         return bytes_written
