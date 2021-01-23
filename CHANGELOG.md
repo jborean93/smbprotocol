@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 - TBD
+## 1.3.0 - 2021-01-23
 
 * Changed initial credit request from `256` to `64` when creating the SMB session
     * This is done to avoid overloading the SMB server
