@@ -347,6 +347,11 @@ class NoSuchFile(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_NO_SUCH_FILE
 
 
+class InvalidDeviceRequest(SMBResponseException):
+    _BASE_MESSAGE = "The specified request is not a valid operation for the target device."
+    _STATUS_CODE = NtStatus.STATUS_INVALID_DEVICE_REQUEST
+
+
 class MoreProcessingRequired(SMBResponseException):
     _BASE_MESSAGE = "The specified I/O request packet (IRP) cannot be disposed of because the I/O operation is not " \
                     "complete."

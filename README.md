@@ -160,6 +160,8 @@ the `ClientConfig`:
 * `domain_controller`: The domain controller hostname. This is useful for environments with DFS servers as it is used to identify the DFS domain information automatically
 * `skip_dfs`: Whether to skip doing any DFS resolution, useful if there is a bug or you don't want to waste any roundtrip requesting referrals
 * `auth_protocol`: The authentication protocol to use; `negotiate` (default), `kerberos`, or `ntlm`
+* `require_secure_negotiate`: Control whether the client validates the negotiation info when connecting to a share (default: `True`).
+    * More information can be found on [SMB3 Secure Dialect Negotiation](https://docs.microsoft.com/en-us/archive/blogs/openspecification/smb3-secure-dialect-negotiation)
 
 As well as setting the default credentials on the `ClientConfig` you can also
 specify the credentials and other connection parameters on each `smbclient`

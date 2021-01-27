@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 - TBD
+
+* Fixed up secure negotiation logic when connecting to older SMB dialects
+* Will attempt to perform secure negotiation even on older dialects that may not implement it properly
+* Added `ClientConfig` option `require_secure_negotiate` to globally turn off secure negotiation if the client wishes
+
+
 ## 1.3.0 - 2021-01-23
 
 * Changed initial credit request from `256` to `64` when creating the SMB session

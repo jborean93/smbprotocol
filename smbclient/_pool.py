@@ -85,15 +85,18 @@ class ClientConfig(object):
             resolver requires.
         auth_protocol (str): The protocol to use for authentication. Possible values are 'negotiate', 'ntlm' or
             'kerberos'. Defaults to 'negotiate'.
+        require_secure_negotiate (bool): Whether to verify the negotiated dialects and capabilities on the connection
+            to a share to protect against MitM downgrade attacks..
     """
 
     def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, skip_dfs=False,
-                 auth_protocol='negotiate', **kwargs):
+                 auth_protocol='negotiate', require_secure_negotiate=True, **kwargs):
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username
         self.password = password
         self.skip_dfs = skip_dfs
         self.auth_protocol = auth_protocol
+        self.require_secure_negotiate = require_secure_negotiate
         self._domain_controller = None  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
         self._referral_cache = []  # type: List[ReferralEntry]
@@ -296,7 +299,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     if not tree:
         tree = TreeConnect(session, share_path)
         try:
-            tree.connect()
+            tree.connect(require_secure_negotiate=client_config.require_secure_negotiate)
         except BadNetworkName:
             ipc_path = u"\\\\%s\\IPC$" % server
             if path == ipc_path:  # In case we already tried connecting to IPC$ but that failed.
