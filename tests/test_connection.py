@@ -745,7 +745,9 @@ class TestConnection(object):
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
 
             # server settings override the require signing
-            assert connection.server_security_mode is None
+            assert connection.server_security_mode & \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
             assert not connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -766,7 +768,9 @@ class TestConnection(object):
                 SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
 
             # server settings override the require signing
-            assert connection.server_security_mode is None
+            assert connection.server_security_mode & \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED == \
+                SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
             assert not connection.supports_encryption
             assert connection.require_signing
         finally:
