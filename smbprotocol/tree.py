@@ -13,6 +13,9 @@ from smbprotocol import (
 )
 
 from smbprotocol.exceptions import (
+    FileClosed,
+    InvalidDeviceRequest,
+    NotSupported,
     SMBException,
 )
 
@@ -266,9 +269,8 @@ class TreeConnect(object):
             self.is_scaleout_share = capabilities.has_flag(
                 ShareCapabilities.SMB2_SHARE_CAP_SCALEOUT)
 
-            # secure negotiate is only valid for SMB 3 dialects before 3.1.1
-            if dialect < Dialects.SMB_3_1_1 and require_secure_negotiate:
-                self._verify_dialect_negotiate()
+        if require_secure_negotiate:
+            self._verify_dialect_negotiate()
 
     def disconnect(self):
         """
@@ -301,6 +303,18 @@ class TreeConnect(object):
         log_header = "Session: %s, Tree: %s" \
                      % (self.session.username, self.share_name)
         log.info("%s - Running secure negotiate process" % log_header)
+
+        if not self.session.signing_key:
+            # This will only happen if we authenticated with the guest or anonymous user.
+            raise SMBException('Cannot verify negotiate information without a session signing key. Authenticate with '
+                               'a non-guest or anonymous account or set require_secure_negotiate=False to disable the '
+                               'negotiation info verification checks.')
+
+        dialect = self.session.connection.dialect
+        if dialect >= Dialects.SMB_3_1_1:
+            # SMB 3.1.1+ uses the negotiation info to generate the signing key so doesn't need this extra exchange.
+            return
+
         ioctl_request = SMB2IOCTLRequest()
         ioctl_request['ctl_code'] = \
             CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
@@ -323,10 +337,24 @@ class TreeConnect(object):
         log.debug(ioctl_request)
         request = self.session.connection.send(ioctl_request,
                                                sid=self.session.session_id,
-                                               tid=self.tree_connect_id)
+                                               tid=self.tree_connect_id,
+                                               force_signature=True)
 
         log.info("%s - Receiving secure negotiation response" % log_header)
-        response = self.session.connection.receive(request)
+        try:
+            response = self.session.connection.receive(request)
+
+        except (FileClosed, InvalidDeviceRequest, NotSupported) as e:
+            # https://docs.microsoft.com/en-us/archive/blogs/openspecification/smb3-secure-dialect-negotiation
+            # Older dialects may respond with these exceptions, this is expected and we only want to fail if
+            # they are not signed. Check that header signature was signed, fail if it wasn't. The signature, if
+            # present, would have been verified when the connection received the data.
+            if e.header['signature'].get_value() == b'\x00' * 16:
+                raise
+
+            return
+
+        # If we received an actual response we want to validate the info provided matches with what was negotiated.
         ioctl_resp = SMB2IOCTLResponse()
         ioctl_resp.unpack(response['data'].get_value())
         log.debug(ioctl_resp)

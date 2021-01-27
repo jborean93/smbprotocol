@@ -747,7 +747,10 @@ class Connection(object):
                     SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED):
             self.require_signing = True
         log.info("Connection require signing: %s" % self.require_signing)
+
         capabilities = smb_response['capabilities']
+        self.server_capabilities = capabilities
+        self.server_security_mode = smb_response['security_mode'].get_value()
 
         # SMB 2.1
         if self.dialect >= Dialects.SMB_2_1_0:
@@ -768,9 +771,6 @@ class Connection(object):
             self.supports_encryption = capabilities.has_flag(
                 Capabilities.SMB2_GLOBAL_CAP_ENCRYPTION) \
                 and self.dialect < Dialects.SMB_3_1_1
-            self.server_capabilities = capabilities
-            self.server_security_mode = \
-                smb_response['security_mode'].get_value()
 
             # TODO: Check/add server to server_list in Client Page 203
 
@@ -803,7 +803,8 @@ class Connection(object):
         log.info("Disconnecting transport connection")
         self.transport.close()
 
-    def send(self, message, sid=None, tid=None, credit_request=None, message_id=None, async_id=None):
+    def send(self, message, sid=None, tid=None, credit_request=None, message_id=None, async_id=None,
+             force_signature=False):
         """
         Will send a message to the server that is passed in. The final unencrypted header is returned to the function
         that called this.
@@ -814,10 +815,11 @@ class Connection(object):
         :param credit_request: Specifies extra credits to be requested with the SMB header.
         :param message_id: The message_id for the header, only useful for a cancel request.
         :param async_id: The async_id for the header, only useful for a cancel request.
+        :param force_signature: Force signing the SMB request even if not requested by the client/server.
         :return: Request of the message that was sent.
         """
         return self._send([message], session_id=sid, tree_id=tid, message_id=message_id, credit_request=credit_request,
-                          async_id=async_id)[0]
+                          async_id=async_id, force_signature=force_signature)[0]
 
     def send_compound(self, messages, sid, tid, related=False):
         """
@@ -1007,7 +1009,7 @@ class Connection(object):
 
     @_worker_running
     def _send(self, messages, session_id=None, tree_id=None, message_id=None, credit_request=None, related=False,
-              async_id=None):
+              async_id=None, force_signature=False):
         send_data = b""
         requests = []
         session = self.session_table.get(session_id, None)
@@ -1067,7 +1069,7 @@ class Connection(object):
                 header['tree_id'] = b"\xff" * 4
                 header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS)
 
-            if session and session.signing_required and session.signing_key:
+            if force_signature or (session and session.signing_required and session.signing_key):
                 header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
                 b_header = header.pack() + padding
                 signature = self._generate_signature(b_header, session.signing_key)
@@ -1301,10 +1303,18 @@ class Connection(object):
                       % self.client_guid)
             neg_req['client_guid'] = self.client_guid
 
+        else:
+            # Must be None, this value is used to verify the negotiation info.
+            self.client_guid = None
+
         if highest_dialect >= Dialects.SMB_3_0_0:
             log.debug("Adding client capabilities %d to negotiate request"
                       % self.client_capabilities)
             neg_req['capabilities'] = self.client_capabilities
+
+        else:
+            # Must be 0, this value is used to verify the negotiation info.
+            self.client_capabilities = 0
 
         if highest_dialect >= Dialects.SMB_3_1_1:
             int_cap = SMB2NegotiateContextRequest()
