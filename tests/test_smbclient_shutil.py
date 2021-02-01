@@ -1207,15 +1207,17 @@ def test_copytree_with_errors_raises(smb_share):
         copytree(src_dirname, dst_dirname, dirs_exist_ok=True)
 
     assert len(actual.value.args[0]) == 2
-    err1 = actual.value.args[0][0]
-    assert err1[0] == "%s\\dir1\\file2.txt" % src_dirname
-    assert err1[1] == "%s\\dir1\\file2.txt" % dst_dirname
-    assert "STATUS_ACCESS_DENIED" in err1[2]
+    for err in actual.value.args[0]:
+        # We cannot guarantee the order the SMB server will return the dir listing
+        if err[0].endswith('file1.txt'):
+            assert err[0] == "%s\\file1.txt" % src_dirname
+            assert err[1] == "%s\\file1.txt" % dst_dirname
 
-    err2 = actual.value.args[0][1]
-    assert err2[0] == "%s\\file1.txt" % src_dirname
-    assert err2[1] == "%s\\file1.txt" % dst_dirname
-    assert "STATUS_ACCESS_DENIED" in err2[2]
+        else:
+            assert err[0] == "%s\\dir1\\file2.txt" % src_dirname
+            assert err[1] == "%s\\dir1\\file2.txt" % dst_dirname
+
+        assert "STATUS_ACCESS_DENIED" in err[2]
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
