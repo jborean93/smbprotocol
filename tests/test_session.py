@@ -327,3 +327,28 @@ class TestSession(object):
             assert session.signing_required
         finally:
             connection.disconnect(True)
+
+    def test_setup_session_with_ntlm_only(self, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect()
+
+        session = Session(connection, smb_real[0], smb_real[1], False, auth_protocol='ntlm')
+        try:
+            session.connect()
+            assert len(session.application_key) == 16
+            assert session.application_key != session.session_key
+            assert len(session.decryption_key) == 16
+            assert session.decryption_key != session.session_key
+            assert not session.encrypt_data
+            assert len(session.encryption_key) == 16
+            assert session.encryption_key != session.session_key
+            assert len(session.connection.preauth_integrity_hash_value) == 2
+            assert len(session.preauth_integrity_hash_value) == 3
+            assert not session.require_encryption
+            assert session.session_id is not None
+            assert len(session.session_key) == 16
+            assert len(session.signing_key) == 16
+            assert session.signing_key != session.session_key
+            assert session.signing_required
+        finally:
+            connection.disconnect()
