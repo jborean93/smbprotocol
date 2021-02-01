@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 - TBD
+## 1.4.0 - 2021-02-02
 
 * Fixed up secure negotiation logic when connecting to older SMB dialects
 * Will attempt to perform secure negotiation even on older dialects that may not implement it properly
