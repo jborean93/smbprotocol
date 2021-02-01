@@ -5,6 +5,7 @@
 * Fixed up secure negotiation logic when connecting to older SMB dialects
 * Will attempt to perform secure negotiation even on older dialects that may not implement it properly
 * Added `ClientConfig` option `require_secure_negotiate` to globally turn off secure negotiation if the client wishes
+* Fix explicit `ntlm` or `kerberos` authentication when the server response with the initial SPNEGO mech list token
 
 
 ## 1.3.0 - 2021-01-23
