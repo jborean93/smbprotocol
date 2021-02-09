@@ -345,7 +345,8 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
         connection_cache = _SMB_CONNECTIONS
     connection = connection_cache.get(connection_key, None)
 
-    if not connection:
+    # Make sure we ignore any connections that may have had a closed connection
+    if not connection or not connection.transport.connected:
         connection = Connection(ClientConfig().client_guid, server, port)
         connection.connect(timeout=connection_timeout)
         connection_cache[connection_key] = connection

@@ -52,6 +52,11 @@ class SMBAuthenticationError(SMBException):
     pass
 
 
+class SMBConnectionClosed(SMBException):
+    # Used to denote the underlying TCP transport has been closed.
+    pass
+
+
 class SMBOSError(OSError, SMBException):
     """Wrapper for OSError with smbprotocol specific details.
 
