@@ -150,7 +150,7 @@ class ClientConfig(object):
         for referral in self._referral_cache:
             referral_path_components = [p for p in referral.dfs_path.split("\\") if p]
             for idx, referral_component in enumerate(referral_path_components):
-                if idx > len(path_components) or referral_component != path_components[idx]:
+                if idx >= len(path_components) or referral_component != path_components[idx]:
                     break
 
             else:
