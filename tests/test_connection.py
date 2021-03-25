@@ -47,11 +47,16 @@ from smbprotocol.ioctl import (
 )
 
 from smbprotocol.exceptions import (
+    SMBConnectionClosed,
     SMBException,
 )
 
 from smbprotocol.session import (
     Session,
+)
+
+from smbprotocol.transport import (
+    _TimeoutError,
 )
 
 
@@ -886,7 +891,7 @@ class TestConnection(object):
         finally:
             connection.disconnect()
 
-    def test_broken_message_worker(self, smb_real):
+    def test_broken_message_worker_closed_socket(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
         connection.connect()
         try:
@@ -894,18 +899,49 @@ class TestConnection(object):
             test_req = Request(test_msg, type(test_msg), connection)
             connection.outstanding_requests[666] = test_req
 
-            # Put a bad message in the incoming queue to break the worker in a bad way
-            connection.transport._recv_queue.put(b"\x01\x02\x03\x04")
-            while connection._t_exc is None:
-                pass
+            # Close the connection manually
+            connection.transport.close()
 
-            with pytest.raises(Exception):
+            with pytest.raises(SMBConnectionClosed):
+                connection.receive(test_req)
+
+            with pytest.raises(SMBConnectionClosed):
                 connection.send(SMB2NegotiateRequest())
-
-            # Verify that all outstanding request events have been set on a failure
-            assert test_req.response_event.is_set()
         finally:
             connection.disconnect()
+
+    def test_broken_message_worker_exception(self, mocker):
+        connection = Connection(uuid.uuid4(), 'server', 445, True)
+
+        mock_transport = mocker.MagicMock()
+        connection.transport = mock_transport
+        connection.transport.recv.side_effect = Exception('test')
+        connection._process_message_thread()
+
+        with pytest.raises(Exception, match='test'):
+            connection.send(SMB2Echo())
+
+        with pytest.raises(Exception, match='test'):
+            connection.receive(None)
+
+    def test_message_worker_timeout(self, mocker):
+        connection = Connection(uuid.uuid4(), 'server', 445, True)
+
+        connection.session_table[1] = mocker.MagicMock()
+
+        mock_send = mocker.MagicMock()
+        connection.send = mock_send
+
+        mock_transport = mocker.MagicMock()
+        connection.transport = mock_transport
+        connection.transport.recv.side_effect = (_TimeoutError, b'')
+
+        # Not the best test but better than waiting 10 minutes for the socket to timeout.
+        connection._process_message_thread()
+
+        assert mock_send.call_count == 1
+        assert isinstance(mock_send.call_args[0][0], SMB2Echo)
+        assert mock_send.call_args[1] == {'sid': 1}
 
     def test_verify_fail_no_session(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)

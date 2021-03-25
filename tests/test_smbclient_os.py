@@ -1931,7 +1931,7 @@ def test_xattr_dont_follow(smb_share):
 
 def test_credit_calculation_with_compound_requests(smb_share):
     filename = ntpath.join(smb_share, 'file.txt')
-    
+
     connection = None
     with smbclient.open_file(filename, mode='wb') as fd:
         connection = fd.raw.fd.connection

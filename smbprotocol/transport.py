@@ -2,14 +2,20 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+import errno
 import logging
 import select
 import socket
 import struct
 import threading
+import timeit
 
 from collections import (
     OrderedDict,
+)
+
+from smbprotocol._compat import (
+    reraise,
 )
 
 from smbprotocol.structure import (
@@ -18,12 +24,12 @@ from smbprotocol.structure import (
     Structure,
 )
 
-try:
-    from queue import Queue
-except ImportError:  # pragma: no cover
-    from Queue import Queue
-
 log = logging.getLogger(__name__)
+
+
+# TODO: Replace with TimeoutError when Python 2.7 is dropped
+class _TimeoutError(Exception):
+    pass
 
 
 class DirectTCPPacket(Structure):
@@ -49,50 +55,48 @@ class DirectTCPPacket(Structure):
         super(DirectTCPPacket, self).__init__()
 
 
-def socket_connect(func):
-    def wrapped(self, *args, **kwargs):
-        if not self._connected:
-            log.info("Connecting to DirectTcp socket")
-            try:
-                self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
-            except (OSError, socket.gaierror) as err:
-                raise ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err)))
-            self._sock.settimeout(None)  # Make sure the socket is in blocking mode.
-
-            self._t_recv = threading.Thread(target=self.recv_thread, name="recv-%s:%s" % (self.server, self.port))
-            self._t_recv.daemon = True
-            self._t_recv.start()
-            self._connected = True
-
-        func(self, *args, **kwargs)
-
-    return wrapped
-
-
 class Tcp(object):
 
     MAX_SIZE = 16777215
 
-    def __init__(self, server, port, recv_queue, timeout=None):
+    def __init__(self, server, port, timeout=None):
         self.server = server
         self.port = port
         self.timeout = timeout
-        self._connected = False
+        self.connected = False
         self._sock = None
-        self._recv_queue = recv_queue
-        self._t_recv = None
+        self._sock_lock = threading.Lock()
+        self._close_lock = threading.Lock()
+
+    def connect(self):
+        with self._sock_lock:
+            if not self.connected:
+                log.info("Connecting to DirectTcp socket")
+                try:
+                    self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
+                except (OSError, socket.gaierror) as err:
+                    reraise(ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err))))
+                self._sock.settimeout(None)  # Make sure the socket is in blocking mode.
+                self.connected = True
 
     def close(self):
-        if self._connected:
-            log.info("Disconnecting DirectTcp socket")
-            # Send a shutdown to the socket so the select returns and wait until the thread is closed before actually
-            # closing the socket.
-            self._connected = False
-            self._sock.shutdown(socket.SHUT_RDWR)
-            self._t_recv.join()
-            self._sock.close()
+        with self._sock_lock:
+            if self.connected:
+                log.info("Disconnecting DirectTcp socket")
 
-    @socket_connect
+                # Sending shutdown first will tell the recv thread (for both select and recv) that the socket has data
+                # which returns b'' meaning it was closed.
+                self._sock.shutdown(socket.SHUT_RDWR)
+
+                # This is even more special, we cannot close the socket if we are in the middle of a select or recv().
+                # Doing so causes either a timeout (bad!) or bad fd descriptor (somewhat bad). By shutting down the
+                # socket first then waiting until recv() has exited the critical select/recv section we can ensure we
+                # gracefully handle client side socket closures both here and our recv thread without any extra waits
+                # or exceptions.
+                with self._close_lock:
+                    self._sock.close()
+                    self.connected = False
+
     def send(self, header):
         b_msg = header
         data_length = len(b_msg)
@@ -104,33 +108,58 @@ class Tcp(object):
         tcp_packet['smb2_message'] = b_msg
 
         data = tcp_packet.pack()
-        while data:
-            sent = self._sock.send(data)
-            data = data[sent:]
 
-    def recv_thread(self):
-        try:
-            while True:
-                select.select([self._sock], [], [])
-                b_packet_size = self._sock.recv(4)
-                if b_packet_size == b"":
-                    return
+        with self._sock_lock:
+            while data:
+                sent = self._sock.send(data)
+                data = data[sent:]
 
-                packet_size = struct.unpack(">L", b_packet_size)[0]
-                b_data = bytearray()
-                bytes_read = 0
-                while bytes_read < packet_size:
-                    b_fragment = self._sock.recv(packet_size - bytes_read)
-                    b_data.extend(b_fragment)
-                    bytes_read += len(b_fragment)
+    def recv(self, timeout):
+        # We don't need a lock for recv as the receiver is called from 1 thread.
+        b_packet_size, timeout = self._recv(4, timeout)
+        if not b_packet_size:
+            return b''
 
-                self._recv_queue.put(bytes(b_data))
-        except Exception as e:
-            # Log a warning if the exception was raised while we were connected and not just some weird platform-ism
-            # exception when reading from a closed socket.
-            if self._connected:
-                log.warning("Uncaught exception in socket recv thread: %s" % e)
-            return
-        finally:
-            # Make sure we close the message processing thread in connection.py
-            self._recv_queue.put(None)
+        packet_size = struct.unpack(">L", b_packet_size)[0]
+
+        return self._recv(packet_size, timeout)[0]
+
+    def _recv(self, length, timeout):
+        buffer = bytearray(length)
+        offset = 0
+        while offset < length:
+            read_len = length - offset
+            log.debug("Socket recv(%s) (total %s)" % (read_len, length))
+
+            start_time = timeit.default_timer()
+
+            with self._close_lock:
+                if not self.connected:
+                    return None, timeout  # The socket was closed
+
+                read = select.select([self._sock], [], [], max(timeout, 1))[0]
+                timeout = timeout - (timeit.default_timer() - start_time)
+                if not read:
+                    log.debug("Socket recv(%s) timed out")
+                    raise _TimeoutError()
+
+                try:
+                    b_data = self._sock.recv(read_len)
+                except socket.error as e:
+                    # Windows will raise this error if the socket has been shutdown, Linux return returns an empty byte
+                    # string so we just replicate that.
+                    if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET]:
+                        raise
+                    b_data = b''
+
+            read_len = len(b_data)
+            log.debug("Socket recv() returned %s bytes (total %s)" % (read_len, length))
+
+            if read_len == 0:
+                self.close()
+                return None, timeout  # The socket has been shutdown
+
+            buffer[offset:offset + read_len] = b_data
+            offset += read_len
+
+        return bytes(buffer), timeout

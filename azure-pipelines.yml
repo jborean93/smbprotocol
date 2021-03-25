@@ -43,6 +43,8 @@ stages:
           python.version: 3.7
         Python38:
           python.version: 3.8
+        Python39:
+          python.version: 3.9
 
     steps:
     - task: UsePythonVersion@0
@@ -146,6 +148,12 @@ stages:
         Python38-x64:
           python.version: 3.8
           python.arch: x64
+        Python39-x86:
+          python.version: 3.9
+          python.arch: x86
+        Python39-x64:
+          python.version: 3.9
+          python.arch: x64
 
     steps:
     - task: UsePythonVersion@0
@@ -231,7 +239,7 @@ stages:
     steps:
     - task: UsePythonVersion@0
       inputs:
-        versionSpec: 3.8
+        versionSpec: 3.9
 
     - script: |
         python -m pip install twine wheel -c tests/constraints.txt

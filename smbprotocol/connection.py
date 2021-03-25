@@ -54,6 +54,7 @@ from smbprotocol._text import (
 )
 
 from smbprotocol.exceptions import (
+    SMBConnectionClosed,
     SMB2SymbolicLinkErrorResponse,
     SMBException,
     SMBResponseException,
@@ -85,6 +86,7 @@ from smbprotocol.structure import (
 )
 
 from smbprotocol.transport import (
+    _TimeoutError,
     Tcp,
 )
 
@@ -610,14 +612,6 @@ class SMB2TransformHeader(Structure):
         super(SMB2TransformHeader, self).__init__()
 
 
-def _worker_running(func):
-    """ Ensures the message worker thread is still running and hasn't failed for any reason. """
-    def wrapped(self, *args, **kwargs):
-        self._check_worker_running()
-        return func(self, *args, **kwargs)
-    return wrapped
-
-
 class Connection(object):
 
     def __init__(self, guid, server_name, port=445, require_signing=True):
@@ -724,9 +718,9 @@ class Connection(object):
             negotiation process to complete
         """
         log.info("Setting up transport connection")
-        message_queue = Queue()
-        self.transport = Tcp(self.server_name, self.port, message_queue, timeout)
-        t_worker = threading.Thread(target=self._process_message_thread, args=(message_queue,),
+        self.transport = Tcp(self.server_name, self.port, timeout)
+        self.transport.connect()
+        t_worker = threading.Thread(target=self._process_message_thread,
                                     name="msg_worker-%s:%s" % (self.server_name, self.port))
         t_worker.daemon = True
         t_worker.start()
@@ -796,7 +790,8 @@ class Connection(object):
         :param close: Will close all sessions in the connection as well as the
             tree connections of each session.
         """
-        if close:
+        # We cannot close the session or tree if the socket has been closed.
+        if close and self.transport.connected:
             for session in list(self.session_table.values()):
                 session.disconnect(True)
 
@@ -836,7 +831,6 @@ class Connection(object):
         """
         return self._send(messages, session_id=sid, tree_id=tid, related=related)
 
-    @_worker_running
     def receive(self, request, wait=True, timeout=None, resolve_symlinks=True):
         """
         Polls the message buffer of the TCP connection and waits until a valid
@@ -849,6 +843,9 @@ class Connection(object):
         :param resolve_symlinks: Set to automatically resolve symlinks in the path when opening a file or directory.
         :return: SMB2HeaderResponse of the received message
         """
+        # Make sure the receiver is still active, if not this raises an exception.
+        self._check_worker_running()
+
         start_time = time.time()
         while True:
             iter_timeout = int(max(timeout - (time.time() - start_time), 1)) if timeout is not None else None
@@ -1007,7 +1004,9 @@ class Connection(object):
             self.disconnect(False)
             raise self._t_exc
 
-    @_worker_running
+        elif not self.transport.connected:
+            raise SMBConnectionClosed('SMB socket was closed, cannot send or receive any more data')
+
     def _send(self, messages, session_id=None, tree_id=None, message_id=None, credit_request=None, related=False,
               async_id=None, force_signature=False):
         send_data = b""
@@ -1104,32 +1103,33 @@ class Connection(object):
         if session and session.encrypt_data or tree and tree.encrypt_data:
             send_data = self._encrypt(send_data, session)
 
+        self._check_worker_running()
         self.transport.send(send_data)
         return requests
 
-    def _process_message_thread(self, msg_queue):
-        while True:
-            # Wait for a max of 10 minutes before sending an echo that tells the SMB server the client is still
-            # available. This stops the server from closing the connection and the associated sessions on a long lived
-            # connection. A brief test shows Windows kills a connection at ~16 minutes so 10 minutes is a safe choice.
-            # https://github.com/jborean93/smbprotocol/issues/31
-            try:
-                b_msg = msg_queue.get(timeout=600)
-            except Empty:
-                log.debug("Sending SMB2 Echo to keep connection alive")
-                for sid in self.session_table.keys():
-                    req = self.send(SMB2Echo(), sid=sid)
-                    # Set this reserved field to 1 as we use that internally to check whether the outstanding requests
-                    # queue should be cleared in this thread or not.
-                    req.message['reserved'] = 1
+    def _process_message_thread(self):
+        try:
+            while True:
+                # Wait for a max of 10 minutes before sending an echo that tells the SMB server the client is still
+                # available. This stops the server from closing the connection and the associated sessions on a long
+                # lived connection. A brief test shows Windows kills a connection at ~16 minutes so 10 minutes is a
+                # safe choice.
+                # https://github.com/jborean93/smbprotocol/issues/31
+                try:
+                    b_msg = self.transport.recv(600)
+                except _TimeoutError:
+                    log.debug("Sending SMB2 Echo to keep connection alive")
+                    for sid in self.session_table.keys():
+                        req = self.send(SMB2Echo(), sid=sid)
+                        # Set this reserved field to 1 as we use that internally to check whether the outstanding
+                        # requests queue should be cleared in this thread or not.
+                        req.message['reserved'] = 1
+                    continue
 
-                continue
+                # If recv didn't return any data then the socket is considered to be closed.
+                if not b_msg:
+                    return
 
-            # The socket will put None in the queue if it is closed, signalling the end of the connection.
-            if b_msg is None:
-                return
-
-            try:
                 is_encrypted = b_msg[:4] == b"\xfdSMB"
                 if is_encrypted:
                     msg = SMB2TransformHeader()
@@ -1190,18 +1190,18 @@ class Connection(object):
                         # request queue.
                         if request.message['reserved'].get_value() == 1:
                             del self.outstanding_requests[message_id]
-            except Exception as exc:
-                # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
-                self._t_exc = exc
+        except Exception as exc:
+            # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
+            self._t_exc = exc
 
-                # Make sure we fire all the request events to ensure the main thread isn't waiting on a receive.
-                for request in self.outstanding_requests.values():
-                    request.response_event.set()
+            # While a caller of send/receive could theoretically catch this exception, we consider any failures
+            # here a fatal errors and the connection should be closed so we exit the worker thread.
+            self.disconnect(False)
 
-                # While a caller of send/receive could theoretically catch this exception, we consider any failures
-                # here a fatal errors and the connection should be closed so we exit the worker thread.
-                self.disconnect(False)
-                return
+        finally:
+            # Make sure we fire all the request events to ensure the main thread isn't waiting on a receive.
+            for request in self.outstanding_requests.values():
+                request.response_event.set()
 
     def _generate_signature(self, b_header, signing_key):
         b_header = b_header[:48] + (b"\x00" * 16) + b_header[64:]

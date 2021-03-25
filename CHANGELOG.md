@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0 - TBD
+
+* Added `smbprotocol.exceptions.SMBConnectionClosed` that is raised when trying to send or receive data on a connection that has been closed
+* Do not attempt to reuse any cached connections that have been closed in `smbclient`
+* Added a lock when writing to the socket, only 1 thread can write a message at a single point in time
+* Revamped the SMB receiver code to simplify the logic and make it more durable
+    * Removed the TCP recv thread for each connection, now each connection uses just 1 thread instead of 2
+    * Be more defensive when reading data from a socket to ensure we get all the data we require
+    * Handled server side FIN packets that close the connection unexpectedly, any requests waiting for a response will raise `SMBConnectionClosed`
+
+
 ## 1.4.0 - 2021-02-02
 
 * Fixed up secure negotiation logic when connecting to older SMB dialects
