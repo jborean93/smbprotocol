@@ -438,6 +438,11 @@ class PrivilegeNotHeld(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_PRIVILEGE_NOT_HELD
 
 
+class WrongPassword(SMBResponseException):
+    _BASE_MESSAGE = "The specified password is not correct or the user is locked out."
+    _STATUS_CODE = NtStatus.STATUS_WRONG_PASSWORD
+
+
 class LogonFailure(SMBResponseException):
     _BASE_MESSAGE = "The attempted logon is invalid. This is either due to a bad username or authentication " \
                     "information."

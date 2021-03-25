@@ -3,6 +3,7 @@
 ## 1.5.0 - TBD
 
 * Added `smbprotocol.exceptions.SMBConnectionClosed` that is raised when trying to send or receive data on a connection that has been closed
+* Added `smbprotocol.exceptions.WrongPassword` that is raised when some servers indicate the password is not correct or the account is locked out
 * Do not attempt to reuse any cached connections that have been closed in `smbclient`
 * Added a lock when writing to the socket, only 1 thread can write a message at a single point in time
 * Revamped the SMB receiver code to simplify the logic and make it more durable
