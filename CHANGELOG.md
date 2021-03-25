@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.0 - TBD
+## 1.5.0 - 2021-03-25
 
 * Added `smbprotocol.exceptions.SMBConnectionClosed` that is raised when trying to send or receive data on a connection that has been closed
 * Added `smbprotocol.exceptions.WrongPassword` that is raised when some servers indicate the password is not correct or the account is locked out
