@@ -1054,6 +1054,22 @@ def test_rename_fail_dst_different_root(smb_share):
         smbclient.rename(smb_share, "\\\\%s\\dfs\\dst" % server)
 
 
+def test_rename_dir(smb_share):
+    src_dir = ntpath.join(smb_share, 'src')
+    dst_dir = ntpath.join(smb_share, 'dst')
+
+    smbclient.mkdir(src_dir)
+    with smbclient.open_file(ntpath.join(src_dir, 'file.txt'), mode='wb') as fd:
+        fd.write(b'test data')
+
+    smbclient.rename(src_dir, dst_dir)
+
+    assert smbclient.listdir(smb_share) == ['dst']
+    assert smbclient.listdir(dst_dir) == ['file.txt']
+    with smbclient.open_file(ntpath.join(dst_dir, 'file.txt'), mode='rb') as fd:
+        assert fd.read() == b'test data'
+
+
 def test_renames(smb_share):
     parent_src_dir = "%s\\directory" % smb_share
     smbclient.mkdir(parent_src_dir)
@@ -1100,6 +1116,19 @@ def test_replace_file(smb_share):
     with smbclient.open_file(filename, mode='r') as fd:
         actual = fd.read()
     assert actual == u"Content"
+
+
+def test_replace_sharing_violation(smb_share):
+    src_file = ntpath.join(smb_share, 'src.txt')
+    dst_file = ntpath.join(smb_share, 'dst.txt')
+
+    with smbclient.open_file(src_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    expected = re.escape('The process cannot access the file because it is being used by another process')
+    with smbclient.open_file(dst_file, mode='wb'):
+        with pytest.raises(SMBOSError, match=expected):
+            smbclient.replace(src_file, dst_file)
 
 
 def test_rmdir(smb_share):

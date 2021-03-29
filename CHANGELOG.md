@@ -4,7 +4,7 @@
 
 * Unified DFS path handling when using any API that uses a transaction to open the file
   * This includes `smbclient.rename` and `smbclient.replace`
-
+* Fixed up `smbclient.rename` to work with directories
 
 
 ## 1.5.0 - 2021-03-25

@@ -178,7 +178,7 @@ def smb_real():
 @pytest.fixture(params=[
     ('share', 4),
     ('share-encrypted', 5),
-])
+], ids=['share', 'share-encrypted'])
 def smb_share(request, smb_real):
     # Use some non ASCII chars to test out edge cases by default.
     share_path = u"%s\\%s" % (smb_real[request.param[1]], u"Pýtæs†-[%s] 💩" % time.time())
@@ -199,7 +199,7 @@ def smb_share(request, smb_real):
     ('', None),  # Root, no referral targets
     ('share', 4),  # Simple referral to a single target
     ('share-encrypted', 5),  # Referral to 2 targets, first is known to be broken
-])
+], ids=['dfs-root', 'dfs-single-target', 'dfs-broken-target'])
 def smb_dfs_share(request, smb_real):
     test_folder = u"Pýtæs†-[%s] 💩" % time.time()
 
