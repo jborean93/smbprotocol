@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 - TBD
+
+* Unified DFS path handling when using any API that uses a transaction to open the file
+  * This includes `smbclient.rename` and `smbclient.replace`
+
+
+
 ## 1.5.0 - 2021-03-25
 
 * Added `smbprotocol.exceptions.SMBConnectionClosed` that is raised when trying to send or receive data on a connection that has been closed

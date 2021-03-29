@@ -1037,24 +1037,44 @@ def _get_reparse_point(path, **kwargs):
 
 def _rename_information(src, dst, replace_if_exists=False, **kwargs):
     verb = 'replace' if replace_if_exists else 'rename'
-    norm_src = ntpath.normpath(src)
-    norm_dst = ntpath.normpath(dst)
-
-    if not is_remote_path(norm_dst):
+    if not is_remote_path(ntpath.normpath(dst)):
         raise ValueError("dst must be an absolute path to where the file or directory should be %sd." % verb)
 
-    src_root = ntpath.splitdrive(norm_src)[0]
-    dst_root, dst_name = ntpath.splitdrive(norm_dst)
-    if src_root.lower() != dst_root.lower():
-        raise ValueError("Cannot %s a file to a different root than the src." % verb)
+    raw_args = dict(kwargs)
+    raw_args.update({
+        'mode': 'r',
+        'share_access': 'rwd',
+        'create_options': CreateOptions.FILE_OPEN_REPARSE_POINT,
+    })
+    src_raw = SMBRawIO(src, desired_access=FilePipePrinterAccessMask.DELETE, **raw_args)
+    dst_raw = SMBRawIO(dst, desired_access=FilePipePrinterAccessMask.FILE_EXECUTE, **raw_args)
 
-    raw = SMBRawIO(src, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.DELETE,
-                   create_options=CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
-    with SMBFileTransaction(raw) as transaction:
-        file_rename = FileRenameInformation()
-        file_rename['replace_if_exists'] = replace_if_exists
-        file_rename['file_name'] = to_text(dst_name[1:])  # dst_name has \ prefix from splitdrive, we remove that.
-        set_info(transaction, file_rename)
+    # We open/close the dest (ignoring if the file does not exist) so we can resolve the DFS path and determine the
+    # filename src needs to be renamed to.
+    try:
+        SMBFileTransaction(dst_raw).commit()
+    except SMBOSError as err:
+        if err.errno != errno.ENOENT:
+            raise
+
+    # We need to open source first so we can get the resolved tree to compare the volumes
+    with src_raw:
+        # We compare the server part using the GUID in case a different alias was specified for the server. The GUID
+        # should uniquely identify the server for our cases here.
+        src_guid = src_raw.fd.connection.server_guid
+        src_share = ntpath.normpath(src_raw.fd.tree_connect.share_name).split("\\")[-1]
+
+        dst_guid = dst_raw.fd.connection.server_guid
+        dst_share = ntpath.normpath(dst_raw.fd.tree_connect.share_name).split("\\")[-1]
+
+        if src_guid != dst_guid or src_share.lower() != dst_share.lower():
+            raise ValueError("Cannot %s a file to a different root than the src." % verb)
+
+        with SMBFileTransaction(src_raw) as transaction:
+            file_rename = FileRenameInformation()
+            file_rename['replace_if_exists'] = replace_if_exists
+            file_rename['file_name'] = to_text(dst_raw.fd.file_name)
+            set_info(transaction, file_rename)
 
 
 def _set_basic_information(path, creation_time=0, last_access_time=0, last_write_time=0, change_time=0,

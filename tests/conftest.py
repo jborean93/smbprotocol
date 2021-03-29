@@ -7,6 +7,7 @@ import pytest
 import time
 
 from smbclient import (
+    ClientConfig,
     delete_session,
     mkdir,
 )
@@ -215,3 +216,7 @@ def smb_dfs_share(request, smb_real):
         yield dfs_path
     finally:
         rmtree(target_share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+
+        config = ClientConfig()
+        config._domain_cache = []
+        config._referral_cache = []

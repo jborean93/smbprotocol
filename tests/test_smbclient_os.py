@@ -1048,8 +1048,10 @@ def test_rename_fail_dst_not_absolute(smb_share):
 
 def test_rename_fail_dst_different_root(smb_share):
     expected = "Cannot rename a file to a different root than the src."
+    server = [p for p in ntpath.normpath(smb_share).split("\\") if p][0]
+
     with pytest.raises(ValueError, match=re.escape(expected)):
-        smbclient.rename(smb_share, "\\\\server2\\share\\dst")
+        smbclient.rename(smb_share, "\\\\%s\\dfs\\dst" % server)
 
 
 def test_renames(smb_share):
@@ -1971,6 +1973,48 @@ def test_dfs_path(smb_dfs_share):
             assert info.path == test_dir
             assert info.is_dir()
             assert not info.is_file()
+
+
+def test_dfs_path_rename(smb_dfs_share):
+    test_dir = ntpath.join(smb_dfs_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_dfs_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    dst_dfs_path = ntpath.join(test_dir, 'target renamed.txt')
+    smbclient.rename(test_file, dst_dfs_path)
+
+    assert smbclient.listdir(smb_dfs_share) == ['test folder']
+    assert smbclient.listdir(test_dir) == ['target renamed.txt']
+
+    with smbclient.open_file(dst_dfs_path, mode='rb') as fd:
+        assert fd.read() == b'test data'
+
+
+def test_dfs_path_replace(smb_dfs_share):
+    test_dir = ntpath.join(smb_dfs_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_dfs_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'other data')
+
+    dst_dfs_path = ntpath.join(test_dir, 'target renamed.txt')
+    with smbclient.open_file(dst_dfs_path, mode='wb') as fd:
+        fd.write(b'test data')
+
+    smbclient.replace(dst_dfs_path, test_file)
+
+    actual_contents = smbclient.listdir(smb_dfs_share)
+    assert 'test folder' in actual_contents
+    assert 'test file.txt' in actual_contents
+
+    assert smbclient.listdir(test_dir) == []
+
+    with smbclient.open_file(test_file, mode='rb') as fd:
+        assert fd.read() == b'test data'
 
 
 def test_broken_dfs_path(smb_real):

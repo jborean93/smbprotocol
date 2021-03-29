@@ -45,6 +45,7 @@ from smbprotocol.open import (
     Open,
     QueryDirectoryFlags,
     ShareAccess,
+    SMB2CreateRequest,
     SMB2QueryInfoRequest,
     SMB2QueryInfoResponse,
     SMB2SetInfoRequest,
@@ -134,6 +135,40 @@ def _chunk_size(connection, length, operation):
     credit_request = consumed_credits + math.ceil(remaining_length / MAX_PAYLOAD_SIZE)
 
     return chunk_size, int(credit_request)
+
+
+def _resolve_dfs(raw_io):
+    """
+    Resolves a DFS path for a failed Open request.
+
+    :param raw_io: The SMBRawIO to resolve the DFS path for.
+    :return: A new Open for each DFS target that was resolved.
+    """
+    if not raw_io.fd.tree_connect.is_dfs_share:
+        return
+
+    # Path is on a DFS root that is linked to another server.
+    client_config = ClientConfig()
+    raw_path = raw_io.name
+
+    referral = dfs_request(raw_io.fd.tree_connect, raw_path[1:])
+    client_config.cache_referral(referral)
+    info = client_config.lookup_referral([p for p in raw_path.split("\\") if p])
+    connection_kwargs = getattr(raw_io, '_%s__kwargs' % type(raw_io).__name__, {})
+
+    for target in info:
+        new_path = raw_path.replace(info.dfs_path, target.target_path, 1)
+
+        try:
+            tree, fd_path = get_smb_tree(new_path, **connection_kwargs)
+
+        except SMBResponseException as link_exc:
+            log.warning("Failed to connect to DFS link target %s: %s" % (str(target), link_exc))
+            continue
+
+        # Record the target that worked for future reference.
+        info.target_hint = target
+        yield Open(tree, fd_path)
 
 
 def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_IOCTL_IS_IOCTL, input_buffer=b""):
@@ -240,17 +275,21 @@ class SMBFileTransaction(object):
         """
         Sends a compound request to the server. Optionally opens and closes a handle in the same request if the handle
         is not already opened.
-
-        :return: A list of each response for the requests set on the transaction.
         """
         remove_index = []
-        if self.raw.closed:
+        if (
+                self.raw.closed and
+                (
+                        not self._actions or
+                        not isinstance(self._actions[0][0], SMB2CreateRequest)
+                )
+        ):
             self.raw.open(transaction=self)
             self._actions.insert(0, self._actions.pop(-1))  # Need to move the create to the start
-            remove_index.append(0)
+            remove_index.insert(0, 0)
 
             self.raw.close(transaction=self)
-            remove_index.append(len(self._actions) - 1)
+            remove_index.insert(0, len(self._actions) - 1)
 
         send_msgs = []
         unpack_functions = []
@@ -266,19 +305,61 @@ class SMBFileTransaction(object):
         # just enumerate the list in 1 line in case it throws an exception.
         failures = []
         responses = []
+        try_again = False
         for idx, func in enumerate(unpack_functions):
+            res = None
+
             try:
-                responses.append(func(requests[idx]))
+                try:
+                    res = func(requests[idx])
+
+                except (PathNotCovered, ObjectNameNotFound, ObjectPathNotFound):
+                    # The MS-DFSC docs state that STATUS_PATH_NOT_COVERED is used when encountering a link to a
+                    # different server but Samba seems to return the generic name or path not found.
+
+                    # If the first action is not a CreateRequest then we can't resolve the DFS path in the transaction.
+                    if not (idx == 0 and isinstance(send_msgs[0], SMB2CreateRequest)):
+                        raise
+
+                    for smb_open in _resolve_dfs(self.raw):
+                        if smb_open.tree_connect.share_name == self.raw.fd.tree_connect.share_name:
+                            continue
+
+                        self.raw.fd = smb_open
+
+                        # In case this is a transaction with an explicit open we want to reopen it with the new params
+                        # before trying it again.
+                        self.raw.open(transaction=self)
+                        self._actions[0] = self._actions.pop(-1)
+
+                        try_again = True
+                        break
+
+                    else:
+                        # Either there wasn't any DFS referrals or none of them worked, just reraise the error.
+                        raise
+
             except SMBResponseException as exc:
                 failures.append(SMBOSError(exc.status, self.raw.name))
 
-        # If there was a failure, just raise the first exception found.
-        if failures:
+            finally:
+                responses.append(res)
+
+        # Remove the existing open/close actions this transaction added internally.
+        for idx in remove_index:
+            del self._actions[idx]
+            del responses[idx]
+
+        if try_again:
+            # If we updated the SMB Tree due to a DFS referral hit then try again.
+            self.commit()
+
+        elif failures:
+            # If there was a failure, just raise the first exception found.
             raise failures[0]
 
-        remove_index.sort(reverse=True)  # Need to remove from highest index first.
-        [responses.pop(i) for i in remove_index]  # Remove the open and close response if commit() did that work.
-        self.results = tuple(responses)
+        else:
+            self.results = tuple(responses)
 
 
 class SMBRawIO(io.RawIOBase):
@@ -358,63 +439,32 @@ class SMBRawIO(io.RawIOBase):
         if not self.closed:
             return
 
+        open_at_end = False
+        if not transaction:
+            # The SMBFileTransaction has special logic that deals with DFS paths, use that to do the actual open.
+            open_at_end = True
+            transaction = SMBFileTransaction(self)
+
         share_access = _parse_share_access(self.share_access, self.mode)
         create_disposition = _parse_mode(self.mode, invalid=self._INVALID_MODE)
 
-        try:
-            # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wpo/feeb3122-cfe0-4b34-821d-e31c036d763c
-            # Impersonation on SMB has little meaning when opening files but is important if using RPC so set to a sane
-            # default of Impersonation.
-            open_result = self.fd.create(
-                ImpersonationLevel.Impersonation,
-                self._desired_access,
-                self._file_attributes,
-                share_access,
-                create_disposition,
-                self._create_options,
-                send=(transaction is None),
-            )
-        except (PathNotCovered, ObjectNameNotFound, ObjectPathNotFound) as exc:
-            # The MS-DFSC docs status that STATUS_PATH_NOT_COVERED is used when encountering a link to a different
-            # server but Samba seems to return the generic name or path not found.
-            if not self.fd.tree_connect.is_dfs_share:
-                raise SMBOSError(exc.status, self.name)
+        # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wpo/feeb3122-cfe0-4b34-821d-e31c036d763c
+        # Impersonation on SMB has little meaning when opening files but is important if using RPC so set to a sane
+        # default of Impersonation.
+        transaction += self.fd.create(
+            ImpersonationLevel.Impersonation,
+            self._desired_access,
+            self._file_attributes,
+            share_access,
+            create_disposition,
+            self._create_options,
+            send=False,
+        )
 
-            # Path is on a DFS root that is linked to another server.
-            client_config = ClientConfig()
-            referral = dfs_request(self.fd.tree_connect, self.name[1:])
-            client_config.cache_referral(referral)
-            info = client_config.lookup_referral([p for p in self.name.split("\\") if p])
-
-            for target in info:
-                new_path = self.name.replace(info.dfs_path, target.target_path, 1)
-
-                try:
-                    tree, fd_path = get_smb_tree(new_path, **self.__kwargs)
-                    self.fd = Open(tree, fd_path)
-                    self.open(transaction=transaction)
-
-                except SMBResponseException as link_exc:
-                    log.warning("Failed to connect to DFS link target %s: %s" % (str(target), link_exc))
-
-                else:
-                    # Record the target that worked for future reference.
-                    info.target_hint = target
-                    break
-
-            else:
-                # None of the targets worked so raise the original error.
-                raise SMBOSError(exc.status, self.name)
-
-            return
-
-        except SMBResponseException as exc:
-            raise SMBOSError(exc.status, self.name)
-
-        if transaction is not None:
-            transaction += open_result
-        elif 'a' in self.mode and self.FILE_TYPE != 'pipe':
-            self._offset = self.fd.end_of_file
+        if open_at_end:
+            transaction.commit()
+            if 'a' in self.mode and self.FILE_TYPE != 'pipe':
+                self._offset = self.fd.end_of_file
 
     def readable(self):
         """ True if file was opened in a read mode. """

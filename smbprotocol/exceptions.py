@@ -77,6 +77,7 @@ class SMBOSError(OSError, SMBException):
         error_details = {
             NtStatus.STATUS_OBJECT_NAME_NOT_FOUND: errno.ENOENT,
             NtStatus.STATUS_OBJECT_PATH_NOT_FOUND: errno.ENOENT,
+            NtStatus.STATUS_NOT_FOUND: errno.ENOENT,
             NtStatus.STATUS_OBJECT_NAME_COLLISION: errno.EEXIST,
             NtStatus.STATUS_PRIVILEGE_NOT_HELD: (errno.EACCES, "Required privilege not held"),
             NtStatus.STATUS_SHARING_VIOLATION: (errno.EPERM, "The process cannot access the file because it is being "
