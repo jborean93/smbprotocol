@@ -1046,11 +1046,10 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
         'share_access': 'rwd',
         'create_options': CreateOptions.FILE_OPEN_REPARSE_POINT,
     })
-    src_raw = SMBRawIO(src, desired_access=FilePipePrinterAccessMask.DELETE, **raw_args)
-    dst_raw = SMBRawIO(dst, desired_access=FilePipePrinterAccessMask.FILE_EXECUTE, **raw_args)
 
     # We open/close the dest (ignoring if the file does not exist) so we can resolve the DFS path and determine the
     # filename src needs to be renamed to.
+    dst_raw = SMBRawIO(dst, desired_access=FilePipePrinterAccessMask.FILE_EXECUTE, **raw_args)
     try:
         SMBFileTransaction(dst_raw).commit()
     except SMBOSError as err:
@@ -1058,7 +1057,7 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
             raise
 
     # We need to open source first so we can get the resolved tree to compare the volumes
-    with src_raw:
+    with SMBRawIO(src, desired_access=FilePipePrinterAccessMask.DELETE, **raw_args) as src_raw:
         # We compare the server part using the GUID in case a different alias was specified for the server. The GUID
         # should uniquely identify the server for our cases here.
         src_guid = src_raw.fd.connection.server_guid
