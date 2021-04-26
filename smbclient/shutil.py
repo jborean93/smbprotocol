@@ -62,7 +62,7 @@ from smbprotocol.structure import (
 )
 
 
-def is_remote_path(path):
+def is_remote_path(path):  # type: (str) -> bool
     """
     Returns True iff the given path is a remote SMB path (rather than a local path).
 
