@@ -141,7 +141,10 @@ def samefile(path1, path2, **kwargs):
 
 def basename(path):
     """
-    Return the base name of pathname path. This is the second element of the pair returned by passing path to the function split(). Note that the result of this function is different from the Unix basename program; where basename for '/foo/bar/' returns 'bar', the basename() function returns an empty string ('').
+    Return the base name of pathname path.
+    This is the second element of the pair returned by passing path to the function split().
+    Note that the result of this function is different from the Unix basename program;
+    where basename for '/foo/bar/' returns 'bar', the basename() function returns an empty string ('').
 
     :param path: The path to take the base of.
     :return: The basename of the path.
