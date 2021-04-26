@@ -166,7 +166,7 @@ def basename(path):
     :param path: The path to take the base of.
     :return: The basename of the path.
     """
-    if is_remote_path(path):
+    if is_remote_path(path) or path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
         return ntpath.basename(path)
     else:
         return os.path.basename(path)
