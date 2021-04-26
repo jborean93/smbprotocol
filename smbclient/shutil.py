@@ -62,6 +62,16 @@ from smbprotocol.structure import (
 )
 
 
+def is_remote_path(path) -> bool:
+    """
+    Returns True iff the given path is a remote SMB path (rather than a local path).
+
+    :param path: The filepath.
+    :return: True iff the given path is a remote SMB path.
+    """
+    return path.startswith('\\\\')
+
+
 def copy(src, dst, follow_symlinks=True, **kwargs):
     """
     Copies the file src to the file or directory dst. If dst specified a directory, the file will be copied into dst
@@ -130,7 +140,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
         return raise_not_implemented
 
     norm_src = ntpath.normpath(src)
-    if norm_src.startswith('\\\\'):
+    if is_remote_path(norm_src):
         src_root = ntpath.splitdrive(norm_src)[0]
         islink_func = islink
         readlink_func = readlink
@@ -147,7 +157,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
         src_kwargs = {}
 
     norm_dst = ntpath.normpath(dst)
-    if norm_dst.startswith('\\\\'):
+    if is_remote_path(norm_dst):
         dst_root = ntpath.splitdrive(norm_dst)[0]
         dst_open = open_file
         dst_kwargs = kwargs
@@ -216,7 +226,7 @@ def copymode(src, dst, follow_symlinks=True, **kwargs):
     src_mode = stat.S_IMODE(_get_file_stat(src, follow_symlinks, **kwargs).st_mode)
 
     norm_dst = ntpath.normpath(dst)
-    if norm_dst.startswith('\\\\'):
+    if is_remote_path(norm_dst):
         read_only = not (src_mode & stat.S_IWRITE == stat.S_IWRITE and src_mode & stat.S_IREAD == stat.S_IREAD)
         _set_file_basic_info(dst, follow_symlinks, read_only=read_only, **kwargs)
     else:
@@ -244,7 +254,7 @@ def copystat(src, dst, follow_symlinks=True, **kwargs):
     mtime_ns = getattr(src_stat, 'st_mtime_ns', src_stat.st_mtime * 1000000000)
 
     norm_dst = ntpath.normpath(dst)
-    if norm_dst.startswith('\\\\'):
+    if is_remote_path(norm_dst):
         read_only = not (src_mode & stat.S_IWRITE == stat.S_IWRITE and src_mode & stat.S_IREAD == stat.S_IREAD)
         _set_file_basic_info(dst, follow_symlinks, read_only=read_only, atime_ns=atime_ns, mtime_ns=mtime_ns, **kwargs)
     else:
@@ -427,7 +437,7 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
 def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
     # Need to check if dst is a UNC path before checking if it's a dir in smbclient.path before checking to see if it's
     # a local directory. If either one is a dir, join the filename of src onto dst.
-    if ntpath.normpath(dst).startswith('\\\\') and isdir(dst, **kwargs):
+    if is_remote_path(ntpath.normpath(dst)) and isdir(dst, **kwargs):
         dst = ntpath.join(dst, ntpath.basename(src))
     elif os.path.isdir(dst):
         dst = os.path.join(dst, os.path.basename(src))
