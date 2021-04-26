@@ -3,10 +3,13 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import errno
+import ntpath
+import os.path
 import stat as py_stat
 
 from smbclient._os import (
     stat,
+    is_remote_path,
 )
 
 from smbprotocol.exceptions import (
@@ -134,6 +137,19 @@ def samefile(path1, path2, **kwargs):
     stat1 = stat(path1, **kwargs)
     stat2 = stat(path2, **kwargs)
     return stat1.st_ino == stat2.st_ino and stat1.st_dev == stat2.st_dev
+
+
+def basename(path):
+    """
+    Return the base name of pathname path. This is the second element of the pair returned by passing path to the function split(). Note that the result of this function is different from the Unix basename program; where basename for '/foo/bar/' returns 'bar', the basename() function returns an empty string ('').
+
+    :param path: The path to take the base of.
+    :return: The basename of the path.
+    """
+    if is_remote_path(path):
+        return ntpath.basename(path)
+    else:
+        return os.path.basename(path)
 
 
 def _exists(path, symlink_default, follow_symlinks, **kwargs):
