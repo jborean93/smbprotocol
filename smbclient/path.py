@@ -156,6 +156,22 @@ def join_local_or_remote_path(path, *paths):
         return os.path.join(path, *paths)
 
 
+def basename(path):
+    """
+    Return the base name of pathname path.
+    This is the second element of the pair returned by passing path to the function split().
+    Note that the result of this function is different from the Unix basename program;
+    where basename for '/foo/bar/' returns 'bar', the basename() function returns an empty string ('').
+
+    :param path: The path to take the base of.
+    :return: The basename of the path.
+    """
+    if is_remote_path(path):
+        return ntpath.basename(path)
+    else:
+        return os.path.basename(path)
+
+
 def _exists(path, symlink_default, follow_symlinks, **kwargs):
     try:
         stat(path, follow_symlinks=follow_symlinks, **kwargs)
