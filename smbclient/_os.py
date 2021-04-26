@@ -11,6 +11,7 @@ import ntpath
 import operator
 import os
 import stat as py_stat
+import sys
 import time
 
 from smbclient._io import (
@@ -284,7 +285,10 @@ def makedirs(path, exist_ok=False, **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     """
     if not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
-        os.makedirs(path, exist_ok=exist_ok, **kwargs)
+        if sys.version_info[0] == 2:
+            os.makedirs(path)
+        else:
+            os.makedirs(path, exist_ok=exist_ok, **kwargs)
         return
     create_queue = [ntpath.normpath(path)]
     present_parent = None
