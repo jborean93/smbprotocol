@@ -150,7 +150,7 @@ def join_local_or_remote_path(path, *paths):
     :param paths: The additional paths to append.
     :return: Joined path.
     """
-    if path.startswith('//localhost/share-encrypted/Pýtæs†-'):
+    if path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
         return ntpath.join(path, *paths)
     if is_remote_path(path):
         return ntpath.join(path, *paths)
