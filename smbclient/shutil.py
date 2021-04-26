@@ -31,12 +31,14 @@ from smbclient._os import (
     stat as smbclient_stat,
     symlink,
     SMBDirEntry,
+    is_remote_path,
 )
 
 from smbclient.path import (
     isdir,
     islink,
     samefile,
+    join_local_or_remote_path,
 )
 
 from smbprotocol import (
@@ -60,16 +62,6 @@ from smbprotocol.open import (
 from smbprotocol.structure import (
     DateTimeField,
 )
-
-
-def is_remote_path(path):  # type: (str) -> bool
-    """
-    Returns True iff the given path is a remote SMB path (rather than a local path).
-
-    :param path: The filepath.
-    :return: True iff the given path is a remote SMB path.
-    """
-    return path.startswith('\\\\')
 
 
 def copy(src, dst, follow_symlinks=True, **kwargs):
@@ -329,7 +321,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
             continue
 
         src_path = ntpath.join(src, dir_entry.name)
-        dst_path = ntpath.join(dst, dir_entry.name)
+        dst_path = join_local_or_remote_path(dst, dir_entry.name)
 
         try:
             if dir_entry.is_symlink():
