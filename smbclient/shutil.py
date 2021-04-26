@@ -444,9 +444,15 @@ def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
     # Need to check if dst is a UNC path before checking if it's a dir in smbclient.path before checking to see if it's
     # a local directory. If either one is a dir, join the filename of src onto dst.
     if is_remote_path(ntpath.normpath(dst)) and isdir(dst, **kwargs):
+<<<<<<< HEAD
         dst = ntpath.join(dst, _basename(src))
     elif os.path.isdir(dst):
         dst = os.path.join(dst, _basename(src))
+=======
+        dst = ntpath.join(dst, basename(src))
+    elif os.path.isdir(dst):
+        dst = os.path.join(dst, basename(src))
+>>>>>>> a5a2ae4 (Single basename function for remote and local paths.)
 
     copyfile(src, dst, follow_symlinks=follow_symlinks)
     copy_meta_func(src, dst, follow_symlinks=follow_symlinks)
