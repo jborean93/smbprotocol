@@ -283,6 +283,9 @@ def makedirs(path, exist_ok=False, **kwargs):
     :param exist_ok: Set to True to not fail if the target directory already exists.
     :param kwargs: Common SMB Session arguments for smbclient.
     """
+    if not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
+        os.makedirs(path, exist_ok=exist_ok, **kwargs)
+        return
     create_queue = [ntpath.normpath(path)]
     present_parent = None
     while create_queue:

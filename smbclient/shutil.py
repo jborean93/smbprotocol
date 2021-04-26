@@ -307,10 +307,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
     :return: The dst path.
     """
     dir_entries = list(scandir(src, **kwargs))
-    if is_remote_path(dst):
-        makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
-    else:
-        os.makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
+    makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
 
     ignored = []
     if ignore is not None:
