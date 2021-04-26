@@ -38,6 +38,7 @@ from smbclient.path import (
     isdir,
     islink,
     samefile,
+    join_local_or_remote_path,
 )
 
 from smbprotocol import (
@@ -317,7 +318,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
             continue
 
         src_path = ntpath.join(src, dir_entry.name)
-        dst_path = ntpath.join(dst, dir_entry.name)
+        dst_path = join_local_or_remote_path(dst, dir_entry.name)
 
         try:
             if dir_entry.is_symlink():
