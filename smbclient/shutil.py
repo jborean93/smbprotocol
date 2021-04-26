@@ -64,6 +64,16 @@ from smbprotocol.structure import (
 )
 
 
+def is_remote_path(path):  # type: (str) -> bool
+    """
+    Returns True iff the given path is a remote SMB path (rather than a local path).
+
+    :param path: The filepath.
+    :return: True iff the given path is a remote SMB path.
+    """
+    return path.startswith('\\\\')
+
+
 def copy(src, dst, follow_symlinks=True, **kwargs):
     """
     Copies the file src to the file or directory dst. If dst specified a directory, the file will be copied into dst
