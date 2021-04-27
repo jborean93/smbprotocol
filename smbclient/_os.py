@@ -529,6 +529,7 @@ def scandir(path, search_pattern="*", **kwargs):
     if not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
         for dir_entry in os.scandir(path):
             yield dir_entry
+        return
     with SMBDirectoryIO(path, share_access='rwd', **kwargs) as fd:
         for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
             filename = dir_info['file_name'].get_value().decode('utf-16-le')
