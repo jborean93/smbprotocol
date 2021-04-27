@@ -23,6 +23,7 @@ from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
     SMBFileIO,
+    is_remote_path,
 )
 
 from smbprotocol.exceptions import (
@@ -1249,6 +1250,8 @@ def test_scamdir_with_pattern(smb_share):
 
 
 def test_scandir_local():
+    assert not is_remote_path(os.path.dirname(__file__))
+    assert not os.path.dirname(__file__).startswith(u"//localhost/share-encrypted/Pýtæs†-")
     scanner = smbclient.scandir(os.path.dirname(__file__))
     try:
         contents = list(scanner)
