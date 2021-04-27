@@ -23,6 +23,7 @@ from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
     SMBFileIO,
+    is_remote_path,
 )
 
 from smbprotocol.exceptions import (
@@ -1246,6 +1247,16 @@ def test_scamdir_with_pattern(smb_share):
         names.append(dir_entry.name)
 
     assert names == ["file-test1.txt"]
+
+
+def test_scandir_local():
+    assert not is_remote_path(os.path.dirname(__file__))
+    assert not os.path.dirname(__file__).startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    path = os.path.dirname(__file__)
+    assert not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    scanner = smbclient.scandir(path)
+    contents = list(scanner)
+    assert any(os.path.basename(__file__) == entry.name for entry in contents)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
