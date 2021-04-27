@@ -1255,10 +1255,7 @@ def test_scandir_local():
     path = os.path.dirname(__file__)
     assert not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-")
     scanner = smbclient.scandir(path)
-    try:
-        contents = list(scanner)
-    except Exception as ex:
-        raise Exception(str(os.path.dirname(__file__))) from ex
+    contents = list(scanner)
     assert any(os.path.basename(__file__) == entry.name for entry in contents)
 
 
