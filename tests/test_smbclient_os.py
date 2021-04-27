@@ -1252,7 +1252,9 @@ def test_scamdir_with_pattern(smb_share):
 def test_scandir_local():
     assert not is_remote_path(os.path.dirname(__file__))
     assert not os.path.dirname(__file__).startswith(u"//localhost/share-encrypted/Pýtæs†-")
-    scanner = smbclient.scandir(os.path.dirname(__file__))
+    path = os.path.dirname(__file__)
+    assert not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    scanner = smbclient.scandir(path)
     try:
         contents = list(scanner)
     except Exception as ex:
