@@ -365,7 +365,7 @@ def test_basename_local():
 
 
 def test_join_local():
-    assert join_local_or_remote_path(basename(__file__), 'blah.txt') == os.path.join(basename(__file__), 'blah.txt')
+    assert join_local_or_remote_path(os.path.dirname(__file__), 'blah.txt') == os.path.join(os.path.dirname(__file__), 'blah.txt')
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
