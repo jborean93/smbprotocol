@@ -331,7 +331,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
         if dir_entry.name in ignored:
             continue
 
-        src_path = ntpath.join(src, dir_entry.name)
+        src_path = join_local_or_remote_path(src, dir_entry.name)
         dst_path = join_local_or_remote_path(dst, dir_entry.name)
 
         try:
