@@ -531,7 +531,7 @@ def scandir(path, search_pattern="*", **kwargs):
         if sys.version_info[0] == 2:
             # fake os.scandir
             for name in os.listdir(path):
-               yield {'name': name}
+                yield {'name': name}
             return
         for dir_entry in os.scandir(path):
             yield dir_entry
