@@ -530,8 +530,11 @@ def scandir(path, search_pattern="*", **kwargs):
     if not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
         if sys.version_info[0] == 2:
             # fake os.scandir
+            class FakeDirEntry(object):
+                def __init__(name):
+                    self.name = name
             for name in os.listdir(path):
-                yield {'name': name}
+                yield FakeDirEntry(name)
             return
         for dir_entry in os.scandir(path):
             yield dir_entry
