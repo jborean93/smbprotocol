@@ -526,6 +526,8 @@ def scandir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: An iterator of DirEntry objects in the directory.
     """
+    if not is_remote_dir(path):
+        return os.path.scandir(path)
     with SMBDirectoryIO(path, share_access='rwd', **kwargs) as fd:
         for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
             filename = dir_info['file_name'].get_value().decode('utf-16-le')

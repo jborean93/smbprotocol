@@ -1248,6 +1248,10 @@ def test_scamdir_with_pattern(smb_share):
     assert names == ["file-test1.txt"]
 
 
+def test_scandir_local():
+    assert os.path.basename(__file__) in list(smbclient.scandir(os.path.dirname(__file__)))
+
+
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
                     reason="cannot create symlinks on Samba")
 def test_scandir_with_symlink(smb_share):
