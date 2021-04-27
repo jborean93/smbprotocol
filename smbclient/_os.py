@@ -11,6 +11,7 @@ import ntpath
 import operator
 import os
 import stat as py_stat
+import sys
 import time
 
 from smbclient._io import (
@@ -527,6 +528,11 @@ def scandir(path, search_pattern="*", **kwargs):
     :return: An iterator of DirEntry objects in the directory.
     """
     if not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
+        if sys.version_info[0] == 2:
+            # fake os.scandir
+            for name in os.listdir(path):
+               yield {'name': name}
+            return
         for dir_entry in os.scandir(path):
             yield dir_entry
         return
