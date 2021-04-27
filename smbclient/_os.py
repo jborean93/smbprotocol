@@ -531,7 +531,7 @@ def scandir(path, search_pattern="*", **kwargs):
         if sys.version_info[0] == 2:
             # fake os.scandir
             class FakeDirEntry(object):
-                def __init__(name):
+                def __init__(self, name):
                     self.name = name
             for name in os.listdir(path):
                 yield FakeDirEntry(name)
