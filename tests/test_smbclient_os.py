@@ -1249,7 +1249,12 @@ def test_scamdir_with_pattern(smb_share):
 
 
 def test_scandir_local():
-    assert os.path.basename(__file__) in list(smbclient.scandir(os.path.dirname(__file__)))
+    scanner = smbclient.scandir(os.path.dirname(__file__))
+    try:
+        contents = list(scanner)
+    except Exception as ex:
+        raise Exception(__file__) from ex
+    assert os.path.basename(__file__) in contents
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
