@@ -1259,7 +1259,7 @@ def test_scandir_local():
         contents = list(scanner)
     except Exception as ex:
         raise Exception(str(os.path.dirname(__file__))) from ex
-    assert os.path.basename(__file__) in contents
+    assert any(os.path.basename(__file__) == entry.name for entry in contents)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
