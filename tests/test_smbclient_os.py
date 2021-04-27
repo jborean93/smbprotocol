@@ -1253,7 +1253,7 @@ def test_scandir_local():
     try:
         contents = list(scanner)
     except Exception as ex:
-        raise Exception(__file__) from ex
+        raise Exception(str(os.path.dirname(__file__))) from ex
     assert os.path.basename(__file__) in contents
 
 
