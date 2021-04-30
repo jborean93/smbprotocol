@@ -121,6 +121,16 @@ SMBStatVolumeResult = collections.namedtuple('SMBStatVolumeResult', [
 ])
 
 
+def is_remote_path(path):  # type: (str) -> bool
+    """
+    Returns True iff the given path is a remote SMB path (rather than a local path).
+
+    :param path: The filepath.
+    :return: True iff the given path is a remote SMB path.
+    """
+    return path.startswith('\\\\')
+
+
 def copyfile(src, dst, **kwargs):
     """
     Copy a file to a different location on the same server share. This will fail if the src and dst paths are to a
@@ -136,10 +146,10 @@ def copyfile(src, dst, **kwargs):
     norm_src = ntpath.normpath(src)
     norm_dst = ntpath.normpath(dst)
 
-    if not norm_src.startswith('\\\\'):
+    if not is_remote_path(norm_src):
         raise ValueError("src must be an absolute path to where the file should be copied from.")
 
-    if not norm_dst.startswith('\\\\'):
+    if not is_remote_path(norm_dst):
         raise ValueError("dst must be an absolute path to where the file should be copied to.")
 
     src_root = ntpath.splitdrive(norm_src)[0]
@@ -200,7 +210,7 @@ def link(src, dst, follow_symlinks=True, **kwargs):
     norm_src = ntpath.normpath(src)
     norm_dst = ntpath.normpath(dst)
 
-    if not norm_src.startswith('\\\\'):
+    if not is_remote_path(norm_src):
         raise ValueError("src must be the absolute path to where the file is hard linked to.")
 
     src_root = ntpath.splitdrive(norm_src)[0]
@@ -648,13 +658,13 @@ def symlink(src, dst, target_is_directory=False, **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     """
     norm_dst = ntpath.normpath(dst)
-    if not norm_dst.startswith('\\\\'):
+    if not is_remote_path(norm_dst):
         raise ValueError("The link dst must be an absolute UNC path for where the link is to be created")
 
     norm_src = ntpath.normpath(src)
     print_name = norm_src
 
-    if not norm_src.startswith('\\\\'):
+    if not is_remote_path(norm_src):
         flags = SymbolicLinkFlags.SYMLINK_FLAG_RELATIVE
         substitute_name = norm_src
         dst_dir = ntpath.dirname(norm_dst)
@@ -1030,7 +1040,7 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
     norm_src = ntpath.normpath(src)
     norm_dst = ntpath.normpath(dst)
 
-    if not norm_dst.startswith('\\\\'):
+    if not is_remote_path(norm_dst):
         raise ValueError("dst must be an absolute path to where the file or directory should be %sd." % verb)
 
     src_root = ntpath.splitdrive(norm_src)[0]
