@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.1 - TBD
+## 1.5.1 - 2021-05-08
 
 * Unified DFS path handling when using any API that uses a transaction to open the file
   * This includes `smbclient.rename` and `smbclient.replace`
