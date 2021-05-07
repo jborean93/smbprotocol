@@ -13,6 +13,7 @@ import re
 import six
 import smbclient  # Tests that we expose this in smbclient/__init__.py
 import stat
+import time
 
 from smbclient._io import (
     query_info,
@@ -23,6 +24,10 @@ from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
     SMBFileIO,
+)
+
+from smbclient.shutil import (
+    rmtree,
 )
 
 from smbprotocol.exceptions import (
@@ -1318,6 +1323,61 @@ def test_scandir_with_broken_symlink(smb_share):
         assert entry.is_dir(follow_symlinks=False) is False  # broken link target
         assert entry.is_file() is False
         assert entry.is_file(follow_symlinks=False) is False  # broken link target
+
+
+def test_scandir_with_cache(smb_real):
+    share_path = u"%s\\%s" % (smb_real[4], u"Pýtæs†-[%s] 💩" % time.time())
+    cache = {}
+    smbclient.mkdir(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3], connection_cache=cache)
+
+    try:
+
+        dir_path = ntpath.join(share_path, 'directory')
+        smbclient.makedirs(dir_path, exist_ok=True, connection_cache=cache)
+
+        for name in ['file.txt', u'unicode †[💩].txt']:
+            with smbclient.open_file(ntpath.join(dir_path, name), mode='w', connection_cache=cache) as fd:
+                fd.write(u"content")
+
+        for name in ['subdir1', 'subdir2', u'unicode dir †[💩]', 'subdir1\\sub']:
+            smbclient.mkdir(ntpath.join(dir_path, name), connection_cache=cache)
+
+        count = 0
+        names = []
+        for dir_entry in smbclient.scandir(dir_path, connection_cache=cache):
+            assert isinstance(dir_entry, SMBDirEntry)
+            names.append(dir_entry.name)
+
+            # Test out dir_entry for specific file and dir examples
+            if dir_entry.name == 'subdir1':
+                assert str(dir_entry) == "<SMBDirEntry: 'subdir1'>"
+                assert dir_entry.is_dir() is True
+                assert dir_entry.is_file() is False
+                assert dir_entry.stat(follow_symlinks=False).st_ino == dir_entry.inode()
+                assert dir_entry.stat().st_ino == dir_entry.inode()
+            elif dir_entry.name == 'file.txt':
+                assert str(dir_entry) == "<SMBDirEntry: 'file.txt'>"
+                assert dir_entry.is_dir() is False
+                assert dir_entry.is_file() is True
+                assert dir_entry.stat().st_ino == dir_entry.inode()
+                assert dir_entry.stat(follow_symlinks=False).st_ino == dir_entry.inode()
+
+            assert dir_entry.is_symlink() is False
+            assert dir_entry.inode() is not None
+            assert dir_entry.inode() == dir_entry.stat().st_ino
+
+            count += 1
+
+        assert count == 5
+        assert u'unicode †[💩].txt' in names
+        assert u'unicode dir †[💩]' in names
+        assert u'subdir2' in names
+        assert u'subdir1' in names
+        assert u'file.txt' in names
+
+    finally:
+        rmtree(share_path, connection_cache=cache)
+        smbclient.reset_connection_cache(connection_cache=cache)
 
 
 def test_stat_directory(smb_share):
