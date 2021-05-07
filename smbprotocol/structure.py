@@ -947,12 +947,11 @@ class TextField(BytesField):
         return self.value
 
     def unpack(self, data):
-        import base64
         null_byte = u"\x00".encode(self.encoding)
 
         if self.null_terminated and self.size is None:
             # If the size wasn't specified and the string contains a null terminator, cut off the bytes there.
-            null_index = data.find(null_byte)
+            null_index = bytes(data).find(null_byte)
             if null_index != -1:
                 # In the case of UTF-16 we might be the index in the middle of a char, make sure we round up and get
                 # the boundary of each char.
@@ -963,7 +962,7 @@ class TextField(BytesField):
 
         size = self._get_calculated_size(self.size, data)
         raw_value = data[0:size]
-        if self.null_terminated and raw_value.endswith(null_byte):
+        if self.null_terminated and bytes(raw_value).endswith(null_byte):
             raw_value = raw_value[:len(null_byte) * -1]
 
         self.set_value(raw_value)
