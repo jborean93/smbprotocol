@@ -144,9 +144,10 @@ class Structure(object):
         return data
 
     def unpack(self, data):
+        mem = memoryview(data)
         for key, field in self.fields.items():
-            data = field.unpack(data)
-        return data  # remaining data
+            mem = field.unpack(mem)
+        return bytes(mem)  # remaining data
 
     def _get_field(self, key):
         field = self.fields.get(key, None)
@@ -227,6 +228,8 @@ class Field(with_metaclass(ABCMeta, object)):
         :param value: The value to be parsed and set, the allowed input types
             vary depending on the Field used
         """
+        if isinstance(value, memoryview):
+            value = bytes(value)
         parsed_value = self._parse_value(value)
         self.value = parsed_value
 

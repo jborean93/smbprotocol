@@ -12,6 +12,7 @@
 * Fixed up `smbclient.rename` to work with directories
 * `smbclient.scandir` will continue to use the connection cache when getting stat information of a dir entry
 * `smbclient.shutil.rmtree` will continue to use the connection cache when removing child entries
+* Add performance improvement on reads with large files
 
 
 ## 1.5.0 - 2021-03-25
