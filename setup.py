@@ -18,7 +18,7 @@ with open(abs_path('README.md'), mode='rb') as fd:
 
 setup(
     name='smbprotocol',
-    version='1.5.1',
+    version='1.6.0',
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
@@ -31,7 +31,7 @@ setup(
             'gssapi>=1.4.1',
         ],
     },
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
+    python_requires='>=3.6',
     author='Jordan Borean',
     author_email='jborean93@gmail.com',
     url='https://github.com/jborean93/smbprotocol',
@@ -43,10 +43,7 @@ setup(
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
