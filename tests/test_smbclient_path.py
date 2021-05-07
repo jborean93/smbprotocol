@@ -28,8 +28,6 @@ from smbclient.path import (
     isdir,
     islink,
     samefile,
-    basename,
-    join_local_or_remote_path,
 )
 
 
@@ -358,14 +356,6 @@ def test_samefile_missing_path2(smb_share):
     expected = "[NtStatus 0xc0000034] No such file or directory: "
     with pytest.raises(OSError, match=re.escape(expected)):
         samefile(file1, file2)
-
-
-def test_basename_local():
-    assert basename(__file__) == os.path.basename(__file__)
-
-
-def test_join_local():
-    assert join_local_or_remote_path(basename(__file__), 'blah.txt') == os.path.join(basename(__file__), 'blah.txt')
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),

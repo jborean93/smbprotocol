@@ -45,6 +45,8 @@ from smbclient.shutil import (
     copystat,
     copytree,
     rmtree,
+    basename,
+    join_local_or_remote_path,
 )
 
 from smbprotocol.exceptions import (
@@ -69,6 +71,14 @@ def _set_file_attributes(path, attributes):
             basic_info = FileBasicInformation()
             basic_info['file_attributes'] = attributes
             set_info(transaction, basic_info)
+
+
+def test_basename_local():
+    assert basename(__file__) == os.path.basename(__file__)
+
+
+def test_join_local():
+    assert join_local_or_remote_path(basename(__file__), 'blah.txt') == os.path.join(basename(__file__), 'blah.txt')
 
 
 def test_copy(smb_share):

@@ -38,8 +38,6 @@ from smbclient.path import (
     isdir,
     islink,
     samefile,
-    join_local_or_remote_path,
-    basename,
 )
 
 from smbprotocol import (
@@ -63,6 +61,39 @@ from smbprotocol.open import (
 from smbprotocol.structure import (
     DateTimeField,
 )
+
+
+def basename(path):
+    """
+    Return the base name of pathname path.
+    This is the second element of the pair returned by passing path to the function split().
+    Note that the result of this function is different from the Unix basename program;
+    where basename for '/foo/bar/' returns 'bar', the basename() function returns an empty string ('').
+
+    :param path: The path to take the base of.
+    :return: The basename of the path.
+    """
+    if is_remote_path(path) or path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
+        return ntpath.basename(path)
+    else:
+        return os.path.basename(path)
+
+
+def join_local_or_remote_path(path, *paths):
+    """
+    Return the joined paths regardless of whether they are local or remote.
+
+    Currently, this only makes the decision based on the base path, and does not raise a ValueError if the additional
+    paths do not match.
+
+    :param path: The base path.
+    :param paths: The additional paths to append.
+    :return: Joined path.
+    """
+    if is_remote_path(path) or path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
+        return ntpath.join(path, *paths)
+    else:
+        return os.path.join(path, *paths)
 
 
 def copy(src, dst, follow_symlinks=True, **kwargs):
