@@ -9,7 +9,6 @@ import stat as py_stat
 
 from smbclient._os import (
     stat,
-    is_remote_path,
 )
 
 from smbprotocol.exceptions import (
