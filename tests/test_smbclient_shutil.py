@@ -45,7 +45,7 @@ from smbclient.shutil import (
     copystat,
     copytree,
     rmtree,
-    basename,
+    _basename,
 )
 
 from smbprotocol.exceptions import (
@@ -73,7 +73,7 @@ def _set_file_attributes(path, attributes):
 
 
 def test_basename_local():
-    assert basename(__file__) == os.path.basename(__file__)
+    assert _basename(__file__) == os.path._basename(__file__)
 
 
 def test_copy(smb_share):

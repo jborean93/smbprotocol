@@ -63,7 +63,7 @@ from smbprotocol.structure import (
 )
 
 
-def basename(path):
+def _basename(path):
     """
     Return the base name of pathname path.
     This is the second element of the pair returned by passing path to the function split().
