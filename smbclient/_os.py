@@ -526,13 +526,15 @@ def scandir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: An iterator of DirEntry objects in the directory.
     """
+    connection_cache = kwargs.get('connection_cache', None)
     with SMBDirectoryIO(path, share_access='rwd', **kwargs) as fd:
         for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
             filename = dir_info['file_name'].get_value().decode('utf-16-le')
             if filename in [u'.', u'..']:
                 continue
 
-            dir_entry = SMBDirEntry(SMBRawIO(u"%s\\%s" % (path, filename), **kwargs), dir_info)
+            dir_entry = SMBDirEntry(SMBRawIO(u"%s\\%s" % (path, filename), **kwargs), dir_info,
+                                    connection_cache=connection_cache)
             yield dir_entry
 
 
@@ -1093,11 +1095,12 @@ def _set_basic_information(path, creation_time=0, last_access_time=0, last_write
 
 class SMBDirEntry(object):
 
-    def __init__(self, raw, dir_info):
+    def __init__(self, raw, dir_info, connection_cache=None):
         self._smb_raw = raw
         self._dir_info = dir_info
         self._stat = None
         self._lstat = None
+        self._connection_cache = connection_cache
 
     def __str__(self):
         return '<{0}: {1!r}>'.format(self.__class__.__name__, to_native(self.name))
@@ -1208,16 +1211,16 @@ class SMBDirEntry(object):
         if follow_symlinks:
             if not self._stat:
                 if self.is_symlink():
-                    self._stat = stat(self.path)
+                    self._stat = stat(self.path, connection_cache=self._connection_cache)
                 else:
                     # Because it's not a symlink lstat will be the same as stat so set both.
                     if self._lstat is None:
-                        self._lstat = lstat(self._smb_raw.name)
+                        self._lstat = lstat(self._smb_raw.name, connection_cache=self._connection_cache)
                     self._stat = self._lstat
             return self._stat
         else:
             if not self._lstat:
-                self._lstat = lstat(self.path)
+                self._lstat = lstat(self.path, connection_cache=self._connection_cache)
             return self._lstat
 
     @classmethod
@@ -1229,7 +1232,7 @@ class SMBDirEntry(object):
         dir_info['file_attributes'] = file_stat.st_file_attributes
         dir_info['file_id'] = file_stat.st_ino
 
-        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info)
+        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info, connection_cache=kwargs.get('connection_cache', None))
         dir_entry._stat = file_stat
         return dir_entry
 
