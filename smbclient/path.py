@@ -3,8 +3,6 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import errno
-import ntpath
-import os.path
 import stat as py_stat
 
 from smbclient._os import (
