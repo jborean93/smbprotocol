@@ -5,6 +5,26 @@ This directory contains files that cna be used for more complex integration test
 It current achieves this by creating a bunch of virtual machines using Vagrant, configuring those hosts using Ansible
 then running the tests on the various hosts using Ansible.
 
+### Environment
+
+The environment consists of:
+
+##### Servers
+
+- `CENTOS8` - Linux test host
+- `DC01` - Domain Controller, Windows Server 2019
+- `SERVER2012R2` - Windows test host, Windows Server 2012 R2
+- `SERVER2019` - Server with DFS share, Windows Server 2019
+
+All Windows boxes are joined to the `smb.test` (`SMB`) domain.
+
+##### Users
+
+- `vagrant`:`vagrant` - local administrator user on all hosts
+- `SMB\smb`:`Password01` - domain user
+
+#### Running tests
+
 To run these tests run the following:
 
 ```bash
@@ -12,10 +32,10 @@ To run these tests run the following:
 vagrant up
 
 # Configure the virtual machines and get them ready for the tests
-ansible-playbook main.yml -vv
+ansible-playbook -i inventory.yml main.yml -vv
 
 # Run the tests
-ansible-playbook tests.yml -vv
+ansible-playbook -i inventory.yml tests.yml -vv
 ```
 
 When running `main.yml` it will prompt for the Azure Pipelines artifacts URL to use as the compiled source of smbprotocol.
