@@ -527,15 +527,7 @@ def scandir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: An iterator of DirEntry objects in the directory.
     """
-    if not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
-        if sys.version_info[0] == 2:
-            # fake os.scandir
-            class FakeDirEntry(object):
-                def __init__(self, name):
-                    self.name = name
-            for name in os.listdir(path):
-                yield FakeDirEntry(name)
-            return
+    if not is_remote_path(path):
         for dir_entry in os.scandir(path):
             yield dir_entry
         return
