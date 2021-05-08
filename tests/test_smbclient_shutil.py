@@ -254,6 +254,16 @@ def test_copyfile_remote_to_remote_existing(smb_share):
         assert fd.read() == u"content"
 
 
+def test_scandir_local():
+    assert not is_remote_path(os.path.dirname(__file__))
+    assert not os.path.dirname(__file__).startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    path = os.path.dirname(__file__)
+    assert not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    scanner = smbclient.shutil.scandir(path)
+    contents = list(scanner)
+    assert any(os.path.basename(__file__) == entry.name for entry in contents)
+
+
 def test_copyfile_local_to_remote(smb_share, tmpdir):
     test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir

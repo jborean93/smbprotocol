@@ -22,6 +22,7 @@ from smbclient._io import (
 
 from smbclient._os import (
     copyfile as smbclient_copyfile,
+    scandir as smbclient_scandir,
     makedirs,
     open_file,
     readlink,
@@ -358,6 +359,29 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
     if errors:
         raise shutil.Error(errors)
     return dst
+
+
+def scandir(path, search_pattern="*", **kwargs):
+    """
+    Return an iterator of DirEntry objects corresponding to the entries in the directory given by path. The entries are
+    yielded in arbitrary order, and the special entries '.' and '..' are not included.
+
+    Using scandir() instead of listdir() can significantly increase the performance of code that also needs file type
+    or file attribute information, because DirEntry objects expose this information if the SMB server provides it when
+    scanning a directory. All DirEntry methods may perform a SMB request, but is_dir(), is_file(), is_symlink() usually
+    only require a one system call unless the file or directory is a reparse point which requires 2 calls. See the
+    Python documentation for how DirEntry is set up and the methods and attributes that are available.
+
+    :param path: The path to a directory to scan.
+    :param search_pattern: THe search string to match against the names of directories or files. This pattern can use
+    '*' as a wildcard for multiple chars and '?' as a wildcard for a single char. Does not support regex patterns.
+    :param kwargs: Common SMB Session arguments for smbclient.
+    :return: An iterator of DirEntry objects in the directory.
+    """
+    if is_remote_path(path):
+        return smbclient_scandir(path)
+    else:
+        return os.scandir(path)
 
 
 def rmtree(path, ignore_errors=False, onerror=None, **kwargs):

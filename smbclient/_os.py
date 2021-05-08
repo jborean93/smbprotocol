@@ -11,7 +11,6 @@ import ntpath
 import operator
 import os
 import stat as py_stat
-import sys
 import time
 
 from smbclient._io import (
@@ -527,10 +526,6 @@ def scandir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: An iterator of DirEntry objects in the directory.
     """
-    if not is_remote_path(path):
-        for dir_entry in os.scandir(path):
-            yield dir_entry
-        return
     connection_cache = kwargs.get('connection_cache', None)
     with SMBDirectoryIO(path, share_access='rwd', **kwargs) as fd:
         for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
