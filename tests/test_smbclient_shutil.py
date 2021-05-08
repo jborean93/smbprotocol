@@ -103,6 +103,13 @@ def test_copy(smb_share):
     copy_from_to(src_filename, dst_filename)
 
 
+def test_copy_from_local(smb_share):
+    src_filename = os.path.join(os.path.dirname(__file__), "source.txt")
+    dst_filename = "{}\\target.txt".format(smb_share)
+
+    copy_from_to(src_filename, dst_filename)
+
+
 def test_copy_with_dir_as_target(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\directory" % smb_share
