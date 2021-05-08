@@ -47,7 +47,6 @@ from smbclient.shutil import (
     rmtree,
     _basename,
     _join_local_or_remote_path,
-    _basename,
 )
 
 from smbprotocol.exceptions import (
@@ -79,7 +78,7 @@ def test_basename_local():
 
 
 def test_join_local():
-    assert _join_local_or_remote_path(basename(__file__), 'blah.txt') == os.path.join(basename(__file__), 'blah.txt')
+    assert _join_local_or_remote_path(_basename(__file__), 'blah.txt') == os.path.join(basename(__file__), 'blah.txt')
 
 
 def test_copy(smb_share):
