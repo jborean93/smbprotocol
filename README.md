@@ -1,5 +1,5 @@
 # smbprotocol
-SMBv2 and v3 Client for both Python 2 and 3.
+SMBv2 and v3 Client for Python.
 
 
 [![Build Status](https://dev.azure.com/jborean93/jborean93/_apis/build/status/jborean93.smbprotocol?branchName=master)](https://dev.azure.com/jborean93/jborean93/_build/latest?definitionId=4&branchName=master)
@@ -32,7 +32,7 @@ backlog for features that would be nice to have in this library.
 
 ## Requirements
 
-* Python 2.7, 3.5+
+* Python 3.6+
 * For Kerberos auth on Linux
     * [python-gssapi](https://github.com/pythongssapi/python-gssapi)
 
@@ -116,7 +116,7 @@ you to set a minimum dialect version if required.
 
 ## Examples
 
-There are 2 different APIs you can use with this library.0
+There are 2 different APIs you can use with this library.
 
 * `smbprotocol`: Low level interface that can do whatever you want but quite verbose
 * `smbclient`: Higher level interface that implements the builtin `os` and `os.path` file system functions but for SMB support
