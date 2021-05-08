@@ -49,6 +49,7 @@ from smbclient.shutil import (
     copystat,
     copytree,
     rmtree,
+    scandir,
 )
 
 from smbprotocol.exceptions import (
@@ -263,7 +264,7 @@ def test_scandir_local():
     assert not os.path.dirname(__file__).startswith(u"//localhost/share-encrypted/Pýtæs†-")
     path = os.path.dirname(__file__)
     assert not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-")
-    scanner = smbclient.shutil.scandir(path)
+    scanner = scandir(path)
     contents = list(scanner)
     assert any(os.path.basename(__file__) == entry.name for entry in contents)
 
