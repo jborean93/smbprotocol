@@ -3,6 +3,7 @@
 ## 1.6.0 - TBD
 
 * Dropped support for Python 2.7 and 3.5
+* Add performance improvement on reads with large files
 
 
 ## 1.5.1 - 2021-05-08
