@@ -13,6 +13,7 @@ import re
 import six
 import smbclient  # Tests that we expose this in smbclient/__init__.py
 import stat
+import time
 
 from smbclient._io import (
     query_info,
@@ -23,6 +24,10 @@ from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
     SMBFileIO,
+)
+
+from smbclient.shutil import (
+    rmtree,
 )
 
 from smbprotocol.exceptions import (
@@ -1048,8 +1053,26 @@ def test_rename_fail_dst_not_absolute(smb_share):
 
 def test_rename_fail_dst_different_root(smb_share):
     expected = "Cannot rename a file to a different root than the src."
+    server = [p for p in ntpath.normpath(smb_share).split("\\") if p][0]
+
     with pytest.raises(ValueError, match=re.escape(expected)):
-        smbclient.rename(smb_share, "\\\\server2\\share\\dst")
+        smbclient.rename(smb_share, "\\\\%s\\dfs\\dst" % server)
+
+
+def test_rename_dir(smb_share):
+    src_dir = ntpath.join(smb_share, 'src')
+    dst_dir = ntpath.join(smb_share, 'dst')
+
+    smbclient.mkdir(src_dir)
+    with smbclient.open_file(ntpath.join(src_dir, 'file.txt'), mode='wb') as fd:
+        fd.write(b'test data')
+
+    smbclient.rename(src_dir, dst_dir)
+
+    assert smbclient.listdir(smb_share) == ['dst']
+    assert smbclient.listdir(dst_dir) == ['file.txt']
+    with smbclient.open_file(ntpath.join(dst_dir, 'file.txt'), mode='rb') as fd:
+        assert fd.read() == b'test data'
 
 
 def test_renames(smb_share):
@@ -1098,6 +1121,19 @@ def test_replace_file(smb_share):
     with smbclient.open_file(filename, mode='r') as fd:
         actual = fd.read()
     assert actual == u"Content"
+
+
+def test_replace_sharing_violation(smb_share):
+    src_file = ntpath.join(smb_share, 'src.txt')
+    dst_file = ntpath.join(smb_share, 'dst.txt')
+
+    with smbclient.open_file(src_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    expected = re.escape('The process cannot access the file because it is being used by another process')
+    with smbclient.open_file(dst_file, mode='wb'):
+        with pytest.raises(SMBOSError, match=expected):
+            smbclient.replace(src_file, dst_file)
 
 
 def test_rmdir(smb_share):
@@ -1287,6 +1323,61 @@ def test_scandir_with_broken_symlink(smb_share):
         assert entry.is_dir(follow_symlinks=False) is False  # broken link target
         assert entry.is_file() is False
         assert entry.is_file(follow_symlinks=False) is False  # broken link target
+
+
+def test_scandir_with_cache(smb_real):
+    share_path = u"%s\\%s" % (smb_real[4], u"Pýtæs†-[%s] 💩" % time.time())
+    cache = {}
+    smbclient.mkdir(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3], connection_cache=cache)
+
+    try:
+
+        dir_path = ntpath.join(share_path, 'directory')
+        smbclient.makedirs(dir_path, exist_ok=True, connection_cache=cache)
+
+        for name in ['file.txt', u'unicode †[💩].txt']:
+            with smbclient.open_file(ntpath.join(dir_path, name), mode='w', connection_cache=cache) as fd:
+                fd.write(u"content")
+
+        for name in ['subdir1', 'subdir2', u'unicode dir †[💩]', 'subdir1\\sub']:
+            smbclient.mkdir(ntpath.join(dir_path, name), connection_cache=cache)
+
+        count = 0
+        names = []
+        for dir_entry in smbclient.scandir(dir_path, connection_cache=cache):
+            assert isinstance(dir_entry, SMBDirEntry)
+            names.append(dir_entry.name)
+
+            # Test out dir_entry for specific file and dir examples
+            if dir_entry.name == 'subdir1':
+                assert str(dir_entry) == "<SMBDirEntry: 'subdir1'>"
+                assert dir_entry.is_dir() is True
+                assert dir_entry.is_file() is False
+                assert dir_entry.stat(follow_symlinks=False).st_ino == dir_entry.inode()
+                assert dir_entry.stat().st_ino == dir_entry.inode()
+            elif dir_entry.name == 'file.txt':
+                assert str(dir_entry) == "<SMBDirEntry: 'file.txt'>"
+                assert dir_entry.is_dir() is False
+                assert dir_entry.is_file() is True
+                assert dir_entry.stat().st_ino == dir_entry.inode()
+                assert dir_entry.stat(follow_symlinks=False).st_ino == dir_entry.inode()
+
+            assert dir_entry.is_symlink() is False
+            assert dir_entry.inode() is not None
+            assert dir_entry.inode() == dir_entry.stat().st_ino
+
+            count += 1
+
+        assert count == 5
+        assert u'unicode †[💩].txt' in names
+        assert u'unicode dir †[💩]' in names
+        assert u'subdir2' in names
+        assert u'subdir1' in names
+        assert u'file.txt' in names
+
+    finally:
+        rmtree(share_path, connection_cache=cache)
+        smbclient.reset_connection_cache(connection_cache=cache)
 
 
 def test_stat_directory(smb_share):
@@ -1971,6 +2062,48 @@ def test_dfs_path(smb_dfs_share):
             assert info.path == test_dir
             assert info.is_dir()
             assert not info.is_file()
+
+
+def test_dfs_path_rename(smb_dfs_share):
+    test_dir = ntpath.join(smb_dfs_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_dfs_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'test data')
+
+    dst_dfs_path = ntpath.join(test_dir, 'target renamed.txt')
+    smbclient.rename(test_file, dst_dfs_path)
+
+    assert smbclient.listdir(smb_dfs_share) == ['test folder']
+    assert smbclient.listdir(test_dir) == ['target renamed.txt']
+
+    with smbclient.open_file(dst_dfs_path, mode='rb') as fd:
+        assert fd.read() == b'test data'
+
+
+def test_dfs_path_replace(smb_dfs_share):
+    test_dir = ntpath.join(smb_dfs_share, 'test folder')
+    smbclient.mkdir(test_dir)
+
+    test_file = ntpath.join(smb_dfs_share, 'test file.txt')
+    with smbclient.open_file(test_file, mode='wb') as fd:
+        fd.write(b'other data')
+
+    dst_dfs_path = ntpath.join(test_dir, 'target renamed.txt')
+    with smbclient.open_file(dst_dfs_path, mode='wb') as fd:
+        fd.write(b'test data')
+
+    smbclient.replace(dst_dfs_path, test_file)
+
+    actual_contents = smbclient.listdir(smb_dfs_share)
+    assert 'test folder' in actual_contents
+    assert 'test file.txt' in actual_contents
+
+    assert smbclient.listdir(test_dir) == []
+
+    with smbclient.open_file(test_file, mode='rb') as fd:
+        assert fd.read() == b'test data'
 
 
 def test_broken_dfs_path(smb_real):

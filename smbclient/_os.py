@@ -128,7 +128,7 @@ def is_remote_path(path):  # type: (str) -> bool
     :param path: The filepath.
     :return: True iff the given path is a remote SMB path.
     """
-    return path.startswith('\\\\')
+    return path.startswith('\\\\') or path.startswith('//')
 
 
 def copyfile(src, dst, **kwargs):
@@ -526,13 +526,15 @@ def scandir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: An iterator of DirEntry objects in the directory.
     """
+    connection_cache = kwargs.get('connection_cache', None)
     with SMBDirectoryIO(path, share_access='rwd', **kwargs) as fd:
         for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
             filename = dir_info['file_name'].get_value().decode('utf-16-le')
             if filename in [u'.', u'..']:
                 continue
 
-            dir_entry = SMBDirEntry(SMBRawIO(u"%s\\%s" % (path, filename), **kwargs), dir_info)
+            dir_entry = SMBDirEntry(SMBRawIO(u"%s\\%s" % (path, filename), **kwargs), dir_info,
+                                    connection_cache=connection_cache)
             yield dir_entry
 
 
@@ -1037,24 +1039,43 @@ def _get_reparse_point(path, **kwargs):
 
 def _rename_information(src, dst, replace_if_exists=False, **kwargs):
     verb = 'replace' if replace_if_exists else 'rename'
-    norm_src = ntpath.normpath(src)
-    norm_dst = ntpath.normpath(dst)
-
-    if not is_remote_path(norm_dst):
+    if not is_remote_path(ntpath.normpath(dst)):
         raise ValueError("dst must be an absolute path to where the file or directory should be %sd." % verb)
 
-    src_root = ntpath.splitdrive(norm_src)[0]
-    dst_root, dst_name = ntpath.splitdrive(norm_dst)
-    if src_root.lower() != dst_root.lower():
-        raise ValueError("Cannot %s a file to a different root than the src." % verb)
+    raw_args = dict(kwargs)
+    raw_args.update({
+        'mode': 'r',
+        'share_access': 'rwd',
+        'create_options': CreateOptions.FILE_OPEN_REPARSE_POINT,
+    })
 
-    raw = SMBRawIO(src, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.DELETE,
-                   create_options=CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
-    with SMBFileTransaction(raw) as transaction:
-        file_rename = FileRenameInformation()
-        file_rename['replace_if_exists'] = replace_if_exists
-        file_rename['file_name'] = to_text(dst_name[1:])  # dst_name has \ prefix from splitdrive, we remove that.
-        set_info(transaction, file_rename)
+    # We open/close the dest (ignoring if the file does not exist) so we can resolve the DFS path and determine the
+    # filename src needs to be renamed to.
+    dst_raw = SMBRawIO(dst, desired_access=FilePipePrinterAccessMask.FILE_EXECUTE, **raw_args)
+    try:
+        SMBFileTransaction(dst_raw).commit()
+    except SMBOSError as err:
+        if err.errno != errno.ENOENT:
+            raise
+
+    # We need to open source first so we can get the resolved tree to compare the volumes
+    with SMBRawIO(src, desired_access=FilePipePrinterAccessMask.DELETE, **raw_args) as src_raw:
+        # We compare the server part using the GUID in case a different alias was specified for the server. The GUID
+        # should uniquely identify the server for our cases here.
+        src_guid = src_raw.fd.connection.server_guid
+        src_share = ntpath.normpath(src_raw.fd.tree_connect.share_name).split("\\")[-1]
+
+        dst_guid = dst_raw.fd.connection.server_guid
+        dst_share = ntpath.normpath(dst_raw.fd.tree_connect.share_name).split("\\")[-1]
+
+        if src_guid != dst_guid or src_share.lower() != dst_share.lower():
+            raise ValueError("Cannot %s a file to a different root than the src." % verb)
+
+        with SMBFileTransaction(src_raw) as transaction:
+            file_rename = FileRenameInformation()
+            file_rename['replace_if_exists'] = replace_if_exists
+            file_rename['file_name'] = to_text(dst_raw.fd.file_name)
+            set_info(transaction, file_rename)
 
 
 def _set_basic_information(path, creation_time=0, last_access_time=0, last_write_time=0, change_time=0,
@@ -1074,11 +1095,12 @@ def _set_basic_information(path, creation_time=0, last_access_time=0, last_write
 
 class SMBDirEntry(object):
 
-    def __init__(self, raw, dir_info):
+    def __init__(self, raw, dir_info, connection_cache=None):
         self._smb_raw = raw
         self._dir_info = dir_info
         self._stat = None
         self._lstat = None
+        self._connection_cache = connection_cache
 
     def __str__(self):
         return '<{0}: {1!r}>'.format(self.__class__.__name__, to_native(self.name))
@@ -1189,16 +1211,16 @@ class SMBDirEntry(object):
         if follow_symlinks:
             if not self._stat:
                 if self.is_symlink():
-                    self._stat = stat(self.path)
+                    self._stat = stat(self.path, connection_cache=self._connection_cache)
                 else:
                     # Because it's not a symlink lstat will be the same as stat so set both.
                     if self._lstat is None:
-                        self._lstat = lstat(self._smb_raw.name)
+                        self._lstat = lstat(self._smb_raw.name, connection_cache=self._connection_cache)
                     self._stat = self._lstat
             return self._stat
         else:
             if not self._lstat:
-                self._lstat = lstat(self.path)
+                self._lstat = lstat(self.path, connection_cache=self._connection_cache)
             return self._lstat
 
     @classmethod
@@ -1210,7 +1232,7 @@ class SMBDirEntry(object):
         dir_info['file_attributes'] = file_stat.st_file_attributes
         dir_info['file_id'] = file_stat.st_ino
 
-        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info)
+        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info, connection_cache=kwargs.get('connection_cache', None))
         dir_entry._stat = file_stat
         return dir_entry
 
