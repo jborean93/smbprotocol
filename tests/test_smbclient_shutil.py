@@ -73,9 +73,6 @@ def _set_file_attributes(path, attributes):
 
 
 def copy_from_to(src_filename, dst_filename):
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
-
     actual = copy(src_filename, dst_filename)
     assert actual == dst_filename
 
@@ -98,6 +95,9 @@ def test_basename_local():
 
 def test_copy(smb_share):
     src_filename = "%s\\source.txt" % smb_share
+    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write(u"content")
+
     dst_filename = "%s\\target.txt" % smb_share
 
     copy_from_to(src_filename, dst_filename)
@@ -105,6 +105,9 @@ def test_copy(smb_share):
 
 def test_copy_from_local(smb_share):
     src_filename = os.path.join(os.path.dirname(__file__), "source.txt")
+    with open(src_filename, mode='w') as fd:
+        fd.write(u"content")
+
     dst_filename = "{}\\target.txt".format(smb_share)
 
     copy_from_to(src_filename, dst_filename)
