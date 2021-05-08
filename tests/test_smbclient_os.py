@@ -24,7 +24,6 @@ from smbclient._os import (
     SMBDirectoryIO,
     SMBDirEntry,
     SMBFileIO,
-    is_remote_path,
 )
 
 from smbclient.shutil import (

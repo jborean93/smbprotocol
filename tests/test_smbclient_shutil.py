@@ -31,6 +31,10 @@ from smbclient._io import (
     SMBRawIO,
 )
 
+from smbclient._os import (
+    is_remote_path,
+)
+
 from smbclient.path import (
     exists,
     islink,
