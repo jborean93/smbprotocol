@@ -28,7 +28,6 @@ from smbclient._os import (
     readlink,
     remove,
     rmdir,
-    scandir,
     stat as smbclient_stat,
     symlink,
     SMBDirEntry,
