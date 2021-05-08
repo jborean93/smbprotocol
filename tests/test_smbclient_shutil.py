@@ -71,10 +71,7 @@ def _set_file_attributes(path, attributes):
             set_info(transaction, basic_info)
 
 
-def test_copy(smb_share):
-    src_filename = "%s\\source.txt" % smb_share
-    dst_filename = "%s\\target.txt" % smb_share
-
+def copy_from_to(src_filename, dst_filename):
     with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
         fd.write(u"content")
 
@@ -92,6 +89,13 @@ def test_copy(smb_share):
     assert actual.st_ctime != src_stat.st_ctime
     assert actual.st_chgtime != src_stat.st_chgtime
     assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+
+
+def test_copy(smb_share):
+    src_filename = "%s\\source.txt" % smb_share
+    dst_filename = "%s\\target.txt" % smb_share
+
+    copy_from_to(src_filename, dst_filename)
 
 
 def test_copy_with_dir_as_target(smb_share):
