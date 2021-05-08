@@ -90,7 +90,7 @@ def _join_local_or_remote_path(path, *paths):
     :param paths: The additional paths to append.
     :return: Joined path.
     """
-    if is_remote_path(path) or path.startswith(u"//localhost/share-encrypted/Pýtæs†-"):
+    if is_remote_path(path):
         return ntpath.join(path, *paths)
     else:
         return os.path.join(path, *paths)
