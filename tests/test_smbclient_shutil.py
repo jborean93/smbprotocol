@@ -31,6 +31,10 @@ from smbclient._io import (
     SMBRawIO,
 )
 
+from smbclient._os import (
+    is_remote_path,
+)
+
 from smbclient.path import (
     exists,
     islink,
@@ -45,6 +49,7 @@ from smbclient.shutil import (
     copystat,
     copytree,
     rmtree,
+    scandir,
 )
 
 from smbprotocol.exceptions import (
@@ -252,6 +257,16 @@ def test_copyfile_remote_to_remote_existing(smb_share):
 
     with open_file(dst_filename) as fd:
         assert fd.read() == u"content"
+
+
+def test_scandir_local():
+    assert not is_remote_path(os.path.dirname(__file__))
+    assert not os.path.dirname(__file__).startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    path = os.path.dirname(__file__)
+    assert not is_remote_path(path) and not path.startswith(u"//localhost/share-encrypted/Pýtæs†-")
+    scanner = scandir(path)
+    contents = list(scanner)
+    assert any(os.path.basename(__file__) == entry.name for entry in contents)
 
 
 def test_copyfile_local_to_remote(smb_share, tmpdir):
