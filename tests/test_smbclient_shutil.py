@@ -1050,7 +1050,7 @@ def test_copytree_missing_dst(smb_share):
         assert subdir2_stat.st_mtime == 1024
 
 
-def test_copytree_local_to_remote_missing_dst(smb_share):
+def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
     local_dir = tmpdir.mkdir("test")
     src_dirname = "%s\\source" % local_dir
     dst_dirname = "%s\\sub-folder\\target" % smb_share
