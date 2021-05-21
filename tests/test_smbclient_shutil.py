@@ -282,6 +282,8 @@ def test_scandir_local():
 def test_copyfile_local_to_remote(smb_share, tmpdir):
     test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir
+    if 'source.txt' not in os.listdir(test_dir):
+        raise Exception(os.listdir(test_dir))
     dst_filename = "%s\\target.txt" % smb_share
 
     with open(src_filename, mode='w') as fd:
@@ -1055,7 +1057,7 @@ def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
     src_dirname = "%s\\source" % local_dir
     dst_dirname = "%s\\sub-folder\\target" % smb_share
 
-    os.makedirs("%s\\dir1\\subdir1\\subdir2" % src_dirname)
+    os.makedirs(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'subdir2'))
 
     os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1'), stat.S_IREAD)
 
