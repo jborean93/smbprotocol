@@ -442,6 +442,12 @@ def test_makedirs_file_as_parent(smb_share):
         smbclient.makedirs(dirpath)
 
 
+def test_makedirs_local():
+    smbclient.makedirs(os.path.join(os.path.dirname(__file__), 'tmp', 'tmp'))
+    os.rmdir(os.path.join(os.path.dirname(__file__), 'tmp', 'tmp'))
+    os.rmdir(os.path.join(os.path.dirname(__file__), 'tmp'))
+
+
 def test_read_text_file(smb_share):
     file_path = "%s\\%s" % (smb_share, "file.txt")
     file_contents = u"File Contents\nNewline"
