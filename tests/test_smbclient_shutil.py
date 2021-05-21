@@ -1025,6 +1025,87 @@ def test_copytree_missing_dst(smb_share):
         assert subdir2_stat.st_mtime == 1024
 
 
+def test_copytree_local_to_remote_missing_dst(smb_share):
+    local_dir = tmpdir.mkdir("test")
+    src_dirname = "%s\\source" % local_dir
+    dst_dirname = "%s\\sub-folder\\target" % smb_share
+
+    os.makedirs("%s\\dir1\\subdir1\\subdir2" % src_dirname)
+
+    os.chmod("%s\\dir1\\subdir1" % src_dirname, stat.S_IREAD)
+
+    os.utime("%s\\dir1\\subdir1\\subdir2" % src_dirname, times=(1024, 1024))
+
+    with open("%s\\file1.txt" % src_dirname, mode='w') as fd:
+        fd.write(u"file1.txt")
+    os.chmod("%s\\file1.txt" % src_dirname, stat.S_IREAD)
+
+    with open("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
+        fd.write(u"file2.txt")
+    os.utime("%s\\dir1\\file2.txt" % src_dirname, times=(1024, 1024))
+
+    with open("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode='w') as fd:
+        fd.write(u"file3.txt")
+    os.chmod("%s\\dir1\\subdir1\\file3.txt" % src_dirname, stat.S_IREAD)
+
+    actual = copytree(src_dirname, dst_dirname)
+
+    assert actual == dst_dirname
+
+    assert sorted(list(listdir(dst_dirname))) == ["dir1", "file1.txt"]
+    assert sorted(list(listdir("%s\\dir1" % dst_dirname))) == ["file2.txt", "subdir1"]
+    assert sorted(list(listdir("%s\\dir1\\subdir1" % dst_dirname))) == ["file3.txt", "subdir2"]
+    assert sorted(list(listdir("%s\\dir1\\subdir1\\subdir2" % dst_dirname))) == []
+
+    with open_file("%s\\file1.txt" % dst_dirname) as fd:
+        assert fd.read() == u"file1.txt"
+    with open_file("%s\\dir1\\file2.txt" % dst_dirname) as fd:
+        assert fd.read() == u"file2.txt"
+    with open_file("%s\\dir1\\subdir1\\file3.txt" % dst_dirname) as fd:
+        assert fd.read() == u"file3.txt"
+
+    file1_stat = smbclient_stat("%s\\file1.txt" % dst_dirname)
+    assert file1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
+        FileAttributes.FILE_ATTRIBUTE_READONLY
+
+    file2_stat = smbclient_stat("%s\\dir1\\file2.txt" % dst_dirname)
+    assert file2_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
+
+    file3_stat = smbclient_stat("%s\\dir1\\subdir1\\file3.txt" % dst_dirname)
+    assert file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
+        FileAttributes.FILE_ATTRIBUTE_READONLY
+
+    dir1_stat = smbclient_stat("%s\\dir1" % dst_dirname)
+    assert dir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
+
+    subdir1_stat = smbclient_stat("%s\\dir1\\subdir1" % dst_dirname)
+    assert subdir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
+        FileAttributes.FILE_ATTRIBUTE_READONLY
+
+    subdir2_stat = smbclient_stat("%s\\dir1\\subdir1\\subdir2" % dst_dirname)
+    assert subdir2_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
+
+    # Samba server's cannot set the datetime so only run this if the server is supported.
+    if os.name == 'nt' or os.environ.get('SMB_FORCE', False):
+        assert file1_stat.st_atime != 1024
+        assert file1_stat.st_mtime != 1024
+
+        assert file2_stat.st_atime == 1024
+        assert file2_stat.st_mtime == 1024
+
+        assert file3_stat.st_atime != 1024
+        assert file3_stat.st_mtime != 1024
+
+        assert dir1_stat.st_atime != 1024
+        assert dir1_stat.st_mtime != 1024
+
+        assert subdir1_stat.st_atime != 1024
+        assert subdir1_stat.st_mtime != 1024
+
+        assert subdir2_stat.st_atime == 1024
+        assert subdir2_stat.st_mtime == 1024
+
+
 def test_copytree_existing_dst_fail(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
