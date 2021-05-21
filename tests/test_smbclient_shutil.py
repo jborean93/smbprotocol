@@ -1057,13 +1057,13 @@ def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
 
     os.makedirs("%s\\dir1\\subdir1\\subdir2" % src_dirname)
 
-    os.chmod(os.path.join(src_dirname, 'dir1', 'subdir1'), stat.S_IREAD)
+    os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1'), stat.S_IREAD)
 
     os.utime("%s\\dir1\\subdir1\\subdir2" % src_dirname, times=(1024, 1024))
 
     with open("%s\\file1.txt" % src_dirname, mode='w') as fd:
         fd.write(u"file1.txt")
-    os.chmod(os.path.join(src_dirname, 'file1.txt'), stat.S_IREAD)
+    os.chmod(os.path.join(local_dir, 'source', 'file1.txt'), stat.S_IREAD)
 
     with open("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
         fd.write(u"file2.txt")
@@ -1071,7 +1071,7 @@ def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
 
     with open("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode='w') as fd:
         fd.write(u"file3.txt")
-    os.chmod(os.path.join(src_dirname, 'dir1', 'subdir1', 'file3.txt'), stat.S_IREAD)
+    os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'file3.txt'), stat.S_IREAD)
 
     actual = copytree(src_dirname, dst_dirname)
 
