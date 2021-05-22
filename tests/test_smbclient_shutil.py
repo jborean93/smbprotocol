@@ -1064,7 +1064,7 @@ def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
         fd.write(u"file3.txt")
 
     os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1'), stat.S_IREAD | stat.S_IEXEC)
-    # os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'file3.txt'), stat.S_IREAD)
+    os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'file3.txt'), stat.S_IREAD)
 
     with open(os.path.join(local_dir, 'source', 'file1.txt'), mode='w') as fd:
         fd.write(u"file1.txt")
