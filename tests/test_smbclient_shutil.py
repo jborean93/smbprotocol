@@ -281,7 +281,7 @@ def test_scandir_local():
 
 def test_copyfile_local_to_remote(smb_share, tmpdir):
     test_dir = tmpdir.mkdir("test")
-    src_filename = "%s\\source.txt" % test_dir
+    src_filename = os.path.join(test_dir, 'source.txt')
     dst_filename = "%s\\target.txt" % smb_share
 
     with open(src_filename, mode='w') as fd:
@@ -1054,7 +1054,6 @@ def test_copytree_missing_dst(smb_share):
 
 def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
     local_dir = tmpdir.mkdir("test")
-    src_dirname = "%s\\source" % local_dir
     dst_dirname = "%s\\sub-folder\\target" % smb_share
 
     os.makedirs(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'subdir2'))
@@ -1063,19 +1062,19 @@ def test_copytree_local_to_remote_missing_dst(smb_share, tmpdir):
 
     os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1'), stat.S_IREAD)
 
-    with open("%s\\file1.txt" % src_dirname, mode='w') as fd:
+    with open(os.path.join(local_dir, 'source', 'file1.txt'), mode='w') as fd:
         fd.write(u"file1.txt")
     os.chmod(os.path.join(local_dir, 'source', 'file1.txt'), stat.S_IREAD)
 
-    with open("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
+    with open(os.path.join(local_dir, 'source', 'dir1', 'file2.txt'), mode='w') as fd:
         fd.write(u"file2.txt")
-    os.utime("%s\\dir1\\file2.txt" % src_dirname, times=(1024, 1024))
+    os.utime(os.path.join(local_dir, 'source', 'dir1', 'file2.txt'), times=(1024, 1024))
 
-    with open("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode='w') as fd:
+    with open(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'file3.txt'), mode='w') as fd:
         fd.write(u"file3.txt")
     os.chmod(os.path.join(local_dir, 'source', 'dir1', 'subdir1', 'file3.txt'), stat.S_IREAD)
 
-    actual = copytree(src_dirname, dst_dirname)
+    actual = copytree(os.path.join(local_dir, 'source'), dst_dirname)
 
     assert actual == dst_dirname
 
