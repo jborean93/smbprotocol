@@ -410,19 +410,19 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
         if dir_entry.is_symlink() and \
                 dir_entry.stat(follow_symlinks=False).st_file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY:
             try:
-                rmdir(dir_entry.path)
+                rmdir(dir_entry.path, **kwargs)
             except OSError:
                 onerror(rmdir, dir_entry.path, sys.exc_info())
         elif dir_entry.is_dir():
-            rmtree(dir_entry.path, ignore_errors, onerror)
+            rmtree(dir_entry.path, ignore_errors, onerror, **kwargs)
         else:
             try:
-                remove(dir_entry.path)
+                remove(dir_entry.path, **kwargs)
             except OSError:
                 onerror(remove, dir_entry.path, sys.exc_info())
 
     try:
-        rmdir(path)
+        rmdir(path, **kwargs)
     except OSError:
         onerror(rmdir, path, sys.exc_info())
 

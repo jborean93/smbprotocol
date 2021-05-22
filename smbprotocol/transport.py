@@ -135,7 +135,8 @@ class Tcp(object):
 
             with self._close_lock:
                 if not self.connected:
-                    return None, timeout  # The socket was closed
+                    # The socket was closed - need the no cover to avoid CI failing on race condition differences
+                    return None, timeout    # pragma: no cover
 
                 read = select.select([self._sock], [], [], max(timeout, 1))[0]
                 timeout = timeout - (timeit.default_timer() - start_time)
@@ -149,7 +150,8 @@ class Tcp(object):
                     # Windows will raise this error if the socket has been shutdown, Linux return returns an empty byte
                     # string so we just replicate that.
                     if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET]:
-                        raise
+                        # Avoid collecting coverage here to avoid CI failing due to race condition differences
+                        raise  # pragma: no cover
                     b_data = b''
 
             read_len = len(b_data)
