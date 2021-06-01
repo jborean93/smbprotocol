@@ -88,7 +88,7 @@ class Tcp(object):
                 # which returns b'' meaning it was closed.
                 try:
                     self._sock.shutdown(socket.SHUT_RDWR)
-                except socket.error as e: #pragma: no cover
+                except socket.error as e:  # pragma: no cover
                     # Avoid collecting coverage here to avoid CI failing due to race condition differences
                     if e.errno != errno.ENOTCONN:
                         raise  
