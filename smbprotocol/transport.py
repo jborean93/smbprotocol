@@ -88,9 +88,10 @@ class Tcp(object):
                 # which returns b'' meaning it was closed.
                 try:
                     self._sock.shutdown(socket.SHUT_RDWR)
-                except socket.error as e:
+                except socket.error as e: #pragma: no cover
+                    # Avoid collecting coverage here to avoid CI failing due to race condition differences
                     if e.errno != errno.ENOTCONN:
-                        raise  # pragma: no cover
+                        raise  
 
                 # This is even more special, we cannot close the socket if we are in the middle of a select or recv().
                 # Doing so causes either a timeout (bad!) or bad fd descriptor (somewhat bad). By shutting down the
