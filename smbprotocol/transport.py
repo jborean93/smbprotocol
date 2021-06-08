@@ -86,7 +86,12 @@ class Tcp(object):
 
                 # Sending shutdown first will tell the recv thread (for both select and recv) that the socket has data
                 # which returns b'' meaning it was closed.
-                self._sock.shutdown(socket.SHUT_RDWR)
+                try:
+                    self._sock.shutdown(socket.SHUT_RDWR)
+                except socket.error as e:  # pragma: no cover
+                    # Avoid collecting coverage here to avoid CI failing due to race condition differences
+                    if e.errno != errno.ENOTCONN:
+                        raise
 
                 # This is even more special, we cannot close the socket if we are in the middle of a select or recv().
                 # Doing so causes either a timeout (bad!) or bad fd descriptor (somewhat bad). By shutting down the
