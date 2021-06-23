@@ -271,16 +271,6 @@ def mkdir(path, **kwargs):
     with SMBFileTransaction(raw):
         pass
 
-def isdir(path, **kwargs):
-    """
-    Checks, whether a file is directory or not.
-
-    :param path: The path of file to check.
-    :param kwargs: Common SMB Session arguments for smbclient.
-    """
-    return py_stat.S_ISDIR(stat(path).st_mode, **kwargs)
-
-
 def makedirs(path, exist_ok=False, **kwargs):
     """
     Recursive directory creation function. Like mkdir(), but makes all intermediate-level directories needed to contain
