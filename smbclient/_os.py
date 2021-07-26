@@ -199,7 +199,7 @@ def copyfile(src, dst, **kwargs):
 
 def link(src, dst, follow_symlinks=True, **kwargs):
     """
-    Create a hard link pointing to src named dst. The src argument must be an absolute path in the same share as
+    Create a hard link pointing to src named dst. The dst argument must be an absolute path in the same share as
     src.
 
     :param src: The full UNC path to used as the source of the hard link.
