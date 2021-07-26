@@ -44,6 +44,7 @@ from smbclient._os import (
     listxattr,
     removexattr,
     setxattr,
+    SMBDirEntry,
     SMBStatResult,
     SMBStatVolumeResult,
     XATTR_CREATE,
