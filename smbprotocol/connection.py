@@ -2,8 +2,6 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-from __future__ import division
-
 import binascii
 import hashlib
 import hmac
@@ -1400,8 +1398,7 @@ class Connection(object):
         else:
             credit_charge = 1
 
-        # python 2 returns a float where we need an integer
-        return int(credit_charge)
+        return credit_charge
 
 
 class Request(object):

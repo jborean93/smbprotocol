@@ -55,10 +55,9 @@ from smbprotocol.open import (
 log = logging.getLogger(__name__)
 
 
-# Not defined on Python 2.6 so try and get the attribute with a sane default
-SEEK_SET = getattr(io, 'SEEK_SET', 0)
-SEEK_CUR = getattr(io, 'SEEK_CUR', 1)
-SEEK_END = getattr(io, 'SEEK_END', 2)
+SEEK_SET = io.SEEK_SET
+SEEK_CUR = io.SEEK_CUR
+SEEK_END = io.SEEK_END
 
 
 def _parse_share_access(raw, mode):
@@ -591,12 +590,7 @@ class SMBRawIO(io.RawIOBase):
         the length of b as it depends on the underlying connection.
         """
         chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'write')
-
-        # Python 2 compat, can be removed and just use the else statement.
-        if isinstance(b, memoryview):
-            data = b[:chunk_size].tobytes()
-        else:
-            data = bytes(b[:chunk_size])
+        data = bytes(b[:chunk_size])
 
         write_msg, recv_func = self.fd.write(data, offset=self._offset, send=False)
         request = self.fd.connection.send(

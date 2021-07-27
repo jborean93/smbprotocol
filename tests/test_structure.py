@@ -1511,7 +1511,7 @@ class TestTextField(object):
 
     def test_to_string(self):
         field = self.StructureTest()['field']
-        expected = "Hello World - café"  # Need to rely on native string for Python 2 support
+        expected = "Hello World - café"
         actual = str(field)
         assert actual == expected
         assert field.get_value() == self.STRING_VALUE  # Make's sure the value is a unicode string
