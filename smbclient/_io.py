@@ -130,8 +130,11 @@ def _chunk_size(connection, length, operation):
     # Determine how many credits we need to fully optimize subsequent calls for the remaining amount of data. Basically
     # how many credits we need to send either the remaining data or the max operation size.
     remaining_length = min(max(0, length - chunk_size), max_size)
-    consumed_credits = math.ceil(chunk_size / MAX_PAYLOAD_SIZE)
-    credit_request = consumed_credits + math.ceil(remaining_length / MAX_PAYLOAD_SIZE)
+    consumed_credits = (max(0, chunk_size - 1) // MAX_PAYLOAD_SIZE) + 1
+    remaining_credits = (max(0, remaining_length - 1) // MAX_PAYLOAD_SIZE) + 1
+    desired_credits = max(0, remaining_credits - available_credits - consumed_credits)
+
+    credit_request = consumed_credits + desired_credits
 
     return chunk_size, int(credit_request)
 
@@ -560,6 +563,7 @@ class SMBRawIO(io.RawIOBase):
 
         chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'read')
 
+        print(f"Read {self._offset} - {chunk_size}")
         read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
         request = self.fd.connection.send(
             read_msg,
