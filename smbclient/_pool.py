@@ -319,7 +319,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
 
 def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
-                     connection_cache=None, auth_protocol='negotiate'):
+                     connection_cache=None, auth_protocol='negotiate', require_signing=True):
     """
     Creates an active connection and session to the server specified. This can be manually called to register the
     credentials of a specific server instead of defining it on the first function connecting to the server. The opened
@@ -330,13 +330,14 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
     :param username: Optional username to connect with. Required if no session has been registered for the server and
         Kerberos auth is not being used.
     :param password: Optional password to connect with.
-    :param port: The port to connect with.
+    :param port: The port to connect with. Defaults to 445.
     :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
         back to False.
     :param connection_timeout: Override the timeout used for the initial connection.
     :param connection_cache: Connection cache to be used with
     :param auth_protocol: The protocol to use for authentication. Possible values are 'negotiate', 'ntlm' or
         'kerberos'. Defaults to 'negotiate'.
+    :param require_signing: Whether signing is required on SMB messages sent over this session. Defaults to True.
     :return: The Session that was registered or already existed in the pool.
     """
     connection_key = "%s:%s" % (server.lower(), port)
@@ -347,7 +348,7 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
 
     # Make sure we ignore any connections that may have had a closed connection
     if not connection or not connection.transport.connected:
-        connection = Connection(ClientConfig().client_guid, server, port)
+        connection = Connection(ClientConfig().client_guid, server, port, require_signing=require_signing)
         connection.connect(timeout=connection_timeout)
         connection_cache[connection_key] = connection
 

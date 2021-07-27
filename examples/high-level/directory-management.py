@@ -6,6 +6,10 @@ from smbclient import (
     scandir,
 )
 
+from smbclient.path import (
+    isdir,
+)
+
 # Optional - register the server with explicit credentials
 register_session("server", username="admin", password="pass")
 
@@ -14,6 +18,10 @@ mkdir(r"\\server\share\directory", username="user", password="pass")
 
 # Remove a directory
 rmdir(r"\\server\share\directory")
+
+# Checking whether a file is a directory
+d_filename = r"\\server\share\directory"
+print("Is file {} dir?: {}".format(d_filename, isdir(d_filename))
 
 # List the files/directories inside a dir
 for filename in listdir(r"\\server\share\directory"):

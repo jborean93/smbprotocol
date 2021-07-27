@@ -5,6 +5,7 @@ from smbclient import (
     register_session,
     stat,
     symlink,
+    rename,
 )
 
 # Optional - register the server with explicit credentials
@@ -37,3 +38,6 @@ symlink(r"\\server\share\directory", r"\\server\share\link")
 
 # Create a hard link
 link(r"\\server\share\file.txt", r"\\server\share\hard-link.txt")
+
+# Rename a file
+rename(r"\\server\share\old-name.txt", r"\\server\share\new-name.txt")
