@@ -31,6 +31,10 @@ from smbclient._io import (
     SMBRawIO,
 )
 
+from smbclient._os import (
+    is_remote_path,
+)
+
 from smbclient.path import (
     exists,
     islink,
@@ -79,14 +83,18 @@ def copy_from_to(src_filename, dst_filename):
     with open_file(dst_filename) as fd:
         assert fd.read() == u"content"
 
-    src_stat = smbclient_stat(src_filename)
+    if is_remote_path(src_filename):
+        src_stat = smbclient_stat(src_filename)
+    else:
+        src_stat = os.stat(src_filename)
 
     actual = smbclient_stat(dst_filename)
     assert actual.st_atime != src_stat.st_atime
     assert actual.st_mtime != src_stat.st_mtime
     assert actual.st_ctime != src_stat.st_ctime
-    assert actual.st_chgtime != src_stat.st_chgtime
-    assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+    if hasattr(src_stat, "st_chgtime") and hasattr(actual, "st_chgtime"):
+        assert actual.st_chgtime != src_stat.st_chgtime
+        assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
 def test_basename_local():
