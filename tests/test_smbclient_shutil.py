@@ -110,7 +110,7 @@ def test_copy_from_local(smb_share, tmp_path):
 
     dst_filename = "{}\\target.txt".format(smb_share)
 
-    copy_from_to(src_filename, dst_filename)
+    copy_from_to(str(src_filename), dst_filename)
 
 
 def test_copy_with_dir_as_target(smb_share):
