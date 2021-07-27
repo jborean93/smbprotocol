@@ -652,7 +652,6 @@ class StructureField(Field):
 class DateTimeField(Field):
 
     EPOCH_FILETIME = 116444736000000000  # epoch as a MS FILETIME int
-    HUNDREDS_NS = 10000000  # How many hundred nanoseconds in a second
 
     def __init__(self, size=None, **kwargs):
         """
