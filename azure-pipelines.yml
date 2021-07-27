@@ -1,3 +1,7 @@
+#
+# Available MS hosted OSes
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted
+#
 trigger:
   branches:
     include:
@@ -25,7 +29,7 @@ stages:
 
   - job: Test_Linux
     pool:
-      vmImage: ubuntu-18.04
+      vmImage: $(vmImage)
     variables:
       smb_port: 445
       smb_user: smbuser
@@ -35,12 +39,19 @@ stages:
       matrix:
         Python36:
           python.version: 3.6
+          vmImage: ubuntu-16.04
         Python37:
           python.version: 3.7
+          vmImage: ubuntu-20.04
         Python38:
           python.version: 3.8
+          vmImage: ubuntu-20.04
         Python39:
           python.version: 3.9
+          vmImage: ubuntu-20.04
+        Python39MacOs:
+          python.version: 3.9
+          vmImage: macOS-10.15
 
     steps:
     - task: UsePythonVersion@0
