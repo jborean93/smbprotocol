@@ -7,6 +7,7 @@
 * Added the `require_signing` kwarg to `smbclient.register_session()` to allow the caller to control whether signing is required on the connection or not
 * Fix `OverflowError` when handling FILETIME values beyond the year 9999 - caps the value to `9999-12-31` due to a Python limitation
 * Fix up credit charge calculation which causes a `STATUS_INVALID_PARAMETER` response for certain read/write lengths
+* Ensure responses with a failure are cleaned up from the outstanding request table to avoid memory leaks
 
 
 ## 1.5.1 - 2021-05-08
