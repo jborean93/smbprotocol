@@ -292,7 +292,6 @@ class Session(object):
                 response = self.connection.receive(request)
             except MoreProcessingRequired as exc:
                 mid = request.message['message_id'].get_value()
-                del self.connection.outstanding_requests[mid]
                 response = exc.header
 
             # If this is the first time we received the actual session_id, update the preauth table with the server

@@ -921,15 +921,16 @@ class Connection(object):
                         raise error
 
                     return new_response
-                elif status not in [NtStatus.STATUS_SUCCESS, NtStatus.STATUS_PENDING]:
-                    raise SMBResponseException(response)
                 else:
-                    break
+                    # now we have a retrieval request for the response, we can delete
+                    # the request from the outstanding requests
+                    message_id = request.message['message_id'].get_value()
+                    self.outstanding_requests.pop(message_id, None)
 
-        # now we have a retrieval request for the response, we can delete
-        # the request from the outstanding requests
-        message_id = request.message['message_id'].get_value()
-        del self.outstanding_requests[message_id]
+                    if status not in [NtStatus.STATUS_SUCCESS, NtStatus.STATUS_PENDING]:
+                        raise SMBResponseException(response)
+
+                    break
 
         return response
 
@@ -1186,7 +1187,7 @@ class Connection(object):
                         # When we send a ping in this thread we want to make sure it doesn't linger in the outstanding
                         # request queue.
                         if request.message['reserved'].get_value() == 1:
-                            del self.outstanding_requests[message_id]
+                            self.outstanding_requests.pop(message_id, None)
         except Exception as exc:
             # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
             self._t_exc = exc
