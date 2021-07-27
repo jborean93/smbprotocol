@@ -103,8 +103,8 @@ def test_copy(smb_share):
     copy_from_to(src_filename, dst_filename)
 
 
-def test_copy_from_local(smb_share):
-    src_filename = os.path.join(os.path.dirname(__file__), "source.txt")
+def test_copy_from_local(smb_share, tmp_path):
+    src_filename = tmp_path / "source.txt"
     with open(src_filename, mode='w') as fd:
         fd.write(u"content")
 
