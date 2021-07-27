@@ -1373,31 +1373,29 @@ class Connection(object):
         :param message: The message being sent
         :return: The credit charge to set on the header
         """
-        credit_size = MAX_PAYLOAD_SIZE
-
         if (not self.supports_multi_credit) or (message.COMMAND == Commands.SMB2_CANCEL):
-            credit_charge = 0
+            return 0
+
         elif message.COMMAND == Commands.SMB2_READ:
-            max_size = message['length'].get_value() + \
-                       message['read_channel_info_length'].get_value() - 1
-            credit_charge = math.ceil(max_size / credit_size)
+            payload_size = message['length'].get_value() + message['read_channel_info_length'].get_value()
+
         elif message.COMMAND == Commands.SMB2_WRITE:
-            max_size = message['length'].get_value() + \
-                       message['write_channel_info_length'].get_value() - 1
-            credit_charge = math.ceil(max_size / credit_size)
+            payload_size = message['length'].get_value() + message['write_channel_info_length'].get_value()
+
         elif message.COMMAND == Commands.SMB2_IOCTL:
             max_in_size = len(message['buffer'])
             max_out_size = message['max_output_response'].get_value()
-            max_size = max(max_in_size, max_out_size) - 1
-            credit_charge = math.ceil(max_size / credit_size)
+            payload_size = max(max_in_size, max_out_size)
+
         elif message.COMMAND == Commands.SMB2_QUERY_DIRECTORY:
             max_in_size = len(message['buffer'])
             max_out_size = message['output_buffer_length'].get_value()
-            max_size = max(max_in_size, max_out_size) - 1
-            credit_charge = math.ceil(max_size / credit_size)
-        else:
-            credit_charge = 1
+            payload_size = max(max_in_size, max_out_size)
 
+        else:
+            payload_size = 1
+
+        credit_charge = (max(0, payload_size - 1) // MAX_PAYLOAD_SIZE) + 1
         return credit_charge
 
 
