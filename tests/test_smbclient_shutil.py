@@ -92,7 +92,8 @@ def copy_from_to(src_filename, dst_filename):
     assert actual.st_ctime != src_stat.st_ctime
     if hasattr(src_stat, "st_chgtime") and hasattr(actual, "st_chgtime"):
         assert actual.st_chgtime != src_stat.st_chgtime
-        assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+        assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
+            FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
 def test_basename_local():
