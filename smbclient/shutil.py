@@ -75,6 +75,31 @@ def _basename(path):
         return os.path.basename(path)
 
 
+def _join_local_or_remote_path(path, *paths):
+    """
+    Return the joined paths regardless of whether they are local or remote.
+    Currently, this only makes the decision based on the base path, and does not raise a ValueError if the additional
+    paths do not match.
+    :param path: The base path.
+    :param paths: The additional paths to append.
+    :return: Joined path.
+    """
+    if is_remote_path(path):
+        return ntpath.join(path, *paths)
+    else:
+        return os.path.join(path, *paths)
+
+
+def is_remote_path(path) -> bool:
+    """
+    Returns True iff the given path is a remote SMB path (rather than a local path).
+
+    :param path: The filepath.
+    :return: True iff the given path is a remote SMB path.
+    """
+    return path.startswith('\\\\') or path.startswith('//')
+
+
 def copy(src, dst, follow_symlinks=True, **kwargs):
     """
     Copies the file src to the file or directory dst. If dst specified a directory, the file will be copied into dst
@@ -320,8 +345,8 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
         if dir_entry.name in ignored:
             continue
 
-        src_path = ntpath.join(src, dir_entry.name)
-        dst_path = ntpath.join(dst, dir_entry.name)
+        src_path = _join_local_or_remote_path(src, dir_entry.name)
+        dst_path = _join_local_or_remote_path(dst, dir_entry.name)
 
         try:
             if dir_entry.is_symlink():
@@ -432,10 +457,8 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
 def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
     # Need to check if dst is a UNC path before checking if it's a dir in smbclient.path before checking to see if it's
     # a local directory. If either one is a dir, join the filename of src onto dst.
-    if is_remote_path(ntpath.normpath(dst)) and isdir(dst, **kwargs):
-        dst = ntpath.join(dst, _basename(src))
-    elif os.path.isdir(dst):
-        dst = os.path.join(dst, _basename(src))
+    if (is_remote_path(ntpath.normpath(dst)) and isdir(dst, **kwargs)) or os.path.isdir(dst):
+        dst = _join_local_or_remote_path(dst, _basename(src))
 
     copyfile(src, dst, follow_symlinks=follow_symlinks)
     copy_meta_func(src, dst, follow_symlinks=follow_symlinks)
