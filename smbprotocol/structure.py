@@ -3,6 +3,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import copy
+import datetime
 import math
 import struct
 import textwrap
@@ -16,11 +17,6 @@ from abc import (
 
 from binascii import (
     hexlify,
-)
-
-from datetime import (
-    datetime,
-    timedelta,
 )
 
 from smbprotocol._text import (
@@ -656,7 +652,6 @@ class StructureField(Field):
 class DateTimeField(Field):
 
     EPOCH_FILETIME = 116444736000000000  # epoch as a MS FILETIME int
-    HUNDREDS_NS = 10000000  # How many hundred nanoseconds in a second
 
     def __init__(self, size=None, **kwargs):
         """
@@ -681,20 +676,22 @@ class DateTimeField(Field):
         super(DateTimeField, self).__init__(size=8, **kwargs)
 
     def _pack_value(self, value):
-        epoch_seconds = self._seconds_since_epoch(value)
-        int_value = self.EPOCH_FILETIME + (epoch_seconds * self.HUNDREDS_NS)
-        int_value += value.microsecond * 10
+        utc_tz = datetime.timezone.utc
+        utc_dt = value.replace(tzinfo=value.tzinfo if value.tzinfo else utc_tz)
+        td = utc_dt.astimezone(utc_tz) - datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=utc_tz)
+        epoch_time_ms = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10 ** 6)
+        ns100 = self.EPOCH_FILETIME + (epoch_time_ms * 10)
 
         format = self._get_struct_format(8)
         struct_string = "%s%s"\
                         % ("<" if self.little_endian else ">", format)
-        bytes_value = struct.pack(struct_string, int_value)
+        bytes_value = struct.pack(struct_string, ns100)
 
         return bytes_value
 
     def _parse_value(self, value):
         if value is None:
-            datetime_value = datetime.today()
+            datetime_value = datetime.datetime.today()
         elif isinstance(value, types.LambdaType):
             datetime_value = value
         elif isinstance(value, bytes):
@@ -706,9 +703,13 @@ class DateTimeField(Field):
         elif isinstance(value, int):
 
             time_microseconds = (value - self.EPOCH_FILETIME) // 10
-            datetime_value = datetime(1970, 1, 1) + \
-                timedelta(microseconds=time_microseconds)
-        elif isinstance(value, datetime):
+            try:
+                datetime_value = datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=time_microseconds)
+            except OverflowError:
+                # This is unfortunately but 9999 is the max value a datetime can be so we just default to that
+                datetime_value = datetime.datetime.max
+
+        elif isinstance(value, datetime.datetime):
             datetime_value = value
         else:
             raise TypeError("Cannot parse value for field %s of type %s to a "
@@ -721,15 +722,6 @@ class DateTimeField(Field):
     def _to_string(self):
         datetime_value = self._get_calculated_value(self.value)
         return datetime_value.isoformat(' ')
-
-    def _seconds_since_epoch(self, datetime_value):
-        # total_seconds was not present in Python 2.6, this is suggested by
-        # Python docs as an alternative
-        # https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds
-        td = datetime_value - datetime.utcfromtimestamp(0)
-        seconds = (td.microseconds +
-                   (td.seconds + td.days * 24 * 3600) * 10 ** 6) / 10 ** 6
-        return int(seconds)
 
 
 class UuidField(Field):
