@@ -44,10 +44,6 @@ from smbprotocol import (
     MAX_PAYLOAD_SIZE,
 )
 
-from smbprotocol._text import (
-    to_native,
-)
-
 from smbprotocol.file_info import (
     FileAttributes,
     FileBasicInformation,
@@ -181,7 +177,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
                 raise
 
         if is_same:
-            raise shutil.Error(to_native("'%s' and '%s' are the same file, cannot copy" % (src, dst)))
+            raise shutil.Error("'%s' and '%s' are the same file, cannot copy" % (src, dst))
 
         smbclient_copyfile(src, dst, **kwargs)
         return dst
@@ -221,7 +217,7 @@ def copymode(src, dst, follow_symlinks=True, **kwargs):
         read_only = not (src_mode & stat.S_IWRITE == stat.S_IWRITE and src_mode & stat.S_IREAD == stat.S_IREAD)
         _set_file_basic_info(dst, follow_symlinks, read_only=read_only, **kwargs)
     else:
-        _local_chmod(dst, src_mode, follow_symlinks)
+        os.chmod(dst, src_mode, follow_symlinks=follow_symlinks)
 
 
 def copystat(src, dst, follow_symlinks=True, **kwargs):
@@ -249,16 +245,8 @@ def copystat(src, dst, follow_symlinks=True, **kwargs):
         read_only = not (src_mode & stat.S_IWRITE == stat.S_IWRITE and src_mode & stat.S_IREAD == stat.S_IREAD)
         _set_file_basic_info(dst, follow_symlinks, read_only=read_only, atime_ns=atime_ns, mtime_ns=mtime_ns, **kwargs)
     else:
-        if not follow_symlinks and sys.version_info[0] < 3:
-            # Python 2 always follows symlinks and does not have a kwarg to override, we can only just fail here.
-            raise NotImplementedError("utime: follow_symlinks unavailable on this platform")
-
-        _local_chmod(dst, src_mode, follow_symlinks)
-
-        if sys.version_info[0] < 3:
-            os.utime(dst, (atime_ns / 1000000000, mtime_ns / 1000000000))
-        else:
-            os.utime(dst, ns=(atime_ns, mtime_ns), follow_symlinks=follow_symlinks)
+        os.chmod(dst, src_mode, follow_symlinks=follow_symlinks)
+        os.utime(dst, ns=(atime_ns, mtime_ns), follow_symlinks=follow_symlinks)
 
 
 def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_dangling_symlinks=False,
@@ -447,18 +435,6 @@ def _get_file_stat(path, follow_symlinks=True, **kwargs):
             return os.stat(path)
         else:
             return os.lstat(path)
-
-
-def _local_chmod(path, mode, follow_symlinks):
-    if sys.version_info[0] < 3:
-        if not follow_symlinks:
-            if not hasattr(os, 'lchmod'):
-                raise NotImplementedError("chmod: follow_symlinks unavailable on this platform")
-            os.lchmod(path, mode)
-        else:
-            os.chmod(path, mode)
-    else:
-        os.chmod(path, mode, follow_symlinks=follow_symlinks)
 
 
 def _set_file_basic_info(file_path, follow_symlinks, read_only=None, atime_ns=None, mtime_ns=None, **kwargs):

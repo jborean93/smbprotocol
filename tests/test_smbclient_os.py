@@ -10,7 +10,6 @@ import ntpath
 import os
 import pytest
 import re
-import six
 import smbclient  # Tests that we expose this in smbclient/__init__.py
 import stat
 import time
@@ -1524,9 +1523,9 @@ def test_stat_volume(smb_share):
     actual = smbclient.stat_volume(smb_share)
 
     assert isinstance(actual, smbclient.SMBStatVolumeResult)
-    assert isinstance(actual.actual_available_size, six.integer_types)
-    assert isinstance(actual.total_size, six.integer_types)
-    assert isinstance(actual.caller_available_size, six.integer_types)
+    assert isinstance(actual.actual_available_size, int)
+    assert isinstance(actual.total_size, int)
+    assert isinstance(actual.caller_available_size, int)
 
 
 @pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),

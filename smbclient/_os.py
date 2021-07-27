@@ -30,7 +30,6 @@ from smbprotocol import (
 
 from smbprotocol._text import (
     to_bytes,
-    to_native,
     to_text,
 )
 
@@ -417,8 +416,7 @@ def readlink(path, **kwargs):
     reparse_buffer = _get_reparse_point(norm_path, **kwargs)
     reparse_tag = reparse_buffer['reparse_tag']
     if reparse_tag.get_value() != ReparseTags.IO_REPARSE_TAG_SYMLINK:
-        raise ValueError(to_native("Cannot read link of reparse point with tag %s at '%s'" % (str(reparse_tag),
-                                                                                              norm_path)))
+        raise ValueError("Cannot read link of reparse point with tag %s at '%s'" % (str(reparse_tag), norm_path))
 
     symlink_buffer = SymbolicLinkReparseDataBuffer()
     symlink_buffer.unpack(reparse_buffer['data_buffer'].get_value())
@@ -678,8 +676,7 @@ def symlink(src, dst, target_is_directory=False, **kwargs):
     src_drive = ntpath.splitdrive(norm_src)[0]
     dst_drive = ntpath.splitdrive(norm_dst)[0]
     if src_drive.lower() != dst_drive.lower():
-        raise ValueError(to_native("Resolved link src root '%s' must be the same as the dst root '%s'"
-                                   % (src_drive, dst_drive)))
+        raise ValueError("Resolved link src root '%s' must be the same as the dst root '%s'" % (src_drive, dst_drive))
 
     try:
         src_stat = stat(norm_src, **kwargs)
@@ -1103,7 +1100,7 @@ class SMBDirEntry(object):
         self._connection_cache = connection_cache
 
     def __str__(self):
-        return '<{0}: {1!r}>'.format(self.__class__.__name__, to_native(self.name))
+        return '<{0}: {1!r}>'.format(self.__class__.__name__, self.name)
 
     @property
     def name(self):

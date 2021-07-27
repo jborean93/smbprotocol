@@ -5,7 +5,6 @@
 import atexit
 import logging
 import ntpath
-import six
 import uuid
 import warnings
 
@@ -65,8 +64,7 @@ class _ConfigSingleton(type):
         return cls.__instances[cls]
 
 
-@six.add_metaclass(_ConfigSingleton)
-class ClientConfig(object):
+class ClientConfig(object, metaclass=_ConfigSingleton):
     """SMB Client global settings
 
     This class defines global settings for the client that affects all connections that the client makes. When setting

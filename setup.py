@@ -23,7 +23,6 @@ setup(
     install_requires=[
         'cryptography>=2.0',
         'pyspnego',
-        'six',
     ],
     extras_require={
         'kerberos:sys_platform=="win32"': [],

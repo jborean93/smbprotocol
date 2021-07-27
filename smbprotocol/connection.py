@@ -49,7 +49,6 @@ from smbprotocol import (
 )
 
 from smbprotocol._text import (
-    to_native,
     to_text,
 )
 
@@ -996,7 +995,7 @@ class Connection(object):
         actual = header['signature'].get_value()
         if actual != expected:
             raise SMBException("Server message signature could not be verified: %s != %s"
-                               % (to_native(binascii.hexlify(actual)), to_native(binascii.hexlify(expected))))
+                               % (binascii.hexlify(actual).decode(), binascii.hexlify(expected).decode()))
 
     def _check_worker_running(self):
         """ Checks that the message worker thread is still running and raises it's exception if it has failed. """

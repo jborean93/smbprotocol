@@ -3,7 +3,6 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import pytest
-import six
 import types
 import uuid
 
@@ -1562,7 +1561,7 @@ class TestTextField(object):
         field.set_value(self.STRING_VALUE.encode('utf-8'))
         expected = self.STRING_VALUE
         actual = field.get_value()
-        assert isinstance(field.value, six.text_type)
+        assert isinstance(field.value, str)
         assert actual == expected
 
     def test_set_none(self):
@@ -1570,7 +1569,7 @@ class TestTextField(object):
         field.set_value(None)
         expected = u""
         actual = field.get_value()
-        assert isinstance(field.value, six.text_type)
+        assert isinstance(field.value, str)
         assert actual == expected
 
     def test_set_invalid(self):

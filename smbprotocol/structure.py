@@ -25,17 +25,8 @@ from datetime import (
     timedelta,
 )
 
-from six import (
-    binary_type,
-    integer_types,
-    python_2_unicode_compatible,
-    text_type,
-    with_metaclass,
-)
-
 from smbprotocol._text import (
     to_bytes,
-    to_native,
     to_text,
 )
 
@@ -114,7 +105,7 @@ class Structure(object):
         )
         field_strings.append(hex_wrapper.fill(raw_hex))
 
-        string = "%s:\n%s" % (to_native(struct_name), '\n'.join([to_native(s) for s in field_strings]))
+        string = "%s:\n%s" % (to_text(struct_name), '\n'.join([to_text(s) for s in field_strings]))
 
         return string
 
@@ -156,8 +147,7 @@ class Structure(object):
         return field
 
 
-@python_2_unicode_compatible
-class Field(with_metaclass(ABCMeta, object)):
+class Field(metaclass=ABCMeta):
 
     def __init__(self, little_endian=True, default=None, size=None):
         """
@@ -178,7 +168,7 @@ class Field(with_metaclass(ABCMeta, object)):
         field_type = self.__class__.__name__
         self.little_endian = little_endian
 
-        if not (size is None or isinstance(size, integer_types) or
+        if not (size is None or isinstance(size, int) or
                 isinstance(size, types.LambdaType)):
             raise InvalidFieldDefinition("%s size for field must be an int or "
                                          "None for a variable length"
@@ -388,7 +378,7 @@ class IntField(Field):
             struct_string = "%s%s"\
                             % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
-        elif isinstance(value, integer_types):
+        elif isinstance(value, int):
             int_value = value
         else:
             raise TypeError("Cannot parse value for field %s of type %s to "
@@ -417,7 +407,7 @@ class BytesField(Field):
             bytes_value = b""
         elif isinstance(value, types.LambdaType):
             bytes_value = value
-        elif isinstance(value, integer_types):
+        elif isinstance(value, int):
             format = self._get_struct_format(self.size)
             struct_string = "%s%s"\
                             % ("<" if self.little_endian else ">", format)
@@ -470,7 +460,7 @@ class ListField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if list_count is not None and not \
-                (isinstance(list_count, integer_types) or
+                (isinstance(list_count, int) or
                  isinstance(list_count, types.LambdaType)):
             raise InvalidFieldDefinition("ListField list_count must be an "
                                          "int, lambda, or None for a variable "
@@ -715,7 +705,7 @@ class DateTimeField(Field):
                             % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
-        elif isinstance(value, integer_types):
+        elif isinstance(value, int):
 
             time_microseconds = (value - self.EPOCH_FILETIME) // 10
             datetime_value = datetime(1970, 1, 1) + \
@@ -772,7 +762,7 @@ class UuidField(Field):
             uuid_value = uuid.UUID(bytes=value)
         elif isinstance(value, bytes) and not self.little_endian:
             uuid_value = uuid.UUID(bytes_le=value)
-        elif isinstance(value, integer_types):
+        elif isinstance(value, int):
             uuid_value = uuid.UUID(int=value)
         elif isinstance(value, uuid.UUID):
             uuid_value = value
@@ -923,9 +913,9 @@ class TextField(BytesField):
     def _parse_value(self, value):
         if value is None:
             text_value = u""
-        elif isinstance(value, binary_type):
+        elif isinstance(value, bytes):
             text_value = to_text(value, encoding=self.encoding)
-        elif isinstance(value, text_type):
+        elif isinstance(value, str):
             text_value = value
         elif isinstance(value, types.LambdaType):
             text_value = value
