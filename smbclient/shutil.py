@@ -2,9 +2,6 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com> and other contributors
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-from __future__ import absolute_import
-from __future__ import division
-
 import errno
 import ntpath
 import os
@@ -161,12 +158,6 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
     :param kwargs: Common arguments used to build the SMB Session for any UNC paths.
     :return: The dst path.
     """
-    def wrap_not_implemented(function_name):
-        def raise_not_implemented(*args, **kwargs):
-            raise NotImplementedError("%s is unavailable on this platform as a local operation" % function_name)
-
-        return raise_not_implemented
-
     norm_src = ntpath.normpath(src)
     if is_remote_path(norm_src):
         src_root = ntpath.splitdrive(norm_src)[0]
@@ -178,9 +169,8 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
     else:
         src_root = None
         islink_func = os.path.islink
-        # readlink and symlink are not available on Windows on Python 2.
-        readlink_func = getattr(os, 'readlink', wrap_not_implemented('readlink'))
-        symlink_func = getattr(os, 'symlink', wrap_not_implemented('symlink'))
+        readlink_func = os.readlink
+        symlink_func = os.symlink
         src_open = open
         src_kwargs = {}
 
@@ -277,9 +267,8 @@ def copystat(src, dst, follow_symlinks=True, **kwargs):
     src_stat = _get_file_stat(src, follow_symlinks, **kwargs)
     src_mode = stat.S_IMODE(src_stat.st_mode)
 
-    # *_ns was only added in Python 3, fallback to a manual calculation from seconds since EPOCH.
-    atime_ns = getattr(src_stat, 'st_atime_ns', src_stat.st_atime * 1000000000)
-    mtime_ns = getattr(src_stat, 'st_mtime_ns', src_stat.st_mtime * 1000000000)
+    atime_ns = src_stat.st_atime_ns
+    mtime_ns = src_stat.st_mtime_ns
 
     norm_dst = ntpath.normpath(dst)
     if is_remote_path(norm_dst):

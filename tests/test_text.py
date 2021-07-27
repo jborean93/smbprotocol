@@ -27,9 +27,6 @@ def test_bytes_to_bytes():
 
 
 def test_native_to_bytes():
-    # Python 3 the default string type is unicode so the expected value will
-    # be "abc" in UTF-16 form while Python 2 "abc" is the bytes representation
-    # already
     expected = b"\x61\x00\x62\x00\x63\x00"
     actual = to_bytes("abc", encoding='utf-16-le')
     assert actual == expected
