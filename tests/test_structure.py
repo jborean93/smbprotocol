@@ -1066,6 +1066,18 @@ class TestDateTimeField(object):
             ])
             super(TestDateTimeField.StructureTest, self).__init__()
 
+    @pytest.mark.parametrize('raw, expected', [
+        (b"\x00\x00\x00\x00\x00\x00\x00\x00", datetime(1601, 1, 1, 0, 0, 0)),
+        (b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", datetime(9999, 12, 31, 23, 59, 59, 999999)),
+    ], ids=['origin', 'end'])
+    def test_pack_unpack_dates(self, raw, expected):
+        obj = self.StructureTest()
+        obj.unpack(raw)
+
+        field = obj['field']
+        actual = field.get_value()
+        assert actual == expected
+
     def test_get_size(self):
         field = self.StructureTest()['field']
         expected = 8
