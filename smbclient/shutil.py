@@ -59,6 +59,22 @@ from smbprotocol.structure import (
 )
 
 
+def _basename(path):
+    """
+    Return the base name of pathname path.
+    This is the second element of the pair returned by passing path to the function split().
+    Note that the result of this function is different from the Unix basename program;
+    where basename for '/foo/bar/' returns 'bar', the basename() function returns an empty string ('').
+
+    :param path: The path to take the base of.
+    :return: The basename of the path.
+    """
+    if is_remote_path(path):
+        return ntpath.basename(path)
+    else:
+        return os.path.basename(path)
+
+
 def copy(src, dst, follow_symlinks=True, **kwargs):
     """
     Copies the file src to the file or directory dst. If dst specified a directory, the file will be copied into dst
@@ -417,9 +433,9 @@ def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
     # Need to check if dst is a UNC path before checking if it's a dir in smbclient.path before checking to see if it's
     # a local directory. If either one is a dir, join the filename of src onto dst.
     if is_remote_path(ntpath.normpath(dst)) and isdir(dst, **kwargs):
-        dst = ntpath.join(dst, ntpath.basename(src))
+        dst = ntpath.join(dst, _basename(src))
     elif os.path.isdir(dst):
-        dst = os.path.join(dst, os.path.basename(src))
+        dst = os.path.join(dst, _basename(src))
 
     copyfile(src, dst, follow_symlinks=follow_symlinks)
     copy_meta_func(src, dst, follow_symlinks=follow_symlinks)
