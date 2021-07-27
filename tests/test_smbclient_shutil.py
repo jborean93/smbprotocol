@@ -605,6 +605,8 @@ def test_copymode_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link) & stat.S_IWRITE == stat.S_IWRITE
 
 
+@pytest.mark.skipif(sys.platform.startswith('darwin'),
+                    reason="On macOS os.chmod supports symlinks.")
 def test_copymode_local_to_local_symlink_dont_follow(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir
@@ -858,6 +860,8 @@ def test_copystat_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link.st_mode) & stat.S_IWRITE == stat.S_IWRITE
 
 
+@pytest.mark.skipif(sys.platform.startswith('darwin'),
+                    reason="On macOS os.chmod supports symlinks.")
 def test_copystat_local_to_local_symlink_dont_follow_fail(tmpdir):
     test_dir = tmpdir.mkdir('test')
     src_filename = "%s\\source.txt" % test_dir
