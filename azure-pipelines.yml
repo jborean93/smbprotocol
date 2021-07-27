@@ -1,4 +1,7 @@
 #
+# Docs for YAML schema
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema
+#
 # Available MS hosted OSes
 # https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted
 #
@@ -29,7 +32,7 @@ stages:
 
   - job: Test_Linux
     pool:
-      vmImage: $(vmImage)
+      vmImage: ubuntu-18.04
     variables:
       smb_port: 445
       smb_user: smbuser
@@ -39,19 +42,12 @@ stages:
       matrix:
         Python36:
           python.version: 3.6
-          vmImage: ubuntu-16.04
         Python37:
           python.version: 3.7
-          vmImage: ubuntu-20.04
         Python38:
           python.version: 3.8
-          vmImage: ubuntu-20.04
         Python39:
           python.version: 3.9
-          vmImage: ubuntu-20.04
-        Python39MacOs:
-          python.version: 3.9
-          vmImage: macOS-10.15
 
     steps:
     - task: UsePythonVersion@0
@@ -98,6 +94,49 @@ stages:
         SMB_USER: $(smb_user)
         SMB_PASSWORD: $(smb_pass)
         SMB_SHARE: $(smb_share)
+      displayName: Test
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/test-*.xml'
+        testRunTitle: $(Agent.OS) - $(Build.BuildNumber) - Python $(python.version)
+      displayName: Publish test results
+      condition: succeededOrFailed()
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: $(System.DefaultWorkingDirectory)/**/coverage.xml
+
+    - script: |
+        bash <(curl -s https://codecov.io/bash)
+      displayName: Upload to codecov.io
+      continueOnError: true
+      timeoutInMinutes: 5
+
+
+  - job: Test_MacOs
+    pool:
+      vmImage: macOS-10.15
+
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: 3.9
+
+    - script: |
+        echo "Installing baseline pip packages"
+        python -m pip install --upgrade pip setuptools wheel coverage -c tests/constraints.txt
+
+        echo "Installing test requirements"
+        python -m pip install -r requirements-test.txt -c tests/constraints.txt
+
+        echo "Installing package"
+        python -m pip install . -c tests/constraints.txt
+      displayName: Install
+
+    - script: |
+        pytest -v --junitxml junit/test-results.xml --cov smbclient --cov smbprotocol --cov-report xml --cov-report term-missing
       displayName: Test
 
     - task: PublishTestResults@2
