@@ -4,6 +4,7 @@
 
 * Dropped support for Python 2.7 and 3.5
 * Add performance improvement on reads with large files
+* Added the `require_signing` kwarg to `smbclient.register_session()` to allow the caller to control whether signing is required on the connection or not
 
 
 ## 1.5.1 - 2021-05-08

@@ -4,7 +4,10 @@ from smbclient import (
     register_session,
     rmdir,
     scandir,
-    is_dir,
+)
+
+from smbclient.path import (
+    isdir,
 )
 
 # Optional - register the server with explicit credentials
@@ -18,7 +21,7 @@ rmdir(r"\\server\share\directory")
 
 # Checking whether a file is a directory
 d_filename = r"\\server\share\directory"
-print("Is file {} dir?: {}".format(d_filename, is_dir(d_filename))
+print("Is file {} dir?: {}".format(d_filename, isdir(d_filename))
 
 # List the files/directories inside a dir
 for filename in listdir(r"\\server\share\directory"):

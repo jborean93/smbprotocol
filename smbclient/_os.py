@@ -271,6 +271,7 @@ def mkdir(path, **kwargs):
     with SMBFileTransaction(raw):
         pass
 
+
 def makedirs(path, exist_ok=False, **kwargs):
     """
     Recursive directory creation function. Like mkdir(), but makes all intermediate-level directories needed to contain

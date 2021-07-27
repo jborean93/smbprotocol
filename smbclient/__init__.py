@@ -23,7 +23,6 @@ from smbclient._os import (
     listdir,
     lstat,
     mkdir,
-    is_dir,
     makedirs,
     open_file,
     readlink,
