@@ -6,10 +6,6 @@ import pytest
 import threading
 import uuid
 
-from smbprotocol._text import (
-    to_native,
-)
-
 from smbprotocol.connection import (
     Connection,
 )
@@ -57,7 +53,7 @@ class TestFileNotifyInformation(object):
         actual = message.pack()
         assert len(message) == 20
         assert actual == self.DATA
-        assert str(message['file_name']) == to_native(u"café")
+        assert str(message['file_name']) == "café"
 
     def test_parse_message(self):
         actual = FileNotifyInformation()

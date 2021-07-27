@@ -14,10 +14,6 @@ from collections import (
     OrderedDict,
 )
 
-from smbprotocol._compat import (
-    reraise,
-)
-
 from smbprotocol.structure import (
     BytesField,
     IntField,
@@ -75,7 +71,7 @@ class Tcp(object):
                 try:
                     self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
                 except (OSError, socket.gaierror) as err:
-                    reraise(ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err))))
+                    raise ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err))) from err
                 self._sock.settimeout(None)  # Make sure the socket is in blocking mode.
                 self.connected = True
 

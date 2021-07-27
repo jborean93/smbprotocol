@@ -6,7 +6,6 @@ import pytest
 import time
 
 from smbprotocol._text import (
-    to_native,
     to_text,
 )
 
@@ -143,7 +142,7 @@ class TestDFSReferralRequest(object):
 
         assert len(message) == 50
         assert actual == expected
-        assert str(message['request_file_name']) == to_native(share)
+        assert str(message['request_file_name']) == share
 
     @pytest.mark.parametrize('leftover', [b"", b"\x01\x02\x03\x04"])
     def test_parse_message(self, leftover):
@@ -194,8 +193,8 @@ class TestDFSReferralRequestEx(object):
 
         assert len(message) == 76
         assert actual == expected
-        assert str(message['request_file_name']) == to_native(share)
-        assert str(message['site_name']) == to_native(UNICODE_TEXT)
+        assert str(message['request_file_name']) == share
+        assert str(message['site_name']) == UNICODE_TEXT
 
     @pytest.mark.parametrize('leftover', [b"", b"\x01\x02\x03\x04"])
     def test_parse_message(self, leftover):

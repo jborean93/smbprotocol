@@ -6,7 +6,6 @@ import binascii
 import errno
 import ntpath
 import os
-import six
 import socket
 
 from collections import (
@@ -19,7 +18,6 @@ from smbprotocol import (
 
 from smbprotocol._text import (
     to_bytes,
-    to_native,
     to_text,
 )
 
@@ -66,7 +64,7 @@ class SMBOSError(OSError, SMBException):
 
     def __init__(self, ntstatus, filename, filename2=None):
         self.ntstatus = ntstatus
-        self.filename2 = to_native(filename2) if filename2 else None
+        self.filename2 = str(filename2) if filename2 else None
 
         ntstatus_name = 'STATUS_UNKNOWN'
         for name, val in vars(NtStatus).items():
@@ -92,7 +90,7 @@ class SMBOSError(OSError, SMBException):
         if not isinstance(error_details, tuple):
             error_details = (error_details, os.strerror(error_details))
 
-        super(SMBOSError, self).__init__(error_details[0], error_details[1], to_native(filename))
+        super(SMBOSError, self).__init__(error_details[0], error_details[1], str(filename))
 
     def __str__(self):
         msg = "[Error {0}] [NtStatus 0x{1}] {2}: '{3}'".format(self.errno, format(self.ntstatus, 'x').zfill(8),
@@ -108,7 +106,7 @@ class SMBLinkRedirectionError(SMBException):
     @property
     def message(self):
         msg = "Encountered symlink at '%s' that points to '%s' which cannot be redirected: %s" \
-              % (to_native(self.path), to_native(self.target), to_native(self.args[0]))
+              % (str(self.path), str(self.target), str(self.args[0]))
         return msg
 
     @property
@@ -203,8 +201,7 @@ class _SMBErrorRegistry(type):
         return super(_SMBErrorRegistry, new_cls).__call__(header)
 
 
-@six.add_metaclass(_SMBErrorRegistry)
-class SMBResponseException(SMBException):
+class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
     """Base SMB response status exception.
 
     This is the base exception that is used when processing the status of an SMB response received from the server.
@@ -274,7 +271,7 @@ class SMBResponseException(SMBException):
         if error_details:
             error_msg += " - %s" % ", ".join(error_details)
 
-        return to_native("Received unexpected status from the server: %s" % error_msg)
+        return "Received unexpected status from the server: %s" % error_msg
 
     @property
     def status(self):

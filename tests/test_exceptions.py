@@ -11,7 +11,6 @@ from smbprotocol import (
 
 from smbprotocol._text import (
     to_bytes,
-    to_native,
 )
 
 from smbprotocol.connection import (
@@ -506,7 +505,7 @@ class TestSMB2SymbolicLinkErrorResponse(object):
         link_path = u'\\\\sérver\\sharé\\foldér'
         expected = u"Encountered symlink at '%s' that points to 'C:\\foldér' which cannot be redirected: Cannot " \
                    u"resolve link targets that point to a local path" % link_path
-        with pytest.raises(SMBLinkRedirectionError, match=re.escape(to_native(expected))):
+        with pytest.raises(SMBLinkRedirectionError, match=re.escape(expected)):
             resp.resolve_path(link_path)
 
     def test_resolve_path_different_share(self):
@@ -524,7 +523,7 @@ class TestSMB2SymbolicLinkErrorResponse(object):
         link_path = u'\\\\sérver\\sharé\\foldér'
         expected = u"Encountered symlink at '%s' that points to '\\\\other-sérver\\sharé\\foldér' which cannot be " \
                    u"redirected: Cannot resolve link targets that point to a different host/share" % link_path
-        with pytest.raises(SMBLinkRedirectionError, match=re.escape(to_native(expected))):
+        with pytest.raises(SMBLinkRedirectionError, match=re.escape(expected)):
             resp.resolve_path(link_path)
 
     def test_resolve_path_different_host(self):
@@ -542,7 +541,7 @@ class TestSMB2SymbolicLinkErrorResponse(object):
         link_path = u'\\\\sérver\\sharé\\foldér'
         expected = u"Encountered symlink at '%s' that points to '\\\\sérver\\sharé2\\foldér' which cannot be " \
                    u"redirected: Cannot resolve link targets that point to a different host/share" % link_path
-        with pytest.raises(SMBLinkRedirectionError, match=re.escape(to_native(expected))):
+        with pytest.raises(SMBLinkRedirectionError, match=re.escape(expected)):
             resp.resolve_path(link_path)
 
 
