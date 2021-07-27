@@ -32,10 +32,10 @@ To run these tests run the following:
 vagrant up
 
 # Configure the virtual machines and get them ready for the tests
-ansible-playbook -i inventory.yml main.yml -vv
+ansible-playbook main.yml -vv
 
 # Run the tests
-ansible-playbook -i inventory.yml tests.yml -vv
+ansible-playbook tests.yml -vv
 ```
 
 When running `main.yml` it will prompt for the Azure Pipelines artifacts URL to use as the compiled source of smbprotocol.
