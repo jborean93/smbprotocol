@@ -18,7 +18,7 @@ with open(abs_path('README.md'), mode='rb') as fd:
 
 setup(
     name='smbprotocol',
-    version='1.6.0',
+    version='1.6.1',
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',

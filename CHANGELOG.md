@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.1 - 2021-07-29
+
+* Remove `print()` statement that was used during testing
+
+
 ## 1.6.0 - 2021-07-28
 
 * Dropped support for Python 2.7 and 3.5
