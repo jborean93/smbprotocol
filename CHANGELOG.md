@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.6.0 - TBD
+## 1.6.0 - 2021-07-28
 
 * Dropped support for Python 2.7 and 3.5
 * Add performance improvement on reads with large files
