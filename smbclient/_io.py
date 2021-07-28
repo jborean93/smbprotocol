@@ -165,7 +165,7 @@ def _resolve_dfs(raw_io):
             tree, fd_path = get_smb_tree(new_path, **connection_kwargs)
 
         except SMBResponseException as link_exc:
-            log.warning("Failed to connect to DFS link target %s: %s" % (str(target), link_exc))
+            log.warning("Failed to connect to DFS link target %s: %s", str(target), link_exc)
             continue
 
         # Record the target that worked for future reference.
@@ -563,7 +563,7 @@ class SMBRawIO(io.RawIOBase):
 
         chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'read')
 
-        print(f"Read {self._offset} - {chunk_size}")
+        log.debug("Read %d -%d.", self._offset, chunk_size)
         read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
         request = self.fd.connection.send(
             read_msg,
