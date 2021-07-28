@@ -68,11 +68,6 @@
       groups:
       - Domain Admins
       state: present
-    register: domain_user_result
-    # ADWS may not be online after first reboot, need to keep on retrying
-    retries: 30
-    delay: 15
-    until: domain_user_result is successful
 
   - name: test out domain user that was created
     win_whoami:
@@ -179,35 +174,29 @@
       product_id: '{{ item.product_id }}'
       state: present
     with_items:
-    - url: https://www.python.org/ftp/python/2.7.18/python-2.7.18.msi
-      product_id: '{A5F504DF-2ED9-4A2D-A2F3-9D2750DD42D5}'
-      arguments: TARGETDIR="C:\Program Files\Python27-32" ALLUSERS=1
-    - url: https://www.python.org/ftp/python/2.7.18/python-2.7.18.amd64.msi
-      product_id: '{A5F504DF-2ED9-4A2D-A2F3-9D2750DD42D6}'
-      arguments: TARGETDIR="C:\Program Files\Python27" ALLUSERS=1
-    - url: https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe
-      product_id: '{522FB3CA-6871-4466-9465-F9D65B59A345}'
-      arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.5.4/python-3.5.4-amd64.exe
-      product_id: '{84848A30-C77B-4442-B84C-08B7B4DA1B01}'
-      arguments: /quiet InstallAllUsers=1 Shortcuts=0
     - url: https://www.python.org/ftp/python/3.6.8/python-3.6.8.exe
       product_id: '{B56829C6-1C25-469E-B351-1467C6295566}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
     - url: https://www.python.org/ftp/python/3.6.8/python-3.6.8-amd64.exe
       product_id: '{E1155302-B578-4D8C-8431-FAE677FBC58C}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.7.8/python-3.7.8.exe
-      product_id: '{EC08EC27-DBBB-4120-9D7C-6A3CB11BB5F2}'
+    - url: https://www.python.org/ftp/python/3.7.9/python-3.7.9.exe
+      product_id: '{9FA66FEC-55E8-4977-9F34-167E360A5343}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.7.8/python-3.7.8-amd64.exe
-      product_id: '{0EEFE4AC-ED52-4F6F-A726-A9030991B75D}'
+    - url: https://www.python.org/ftp/python/3.7.9/python-3.7.9-amd64.exe
+      product_id: '{CD14E774-992D-4A34-B3D8-6BBEC890D918}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.8.3/python-3.8.3.exe
-      product_id: '{D1EFF389-2F77-4A46-8AFD-4F37BC6F1F99}'
+    - url: https://www.python.org/ftp/python/3.8.10/python-3.8.10.exe
+      product_id: '{0627E042-BBD1-4FE2-AAEF-C54BA4A69326}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.8.3/python-3.8.3-amd64.exe
-      product_id: '{245A2BD7-1E51-448C-810D-356286B18BA8}'
+    - url: https://www.python.org/ftp/python/3.8.10/python-3.8.10-amd64.exe
+      product_id: '{A0FBEF5B-B925-4F86-9B50-A7315736C481}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.9.6/python-3.9.6.exe
+      product_id: '{4CDA2845-E7DB-47F5-95DB-99A48381690E}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.9.6/python-3.9.6-amd64.exe
+      product_id: '{9BE9E7F0-F9F1-487B-A2FC-790CD2898388}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
 
   - name: ensure virtualenv package is installed for each Python install
@@ -269,10 +258,9 @@
       - gssntlmssp
       - krb5-devel
       - krb5-workstation
-      - python2
-      - python2-devel
       - python3
       - python3-devel
+      - unzip
       - vim
       state: present
 
@@ -281,10 +269,7 @@
       name:
       - virtualenv
       - wheel
-      executable: '{{ item }}'
-    with_items:
-    - /usr/bin/pip2
-    - /usr/bin/pip3
+      executable: /usr/bin/pip3
 
   - name: setup NetworkManager to use dnsmasq
     copy:
