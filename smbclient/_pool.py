@@ -54,14 +54,25 @@ class _ConfigSingleton(type):
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls.__instances:
-            cls.__instances[cls] = super(_ConfigSingleton, cls).__call__(*args, **kwargs)
+            config = super(_ConfigSingleton, cls).__call__(*args, **kwargs)
+            cls.__instances[cls] = config
+
+            # Needs to be done after the config instance is in the singleton dict due to setting this value will kick
+            # off an IPC connection which then gets and instance of this config to see what the default creds are.
+            # The property will not run the DFS request if the passed in value matches what is already there. Set
+            # to None initially to ensure it detects a changed value.
+            # https://github.com/jborean93/smbprotocol/issues/109
+            dc_value = config.domain_controller
+            config.domain_controller = None
+            config.domain_controller = dc_value
 
         else:
             # Allow users to initialise and set multiple config options like ConfigType(key=value) even when the object
             # has been initialized already.
-            cls.__instances[cls].set(**kwargs)
+            config = cls.__instances[cls]
+            config.set(**kwargs)
 
-        return cls.__instances[cls]
+        return config
 
 
 class ClientConfig(object, metaclass=_ConfigSingleton):
@@ -95,12 +106,9 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         self.skip_dfs = skip_dfs
         self.auth_protocol = auth_protocol
         self.require_secure_negotiate = require_secure_negotiate
-        self._domain_controller = None  # type: Optional[str]
+        self._domain_controller = domain_controller  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
         self._referral_cache = []  # type: List[ReferralEntry]
-
-        # This relies on other attributes so set this last
-        self.domain_controller = domain_controller
 
     @property
     def domain_controller(self):
