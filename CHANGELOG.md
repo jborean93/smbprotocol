@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2 - TBD
+
+* Fix up cached credential logic when setting `domain_controller` in the initial config singleton
+
 ## 1.6.1 - 2021-07-29
 
 * Remove `print()` statement that was used during testing
