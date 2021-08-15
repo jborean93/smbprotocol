@@ -1,8 +1,9 @@
 # Changelog
 
-## 1.6.2 - TBD
+## 1.6.2 - 2021-08-16
 
 * Fix up cached credential logic when setting `domain_controller` in the initial config singleton
+
 
 ## 1.6.1 - 2021-07-29
 
