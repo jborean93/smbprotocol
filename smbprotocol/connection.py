@@ -83,7 +83,6 @@ from smbprotocol.structure import (
 )
 
 from smbprotocol.transport import (
-    _TimeoutError,
     Tcp,
 )
 
@@ -1115,7 +1114,18 @@ class Connection(object):
                 # https://github.com/jborean93/smbprotocol/issues/31
                 try:
                     b_msg = self.transport.recv(600)
-                except _TimeoutError:
+                except TimeoutError as ex:
+                    # Check if the connection has unanswered keepalive echo requests with the reserved field set.
+                    # When unanswered keep alive echo exists, the server did not respond withing two times the timeout.
+                    # We assume that the server connection is dead and close it.
+                    for r in self.outstanding_requests.values():
+                        if r.response is None and \
+                                r.message['command'].get_value() == Commands.SMB2_ECHO and \
+                                r.message['reserved'].get_value() == 1:
+                            # connection will be closed in finally block
+                            raise SMBConnectionClosed('Connection timed out. Server did not respond within timeout.') \
+                                from ex
+
                     log.debug("Sending SMB2 Echo to keep connection alive")
                     for sid in self.session_table.keys():
                         req = self.send(SMB2Echo(), sid=sid)
