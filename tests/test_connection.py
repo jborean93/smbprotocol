@@ -55,10 +55,6 @@ from smbprotocol.session import (
     Session,
 )
 
-from smbprotocol.transport import (
-    _TimeoutError,
-)
-
 
 def test_valid_hash_algorithm():
     expected = hashlib.sha512
@@ -934,7 +930,7 @@ class TestConnection(object):
 
         mock_transport = mocker.MagicMock()
         connection.transport = mock_transport
-        connection.transport.recv.side_effect = (_TimeoutError, b'')
+        connection.transport.recv.side_effect = (TimeoutError, b'')
 
         # Not the best test but better than waiting 10 minutes for the socket to timeout.
         connection._process_message_thread()
