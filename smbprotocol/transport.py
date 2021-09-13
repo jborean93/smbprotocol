@@ -23,11 +23,6 @@ from smbprotocol.structure import (
 log = logging.getLogger(__name__)
 
 
-# TODO: Replace with TimeoutError when Python 2.7 is dropped
-class _TimeoutError(Exception):
-    pass
-
-
 class DirectTCPPacket(Structure):
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -143,7 +138,7 @@ class Tcp(object):
                 timeout = timeout - (timeit.default_timer() - start_time)
                 if not read:
                     log.debug("Socket recv(%s) timed out")
-                    raise _TimeoutError()
+                    raise TimeoutError()
 
                 try:
                     b_data = self._sock.recv(read_len)

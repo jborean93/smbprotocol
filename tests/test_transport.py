@@ -11,7 +11,6 @@ import threading
 import time
 
 from smbprotocol.transport import (
-    _TimeoutError,
     DirectTCPPacket,
     Tcp,
 )
@@ -122,7 +121,7 @@ def server_test_small_recv(server):
 def test_recv_timeout(server_tcp):
     server_tcp.connect()
 
-    with pytest.raises(_TimeoutError):
+    with pytest.raises(TimeoutError):
         server_tcp.recv(1)
 
     server_tcp.send(b'\x00')

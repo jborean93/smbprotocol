@@ -55,10 +55,6 @@ from smbprotocol.session import (
     Session,
 )
 
-from smbprotocol.transport import (
-    _TimeoutError,
-)
-
 
 def test_valid_hash_algorithm():
     expected = hashlib.sha512
@@ -934,7 +930,7 @@ class TestConnection(object):
 
         mock_transport = mocker.MagicMock()
         connection.transport = mock_transport
-        connection.transport.recv.side_effect = (_TimeoutError, b'')
+        connection.transport.recv.side_effect = (TimeoutError, b'')
 
         # Not the best test but better than waiting 10 minutes for the socket to timeout.
         connection._process_message_thread()
@@ -942,6 +938,35 @@ class TestConnection(object):
         assert mock_send.call_count == 1
         assert isinstance(mock_send.call_args[0][0], SMB2Echo)
         assert mock_send.call_args[1] == {'sid': 1}
+
+    def test_message_worker_timeout_connection_dead(self, mocker):
+        connection = Connection(uuid.uuid4(), 'server', 445, True)
+        connection.dialect = Dialects.SMB_2_1_0
+
+        mock_session = mocker.MagicMock()
+        mock_session.session_id = 1
+        mock_session.signing_key = b'test'
+        mock_session.encryption_key = b'\x00' * 16
+        connection.session_table[mock_session.session_id] = mock_session
+
+        mock_transport = mocker.MagicMock()
+        connection.transport = mock_transport
+        connection.transport.recv.side_effect = (TimeoutError, TimeoutError)
+
+        mock_disconnect = mocker.MagicMock()
+        connection.disconnect = mock_disconnect
+
+        # Not the best test but better than waiting 10 minutes for the socket to timeout.
+        connection._process_message_thread()
+
+        # First timeout: keepalive echo sent
+        assert mock_transport.send.call_count == 1
+        assert mock_transport.send.call_args[0][0]['session_id'].get_value() == mock_session.session_id
+
+        # Second timeout: close connection
+        assert mock_disconnect.call_count == 1
+        with pytest.raises(SMBConnectionClosed):
+            connection.receive(None)
 
     def test_verify_fail_no_session(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
