@@ -1219,8 +1219,8 @@ class SMBDirEntry(object):
             return self._lstat
 
     @classmethod
-    def from_path(cls, path, **kwargs):
-        file_stat = stat(path, **kwargs)
+    def from_path(cls, path, follow_symlinks=False, **kwargs):
+        file_stat = stat(path, follow_symlinks=follow_symlinks, **kwargs)
 
         # A DirEntry only needs these 2 properties to be set
         dir_info = FileIdFullDirectoryInformation()
