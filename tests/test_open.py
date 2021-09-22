@@ -13,10 +13,6 @@ from smbprotocol import (
     Dialects,
 )
 
-from smbprotocol.connection import (
-    Connection,
-)
-
 from smbprotocol.create_contexts import (
     CreateContextName,
     SMB2CreateAllocationSize,
@@ -78,12 +74,8 @@ from smbprotocol.open import (
     SMB2WriteResponse,
 )
 
-from smbprotocol.session import (
-    Session,
-)
-
-from smbprotocol.tree import (
-    TreeConnect,
+from smbclient import (
+    Client
 )
 
 
@@ -1215,14 +1207,10 @@ class TestOpen(object):
 
     # basic file open tests for each dialect
     def test_dialect_2_0_2(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_2_0_2)
-        session = Session(connection, smb_real[0], smb_real[1], False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_2_0_2, require_encryption=False)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             out_cont = open.create(ImpersonationLevel.Impersonation,
                                    FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1254,17 +1242,13 @@ class TestOpen(object):
             assert not open.resilient_timeout
             assert open.share_mode is None
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_dialect_2_1_0(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1], False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_2_1_0, require_encryption=False)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             out_cont = open.create(ImpersonationLevel.Impersonation,
                                    FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1296,17 +1280,13 @@ class TestOpen(object):
             assert not open.resilient_timeout
             assert open.share_mode is None
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_dialect_3_0_0(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_0)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_0)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             out_cont = open.create(ImpersonationLevel.Impersonation,
                                    FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1340,17 +1320,13 @@ class TestOpen(object):
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_dialect_3_0_2(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_2)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             out_cont = open.create(ImpersonationLevel.Impersonation,
                                    FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1384,17 +1360,13 @@ class TestOpen(object):
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_dialect_3_1_1(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_1_1)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_1_1)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             out_cont = open.create(ImpersonationLevel.Impersonation,
                                    FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1428,17 +1400,13 @@ class TestOpen(object):
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_open_root_directory(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_1_1)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[5])
-        dir_open = Open(tree, "")
+        client = Client(smb_real, dialect=Dialects.SMB_3_1_1, use_encrypted_share=True)
+        dir_open = Open(client.tree_connect, "")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             dir_open.create(ImpersonationLevel.Impersonation,
                             DirectoryAccessMask.FILE_LIST_DIRECTORY,
@@ -1448,18 +1416,14 @@ class TestOpen(object):
                             CreateOptions.FILE_DIRECTORY_FILE)
             dir_open.close(get_attributes=False)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     # test more file operations here
     def test_create_directory(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_0)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[5])
-        open = Open(tree, "folder")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_0, use_encrypted_share=True)
+        open = Open(client.tree_connect, "folder")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             out_cont = open.create(ImpersonationLevel.Impersonation,
                                    DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -1494,17 +1458,13 @@ class TestOpen(object):
             assert not open.resilient_timeout
             assert open.share_mode == 0
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_create_file_create_contexts(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_0)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[5])
-        open = Open(tree, "file-cont.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_0, use_encrypted_share=True)
+        open = Open(client.tree_connect, "file-cont.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             alloc_size = SMB2CreateAllocationSize()
             alloc_size['allocation_size'] = 1024
@@ -1544,18 +1504,14 @@ class TestOpen(object):
                               SMB2CreateQueryMaximalAccessResponse) or \
                 isinstance(out_cont[1], SMB2CreateQueryOnDiskIDResponse)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     @pytest.mark.parametrize('lease_version', ['v1', 'v2'])
     def test_create_file_with_lease(self, smb_real, lease_version):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-lease.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-lease.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             if lease_version == 'v1':
                 lease_request = SMB2CreateRequestLease()
@@ -1582,17 +1538,13 @@ class TestOpen(object):
             else:
                 assert isinstance(out_cont[0], SMB2CreateResponseLeaseV2)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_create_read_write_from_file(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1606,17 +1558,13 @@ class TestOpen(object):
             actual = open.read(0, 4)
             assert actual == b"\x01\x02\x03\x04"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_flush_file(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[5])
-        open = Open(tree, "file-cont.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_2, use_encrypted_share=True)
+        open = Open(client.tree_connect, "file-cont.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1633,17 +1581,13 @@ class TestOpen(object):
             flush_resp = flush_resp(request)
             assert isinstance(flush_resp, SMB2FlushResponse)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_close_file_dont_get_attributes(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1660,17 +1604,13 @@ class TestOpen(object):
             assert open.end_of_file == old_end_of_file
         finally:
             open.close(False)  # test close when it has already been closed
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_close_file_get_attributes(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1688,17 +1628,13 @@ class TestOpen(object):
             assert open.end_of_file != old_end_of_file
             assert open.end_of_file == 1
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_read_file_unbuffered(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_2)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1711,17 +1647,13 @@ class TestOpen(object):
             actual = open.read(0, 1, unbuffered=True)
             assert actual == b"\x01"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_read_file_unbuffered_unsupported(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_0)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_0)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1742,19 +1674,15 @@ class TestOpen(object):
                 "negotiated dialect (768) SMB_3_0_0, requires dialect (770) " \
                 "SMB_3_0_2 or newer"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     @pytest.mark.skipif(os.name == "nt",
                         reason="write-through writes don't work on windows?")
     def test_write_file_write_through(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1769,17 +1697,13 @@ class TestOpen(object):
             actual = open.read(0, 1)
             assert actual == b"\x01"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_write_file_write_through_unsupported(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_2_0_2)
-        session = Session(connection, smb_real[0], smb_real[1], False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_2_0_2, require_encryption=False)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1800,19 +1724,15 @@ class TestOpen(object):
                 "negotiated dialect (514) SMB_2_0_2, requires dialect (528) " \
                 "SMB_2_1_0 or newer"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     @pytest.mark.skipif(os.name == "nt",
                         reason="unbufferred writes don't work on windows?")
     def test_write_file_unbuffered(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1827,17 +1747,13 @@ class TestOpen(object):
             actual = open.read(0, 1)
             assert actual == b"\x01"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_write_file_unbuffered_unsupported(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1], False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_2_1_0, require_encryption=False)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -1858,17 +1774,13 @@ class TestOpen(object):
                 "negotiated dialect (528) SMB_2_1_0, requires dialect (770) " \
                 "SMB_3_0_2 or newer"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_query_directory(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-query")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "directory-query")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -1879,7 +1791,7 @@ class TestOpen(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            file1 = Open(tree, r"directory-query\\file1.txt")
+            file1 = Open(open.tree_connect, r"directory-query\\file1.txt")
             file1.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -1888,7 +1800,7 @@ class TestOpen(object):
                          CreateOptions.FILE_NON_DIRECTORY_FILE)
             file1.write(b"\x01\x02\x03\x04", 0)
 
-            file2 = Open(tree, r"directory-query\\file2.log")
+            file2 = Open(open.tree_connect, r"directory-query\\file2.log")
             file2.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -1920,17 +1832,13 @@ class TestOpen(object):
 
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_compounding_related_opens_encrypted(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-related.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-related.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             messages = [
                 open.create(ImpersonationLevel.Impersonation,
@@ -1947,10 +1855,10 @@ class TestOpen(object):
                 open.read(0, 4, send=False),
                 open.close(False, send=False)
             ]
-            requests = connection.send_compound([x[0] for x in messages],
-                                                session.session_id,
-                                                tree.tree_connect_id,
-                                                related=True)
+            requests = open.connection.send_compound([x[0] for x in messages],
+                                                     open.tree_connect.session.session_id,
+                                                     open.tree_connect.tree_connect_id,
+                                                     related=True)
             responses = []
             for i, request in enumerate(requests):
                 response = messages[i][1](request)
@@ -1963,18 +1871,13 @@ class TestOpen(object):
             assert responses[2] == b"\x01\x02\x03\x04"
             assert isinstance(responses[3], SMB2CloseResponse)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_compounding_related_opens_signed(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_2_0_2)
-        session = Session(connection, smb_real[0], smb_real[1],
-                          require_encryption=False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-related.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_2_0_2, require_encryption=False)
+        open = Open(client.tree_connect, "file-related.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             messages = [
                 open.create(ImpersonationLevel.Impersonation,
@@ -1991,10 +1894,10 @@ class TestOpen(object):
                 open.read(0, 4, send=False),
                 open.close(False, send=False)
             ]
-            requests = connection.send_compound([x[0] for x in messages],
-                                                session.session_id,
-                                                tree.tree_connect_id,
-                                                related=True)
+            requests = open.connection.send_compound([x[0] for x in messages],
+                                                     open.tree_connect.session.session_id,
+                                                     open.tree_connect.tree_connect_id,
+                                                     related=True)
             responses = []
             for i, request in enumerate(requests):
                 response = messages[i][1](request)
@@ -2007,17 +1910,13 @@ class TestOpen(object):
             assert responses[2] == b"\x01\x02\x03\x04"
             assert isinstance(responses[3], SMB2CloseResponse)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_compounding_open_requests(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-compound-open")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "directory-compound-open")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -2028,14 +1927,14 @@ class TestOpen(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            file1 = Open(tree, r"directory-compound-open\\file1.txt")
+            file1 = Open(open.tree_connect, r"directory-compound-open\\file1.txt")
             file1.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
                          ShareAccess.FILE_SHARE_READ,
                          CreateDisposition.FILE_OVERWRITE_IF,
                          CreateOptions.FILE_NON_DIRECTORY_FILE)
-            file2 = Open(tree, r"directory-compound-open\\file2.log")
+            file2 = Open(open.tree_connect, r"directory-compound-open\\file2.log")
             file2.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -2057,9 +1956,9 @@ class TestOpen(object):
             ]
 
             # send each message as a compound request
-            requests = connection.send_compound([x[0] for x in messages],
-                                                session.session_id,
-                                                tree.tree_connect_id)
+            requests = open.connection.send_compound([x[0] for x in messages],
+                                                     open.tree_connect.session.session_id,
+                                                     open.tree_connect.tree_connect_id)
 
             # get responses and run unpack function
             responses = []
@@ -2099,17 +1998,13 @@ class TestOpen(object):
 
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_compounding_open_requests_unencrypted(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1], False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-compound-open-plaintext")
+        client = Client(smb_real, dialect=Dialects.SMB_2_1_0, require_encryption=False)
+        open = Open(client.tree_connect, "directory-compound-open-plaintext")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -2120,14 +2015,14 @@ class TestOpen(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            file1 = Open(tree, r"directory-compound-open-plaintext\\file1.txt")
+            file1 = Open(open.tree_connect, r"directory-compound-open-plaintext\\file1.txt")
             file1.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
                          ShareAccess.FILE_SHARE_READ,
                          CreateDisposition.FILE_OVERWRITE_IF,
                          CreateOptions.FILE_NON_DIRECTORY_FILE)
-            file2 = Open(tree, r"directory-compound-open-plaintext\\file2.log")
+            file2 = Open(open.tree_connect, r"directory-compound-open-plaintext\\file2.log")
             file2.create(ImpersonationLevel.Impersonation,
                          FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                          FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -2149,9 +2044,9 @@ class TestOpen(object):
             ]
 
             # send each message as a compound request
-            requests = connection.send_compound([x[0] for x in messages],
-                                                session.session_id,
-                                                tree.tree_connect_id)
+            requests = open.connection.send_compound([x[0] for x in messages],
+                                                     open.tree_connect.session.session_id,
+                                                     open.tree_connect.tree_connect_id)
 
             # get responses and run unpack function
             responses = []
@@ -2191,17 +2086,13 @@ class TestOpen(object):
 
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_close_file_already_closed(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect(Dialects.SMB_3_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-read-write.txt")
+        client = Client(smb_real, dialect=Dialects.SMB_3_0_2)
+        open = Open(client.tree_connect, "file-read-write.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2216,17 +2107,13 @@ class TestOpen(object):
             open._connected = True
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_read_greater_than_max_size(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2236,23 +2123,19 @@ class TestOpen(object):
                         CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             with pytest.raises(SMBException) as exc:
-                open.read(0, connection.max_read_size + 1)
+                open.read(0, open.connection.max_read_size + 1)
             assert str(exc.value) == "The requested read length %d is " \
                                      "greater than the maximum negotiated " \
                                      "read size %d"\
-                % (connection.max_read_size + 1, connection.max_read_size)
+                % (open.connection.max_read_size + 1, open.connection.max_read_size)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_write_greater_than_max_size(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2262,23 +2145,19 @@ class TestOpen(object):
                         CreateOptions.FILE_NON_DIRECTORY_FILE)
 
             with pytest.raises(SMBException) as exc:
-                open.write(b"\x00" * (connection.max_write_size + 1), 0)
+                open.write(b"\x00" * (open.connection.max_write_size + 1), 0)
             assert str(exc.value) == "The requested write length %d is " \
                                      "greater than the maximum negotiated " \
                                      "write size %d"\
-                % (connection.max_write_size + 1, connection.max_write_size)
+                % (open.connection.max_write_size + 1, open.connection.max_write_size)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_read_file_multi_credits(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2290,18 +2169,14 @@ class TestOpen(object):
             actual = open.read(0, 65538)
             assert actual == b"\x01\x02\x03\x04"
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_receive_with_timeout(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file.txt")
 
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2310,34 +2185,30 @@ class TestOpen(object):
                         CreateDisposition.FILE_OVERWRITE_IF,
                         CreateOptions.FILE_NON_DIRECTORY_FILE)
             read_req, unpack_func = open.write(b"\x00", 0, send=False)
-            req = connection.send(read_req, sid=session.session_id,
-                                  tid=tree.tree_connect_id)
+            req = open.connection.send(read_req, sid=open.tree_connect.session.session_id,
+                                       tid=open.tree_connect.tree_connect_id)
             # get the response so we know the timeout will fail next as there
             # is no response to get
-            connection.receive(request=req)
+            open.connection.receive(request=req)
             req.response = None
             req.response_event.clear()
 
             start_time = time.time()
             with pytest.raises(SMBException) as exc:
-                connection.receive(request=req, timeout=2)
+                open.connection.receive(request=req, timeout=2)
             end_time = int(time.time() - start_time)
             assert end_time < 5
             assert str(exc.value) == "Connection timeout of 2 seconds exceeded while waiting for a message id %s " \
                                      "response from the server" % req.message['message_id'].get_value()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_close_file_invalid_id(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file.txt")
 
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2350,24 +2221,20 @@ class TestOpen(object):
             # _close_response to ensure the exception is thrown
             read_msg = open.read(10, 0, min_length=1024,
                                  send=False)[0]
-            req = connection.send(read_msg, sid=session.session_id,
-                                  tid=tree.tree_connect_id)
+            req = open.connection.send(read_msg, sid=open.tree_connect.session.session_id,
+                                       tid=open.tree_connect.tree_connect_id)
 
             with pytest.raises(EndOfFile) as exc:
                 open._close_response(req)
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_truncate_file(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "truncate-file.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "truncate-file.txt")
 
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -2425,4 +2292,4 @@ class TestOpen(object):
             truncate(open, 3)
             assert read_and_eof(open) == (b"\x01\x02\x03", 3)
         finally:
-            connection.disconnect(True)
+            client.disconnect()

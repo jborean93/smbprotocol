@@ -6,17 +6,14 @@ import pytest
 import threading
 import uuid
 
-from smbprotocol.connection import (
-    Connection,
-)
-
 from smbprotocol.exceptions import (
     InvalidParameter,
     NotifyCleanup,
 )
 
-from smbprotocol.session import Session
-from smbprotocol.tree import TreeConnect
+from smbclient import (
+    Client
+)
 
 from smbprotocol.change_notify import (
     CompletionFilter,
@@ -137,14 +134,10 @@ class TestChangeNotify(object):
         file_open.close()
 
     def test_change_notify_on_dir(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-watch")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "directory-watch")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -155,7 +148,7 @@ class TestChangeNotify(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            self._remove_file(tree, "directory-watch\\created file")
+            self._remove_file(open.tree_connect, "directory-watch\\created file")
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)
@@ -176,7 +169,7 @@ class TestChangeNotify(object):
             watcher_event_thread.start()
 
             # Create the new file
-            file_open = Open(tree, "directory-watch\\created file")
+            file_open = Open(open.tree_connect, "directory-watch\\created file")
             file_open.create(ImpersonationLevel.Impersonation,
                              FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                              FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -200,22 +193,18 @@ class TestChangeNotify(object):
 
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_change_notify_on_dir_compound(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
 
         # Cannot use encryption as Samba has a bug where the transform response has the wrong Session Id. Also there's
         # a special edge case of testing the Session Id of the plaintext response with signatures so don't use
         # encryption.
         # https://bugzilla.samba.org/show_bug.cgi?id=14189
-        session = Session(connection, smb_real[0], smb_real[1], require_encryption=False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-watch")
+        client = Client(smb_real, require_encryption=False)
+        open = Open(client.tree_connect, "directory-watch")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             # Ensure the dir is clean of files.
             open.create(ImpersonationLevel.Impersonation,
@@ -226,7 +215,7 @@ class TestChangeNotify(object):
                         ShareAccess.FILE_SHARE_DELETE,
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
-            self._remove_file(tree, "directory-watch\\created file")
+            self._remove_file(open.tree_connect, "directory-watch\\created file")
             open.close()
 
             watcher = FileSystemWatcher(open)
@@ -246,8 +235,8 @@ class TestChangeNotify(object):
             assert watcher.result is None
             assert watcher.response_event.is_set() is False
 
-            requests = connection.send_compound([m[0] for m in messages], sid=session.session_id,
-                                                tid=tree.tree_connect_id, related=True)
+            requests = client.connection.send_compound([m[0] for m in messages], sid=client.session.session_id,
+                                                       tid=open.tree_connect.tree_connect_id, related=True)
             [messages[i][1](req) for i, req in enumerate(requests)]
 
             # Run the wait in a separate thread so we can create the dir
@@ -264,7 +253,7 @@ class TestChangeNotify(object):
             watcher_event_thread.start()
 
             # Create the new file
-            file_open = Open(tree, "directory-watch\\created file")
+            file_open = Open(open.tree_connect, "directory-watch\\created file")
             file_open.create(ImpersonationLevel.Impersonation,
                              FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                              FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -288,17 +277,13 @@ class TestChangeNotify(object):
 
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_change_notify_no_data(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-watch")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "directory-watch")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -309,7 +294,7 @@ class TestChangeNotify(object):
                         CreateDisposition.FILE_OPEN_IF,
                         CreateOptions.FILE_DIRECTORY_FILE)
 
-            self._remove_file(tree, "directory-watch\\created file")
+            self._remove_file(open.tree_connect, "directory-watch\\created file")
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME, output_buffer_length=0)
@@ -330,7 +315,7 @@ class TestChangeNotify(object):
             watcher_event_thread.start()
 
             # Create the new file
-            file_open = Open(tree, "directory-watch\\created file")
+            file_open = Open(open.tree_connect, "directory-watch\\created file")
             file_open.create(ImpersonationLevel.Impersonation,
                              FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
                              FileAttributes.FILE_ATTRIBUTE_NORMAL,
@@ -351,17 +336,13 @@ class TestChangeNotify(object):
 
             open.close()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_change_notify_underlying_close(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-watch")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "directory-watch")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -382,17 +363,13 @@ class TestChangeNotify(object):
             with pytest.raises(NotifyCleanup):
                 watcher.wait()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_change_notify_cancel(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1], require_encryption=False)
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "directory-watch")
+        client = Client(smb_real, require_encryption=False)
+        open = Open(client.tree_connect, "directory-watch")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         DirectoryAccessMask.MAXIMUM_ALLOWED,
@@ -423,17 +400,13 @@ class TestChangeNotify(object):
             # Make sure it doesn't cause any weird errors when calling it again
             watcher.cancel()
         finally:
-            connection.disconnect(True)
+            client.disconnect()
 
     def test_change_notify_on_a_file(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
-        tree = TreeConnect(session, smb_real[4])
-        open = Open(tree, "file-watch.txt")
+        client = Client(smb_real)
+        open = Open(client.tree_connect, "file-watch.txt")
         try:
-            session.connect()
-            tree.connect()
+            client.connect()
 
             open.create(ImpersonationLevel.Impersonation,
                         FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
@@ -449,4 +422,4 @@ class TestChangeNotify(object):
             with pytest.raises(InvalidParameter):
                 watcher.wait()
         finally:
-            connection.disconnect(True)
+            client.disconnect()

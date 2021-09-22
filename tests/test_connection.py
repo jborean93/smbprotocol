@@ -732,7 +732,7 @@ class TestSMB2TransformHeader(object):
 class TestConnection(object):
 
     def test_dialect_2_0_2(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_2_0_2)
         try:
             assert connection.dialect == Dialects.SMB_2_0_2
@@ -755,7 +755,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_dialect_2_1_0(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_2_1_0)
         try:
             assert connection.dialect == Dialects.SMB_2_1_0
@@ -778,7 +778,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_dialect_3_0_0(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_3_0_0)
         try:
             assert connection.dialect == Dialects.SMB_3_0_0
@@ -801,7 +801,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_dialect_3_0_2(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_3_0_2)
         try:
             assert connection.dialect == Dialects.SMB_3_0_2
@@ -824,7 +824,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_dialect_3_1_1_not_require_signing(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], False)
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, False)
         connection.connect(Dialects.SMB_3_1_1)
         try:
             assert connection.dialect == Dialects.SMB_3_1_1
@@ -849,7 +849,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_dialect_implicit_require_signing(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
         connection.connect()
         try:
             assert connection.dialect == Dialects.SMB_3_1_1
@@ -878,7 +878,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_verify_message_skip(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
         connection.connect()
         try:
             header = SMB2HeaderResponse()
@@ -888,7 +888,7 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_broken_message_worker_closed_socket(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
         connection.connect()
         try:
             test_msg = SMB2NegotiateRequest()
@@ -969,7 +969,7 @@ class TestConnection(object):
             connection.receive(None)
 
     def test_verify_fail_no_session(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
         connection.connect()
         try:
             header = SMB2HeaderResponse()
@@ -983,8 +983,8 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_verify_mistmatch(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
-        session = Session(connection, smb_real[0], smb_real[1])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
+        session = Session(connection, smb_real.username, smb_real.password)
         connection.connect()
         try:
             session.connect()
@@ -1001,8 +1001,8 @@ class TestConnection(object):
             connection.disconnect(True)
 
     def test_decrypt_invalid_flag(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
-        session = Session(connection, smb_real[0], smb_real[1])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
+        session = Session(connection, smb_real.username, smb_real.password)
         connection.connect()
         try:
             session.connect()
@@ -1021,8 +1021,8 @@ class TestConnection(object):
             connection.disconnect(True)
 
     def test_decrypt_invalid_session_id(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
-        session = Session(connection, smb_real[0], smb_real[1])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
+        session = Session(connection, smb_real.username, smb_real.password)
         connection.connect()
         try:
             session.connect()
@@ -1041,7 +1041,7 @@ class TestConnection(object):
             connection.disconnect(True)
 
     def test_requested_credits_greater_than_available(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port, True)
         connection.connect()
         try:
             msg = SMB2IOCTLRequest()
@@ -1054,8 +1054,8 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_send_invalid_tree_id(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
-        session = Session(connection, smb_real[0], smb_real[1])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
+        session = Session(connection, smb_real.username, smb_real.password)
         connection.connect()
         try:
             session.connect()
@@ -1069,9 +1069,9 @@ class TestConnection(object):
             connection.disconnect()
 
     def test_connection_echo(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real.username, smb_real.password)
         session.connect()
         try:
             actual = connection.echo(sid=session.session_id, credit_request=2)

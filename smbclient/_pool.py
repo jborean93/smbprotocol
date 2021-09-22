@@ -75,12 +75,14 @@ class _ConfigSingleton(type):
         return config
 
 
-class ClientConfig(object, metaclass=_ConfigSingleton):
-    """SMB Client global settings
+class ClientConfigInstance(object):
+    """SMB Client settings - instance (a caller may use several different clients
+    and use arbitrary settings for them in parallel).
+    Needed when several parallel instances of the same settings should be used
+    but reusing the same ClientConfig global object is not desired - for example for lease break testing.
 
-    This class defines global settings for the client that affects all connections that the client makes. When setting
-    the `domain_controller` config option, a DFS domain referral request is send to that hostname. It will use the
-    credentials provided in the config if set.
+    When setting the `domain_controller` config option, a DFS domain referral request is send to that hostname.
+    It will use the credentials provided in the config if set.
 
     Attributes:
         client_guid (uuid.UUID): The client GUID used when creating a connection to the server.
@@ -183,6 +185,15 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         # Make sure we set this last in case different credentials were specified in the config
         if domain_controller:
             self.domain_controller = config['domain_controller']
+
+
+class ClientConfig(ClientConfigInstance, metaclass=_ConfigSingleton):
+    """SMB Client global settings
+
+    This class defines global settings for the client that affects regular-case connections that the client makes
+    using API of 'smbclient.os'.
+    """
+    pass
 
 
 def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse

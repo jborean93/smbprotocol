@@ -16,6 +16,10 @@ from smbclient.shutil import (
     rmtree,
 )
 
+from smbclient._pool import (
+    ClientConfigInstance
+)
+
 from smbprotocol.dfs import (
     DFSReferralResponse,
 )
@@ -156,6 +160,23 @@ TARGET_REFERRAL.unpack(b"\x26\x00"
                        b"\x5C\x00\x63\x00\x24\x00\x00\x00")
 
 
+class RealClientConfig(ClientConfigInstance):
+    """
+    Extension of ClientConfigInstance for keeping the configuration of real SMB client.
+    It is needed to make the code more readable and avoid using 'smb_real' with indices to access attributes.
+    For instance, 'smb_real.server' is much more readable than 'smb_real[2]'.
+
+    Returned by 'smb_real' fixture and can be passed directly to Client.__init__
+    to create the client in a very simple way.
+    """
+    def __init__(self, server, share, port=445, encrypted_share=None, **kwargs):
+        self.server = server
+        self.port = port
+        self.share = share
+        self.encrypted_share = encrypted_share
+        super(RealClientConfig, self).__init__(**kwargs)
+
+
 @pytest.fixture(scope='module')
 def smb_real():
     # for these tests to work the server at SMB_SERVER must support dialect
@@ -170,52 +191,57 @@ def smb_real():
     if server:
         share = r"\\%s\%s" % (server, share)
         encrypted_share = "%s-encrypted" % share
-        return username, password, server, int(port), share, encrypted_share
+        return RealClientConfig(server, share, int(port), encrypted_share, username=username, password=password)
     else:
         pytest.skip("The SMB_SHARE env var was not set, integration tests will be skipped")
 
 
 @pytest.fixture(params=[
-    ('share', 4),
-    ('share-encrypted', 5),
+    ('share', False),
+    ('share-encrypted', True),
 ], ids=['share', 'share-encrypted'])
 def smb_share(request, smb_real):
+    is_encrypted = request.param[1]
+    share = smb_real.encrypted_share if is_encrypted else smb_real.share
+
     # Use some non ASCII chars to test out edge cases by default.
-    share_path = u"%s\\%s" % (smb_real[request.param[1]], u"Pýtæs†-[%s] 💩" % time.time())
-    delete_session(smb_real[2])
+    share_path = u"%s\\%s" % (share, u"Pýtæs†-[%s] 💩" % time.time())
+    delete_session(smb_real.server)
 
     # Test out forward slashes also work with the share-encrypted test
     if request.param[0] == 'share-encrypted':
         share_path = share_path.replace('\\', '/')
 
-    mkdir(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+    mkdir(share_path, username=smb_real.username, password=smb_real.password, port=smb_real.port)
     try:
         yield share_path
     finally:
-        rmtree(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+        rmtree(share_path, username=smb_real.username, password=smb_real.password, port=smb_real.port)
 
 
 @pytest.fixture(params=[
     ('', None),  # Root, no referral targets
-    ('share', 4),  # Simple referral to a single target
-    ('share-encrypted', 5),  # Referral to 2 targets, first is known to be broken
+    ('share', False),  # Simple referral to a single target
+    ('share-encrypted', True),  # Referral to 2 targets, first is known to be broken
 ], ids=['dfs-root', 'dfs-single-target', 'dfs-broken-target'])
 def smb_dfs_share(request, smb_real):
     test_folder = u"Pýtæs†-[%s] 💩" % time.time()
 
-    if request.param[1]:
-        target_share_path = u"%s\\%s" % (smb_real[request.param[1]], test_folder)
-        dfs_path = u'\\\\%s\\dfs\\%s\\%s' % (smb_real[2], request.param[0], test_folder)
+    if request.param[1] is not None:
+        is_encrypted = request.param[1]
+        share = smb_real.encrypted_share if is_encrypted else smb_real.share
+        target_share_path = u"%s\\%s" % (share, test_folder)
+        dfs_path = u'\\\\%s\\dfs\\%s\\%s' % (smb_real.server, request.param[0], test_folder)
 
     else:
-        target_share_path = u"\\\\%s\\dfs\\%s" % (smb_real[2], test_folder)
+        target_share_path = u"\\\\%s\\dfs\\%s" % (smb_real.server, test_folder)
         dfs_path = target_share_path
 
-    mkdir(target_share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+    mkdir(target_share_path, username=smb_real.username, password=smb_real.password, port=smb_real.port)
     try:
         yield dfs_path
     finally:
-        rmtree(target_share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+        rmtree(target_share_path, username=smb_real.username, password=smb_real.password, port=smb_real.port)
 
         config = ClientConfig()
         config._domain_cache = []

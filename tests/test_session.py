@@ -124,9 +124,9 @@ class TestSMB2Logoff(object):
 class TestSession(object):
 
     def test_dialect_2_0_2(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_2_0_2)
-        session = Session(connection, smb_real[0], smb_real[1],
+        session = Session(connection, smb_real.username, smb_real.password,
                           require_encryption=False)
         try:
             session.connect()
@@ -145,9 +145,9 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_2_1_0(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_2_1_0)
-        session = Session(connection, smb_real[0], smb_real[1],
+        session = Session(connection, smb_real.username, smb_real.password,
                           require_encryption=False)
         try:
             session.connect()
@@ -166,9 +166,9 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_3_0_0(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_3_0_0)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real.username, smb_real.password)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -190,9 +190,9 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_3_0_2(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_3_0_2)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real.username, smb_real.password)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -214,9 +214,9 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_dialect_3_1_1(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_3_1_1)
-        session = Session(connection, smb_real[0], smb_real[1])
+        session = Session(connection, smb_real.username, smb_real.password)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -240,9 +240,9 @@ class TestSession(object):
             session.disconnect()
 
     def test_require_encryption(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect()
-        session = Session(connection, smb_real[0], smb_real[1], True)
+        session = Session(connection, smb_real.username, smb_real.password, True)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -264,10 +264,10 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_require_encryption_not_supported(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect(Dialects.SMB_2_1_0)
         try:
-            session = Session(connection, smb_real[0], smb_real[1])
+            session = Session(connection, smb_real.username, smb_real.password)
             with pytest.raises(SMBException) as exc:
                 session.connect()
             assert str(exc.value) == "SMB encryption is required but the " \
@@ -276,12 +276,12 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_connect_fail(self, smb_real, monkeypatch, mocker):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect()
         try:
             monkeypatch.setattr(pyspnego, 'client',
                                 mocker.MagicMock(side_effect=pyspnego.exceptions.NoCredentialError()))
-            session = Session(connection, smb_real[0], smb_real[1])
+            session = Session(connection, smb_real.username, smb_real.password)
 
             with pytest.raises(SMBAuthenticationError, match="Failed to authenticate with server"):
                 session.connect()
@@ -290,7 +290,7 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_setup_session_with_ms_gss_token(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect()
         connection.gss_negotiate_token = b"\x60\x76\x06\x06\x2b\x06\x01\x05" \
                                          b"\x05\x02\xa0\x6c\x30\x6a\xa0\x3c" \
@@ -307,7 +307,7 @@ class TestSession(object):
                                          b"\x69\x6e\x5f\x52\x46\x43\x34\x31" \
                                          b"\x37\x38\x40\x70\x6c\x65\x61\x73" \
                                          b"\x65\x5f\x69\x67\x6e\x6f\x72\x65"
-        session = Session(connection, smb_real[0], smb_real[1], False)
+        session = Session(connection, smb_real.username, smb_real.password, False)
         try:
             session.connect()
             assert len(session.application_key) == 16
@@ -329,10 +329,10 @@ class TestSession(object):
             connection.disconnect(True)
 
     def test_setup_session_with_ntlm_only(self, smb_real):
-        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection = Connection(uuid.uuid4(), smb_real.server, smb_real.port)
         connection.connect()
 
-        session = Session(connection, smb_real[0], smb_real[1], False, auth_protocol='ntlm')
+        session = Session(connection, smb_real.username, smb_real.password, False, auth_protocol='ntlm')
         try:
             session.connect()
             assert len(session.application_key) == 16

@@ -1323,9 +1323,10 @@ def test_scandir_with_broken_symlink(smb_share):
 
 
 def test_scandir_with_cache(smb_real):
-    share_path = u"%s\\%s" % (smb_real[4], u"Pýtæs†-[%s] 💩" % time.time())
+    share_path = u"%s\\%s" % (smb_real.share, u"Pýtæs†-[%s] 💩" % time.time())
     cache = {}
-    smbclient.mkdir(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3], connection_cache=cache)
+    smbclient.mkdir(share_path, username=smb_real.username, password=smb_real.password, port=smb_real.port, \
+                    connection_cache=cache)
 
     try:
 
@@ -2104,9 +2105,9 @@ def test_dfs_path_replace(smb_dfs_share):
 
 
 def test_broken_dfs_path(smb_real):
-    dfs_path = u'\\\\' + ntpath.join(smb_real[2], 'dfs', 'broken')
+    dfs_path = u'\\\\' + ntpath.join(smb_real.server, 'dfs', 'broken')
 
     # The message returned differs based on whether the server is Samba or Windows. Just make sure we do raise an
     # error and that it doesn't continuously loop.
     with pytest.raises(SMBOSError):
-        smbclient.listdir(dfs_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+        smbclient.listdir(dfs_path, username=smb_real.username, password=smb_real.password, port=smb_real.port)
