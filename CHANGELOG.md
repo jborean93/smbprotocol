@@ -2,6 +2,7 @@
 
 ## 1.7.0 - 2021-09-22
 
+* Improve connection health checks to reduce the occurances of an infinite deadlock
 * Added more exception error classes
 * Added `create_action` to the `Open` object that describes how the file was opened
 * Added `follow_symlinks` option to `SMBDirEntry.from_path` to control whether the entry is based on the path or the link target (if there is one)
