@@ -1232,6 +1232,7 @@ class TestOpen(object):
                                    CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
+            assert open.create_action in [CreateAction.FILE_CREATED, CreateAction.FILE_OVERWRITTEN]
             assert isinstance(open.change_time, datetime)
             assert open.create_disposition is None
             assert open.create_options is None
@@ -1273,6 +1274,7 @@ class TestOpen(object):
                                    CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
+            assert open.create_action in [CreateAction.FILE_CREATED, CreateAction.FILE_OVERWRITTEN]
             assert isinstance(open.change_time, datetime)
             assert open.create_disposition is None
             assert open.create_options is None
@@ -1314,6 +1316,7 @@ class TestOpen(object):
                                    CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
+            assert open.create_action in [CreateAction.FILE_CREATED, CreateAction.FILE_OVERWRITTEN]
             assert isinstance(open.change_time, datetime)
             assert open.create_disposition is \
                 CreateDisposition.FILE_OVERWRITE_IF
@@ -1357,6 +1360,7 @@ class TestOpen(object):
                                    CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
+            assert open.create_action in [CreateAction.FILE_CREATED, CreateAction.FILE_OVERWRITTEN]
             assert isinstance(open.change_time, datetime)
             assert open.create_disposition is \
                 CreateDisposition.FILE_OVERWRITE_IF
@@ -1400,6 +1404,7 @@ class TestOpen(object):
                                    CreateOptions.FILE_NON_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
+            assert open.create_action in [CreateAction.FILE_CREATED, CreateAction.FILE_OVERWRITTEN]
             assert isinstance(open.change_time, datetime)
             assert open.create_disposition is \
                 CreateDisposition.FILE_OVERWRITE_IF
@@ -1464,6 +1469,7 @@ class TestOpen(object):
                                    CreateOptions.FILE_DIRECTORY_FILE)
             assert out_cont is None
             assert open.allocation_size == 0
+            assert open.create_action in [CreateAction.FILE_OPENED, CreateAction.FILE_CREATED]
             assert isinstance(open.change_time, datetime)
             assert open.create_disposition is \
                 CreateDisposition.FILE_OPEN_IF

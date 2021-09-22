@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0 - TBD
+
+* Added more exception error classes
+* Added `create_action` to the `Open` object that describes how the file was opened
+
+
 ## 1.6.2 - 2021-08-16
 
 * Fix up cached credential logic when setting `domain_controller` in the initial config singleton

@@ -1082,6 +1082,7 @@ class Open(object):
         """
         # properties available based on the file itself
         self._connected = False
+        self.create_action = None
         self.creation_time = None
         self.last_access_time = None
         self.last_write_time = None
@@ -1234,6 +1235,7 @@ class Open(object):
         self.resilient_handle = False
         self.last_disconnect_time = 0
 
+        self.create_action = create_response['create_action'].get_value()
         self.creation_time = create_response['creation_time'].get_value()
         self.last_access_time = create_response['last_access_time'].get_value()
         self.last_write_time = create_response['last_write_time'].get_value()

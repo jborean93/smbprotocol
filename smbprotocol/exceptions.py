@@ -281,6 +281,11 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
         return self.message
 
 
+class Unsuccessful(SMBResponseException):
+    _BASE_MESSAGE = "The requested operation was unsuccessful."
+    _STATUS_CODE = NtStatus.STATUS_UNSUCCESSFUL
+
+
 class NetworkNameDelegated(SMBResponseException):
     _BASE_MESSAGE = "The network name was deleted."
     _STATUS_CODE = NtStatus.STATUS_NETWORK_NAME_DELETED
@@ -332,6 +337,11 @@ class EAListInconsistent(SMBResponseException):
 class StoppedOnSymlink(SMBResponseException):
     _BASE_MESSAGE = "The create operation stopped after reaching a symbolic link."
     _STATUS_CODE = NtStatus.STATUS_STOPPED_ON_SYMLINK
+
+
+class InvalidInfoClass(SMBResponseException):
+    _BASE_MESSAGE = "The specified information class is not a valid information class for the specified object."
+    _STATUS_CODE = NtStatus.STATUS_INVALID_INFO_CLASS
 
 
 class InfoLengthMismatch(SMBResponseException):
@@ -431,6 +441,11 @@ class EACorruptError(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_EA_CORRUPT_ERROR
 
 
+class DeletePending(SMBResponseException):
+    _BASE_MESSAGE = "A non-close operation has been requested of a file object that has a delete pending."
+    _STATUS_CODE = NtStatus.STATUS_DELETE_PENDING
+
+
 class PrivilegeNotHeld(SMBResponseException):
     _BASE_MESSAGE = "A required privilege is not held by the client."
     _STATUS_CODE = NtStatus.STATUS_PRIVILEGE_NOT_HELD
@@ -452,6 +467,11 @@ class PasswordExpired(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_PASSWORD_EXPIRED
 
 
+class NoneMapped(SMBResponseException):
+    _BASE_MESSAGE = "None of the information to be translated has been translated."
+    _STATUS_CODE = NtStatus.STATUS_NONE_MAPPED
+
+
 class InsufficientResources(SMBResponseException):
     _BASE_MESSAGE = "Insufficient system resources exist to complete the API."
     _STATUS_CODE = NtStatus.STATUS_INSUFFICIENT_RESOURCES
@@ -471,6 +491,11 @@ class PipeBusy(SMBResponseException):
 class PipeClosing(SMBResponseException):
     _BASE_MESSAGE = "The specified named pipe is in the closing state."
     _STATUS_CODE = NtStatus.STATUS_PIPE_CLOSING
+
+
+class IOTimeout(SMBResponseException):
+    _BASE_MESSAGE = "The specified I/O operation was not completed before the time-out period expired."
+    _STATUS_CODE = NtStatus.STATUS_IO_TIMEOUT
 
 
 class PipeDisconnected(SMBResponseException):
@@ -541,9 +566,20 @@ class PipeBroken(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_PIPE_BROKEN
 
 
+class FSDriverRequired(SMBResponseException):
+    _BASE_MESSAGE = "A volume has been accessed for which a file system driver is required that " \
+                    "has not yet been loaded."
+    _STATUS_CODE = NtStatus.STATUS_FS_DRIVER_REQUIRED
+
+
 class UserSessionDeleted(SMBResponseException):
     _BASE_MESSAGE = "The remote user session has been deleted."
     _STATUS_CODE = NtStatus.STATUS_USER_SESSION_DELETED
+
+
+class InsuffServerResources(SMBResponseException):
+    _BASE_MESSAGE = "Insufficient server resources exist to complete the request."
+    _STATUS_CODE = NtStatus.STATUS_INSUFF_SERVER_RESOURCES
 
 
 class NotFound(SMBResponseException):
