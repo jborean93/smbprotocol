@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.7.0 - TBD
+## 1.7.0 - 2021-09-22
 
 * Added more exception error classes
 * Added `create_action` to the `Open` object that describes how the file was opened
