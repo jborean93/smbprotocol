@@ -4,6 +4,7 @@
 
 * Added more exception error classes
 * Added `create_action` to the `Open` object that describes how the file was opened
+* Added `follow_symlinks` option to `SMBDirEntry.from_path` to control whether the entry is based on the path or the link target (if there is one)
 
 
 ## 1.6.2 - 2021-08-16
