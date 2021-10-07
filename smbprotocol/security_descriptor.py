@@ -332,7 +332,7 @@ class AclPacket(Structure):
 
     def _unpack_aces(self, structure, data):
         aces = []
-        while data != b"":
+        while data != b"" and len(aces) < structure['ace_count'].value:
             ace_type = struct.unpack("<B", data[:1])[0]
             ace_struct = {
                 AceType.ACCESS_ALLOWED_ACE_TYPE: AccessAllowedAce(),
