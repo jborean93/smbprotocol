@@ -643,3 +643,26 @@ class TestSMB2SDBuffer(object):
         assert daces[1]['mask'].get_value() == 2032127
         assert str(daces[1]['sid']) == \
             "S-1-5-21-3242954042-3778974373-1659123385-1104"
+
+    def test_parse_acl_respect_ace_count(self):
+        actual = AclPacket()
+        data = b'\x02' \
+               b'\x00' \
+               b'\x93\x00' \
+               b'\x03\x00' \
+               b'\x00\x00' \
+               b'\x00\x00\x14\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00' \
+               b'\x00\x00\x14\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x05\x0c\x00\x00\x00' \
+               b'\x00\x00\x14\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x05\x07\x00\x00\x00' \
+               b'exceeding data after ACEs after ace_count which should be ignored while parsing'
+        actual.unpack(data)
+
+        assert actual['acl_revision'].get_value() == 2
+        assert actual['sbz1'].get_value() == 0
+        assert actual['acl_size'].get_value() == 147
+        assert actual['ace_count'].get_value() == 3
+        assert actual['sbz2'].get_value() == 0
+        # Only 3 ACEs parsed, exceeding data after ace_count is ignored
+        aces = actual['aces'].get_value()
+        assert isinstance(aces, list)
+        assert len(aces) == 3
