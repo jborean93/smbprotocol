@@ -148,10 +148,14 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
             if domain.domain_name.lower() == ("\\" + domain_name.lower()):
                 return domain
 
+    def clear_expired_cache(self):
+        self._referral_cache = [refferal for refferal in self._referral_cache if not refferal.is_expired]
+
     def lookup_referral(self, path_components):  # type: (List[str]) -> Optional[ReferralEntry]
         """ Checks if the path exists in the DFS referral cache. """
         # A lookup in ReferralCache involves searching for an entry with DFSPathPrefix that is a complete prefix of the
         # path being looked up.
+        self.clear_expired_cache()
         hits = []
         for referral in self._referral_cache:
             referral_path_components = [p for p in referral.dfs_path.split("\\") if p]
