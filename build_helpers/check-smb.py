@@ -9,17 +9,13 @@ def test_connection(server, port):
     conn = Connection(uuid.uuid4(), server, port=port)
     print("Opening connection to %s:%d" % (server, port))
     conn.connect(timeout=5)
-    try:
-        print("Connection successful, sending ECHO request")
-        conn.echo()
-    finally:
-        conn.disconnect(True)
+    conn.disconnect(True)
 
 
 if __name__ == '__main__':
     server = os.environ.get("SMB_SERVER", "127.0.0.1")
     port = int(os.environ.get("SMB_PORT", 445))
-    print("Waiting for Docker container SMB server to be online")
+    print("Waiting for SMB server to be online")
 
     attempt = 1
     total_attempts = 20

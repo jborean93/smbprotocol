@@ -645,10 +645,7 @@ class FileInternalInformation(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([
-            ('index_number', IntField(
-                size=8,
-                unsigned=False,
-            )),
+            ('index_number', IntField(size=8)),
         ])
         super(FileInternalInformation, self).__init__()
 
