@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.0 - TBD
+## 1.8.0 - 2021-10-21
 
 * Added support for 256bit keyed encryption ciphers
 * Added support for signing with AES GCM
