@@ -35,7 +35,7 @@ lib::setup::smb_server() {
             --detach \
             --rm \
             --publish ${SMB_PORT}:445 \
-            --volume $( pwd )/build_helpers:/app \
+            --volume $( pwd )/build_helpers:/app:z \
             --workdir /app \
             archlinux:latest \
             /bin/bash \

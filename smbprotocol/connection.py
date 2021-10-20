@@ -6,7 +6,6 @@ import binascii
 import hashlib
 import hmac
 import logging
-import math
 import os
 import struct
 import time
@@ -14,10 +13,6 @@ import threading
 
 from collections import (
     OrderedDict,
-)
-
-from cryptography.exceptions import (
-    UnsupportedAlgorithm,
 )
 
 from cryptography.hazmat.backends import (
@@ -77,6 +72,7 @@ from smbprotocol.structure import (
     FlagField,
     IntField,
     ListField,
+    TextField,
     Structure,
     StructureField,
     UuidField,
@@ -130,6 +126,11 @@ class NegotiateContextType(object):
     """
     SMB2_PREAUTH_INTEGRITY_CAPABILITIES = 0x0001
     SMB2_ENCRYPTION_CAPABILITIES = 0x0002
+    SMB2_COMPRESSION_CAPABILITIES = 0x0003
+    SMB2_NETNAME_NEGOTIATE_CONTEXT_ID = 0x0005
+    SMB2_TRANSPORT_CAPABILITIES = 0x0006
+    SMB2_RDMA_TRANSFORM_CAPABILITIES = 0x0007
+    SMB2_SIGNING_CAPABILITIES = 0x0008
 
 
 class HashAlgorithms(object):
@@ -141,12 +142,6 @@ class HashAlgorithms(object):
     """
     SHA_512 = 0x0001
 
-    @staticmethod
-    def get_algorithm(hash):
-        return {
-            HashAlgorithms.SHA_512: hashlib.sha512
-        }[hash]
-
 
 class Ciphers(object):
     """
@@ -157,28 +152,20 @@ class Ciphers(object):
     """
     AES_128_CCM = 0x0001
     AES_128_GCM = 0x0002
+    AES_256_CCM = 0x0003
+    AES_256_GCM = 0x0004
 
-    @staticmethod
-    def get_cipher(cipher):
-        return {
-            Ciphers.AES_128_CCM: aead.AESCCM,
-            Ciphers.AES_128_GCM: aead.AESGCM
-        }[cipher]
 
-    @staticmethod
-    def get_supported_ciphers():
-        supported_ciphers = []
-        try:
-            aead.AESGCM(b"\x00" * 16)
-            supported_ciphers.append(Ciphers.AES_128_GCM)
-        except UnsupportedAlgorithm:  # pragma: no cover
-            pass
-        try:
-            aead.AESCCM(b"\x00" * 16)
-            supported_ciphers.append(Ciphers.AES_128_CCM)
-        except UnsupportedAlgorithm:  # pragma: no cover
-            pass
-        return supported_ciphers
+class SigningAlgorithms:
+    """
+    [MS-SMB2] 2.2.3.1.7 SMB2_SIGNING_CAPABILITIES
+
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/cb9b5d66-b6be-4d18-aa66-8784a871cc10
+    16-bit integer IDs that specify the supported signing algorithms.
+    """
+    HMAC_SHA256 = 0x0000
+    AES_CMAC = 0x0001
+    AES_GMAC = 0x0002
 
 
 class SMB2NegotiateRequest(Structure):
@@ -301,16 +288,20 @@ class SMB3NegotiateRequest(Structure):
         context_count = structure['negotiate_context_count'].get_value()
         context_list = []
         for idx in range(0, context_count):
-            field, data = self._parse_negotiate_context_entry(data, idx)
+            field, data = self._parse_negotiate_context_entry(data)
             context_list.append(field)
 
         return context_list
 
-    def _parse_negotiate_context_entry(self, data, idx):
+    def _parse_negotiate_context_entry(self, data):
         data_length = struct.unpack("<H", data[2:4])[0]
         negotiate_context = SMB2NegotiateContextRequest()
         negotiate_context.unpack(data[:data_length + 8])
-        return negotiate_context, data[8 + data_length:]
+        padded_size = data_length % 8
+        if padded_size != 0:
+            padded_size = 8 - padded_size
+
+        return negotiate_context, data[8 + data_length + padded_size:]
 
 
 class SMB2NegotiateContextRequest(Structure):
@@ -349,11 +340,14 @@ class SMB2NegotiateContextRequest(Structure):
 
     def _data_structure_type(self, structure):
         con_type = structure['context_type'].get_value()
-        if con_type == \
-                NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES:
+        if con_type == NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES:
             return SMB2PreauthIntegrityCapabilities
         elif con_type == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES:
             return SMB2EncryptionCapabilities
+        elif con_type == NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID:
+            return SMB2NetnameNegotiateContextId
+        elif con_type == NegotiateContextType.SMB2_SIGNING_CAPABILITIES:
+            return SMB2SigningCapabilities
 
     def _padding_size(self, structure):
         data_size = len(structure['data'])
@@ -416,6 +410,48 @@ class SMB2EncryptionCapabilities(Structure):
             )),
         ])
         super(SMB2EncryptionCapabilities, self).__init__()
+
+
+class SMB2NetnameNegotiateContextId(Structure):
+    """
+    [MS-SMB2] 2.2.3.1.4 SMB2_NETNAME_NEGOTIATE_CONTEXT_ID
+
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/ca6726bd-b9cf-43d9-b0bc-d127d3c993b3
+
+    The SMB2_NETNAME_NEGOTIATE_CONTEXT_ID context is specified in an SMB2
+    NEGOTIATE request to indicate the server name the client connects to.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('net_name', TextField()),
+        ])
+        super().__init__()
+
+
+class SMB2SigningCapabilities(Structure):
+    """
+    [MS-SMB2] 2.2.3.1.7 SMB2_SIGNING_CAPABILITIES
+
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/cb9b5d66-b6be-4d18-aa66-8784a871cc10
+
+    The SMB2_SIGNING_CAPABILITIES context is specified in an SMB2 NEGOTIATE
+    request by the client to indicate which signing algorithms the client supports.
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict([
+            ('signing_algorithm_count', IntField(
+                size=2,
+                default=lambda s: len(s['signing_algorithms'].get_value()),
+            )),
+            ('signing_algorithms', ListField(
+                size=lambda s: s['signing_algorithm_count'].get_value() * 2,
+                list_count=lambda s: s['signing_algorithm_count'].get_value(),
+                list_type=EnumField(size=2, enum_type=SigningAlgorithms),
+            )),
+        ])
+        super().__init__()
 
 
 class SMB2NegotiateResponse(Structure):
@@ -696,10 +732,13 @@ class Connection(object):
         # The cipher object that was negotiated
         self.cipher_id = None
 
+        # The signing algorithm that was negotiated
+        self.signing_algorithm_id = None
+
         # Keep track of the message processing thread's potential traceback that it may raise.
         self._t_exc = None
 
-    def connect(self, dialect=None, timeout=60):
+    def connect(self, dialect=None, timeout=60, preferred_encryption_algos=None, preferred_signing_algos=None):
         """
         Will connect to the target server and negotiate the capabilities
         with the client. Once setup, the client MUST call the disconnect()
@@ -707,11 +746,35 @@ class Connection(object):
         various connection properties that denote the capabilities of the
         server.
 
+        If no preferred encryption or signing algorithms are specified then
+        all algorithms are offered during negotiation. Older dialects may not
+        be offered if a custom encryption or signing algorithm list is
+        specified without the algorithm required by that dialect.
+
+        By default the following encryption algorithms are used:
+
+            AES_128_GCM
+            AES_128_CCM (required for SMB 3.0.x)
+            AES_256_GCM
+            AES_256_CCM
+
+        By default the following signing algorithms are used:
+
+            AES_GMAC
+            AES_CMAC (required for SMB 3.0.x)
+            HMAC_SHA256 (required for SMB 2.x)
+
         :param dialect: If specified, forces the dialect that is negotiated
             with the server, if not set, then the newest dialect supported by
             the server is used up to SMB 3.1.1
         :param timeout: The timeout in seconds to wait for the initial
             negotiation process to complete
+        :param preferred_encryption_algos: A list of encryption algorithm ids
+            in priority order from highest to lowest. See :class:`Ciphers` for
+            a list of known identifiers.
+        :param preferred_signing_algos: A list of signing algorithm ids in
+            priority order from highest to lowest.
+            See :class:`SigningAlgorithms` for a list of known identifiers.
         """
         log.info("Setting up transport connection")
         self.transport = Tcp(self.server_name, self.port, timeout)
@@ -722,7 +785,18 @@ class Connection(object):
         t_worker.start()
 
         log.info("Starting negotiation with SMB server")
-        smb_response = self._send_smb2_negotiate(dialect, timeout)
+        enc_algos = preferred_encryption_algos or [
+            Ciphers.AES_128_GCM,
+            Ciphers.AES_128_CCM,
+            Ciphers.AES_256_GCM,
+            Ciphers.AES_256_CCM,
+        ]
+        sign_algos = preferred_signing_algos or [
+            SigningAlgorithms.AES_GMAC,
+            SigningAlgorithms.AES_CMAC,
+            SigningAlgorithms.HMAC_SHA256,
+        ]
+        smb_response = self._send_smb2_negotiate(dialect, timeout, enc_algos, sign_algos)
         log.info("Negotiated dialect: %s"
                  % str(smb_response['dialect_revision']))
         self.dialect = smb_response['dialect_revision'].get_value()
@@ -767,15 +841,17 @@ class Connection(object):
         # SMB 3.1
         if self.dialect >= Dialects.SMB_3_1_1:
             for context in smb_response['negotiate_context_list']:
-                if context['context_type'].get_value() == \
-                        NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES:
-                    cipher_id = context['data']['ciphers'][0]
-                    self.cipher_id = Ciphers.get_cipher(cipher_id)
+                context_type = context["context_type"].get_value()
+
+                if context_type == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES:
+                    self.cipher_id = context['data']['ciphers'][0]
                     self.supports_encryption = self.cipher_id != 0
-                else:
-                    hash_id = context['data']['hash_algorithms'][0]
-                    self.preauth_integrity_hash_id = \
-                        HashAlgorithms.get_algorithm(hash_id)
+
+                elif context_type == NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES:
+                    self.preauth_integrity_hash_id = context['data']['hash_algorithms'][0]
+
+                elif context_type == NegotiateContextType.SMB2_SIGNING_CAPABILITIES:
+                    self.signing_algorithm_id = context['data']['signing_algorithms'][0]
 
     def disconnect(self, close=True):
         """
@@ -989,7 +1065,8 @@ class Connection(object):
         if session is None:
             raise SMBException("Failed to find session %s for message verification" % session_id)
 
-        expected = self._generate_signature(header.pack(), session.signing_key)
+        expected = self._generate_signature(header.pack(), session.signing_key, message_id,
+                                            flags.has_flag(Smb2Flags.SMB2_FLAGS_SERVER_TO_REDIR), command)
         actual = header['signature'].get_value()
         if actual != expected:
             raise SMBException("Server message signature could not be verified: %s != %s"
@@ -1068,7 +1145,7 @@ class Connection(object):
             if force_signature or (session and session.signing_required and session.signing_key):
                 header['flags'].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
                 b_header = header.pack() + padding
-                signature = self._generate_signature(b_header, session.signing_key)
+                signature = self._generate_signature(b_header, session.signing_key, current_id, False, message.COMMAND)
 
                 # To save on unpacking and re-packing, manually adjust the signature and update the request object for
                 # back-referencing.
@@ -1211,13 +1288,37 @@ class Connection(object):
             for request in self.outstanding_requests.values():
                 request.response_event.set()
 
-    def _generate_signature(self, b_header, signing_key):
+    def _generate_signature(self, b_header, signing_key, message_id, response, command):
         b_header = b_header[:48] + (b"\x00" * 16) + b_header[64:]
 
-        if self.dialect >= Dialects.SMB_3_0_0:
+        if self.dialect >= Dialects.SMB_3_1_1 and self.signing_algorithm_id is not None:
+            sign_id = self.signing_algorithm_id
+
+        elif self.dialect >= Dialects.SMB_3_0_0:
+            sign_id = SigningAlgorithms.AES_CMAC
+
+        else:
+            sign_id = SigningAlgorithms.HMAC_SHA256
+
+        if sign_id == SigningAlgorithms.AES_GMAC:
+            message_info = 0
+            if response:
+                message_info |= 1
+
+            if command == Commands.SMB2_CANCEL:
+                message_info |= 2
+
+            nonce = b"".join([
+                message_id.to_bytes(8, byteorder="little"),
+                message_info.to_bytes(4, byteorder="little"),
+            ])
+            signature = aead.AESGCM(signing_key).encrypt(nonce, b"", b_header)
+
+        elif sign_id == SigningAlgorithms.AES_CMAC:
             c = cmac.CMAC(algorithms.AES(signing_key), backend=default_backend())
             c.update(b_header)
             signature = c.finalize()
+
         else:
             hmac_algo = hmac.new(signing_key, msg=b_header, digestmod=hashlib.sha256)
             signature = hmac_algo.digest()[:16]
@@ -1231,13 +1332,16 @@ class Connection(object):
 
         encryption_key = session.encryption_key
         if self.dialect >= Dialects.SMB_3_1_1:
-            cipher = self.cipher_id
+            cipher_id = self.cipher_id
         else:
-            cipher = Ciphers.get_cipher(Ciphers.AES_128_CCM)
-        if cipher == aead.AESGCM:
+            cipher_id = Ciphers.AES_128_CCM
+
+        if cipher_id in [Ciphers.AES_128_GCM, Ciphers.AES_256_GCM]:
+            cipher = aead.AESGCM
             nonce = os.urandom(12)
             header['nonce'] = nonce + (b"\x00" * 4)
         else:
+            cipher = aead.AESCCM
             nonce = os.urandom(11)
             header['nonce'] = nonce + (b"\x00" * 5)
 
@@ -1263,13 +1367,18 @@ class Connection(object):
             raise SMBException(error_msg)
 
         if self.dialect >= Dialects.SMB_3_1_1:
-            cipher = self.cipher_id
+            cipher_id = self.cipher_id
         else:
-            cipher = Ciphers.get_cipher(Ciphers.AES_128_CCM)
+            cipher_id = Ciphers.AES_128_CCM
 
-        nonce_length = 12 if cipher == aead.AESGCM else 11
+        if cipher_id in [Ciphers.AES_128_GCM, Ciphers.AES_256_GCM]:
+            cipher = aead.AESGCM
+            nonce_length = 12
+        else:
+            cipher = aead.AESCCM
+            nonce_length = 11
+
         nonce = message['nonce'].get_value()[:nonce_length]
-
         signature = message['signature'].get_value()
         enc_message = message['data'].get_value() + signature
 
@@ -1277,29 +1386,42 @@ class Connection(object):
         dec_message = c.decrypt(nonce, enc_message, message.pack()[20:52])
         return dec_message
 
-    def _send_smb2_negotiate(self, dialect, timeout):
+    def _send_smb2_negotiate(self, dialect, timeout, encryption_algorithms, signing_algorithms):
         self.salt = os.urandom(32)
 
         if dialect is None:
             neg_req = SMB3NegotiateRequest()
-            self.negotiated_dialects = [
+            negotiated_dialects = [
                 Dialects.SMB_2_0_2,
                 Dialects.SMB_2_1_0,
                 Dialects.SMB_3_0_0,
                 Dialects.SMB_3_0_2,
                 Dialects.SMB_3_1_1
             ]
-            highest_dialect = Dialects.SMB_3_1_1
+
+            if SigningAlgorithms.HMAC_SHA256 not in signing_algorithms:
+                if Dialects.SMB_2_0_2 in negotiated_dialects:
+                    negotiated_dialects.remove(Dialects.SMB_2_0_2)
+                if Dialects.SMB_2_1_0 in negotiated_dialects:
+                    negotiated_dialects.remove(Dialects.SMB_2_1_0)
+
+            if (
+                SigningAlgorithms.AES_CMAC not in signing_algorithms or
+                Ciphers.AES_128_CCM not in encryption_algorithms
+            ):
+                if Dialects.SMB_3_0_0 in negotiated_dialects:
+                    negotiated_dialects.remove(Dialects.SMB_3_0_0)
+                if Dialects.SMB_3_0_2 in negotiated_dialects:
+                    negotiated_dialects.remove(Dialects.SMB_3_0_2)
         else:
             if dialect >= Dialects.SMB_3_1_1:
                 neg_req = SMB3NegotiateRequest()
             else:
                 neg_req = SMB2NegotiateRequest()
-            self.negotiated_dialects = [
-                dialect
-            ]
-            highest_dialect = dialect
-        neg_req['dialects'] = self.negotiated_dialects
+            negotiated_dialects = [dialect]
+
+        highest_dialect = sorted(negotiated_dialects)[-1]
+        self.negotiated_dialects = neg_req['dialects'] = negotiated_dialects
         log.info("Negotiating with SMB2 protocol with highest client dialect "
                  "of: %s" % [dialect for dialect, v in vars(Dialects).items()
                              if v == highest_dialect][0])
@@ -1340,17 +1462,32 @@ class Connection(object):
             enc_cap['context_type'] = \
                 NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
             enc_cap['data'] = SMB2EncryptionCapabilities()
-            supported_ciphers = Ciphers.get_supported_ciphers()
+            supported_ciphers = encryption_algorithms
             enc_cap['data']['ciphers'] = supported_ciphers
+            log.debug("Adding encryption capabilities of AES128|256 GCM and "
+                      "AES128|256 CCM to negotiate request")
+
+            netname_id = SMB2NegotiateContextRequest()
+            netname_id['context_type'] = NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID
+            netname_id['data'] = SMB2NetnameNegotiateContextId()
+            netname_id['data']['net_name'] = self.server_name
+            log.debug(f"Adding netname context id of {self.server_name} to negotiate request")
+
+            signing_cap = SMB2NegotiateContextRequest()
+            signing_cap['context_type'] = NegotiateContextType.SMB2_SIGNING_CAPABILITIES
+            signing_cap['data'] = SMB2SigningCapabilities()
+            signing_cap['data']['signing_algorithms'] = signing_algorithms
+            log.debug("Adding signing algorithms AES_GMAC, AES_CMAC, and HMAC_SHA256 to negotiate request")
+
             # remove extra padding for last list entry
-            enc_cap['padding'].size = 0
-            enc_cap['padding'] = b""
-            log.debug("Adding encryption capabilities of AES128 GCM and "
-                      "AES128 CCM to negotiate request")
+            signing_cap['padding'].size = 0
+            signing_cap['padding'] = b""
 
             neg_req['negotiate_context_list'] = [
                 int_cap,
-                enc_cap
+                enc_cap,
+                netname_id,
+                signing_cap,
             ]
 
         log.info("Sending SMB2 Negotiate message")

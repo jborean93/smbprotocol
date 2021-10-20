@@ -1,7 +1,11 @@
 # Changelog
 
-## 1.7.1 - TBD
+## 1.8.0 - TBD
 
+* Added support for 256bit keyed encryption ciphers
+* Added support for signing with AES GCM
+* Now sends the `SMB2_NETNAME_NEGOTIATE_CONTEXT_ID` with the negotiate request
+* Adds the Python requirement of [pykrb5](https://github.com/jborean93/pykrb5) for Kerberos support on non-Windows
 * Fix unpacking security descriptor ACEs with extra data on the end - https://github.com/jborean93/smbprotocol/pull/143
 * Set `index_number` in `FileInternalInformation` to be an unsigned integer to match the other structures
 * Clear out expired DFS referrals to avoid memory leaks and stale DFS information - https://github.com/jborean93/smbprotocol/issues/136
