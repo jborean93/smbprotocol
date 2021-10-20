@@ -10,7 +10,9 @@ from smbprotocol import (
 )
 
 from smbprotocol.connection import (
+    Ciphers,
     Connection,
+    SigningAlgorithms,
 )
 
 from smbprotocol.exceptions import (
@@ -266,3 +268,50 @@ class TestTreeConnect(object):
         finally:
             connection.disconnect(True)
             tree.disconnect()  # test that disconnect can be run mutliple times
+
+    @pytest.mark.parametrize('cipher', [
+        Ciphers.AES_128_CCM,
+        Ciphers.AES_128_GCM,
+        Ciphers.AES_256_CCM,
+        Ciphers.AES_256_GCM,
+    ], ids=['AES_128_CCM', 'AES_128_GCM', 'AES_256_CCM', 'AES_256_GCM'])
+    def test_encryption(self, cipher, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(preferred_encryption_algos=[cipher])
+
+        try:
+            if connection.cipher_id == 0:
+                pytest.skip("Server did not support encryption requested")
+
+            assert connection.cipher_id == cipher
+
+            session = Session(connection, smb_real[0], smb_real[1])
+            tree = TreeConnect(session, smb_real[4])
+            session.connect()
+            tree.connect()
+
+        finally:
+            connection.disconnect(True)
+
+    @pytest.mark.parametrize('algo', [
+        SigningAlgorithms.AES_GMAC,
+        SigningAlgorithms.AES_CMAC,
+        SigningAlgorithms.HMAC_SHA256,
+    ], ids=['AES_GMAC', 'AES_CMAC', 'HMAC_SHA256'])
+    def test_signing(self, algo, smb_real):
+        connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+        connection.connect(preferred_signing_algos=[algo])
+
+        try:
+            if connection.signing_algorithm_id is None:
+                pytest.skip("Server did not support signing algo requested")
+
+            assert connection.signing_algorithm_id == algo
+
+            session = Session(connection, smb_real[0], smb_real[1], require_encryption=False)
+            tree = TreeConnect(session, smb_real[4])
+            session.connect()
+            tree.connect()
+
+        finally:
+            connection.disconnect(True)

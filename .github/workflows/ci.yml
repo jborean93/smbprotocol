@@ -34,7 +34,8 @@ jobs:
         os:
         - ubuntu-latest
         - macOS-latest
-        - windows-latest
+        - windows-2019
+        - windows-2022
         python-version:
         - 3.6
         - 3.7
@@ -50,6 +51,16 @@ jobs:
           python-arch: x86
         - os: macOS-latest
           python-arch: x86
+        - os: windows-2019
+          python-arch: x86
+        - os: windows-2019
+          python-version: 3.6
+        - os: windows-2019
+          python-version: 3.7
+        - os: windows-2019
+          python-version: 3.8
+        - os: windows-2019
+          python-version: 3.9
 
     steps:
     - uses: actions/checkout@v2

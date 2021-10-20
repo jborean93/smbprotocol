@@ -16,7 +16,7 @@ valid users = @smbgroup
 server signing = mandatory
 ea support = yes
 store dos attributes = yes
-vfs objects = xattr_tdb streams_xattr
+vfs objects = streams_xattr xattr_tdb
 log level = 0
 
 [dfs]

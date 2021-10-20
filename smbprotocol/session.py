@@ -2,6 +2,7 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+import hashlib
 import logging
 import random
 import spnego
@@ -30,6 +31,7 @@ from smbprotocol import (
 
 from smbprotocol.connection import (
     Capabilities,
+    Ciphers,
     SecurityMode,
 )
 
@@ -251,6 +253,7 @@ class Session(object):
         self.decryption_key = None
         self.signing_key = None
         self.application_key = None
+        self.full_session_key = None
 
         # SMB 3.1.1+
         # Preauth integrity value computed for the exhange of SMB2
@@ -321,19 +324,31 @@ class Session(object):
         self.connection.session_table[self.session_id] = self.connection.preauth_session_table.pop(self.session_id)
 
         # session_key is the first 16 bytes, padded 0 if less than 16
-        self.session_key = context.session_key[:16].ljust(16, b"\x00")
+        self.full_session_key = context.session_key
+        self.session_key = self.full_session_key[:16].ljust(16, b"\x00")
 
         if self.connection.dialect >= Dialects.SMB_3_1_1:
             preauth_hash = b"\x00" * 64
-            hash_al = self.connection.preauth_integrity_hash_id
             for hash_list in [self.connection.preauth_integrity_hash_value, self.preauth_integrity_hash_value]:
                 for message in hash_list:
-                    preauth_hash = hash_al(preauth_hash + message).digest()
+                    # Technically the algo is based on preauth_integrity_hash_id but we only support the 1
+                    preauth_hash = hashlib.sha512(preauth_hash + message).digest()
 
             self.signing_key = self._smb3kdf(self.session_key, b"SMBSigningKey\x00", preauth_hash)
             self.application_key = self._smb3kdf(self.session_key, b"SMBAppKey\x00", preauth_hash)
-            self.encryption_key = self._smb3kdf(self.session_key, b"SMBC2SCipherKey\x00", preauth_hash)
-            self.decryption_key = self._smb3kdf(self.session_key, b"SMBS2CCipherKey\x00", preauth_hash)
+
+            if self.connection.cipher_id in [
+                Ciphers.AES_256_CCM,
+                Ciphers.AES_256_GCM,
+            ]:
+                key_length = 32
+                key = self.full_session_key
+            else:
+                key_length = 16
+                key = self.session_key
+
+            self.encryption_key = self._smb3kdf(key, b"SMBC2SCipherKey\x00", preauth_hash, length=key_length)
+            self.decryption_key = self._smb3kdf(key, b"SMBS2CCipherKey\x00", preauth_hash, length=key_length)
 
         elif self.connection.dialect >= Dialects.SMB_3_0_0:
             self.signing_key = self._smb3kdf(self.session_key, b"SMB2AESCMAC\x00", b"SmbSign\x00")
@@ -405,7 +420,7 @@ class Session(object):
         self._connected = False
         del self.connection.session_table[self.session_id]
 
-    def _smb3kdf(self, ki, label, context):
+    def _smb3kdf(self, ki, label, context, length=16):
         """
         See SMB 3.x key derivation function
         https://blogs.msdn.microsoft.com/openspecification/2017/05/26/smb-2-and-smb-3-security-in-windows-10-the-anatomy-of-signing-and-cryptographic-keys/
@@ -413,13 +428,14 @@ class Session(object):
         :param ki: The session key is the KDK used as an input to the KDF
         :param label: The purpose of this derived key as bytes string
         :param context: The context information of this derived key as bytes
+        :param length: The length of the key to generate
         string
         :return: Key derived by the KDF as specified by [SP800-108] 5.1
         """
         kdf = KBKDFHMAC(
             algorithm=hashes.SHA256(),
             mode=Mode.CounterMode,
-            length=16,
+            length=length,
             rlen=4,
             llen=4,
             location=CounterLocation.BeforeFixed,

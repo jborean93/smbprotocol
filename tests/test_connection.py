@@ -2,14 +2,9 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import hashlib
 import os
 import pytest
 import uuid
-
-from cryptography.hazmat.primitives.ciphers import (
-    aead,
-)
 
 from datetime import (
     datetime,
@@ -25,6 +20,8 @@ from smbprotocol.connection import (
     HashAlgorithms,
     NegotiateContextType,
     Request,
+    SMB2NetnameNegotiateContextId,
+    SMB2SigningCapabilities,
     SecurityMode,
     SMB2CancelRequest,
     SMB2EncryptionCapabilities,
@@ -35,6 +32,7 @@ from smbprotocol.connection import (
     SMB2PreauthIntegrityCapabilities,
     SMB2TransformHeader,
     SMB3NegotiateRequest,
+    SigningAlgorithms,
 )
 
 from smbprotocol.header import (
@@ -54,30 +52,6 @@ from smbprotocol.exceptions import (
 from smbprotocol.session import (
     Session,
 )
-
-
-def test_valid_hash_algorithm():
-    expected = hashlib.sha512
-    actual = HashAlgorithms.get_algorithm(0x1)
-    assert actual == expected
-
-
-def test_invalid_hash_algorithm():
-    with pytest.raises(KeyError) as exc:
-        HashAlgorithms.get_algorithm(0x2)
-        assert False  # shouldn't be reached
-
-
-def test_valid_cipher():
-    expected = aead.AESCCM
-    actual = Ciphers.get_cipher(0x1)
-    assert actual == expected
-
-
-def test_invalid_cipher():
-    with pytest.raises(KeyError) as exc:
-        Ciphers.get_cipher(0x3)
-        assert False  # shouldn't be reached
 
 
 class TestSMB2NegotiateRequest(object):
@@ -163,8 +137,15 @@ class TestSMB3NegotiateRequest(object):
         enc_cap = SMB2EncryptionCapabilities()
         enc_cap['ciphers'] = [Ciphers.AES_128_GCM]
         con_req['data'] = enc_cap
+
+        netname = SMB2NegotiateContextRequest()
+        netname['context_type'] = NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID
+        netname['data'] = SMB2NetnameNegotiateContextId()
+        netname['data']['net_name'] = 'café'
+
         message['negotiate_context_list'] = [
-            con_req
+            con_req,
+            netname,
         ]
         expected = b"\x24\x00" \
                    b"\x05\x00" \
@@ -174,7 +155,7 @@ class TestSMB3NegotiateRequest(object):
                    b"\x33\x33\x33\x33\x33\x33\x33\x33" \
                    b"\x33\x33\x33\x33\x33\x33\x33\x33" \
                    b"\x70\x00\x00\x00" \
-                   b"\x01\x00" \
+                   b"\x02\x00" \
                    b"\x00\x00" \
                    b"\x02\x02" \
                    b"\x10\x02" \
@@ -184,9 +165,12 @@ class TestSMB3NegotiateRequest(object):
                    b"\x00\x00" \
                    b"\x02\x00\x04\x00\x00\x00\x00\x00" \
                    b"\x01\x00\x02\x00" \
-                   b"\x00\x00\x00\x00"
+                   b"\x00\x00\x00\x00" \
+                   b"\x05\x00\x08\x00\x00\x00\x00\x00" \
+                   b"\x63\x00\x61\x00\x66\x00\xe9\x00"
+
         actual = message.pack()
-        assert len(message) == 64
+        assert len(message) == 80
         assert actual == expected
 
     def test_create_message_one_dialect(self):
@@ -236,7 +220,7 @@ class TestSMB3NegotiateRequest(object):
                b"\x33\x33\x33\x33\x33\x33\x33\x33" \
                b"\x33\x33\x33\x33\x33\x33\x33\x33" \
                b"\x70\x00\x00\x00" \
-               b"\x01\x00" \
+               b"\x02\x00" \
                b"\x00\x00" \
                b"\x02\x02" \
                b"\x10\x02" \
@@ -246,9 +230,12 @@ class TestSMB3NegotiateRequest(object):
                b"\x00\x00" \
                b"\x02\x00\x04\x00\x00\x00\x00\x00" \
                b"\x01\x00\x02\x00" \
-               b"\x00\x00\x00\x00"
+               b"\x00\x00\x00\x00" \
+               b"\x05\x00\x08\x00\x00\x00\x00\x00" \
+               b"\x63\x00\x61\x00\x66\x00\xe9\x00"
+
         actual.unpack(data)
-        assert len(actual) == 60
+        assert len(actual) == 76
         assert actual['structure_size'].get_value() == 36
         assert actual['dialect_count'].get_value() == 5
         assert actual['security_mode'].get_value() == \
@@ -258,7 +245,7 @@ class TestSMB3NegotiateRequest(object):
         assert actual['client_guid'].get_value() == \
             uuid.UUID(bytes=b"\x33" * 16)
         assert actual['negotiate_context_offset'].get_value() == 112
-        assert actual['negotiate_context_count'].get_value() == 1
+        assert actual['negotiate_context_count'].get_value() == 2
         assert actual['reserved2'].get_value() == 0
         assert actual['dialects'].get_value() == [
             Dialects.SMB_2_0_2,
@@ -269,7 +256,7 @@ class TestSMB3NegotiateRequest(object):
         ]
         assert actual['padding'].get_value() == b"\x00\x00"
 
-        assert len(actual['negotiate_context_list'].get_value()) == 1
+        assert len(actual['negotiate_context_list'].get_value()) == 2
         neg_con = actual['negotiate_context_list'][0]
         assert isinstance(neg_con, SMB2NegotiateContextRequest)
         assert len(neg_con) == 12
@@ -281,6 +268,15 @@ class TestSMB3NegotiateRequest(object):
                           SMB2EncryptionCapabilities)
         assert neg_con['data']['cipher_count'].get_value() == 1
         assert neg_con['data']['ciphers'].get_value() == [Ciphers.AES_128_GCM]
+
+        net_name = actual['negotiate_context_list'][1]
+        assert isinstance(net_name, SMB2NegotiateContextRequest)
+        assert len(net_name) == 16
+        assert net_name['context_type'].get_value() == NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID
+        assert net_name['data_length'].get_value() == 8
+        assert net_name['reserved'].get_value() == 0
+        assert isinstance(net_name['data'].get_value(), SMB2NetnameNegotiateContextId)
+        assert net_name['data']['net_name'].get_value() == 'café'
 
 
 class TestSMB2NegotiateContextRequest(object):
@@ -323,14 +319,14 @@ class TestSMB2NegotiateContextRequest(object):
 
     def test_parse_message_invalid_context_type(self):
         actual = SMB2NegotiateContextRequest()
-        data = b"\x03\x00" \
+        data = b"\xFF\xFF" \
                b"\x04\x00" \
                b"\x00\x00\x00\x00" \
                b"\x01\x00" \
                b"\x02\x00"
         with pytest.raises(Exception) as exc:
             actual.unpack(data)
-        assert str(exc.value) == "Enum value 3 does not exist in enum type " \
+        assert str(exc.value) == "Enum value 65535 does not exist in enum type " \
                                  "<class 'smbprotocol.connection." \
                                  "NegotiateContextType'>"
 
@@ -395,6 +391,58 @@ class TestSMB2EncryptionCapabilities(object):
         assert actual['ciphers'].get_value() == [
             Ciphers.AES_128_CCM,
             Ciphers.AES_128_GCM
+        ]
+
+
+class TestSMB2NetnameNegotiateContextId:
+
+    def test_create_message(self):
+        message = SMB2NetnameNegotiateContextId()
+        message["net_name"] = "hostname"
+        expected = b"\x68\x00\x6F\x00\x73\x00\x74\x00" \
+                   b"\x6E\x00\x61\x00\x6D\x00\x65\x00"
+        actual = message.pack()
+        assert len(message) == 16
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2NetnameNegotiateContextId()
+        data = b"\x68\x00\x6F\x00\x73\x00\x74\x00" \
+               b"\x6E\x00\x61\x00\x6D\x00\x65\x00"
+        actual.unpack(data)
+        assert len(actual) == 16
+        assert actual["net_name"].get_value() == "hostname"
+
+
+class TestSMB2SigningCapabilities:
+
+    def test_create_message(self):
+        message = SMB2SigningCapabilities()
+        message["signing_algorithms"] = [
+            SigningAlgorithms.AES_GMAC,
+            SigningAlgorithms.AES_CMAC,
+            SigningAlgorithms.HMAC_SHA256,
+        ]
+        expected = b"\x03\x00" \
+                   b"\x02\x00" \
+                   b"\x01\x00" \
+                   b"\x00\x00"
+        actual = message.pack()
+        assert len(message) == 8
+        assert actual == expected
+
+    def test_parse_message(self):
+        actual = SMB2SigningCapabilities()
+        data = b"\x03\x00" \
+               b"\x02\x00" \
+               b"\x01\x00" \
+               b"\x00\x00"
+        actual.unpack(data)
+        assert len(actual) == 8
+        assert actual["signing_algorithms"].get_value() == [
+            SigningAlgorithms.AES_GMAC,
+            SigningAlgorithms.AES_CMAC,
+            SigningAlgorithms.HMAC_SHA256,
         ]
 
 
@@ -1079,51 +1127,61 @@ class TestConnection(object):
         finally:
             connection.disconnect(True)
 
-    def test_encrypt_ccm(self, monkeypatch):
+    @pytest.mark.parametrize('key, cipher, signature, data', [
+        (b"\xff" * 16, Ciphers.AES_128_CCM, b"\xc8\x73\x0c\x9b\xa7\xe5\x9f\x1c\xfd\x37\x51\xa1\x95\xf2\xb3\xac",
+         b"\x21\x91\xe3\x0e"),
+        (b"\xff" * 32, Ciphers.AES_256_CCM, b"\x3E\xFB\x47\x97\x51\x8A\xAB\x05\xC5\x48\xA7\xFC\x20\x74\xF5\x93",
+         b"\x2F\x58\x41\xD7"),
+    ], ids=['AES128_CCM', 'AES256_CCM'])
+    def test_encrypt_ccm(self, key, cipher, signature, data, monkeypatch):
         def mockurandom(length):
             return b"\xff" * length
         monkeypatch.setattr(os, 'urandom', mockurandom)
 
         connection = Connection(uuid.uuid4(), "server", 445)
         connection.dialect = Dialects.SMB_3_1_1
-        connection.cipher_id = Ciphers.get_cipher(Ciphers.AES_128_CCM)
+        connection.cipher_id = cipher
         session = Session(connection, "user", "pass")
         session.session_id = 1
-        session.encryption_key = b"\xff" * 16
+        session.encryption_key = key
 
         expected = SMB2TransformHeader()
-        expected['signature'] = b"\xc8\x73\x0c\x9b\xa7\xe5\x9f\x1c" \
-            b"\xfd\x37\x51\xa1\x95\xf2\xb3\xac"
+        expected['signature'] = signature
         expected['nonce'] = b"\xff" * 11 + b"\x00" * 5
         expected['original_message_size'] = 4
         expected['flags'] = 1
         expected['session_id'] = 1
-        expected['data'] = b"\x21\x91\xe3\x0e"
+        expected['data'] = data
 
         actual = connection._encrypt(b"\x01\x02\x03\x04", session)
         assert isinstance(actual, SMB2TransformHeader)
         assert actual.pack() == expected.pack()
 
-    def test_encrypt_gcm(self, monkeypatch):
+    @pytest.mark.parametrize('key, cipher, signature, data', [
+        (b"\xff" * 16, Ciphers.AES_128_GCM, b"\x39\xd8\x32\x34\xd7\x53\xd0\x8e\xc0\xfc\xbe\x33\x01\x5f\x19\xbd",
+         b"\xda\x26\x57\x33"),
+        (b"\xff" * 32, Ciphers.AES_256_GCM, b"\x45\xE5\xB7\x23\x05\x2E\xCA\xD0\x1E\xEF\xAD\x6F\x04\x87\xE3\x2D",
+         b"\xBC\x39\xBD\x81"),
+    ], ids=['AES128_CCM', 'AES256_CCM'])
+    def test_encrypt_gcm(self, key, cipher, signature, data, monkeypatch):
         def mockurandom(length):
             return b"\xff" * length
         monkeypatch.setattr(os, 'urandom', mockurandom)
 
         connection = Connection(uuid.uuid4(), "server", 445)
         connection.dialect = Dialects.SMB_3_1_1
-        connection.cipher_id = Ciphers.get_cipher(Ciphers.AES_128_GCM)
+        connection.cipher_id = cipher
         session = Session(connection, "user", "pass")
         session.session_id = 1
-        session.encryption_key = b"\xff" * 16
+        session.encryption_key = key
 
         expected = SMB2TransformHeader()
-        expected['signature'] = b"\x39\xd8\x32\x34\xd7\x53\xd0\x8e" \
-            b"\xc0\xfc\xbe\x33\x01\x5f\x19\xbd"
+        expected['signature'] = signature
         expected['nonce'] = b"\xff" * 12 + b"\x00" * 4
         expected['original_message_size'] = 4
         expected['flags'] = 1
         expected['session_id'] = 1
-        expected['data'] = b"\xda\x26\x57\x33"
+        expected['data'] = data
 
         actual = connection._encrypt(b"\x01\x02\x03\x04", session)
         assert isinstance(actual, SMB2TransformHeader)
