@@ -2,7 +2,7 @@
 SMBv2 and v3 Client for Python.
 
 
-[![Build Status](https://dev.azure.com/jborean93/jborean93/_apis/build/status/jborean93.smbprotocol?branchName=master)](https://dev.azure.com/jborean93/jborean93/_build/latest?definitionId=4&branchName=master)
+[![Test workflow](https://github.com/jborean93/smbprotocol/actions/workflows/ci.yml/badge.svg)](https://github.com/jborean93/smbprotocol/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/jborean93/smbprotocol/branch/master/graph/badge.svg)](https://codecov.io/gh/jborean93/smbprotocol)
 [![PyPI version](https://badge.fury.io/py/smbprotocol.svg)](https://badge.fury.io/py/smbprotocol)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jborean93/smbprotocol/blob/master/LICENSE)
