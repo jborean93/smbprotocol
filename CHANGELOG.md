@@ -4,6 +4,8 @@
 
 * Fix unpacking security descriptor ACEs with extra data on the end - https://github.com/jborean93/smbprotocol/pull/143
 * Set `index_number` in `FileInternalInformation` to be an unsigned integer to match the other structures
+* Clear out expired DFS referrals to avoid memory leaks and stale DFS information - https://github.com/jborean93/smbprotocol/issues/136
+
 
 ## 1.7.0 - 2021-09-22
 
