@@ -35,6 +35,7 @@ backlog for features that would be nice to have in this library.
 * Python 3.6+
 * For Kerberos auth on Linux
     * [python-gssapi](https://github.com/pythongssapi/python-gssapi)
+    * [pykrb5](https://github.com/jborean93/pykrb5)
 
 To use Kerberos authentication on Linux, further dependencies are required, to install these dependencies run
 
@@ -256,25 +257,12 @@ Samba container and use that as part of the tests. To do so run the following
 bash commands;
 
 ```bash
-export SMB_USER=smbuser
-export SMB_PASSWORD=smbpassword
-export SMB_PORT=445
-export SMB_SERVER=localhost
-export SMB_SHARE=share
+source ./build_helpers/lib.sh
 
-docker run \
-    --detach \
-    --rm \
-    --privileged=true \
-    -p $SMB_PORT:445 \
-    -v $(pwd)/build-scripts:/app \
-    -w /app \
-    -e SMB_USER=$SMB_USER \
-    -e SMB_PASSWORD=$SMB_PASSWORD \
-    -e SMB_SHARE=$SMB_SHARE \
-    centos:7 \
-    /bin/bash /app/setup_samba.sh
+lib::setup::smb_server
 ```
+
+This command will also set the required `SMB_*` env vars used in testing.
 
 
 ## Backlog

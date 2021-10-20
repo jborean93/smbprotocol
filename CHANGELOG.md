@@ -3,6 +3,7 @@
 ## 1.7.1 - TBD
 
 * Fix unpacking security descriptor ACEs with extra data on the end - https://github.com/jborean93/smbprotocol/pull/143
+* Set `index_number` in `FileInternalInformation` to be an unsigned integer to match the other structures
 
 ## 1.7.0 - 2021-09-22
 

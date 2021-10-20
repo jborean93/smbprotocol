@@ -18,7 +18,7 @@ with open(abs_path('README.md'), mode='rb') as fd:
 
 setup(
     name='smbprotocol',
-    version='1.7.0',
+    version='1.7.1',
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
@@ -28,6 +28,7 @@ setup(
         'kerberos:sys_platform=="win32"': [],
         'kerberos:sys_platform!="win32"': [
             'gssapi>=1.4.1',
+            'krb5',
         ],
     },
     python_requires='>=3.6',
@@ -47,5 +48,6 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 )

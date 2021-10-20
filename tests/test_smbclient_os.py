@@ -826,6 +826,8 @@ def test_open_file_unbuffered_text_file(smb_share):
         smbclient.open_file("%s\\file.txt" % smb_share, mode='w', buffering=0)
 
 
+@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
+                    reason="Bug on latest Samba https://bugzilla.samba.org/show_bug.cgi?id=14877")
 def test_open_file_with_ads(smb_share):
     filename = "%s\\file.txt" % smb_share
     with smbclient.open_file(filename, mode='w') as fd:
