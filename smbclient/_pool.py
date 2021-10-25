@@ -142,7 +142,8 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
             self._domain_cache.append(DomainEntry(domain_referral))
 
     def cache_referral(self, referral):
-        self._referral_cache.append(ReferralEntry(referral))
+        if referral['number_of_referrals'].get_value() > 0:
+            self._referral_cache.append(ReferralEntry(referral))
 
     def lookup_domain(self, domain_name):  # type: (str) -> Optional[DomainEntry]
         # TODO: Check domain referral expiry and resend request if expired
