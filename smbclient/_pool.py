@@ -28,6 +28,7 @@ from smbprotocol.dfs import (
 from smbprotocol.exceptions import (
     BadNetworkName,
     InvalidParameter,
+    ObjectPathNotFound,
 )
 
 from smbprotocol.ioctl import (
@@ -299,6 +300,9 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             referral_response = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
             client_config.cache_referral(referral_response)
             referral = client_config.lookup_referral(path_split)
+            if not referral:
+                raise ObjectPathNotFound()
+
             path = path.replace(referral.dfs_path, referral.target_hint.target_path, 1)
             path_split = [p for p in path.split("\\") if p]
 
@@ -322,6 +326,11 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             ipc_tree = get_smb_tree(ipc_path, **get_kwargs)[0]
             referral = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
             client_config.cache_referral(referral)
+
+            # Sometimes a DFS referral may return 0 referrals, this needs to be checked here to avoid repeats.
+            if not client_config.lookup_referral(path_split):
+                raise ObjectPathNotFound()
+
             return get_smb_tree(path, **get_kwargs)
 
     file_path = ""

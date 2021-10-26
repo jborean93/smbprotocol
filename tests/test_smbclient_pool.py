@@ -5,11 +5,16 @@
 import pytest
 import smbclient._pool as pool
 
+from smbprotocol.dfs import DFSReferralResponse
+
 from smbprotocol.exceptions import (
+    BadNetworkName,
     InvalidParameter,
+    ObjectPathNotFound,
 )
 
 from .conftest import (
+    DC_REFERRAL,
     DOMAIN_NAME,
     DOMAIN_REFERRAL,
 )
@@ -97,3 +102,39 @@ def test_reset_connection_error_warning(monkeypatch, mocker):
 
     assert warning_mock.call_count == 1
     assert warning_mock.call_args[0][0] == 'Failed to close connection conn: exception'
+
+
+def test_dfs_referral_no_links_no_domain(reset_config, monkeypatch, mocker):
+    no_referral = DFSReferralResponse()
+    no_referral["path_consumed"] = 0
+    no_referral["number_of_referrals"] = 0
+    dfs_mock = mocker.MagicMock()
+    dfs_mock.side_effect = [no_referral]
+
+    tree_mock = mocker.MagicMock()
+    tree_mock.side_effect = (BadNetworkName(), None)
+
+    monkeypatch.setattr(pool, "dfs_request", dfs_mock)
+    monkeypatch.setattr(pool.TreeConnect, "connect", tree_mock)
+    monkeypatch.setattr(pool, "register_session", mocker.MagicMock())
+
+    with pytest.raises(ObjectPathNotFound):
+        pool.get_smb_tree(r"\\server\dfs")
+
+
+def test_dfs_referral_no_links_from_domain(reset_config, monkeypatch, mocker):
+    actual_get_smb_tree = pool.get_smb_tree
+
+    no_referral = DFSReferralResponse()
+    no_referral["path_consumed"] = 0
+    no_referral["number_of_referrals"] = 0
+    dfs_mock = mocker.MagicMock()
+    dfs_mock.side_effect = [DOMAIN_REFERRAL, DC_REFERRAL, no_referral]
+
+    monkeypatch.setattr(pool, "dfs_request", dfs_mock)
+    monkeypatch.setattr(pool, 'get_smb_tree', mocker.MagicMock())
+    config = pool.ClientConfig()
+    config.domain_controller = DOMAIN_NAME
+
+    with pytest.raises(ObjectPathNotFound):
+        actual_get_smb_tree(f"\\\\{DOMAIN_NAME}\\dfs")

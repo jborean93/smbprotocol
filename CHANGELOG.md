@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.1 - TBD
+
+* Raises `ObjectPathNotFound` if a DFS referral is required but not referrals are available (https://github.com/jborean93/smbprotocol/pull/149)
+
+
 ## 1.8.0 - 2021-10-21
 
 * Added support for 256bit keyed encryption ciphers
