@@ -4,6 +4,7 @@
 
 import pytest
 import smbclient._pool as pool
+import smbclient._io as io
 
 from smbprotocol.dfs import DFSReferralResponse
 
@@ -138,3 +139,19 @@ def test_dfs_referral_no_links_from_domain(reset_config, monkeypatch, mocker):
 
     with pytest.raises(ObjectPathNotFound):
         actual_get_smb_tree(f"\\\\{DOMAIN_NAME}\\dfs")
+
+
+def test_resolve_dfs_referral_no_links(reset_config, monkeypatch, mocker):
+    no_referral = DFSReferralResponse()
+    no_referral["path_consumed"] = 0
+    no_referral["number_of_referrals"] = 0
+    dfs_mock = mocker.MagicMock()
+    dfs_mock.side_effect = [no_referral]
+    monkeypatch.setattr(io, "dfs_request", dfs_mock)
+
+    raw_io = mocker.MagicMock()
+    raw_io.name = r"\\server\dfs"
+    raw_io.fd.tree_connect.is_dfs_share = True
+
+    with pytest.raises(ObjectPathNotFound):
+        list(io._resolve_dfs(raw_io))

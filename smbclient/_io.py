@@ -156,6 +156,9 @@ def _resolve_dfs(raw_io):
     referral = dfs_request(raw_io.fd.tree_connect, raw_path[1:])
     client_config.cache_referral(referral)
     info = client_config.lookup_referral([p for p in raw_path.split("\\") if p])
+    if not info:
+        raise ObjectPathNotFound()
+
     connection_kwargs = getattr(raw_io, '_%s__kwargs' % type(raw_io).__name__, {})
 
     for target in info:
