@@ -459,7 +459,8 @@ class SMB2CreateResponse(Structure):
             ('end_of_file', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('reserved2', IntField(size=4)),
             ('file_id', BytesField(size=16)),
@@ -554,7 +555,8 @@ class SMB2CloseResponse(Structure):
             ('end_of_file', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             ))
         ])
         super(SMB2CloseResponse, self).__init__()
