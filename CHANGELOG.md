@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.2 - TBD
+
+* Add missing `FileAttributes` enum values
+* Set messages with `FileAttributes` to be non-strict allowing unknown values in the future to be parsed without an error
+
+
 ## 1.8.1 - 2021-10-27
 
 * Raises `ObjectPathNotFound` if a DFS referral is required but not referrals are available (https://github.com/jborean93/smbprotocol/pull/149)
