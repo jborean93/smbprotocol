@@ -89,6 +89,10 @@ class FileAttributes(object):
     FILE_ATTRIBUTE_TEMPORARY = 0x00000100
     FILE_ATTRIBUTE_INTEGRITY_STREAM = 0x00008000
     FILE_ATTRIBUTE_NO_SCRUB_DATA = 0x00020000
+    FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x00040000
+    FILE_ATTRIBUTE_PINNED = 0x00080000
+    FILE_ATTRIBUTE_UNPINNED = 0x00100000
+    FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000
 
 
 class FileInformationClass(object):
@@ -296,6 +300,7 @@ class FileAttributeTagInformation(Structure):
             ('file_attributes', FlagField(
                 size=4,
                 flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('reparse_tag', EnumField(
                 size=4,
@@ -324,6 +329,7 @@ class FileBasicInformation(Structure):
             ('file_attributes', FlagField(
                 size=4,
                 flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('reserved', IntField(size=4)),
         ])
@@ -351,7 +357,8 @@ class FileBothDirectoryInformation(Structure):
             ('allocation_size', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('file_name_length', IntField(
                 size=4,
@@ -398,7 +405,8 @@ class FileDirectoryInformation(Structure):
             ('allocation_size', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('file_name_length', IntField(
                 size=4,
@@ -480,7 +488,8 @@ class FileFullDirectoryInformation(Structure):
             ('allocation_size', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('file_name_length', IntField(
                 size=4,
@@ -569,7 +578,8 @@ class FileIdBothDirectoryInformation(Structure):
             ('allocation_size', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('file_name_length', IntField(
                 size=4,
@@ -618,7 +628,8 @@ class FileIdFullDirectoryInformation(Structure):
             ('allocation_size', IntField(size=8)),
             ('file_attributes', FlagField(
                 size=4,
-                flag_type=FileAttributes
+                flag_type=FileAttributes,
+                flag_strict=False,
             )),
             ('file_name_length', IntField(
                 size=4,
