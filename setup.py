@@ -18,7 +18,7 @@ with open(abs_path('README.md'), mode='rb') as fd:
 
 setup(
     name='smbprotocol',
-    version='1.8.2',
+    version='1.8.3',
     packages=['smbclient', 'smbprotocol'],
     install_requires=[
         'cryptography>=2.0',
@@ -27,8 +27,7 @@ setup(
     extras_require={
         'kerberos:sys_platform=="win32"': [],
         'kerberos:sys_platform!="win32"': [
-            'gssapi>=1.4.1',
-            'krb5',
+            'pyspnego[kerberos]',
         ],
     },
     python_requires='>=3.6',

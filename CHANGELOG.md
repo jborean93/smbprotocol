@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.2 - TBD
+## 1.8.2 - 2021-11-03
 
 * Add missing `FileAttributes` enum values
 * Set messages with `FileAttributes` to be non-strict allowing unknown values in the future to be parsed without an error
