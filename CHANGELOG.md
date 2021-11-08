@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.3 - TBD
+
+* Set `additional_information` field in `SMB2SetInfoRequest` to a flags field rather than a single enum as per protocol docs
+
+
 ## 1.8.2 - 2021-11-03
 
 * Add missing `FileAttributes` enum values
