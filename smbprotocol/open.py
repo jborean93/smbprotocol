@@ -1037,9 +1037,9 @@ class SMB2SetInfoRequest(Structure):
                 default=96
             )),
             ('reserved', IntField(size=2)),
-            ('additional_information', EnumField(
+            ('additional_information', FlagField(
                 size=4,
-                enum_type=InfoAdditionalInformation,
+                flag_type=InfoAdditionalInformation,
             )),
             ('file_id', BytesField(size=16)),
             ('buffer', BytesField(
