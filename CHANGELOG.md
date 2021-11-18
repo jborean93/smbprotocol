@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.3 - TBD
+## 1.8.3 - 2021-11-19
 
 * Set `additional_information` field in `SMB2SetInfoRequest` to a flags field rather than a single enum as per protocol docs
 
