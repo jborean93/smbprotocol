@@ -159,7 +159,7 @@ def _resolve_dfs(raw_io):
     if not info:
         raise ObjectPathNotFound()
 
-    connection_kwargs = getattr(raw_io, '_%s__kwargs' % type(raw_io).__name__, {})
+    connection_kwargs = getattr(raw_io, '_%s__kwargs' % SMBRawIO.__name__, {})
 
     for target in info:
         new_path = raw_path.replace(info.dfs_path, target.target_path, 1)
