@@ -3,6 +3,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import logging
+import smbclient.path
 
 from smbclient._pool import (
     ClientConfig,
@@ -51,12 +52,5 @@ from smbclient._os import (
     XATTR_REPLACE,
 )
 
-try:
-    from logging import NullHandler
-except ImportError:  # pragma: no cover
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
-
 logger = logging.getLogger(__name__)
-logger.addHandler(NullHandler())
+logger.addHandler(logging.NullHandler())
