@@ -1,8 +1,9 @@
 # Changelog
 
-## FUTURE - TBD
+## 1.9.0 - 2022-02-01
 
 * Fix connection cache reuse for some DFS referral requests
+* Add `smbclient.path` to the `smbclient` import allowing `import smbclient; smbclient.path.func()`
 
 
 ## 1.8.3 - 2021-11-19
