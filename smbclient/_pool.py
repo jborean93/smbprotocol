@@ -110,7 +110,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         self.require_secure_negotiate = require_secure_negotiate
         self._domain_controller = domain_controller  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
-        self._referral_cache = []  # type: List[ReferralEntry]
+        self._referral_cache = {}  # type: Dict[ReferralEntry]
 
     @property
     def domain_controller(self):
@@ -144,7 +144,9 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
 
     def cache_referral(self, referral):
         if referral['number_of_referrals'].get_value() > 0:
-            self._referral_cache.append(ReferralEntry(referral))
+            entry = ReferralEntry(referral)
+            self._referral_cache[entry.dfs_path] = entry
+            return entry
 
     def lookup_domain(self, domain_name):  # type: (str) -> Optional[DomainEntry]
         # TODO: Check domain referral expiry and resend request if expired
@@ -156,9 +158,9 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         """ Checks if the path exists in the DFS referral cache. """
         # A lookup in ReferralCache involves searching for an entry with DFSPathPrefix that is a complete prefix of the
         # path being looked up.
-        self._clear_expired_cache()
+
         hits = []
-        for referral in self._referral_cache:
+        for referral in self._referral_cache.values():
             referral_path_components = [p for p in referral.dfs_path.split("\\") if p]
             for idx, referral_component in enumerate(referral_path_components):
                 if idx >= len(path_components) or referral_component != path_components[idx]:
@@ -188,9 +190,6 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         # Make sure we set this last in case different credentials were specified in the config
         if domain_controller:
             self.domain_controller = config['domain_controller']
-
-    def _clear_expired_cache(self) -> None:
-        self._referral_cache = [refferal for refferal in self._referral_cache if not refferal.is_expired]
 
 
 def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
@@ -298,8 +297,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             # Use the dc hint as the source for the root referral request
             ipc_tree = get_smb_tree(u"\\%s\\IPC$" % domain_referral.dc_hint, **get_kwargs)[0]
             referral_response = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
-            client_config.cache_referral(referral_response)
-            referral = client_config.lookup_referral(path_split)
+            referral = client_config.cache_referral(referral_response)
             if not referral:
                 raise ObjectPathNotFound()
 
@@ -325,10 +323,8 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             # The share could be a DFS root, issue a root referral request to the hostname and cache the result.
             ipc_tree = get_smb_tree(ipc_path, **get_kwargs)[0]
             referral = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
-            client_config.cache_referral(referral)
-
             # Sometimes a DFS referral may return 0 referrals, this needs to be checked here to avoid repeats.
-            if not client_config.lookup_referral(path_split):
+            if not client_config.cache_referral(referral):
                 raise ObjectPathNotFound()
 
             return get_smb_tree(path, **get_kwargs)
