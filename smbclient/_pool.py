@@ -278,11 +278,15 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
 
     # Check if we've already got a referral match for the path specified and use that path instead.
     referral = client_config.lookup_referral(path_split)
+    expired_referral = None
     if referral and not referral.is_expired:
         path = path.replace(referral.dfs_path, referral.target_hint.target_path, 1)
         path_split = [p for p in path.split("\\") if p]
 
     else:
+        # Save expired referral for refresh it
+        expired_referral = referral
+
         # If there was no referral match, check if the hostname portion matches any known domain names
         domain_referral = client_config.lookup_domain(path_split[0])
 
@@ -300,6 +304,17 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             referral = client_config.cache_referral(referral_response)
             if not referral:
                 raise ObjectPathNotFound()
+
+            # If it's found expired referral for share_name (lower than \DFS),
+            # use dfs root for refresh referral
+            if expired_referral and len(path_split) > 2:
+                # issue a DFS root referral request to the hostname and cache the result.
+                dfs_tree = get_smb_tree(referral.target_hint.target_path, **get_kwargs)[0]
+                referral_response = dfs_request(dfs_tree, expired_referral.dfs_path)
+                referral = client_config.cache_referral(referral_response)
+                if not referral:
+                    raise ObjectPathNotFound()
+                expired_referral = None
 
             path = path.replace(referral.dfs_path, referral.target_hint.target_path, 1)
             path_split = [p for p in path.split("\\") if p]
@@ -328,6 +343,18 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
                 raise ObjectPathNotFound()
 
             return get_smb_tree(path, **get_kwargs)
+
+    # If it's found expired referral for share_name (lower than \DFS),
+    # use dfs root for refresh referral
+    if expired_referral and len(path_split) > 2:
+        referral_response = dfs_request(tree, expired_referral.dfs_path)
+        referral = client_config.cache_referral(referral_response)
+        if not referral:
+            raise ObjectPathNotFound()
+
+        referral_path = path.replace(referral.dfs_path, referral.target_hint.target_path, 1)
+        if referral_path != path:
+            return get_smb_tree(referral_path, **get_kwargs)
 
     file_path = ""
     if len(path_split) > 2:
