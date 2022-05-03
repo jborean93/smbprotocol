@@ -4,8 +4,7 @@ SMB_SHARE="$1"
 SMB_USER="$2"
 SMB_PASSWORD="$3"
 
-pacman -Syu \
-    --noconfirm \
+dnf install -y \
     samba
 
 cat > /etc/samba/smb.conf << EOL
