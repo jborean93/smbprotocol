@@ -29,15 +29,13 @@ lib::setup::smb_server() {
         export SMB_USER=smbuser
         export SMB_PASSWORD=smbpass
 
-        # Uses Archlinux as it usually contains the latest Samba release
-        # available allowing us to test more features
         docker run \
             --detach \
             --rm \
             --publish ${SMB_PORT}:445 \
             --volume $( pwd )/build_helpers:/app:z \
             --workdir /app \
-            archlinux:latest \
+            fedora:36 \
             /bin/bash \
             /app/samba-setup.sh \
             ${SMB_SHARE} \
