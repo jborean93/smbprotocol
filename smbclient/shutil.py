@@ -110,7 +110,7 @@ def copy(src, dst, follow_symlinks=True, **kwargs):
 
 def copy2(src, dst, follow_symlinks=True, **kwargs):
     """
-    Identical to copy() except that copy() also attempts to preserve the file metadata.
+    Identical to copy() except that copy2() also attempts to preserve the file metadata.
 
     copy2() uses copystat() to copy the file metadata. Please see copystat() for more information about how and what
     metadata it copies to the dst file.
