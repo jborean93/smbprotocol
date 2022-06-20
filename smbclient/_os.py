@@ -225,12 +225,13 @@ def link(src, dst, follow_symlinks=True, **kwargs):
         set_info(transaction, link_info)
 
 
-def listdir(path, search_pattern="*", **kwargs):
+def listdir(path, count: int, search_pattern="*", **kwargs):
     """
     Return a list containing the names of the entries in the directory given by path. The list is in arbitrary order,
     and does not include the special entries '.' and '..' even if they are present in the directory.
 
     :param path: The path to the directory to list.
+    :param count: Count of files to list. None if not required.
     :param search_pattern: THe search string to match against the names of directories or files. This pattern can use
         '*' as a wildcard for multiple chars and '?' as a wildcard for a single char. Does not support regex patterns.
     :param kwargs: Common SMB Session arguments for smbclient.
@@ -238,7 +239,7 @@ def listdir(path, search_pattern="*", **kwargs):
     """
     with SMBDirectoryIO(path, mode='r', share_access='r', **kwargs) as dir_fd:
         try:
-            raw_filenames = dir_fd.query_directory(search_pattern, FileInformationClass.FILE_NAMES_INFORMATION)
+            raw_filenames = dir_fd.query_directory(search_pattern, FileInformationClass.FILE_NAMES_INFORMATION, count)
             return list(e['file_name'].get_value().decode('utf-16-le') for e in raw_filenames if
                         e['file_name'].get_value().decode('utf-16-le') not in ['.', '..'])
         except NoSuchFile:
