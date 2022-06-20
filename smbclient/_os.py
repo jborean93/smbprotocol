@@ -225,7 +225,7 @@ def link(src, dst, follow_symlinks=True, **kwargs):
         set_info(transaction, link_info)
 
 
-def listdir(path, count: int, search_pattern="*", **kwargs):
+def listdir(path, count=None, search_pattern="*", **kwargs):
     """
     Return a list containing the names of the entries in the directory given by path. The list is in arbitrary order,
     and does not include the special entries '.' and '..' even if they are present in the directory.

@@ -621,7 +621,7 @@ class SMBDirectoryIO(SMBRawIO):
     FILE_TYPE = 'dir'
     _INVALID_MODE = 'w+'
 
-    def query_directory(self, pattern, info_class, count: int):
+    def query_directory(self, pattern, info_class, count=None):
         query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
         if count:
             count_tmp = 0
