@@ -131,7 +131,7 @@ def is_remote_path(path):  # type: (str) -> bool
 def copyfile(src, dst, **kwargs):
     """
     Copy a file to a different location on the same server share. This will fail if the src and dst paths are to a
-    different server or share. This will replace the file at dst if it already exists.
+    different server. This will replace the file at dst if it already exists.
 
     This is not normally part of the builtin os package but because it relies on some SMB IOCTL commands it is useful
     to expose here.
@@ -149,10 +149,10 @@ def copyfile(src, dst, **kwargs):
     if not is_remote_path(norm_dst):
         raise ValueError("dst must be an absolute path to where the file should be copied to.")
 
-    src_root = ntpath.splitdrive(norm_src)[0]
-    dst_root, dst_name = ntpath.splitdrive(norm_dst)
-    if src_root.lower() != dst_root.lower():
-        raise ValueError("Cannot copy a file to a different root than the src.")
+    src_host = ntpath.splitdrive(norm_src)[0].split("\\")[2]
+    dst_host = ntpath.splitdrive(norm_dst)[0].split("\\")[2]
+    if src_host.lower() != dst_host.lower():
+        raise ValueError("Cannot copy a file to a different host than the src.")
 
     with open_file(norm_src, mode='rb', share_access='r', buffering=0, **kwargs) as src_fd:
         with SMBFileTransaction(src_fd) as transaction_src:
