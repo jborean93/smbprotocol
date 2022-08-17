@@ -2,6 +2,7 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+import ctypes
 import ntpath
 import os
 import pytest
@@ -9,6 +10,8 @@ import re
 import shutil
 import stat
 import sys
+
+from ctypes.wintypes import FILETIME
 
 from smbclient import (
     listdir,
@@ -114,6 +117,22 @@ def test_copy_from_local(smb_share, tmp_path):
     src_filename = tmp_path / "source.txt"
     with open(src_filename, mode='w') as fd:
         fd.write(u"content")
+
+    if os.name == 'nt':
+        # The tests in CI on Windows sometimes overlap, explicitly set the
+        # create time of the local file to something in the past.
+        timestamp = 116444736000000000  # EPOCH as 100ns since 1601-01-01
+        ctime = FILETIME(timestamp & 0xFFFFFFFF, timestamp >> 32)
+        handle = ctypes.windll.kernel32.CreateFileW(
+            str(src_filename),
+            256,  # FILE_WRITE_ATTRIBUTES
+            0,
+            None,
+            3,  # OPEN_EXISTING
+            128,  # FILE_ATTRIBUTE_NORMAL
+            None)
+        ctypes.windll.kernel32.SetFileTime(handle, ctypes.byref(ctime), None, None)
+        ctypes.windll.kernel32.CloseHandle(handle)
 
     dst_filename = "{}\\target.txt".format(smb_share)
 
