@@ -130,8 +130,8 @@ def is_remote_path(path):  # type: (str) -> bool
 
 def copyfile(src, dst, **kwargs):
     """
-    Copy a file to a different location on the same server share. This will fail if the src and dst paths are to a
-    different server. This will replace the file at dst if it already exists.
+    Copy a file to a different location on the same server. This will fail if the src and dst paths are to a different
+    server. This will replace the file at dst if it already exists.
 
     This is not normally part of the builtin os package but because it relies on some SMB IOCTL commands it is useful
     to expose here.
