@@ -76,7 +76,7 @@ def test_delete_session(smb_share):
 
 
 def test_copy_across_paths_raises(smb_share):
-    expected = "Cannot copy a file to a different root than the src."
+    expected = "Cannot copy a file to a different host than the src."
     with pytest.raises(ValueError, match=re.escape(expected)):
         smbclient.copyfile("%s\\file" % smb_share, "//host/filer2/file2")
 

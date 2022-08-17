@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1 - TBD
+
+* Allow `smbclient.copyfile` to copy files on the same server and not just the same share
+
 ## 1.9.0 - 2022-02-01
 
 * Fix connection cache reuse for some DFS referral requests
