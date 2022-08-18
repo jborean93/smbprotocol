@@ -3,22 +3,10 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import ntpath
+from collections import OrderedDict
 
-from collections import (
-    OrderedDict,
-)
-
-from smbprotocol._text import (
-    to_bytes,
-    to_text,
-)
-
-from smbprotocol.structure import (
-    BytesField,
-    EnumField,
-    IntField,
-    Structure,
-)
+from smbprotocol._text import to_bytes, to_text
+from smbprotocol.structure import BytesField, EnumField, IntField, Structure
 
 
 class ReparseTags(object):
@@ -28,6 +16,7 @@ class ReparseTags(object):
 
     Also includes the tags defined in winnt.h of the Windows 10 SDK.
     """
+
     IO_REPARSE_TAG_RESERVED_ZERO = 0x00000000
     IO_REPARSE_TAG_RESERVED_ONE = 0x00000001
     IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003
@@ -113,6 +102,7 @@ class SymbolicLinkFlags(object):
     [MS-FSCC] 2.1.2.4 Symbolic Link Reparse Data Buffer - Flags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/b41f1cbf-10df-4a47-98d4-1c52a833d913
     """
+
     SYMLINK_FLAG_ABSOLUTE = 0x00000000
     SYMLINK_FLAG_RELATIVE = 0x00000001
 
@@ -124,21 +114,27 @@ class ReparseDataBuffer(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('reparse_tag', EnumField(
-                size=4,
-                enum_type=ReparseTags,
-                enum_strict=False,
-            )),
-            ('reparse_data_length', IntField(
-                size=2,
-                default=lambda s: len(s['data_buffer']),
-            )),
-            ('reserved', IntField(size=2)),
-            ('data_buffer', BytesField(
-                size=lambda s: s['reparse_data_length'].get_value()
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "reparse_tag",
+                    EnumField(
+                        size=4,
+                        enum_type=ReparseTags,
+                        enum_strict=False,
+                    ),
+                ),
+                (
+                    "reparse_data_length",
+                    IntField(
+                        size=2,
+                        default=lambda s: len(s["data_buffer"]),
+                    ),
+                ),
+                ("reserved", IntField(size=2)),
+                ("data_buffer", BytesField(size=lambda s: s["reparse_data_length"].get_value())),
+            ]
+        )
         super(ReparseDataBuffer, self).__init__()
 
 
@@ -151,45 +147,53 @@ class SymbolicLinkReparseDataBuffer(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('substitute_name_offset', IntField(size=2)),
-            ('substitute_name_length', IntField(size=2)),
-            ('print_name_offset', IntField(size=2)),
-            ('print_name_length', IntField(size=2)),
-            ('flags', EnumField(
-                size=4,
-                enum_type=SymbolicLinkFlags,
-            )),
-            ('buffer', BytesField(
-                size=lambda s: s['substitute_name_length'].get_value() + s['print_name_length'].get_value(),
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                ("substitute_name_offset", IntField(size=2)),
+                ("substitute_name_length", IntField(size=2)),
+                ("print_name_offset", IntField(size=2)),
+                ("print_name_length", IntField(size=2)),
+                (
+                    "flags",
+                    EnumField(
+                        size=4,
+                        enum_type=SymbolicLinkFlags,
+                    ),
+                ),
+                (
+                    "buffer",
+                    BytesField(
+                        size=lambda s: s["substitute_name_length"].get_value() + s["print_name_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(SymbolicLinkReparseDataBuffer, self).__init__()
 
     def get_substitute_name(self):
-        return self._get_name('substitute')
+        return self._get_name("substitute")
 
     def get_print_name(self):
-        return self._get_name('print')
+        return self._get_name("print")
 
     def set_name(self, substitute_name, print_name):
-        b_substitute_name = to_bytes(to_text(substitute_name), encoding='utf-16-le')
-        b_print_name = to_bytes(to_text(print_name), encoding='utf-16-le')
+        b_substitute_name = to_bytes(to_text(substitute_name), encoding="utf-16-le")
+        b_print_name = to_bytes(to_text(print_name), encoding="utf-16-le")
 
-        self['substitute_name_offset'] = 0
-        self['substitute_name_length'] = len(b_substitute_name)
-        self['print_name_offset'] = len(b_substitute_name)
-        self['print_name_length'] = len(b_print_name)
-        self['buffer'] = b_substitute_name + b_print_name
+        self["substitute_name_offset"] = 0
+        self["substitute_name_length"] = len(b_substitute_name)
+        self["print_name_offset"] = len(b_substitute_name)
+        self["print_name_length"] = len(b_print_name)
+        self["buffer"] = b_substitute_name + b_print_name
 
     def resolve_link(self, path):
         link_target = self.get_substitute_name()
 
-        if self['flags'].get_value() == SymbolicLinkFlags.SYMLINK_FLAG_ABSOLUTE:
+        if self["flags"].get_value() == SymbolicLinkFlags.SYMLINK_FLAG_ABSOLUTE:
             # The substitute name could use the NT Path prefix \??\UNC\server\share or \??\C:\path which we strip off.
-            if link_target.startswith('\\??\\UNC\\'):
-                link_target = '\\\\' + link_target[8:]
-            elif link_target.startswith('\\??\\'):
+            if link_target.startswith("\\??\\UNC\\"):
+                link_target = "\\\\" + link_target[8:]
+            elif link_target.startswith("\\??\\"):
                 link_target = link_target[4:]
         else:
             link_target = ntpath.join(ntpath.dirname(path), link_target)
@@ -197,7 +201,7 @@ class SymbolicLinkReparseDataBuffer(Structure):
         return ntpath.abspath(link_target)
 
     def _get_name(self, prefix):
-        offset = self['%s_name_offset' % prefix].get_value()
-        length = self['%s_name_length' % prefix].get_value()
-        b_name = self['buffer'].get_value()[offset:offset + length]
-        return to_text(b_name, encoding='utf-16-le')
+        offset = self["%s_name_offset" % prefix].get_value()
+        length = self["%s_name_length" % prefix].get_value()
+        b_name = self["buffer"].get_value()[offset : offset + length]
+        return to_text(b_name, encoding="utf-16-le")

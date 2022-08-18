@@ -1,14 +1,5 @@
-from smbclient import (
-    listdir,
-    mkdir,
-    register_session,
-    rmdir,
-    scandir,
-)
-
-from smbclient.path import (
-    isdir,
-)
+from smbclient import listdir, mkdir, register_session, rmdir, scandir
+from smbclient.path import isdir
 
 # Optional - register the server with explicit credentials
 register_session("server", username="admin", password="pass")

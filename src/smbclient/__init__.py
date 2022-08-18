@@ -3,37 +3,34 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import logging
+
 import smbclient.path
-
-from smbclient._pool import (
-    ClientConfig,
-    delete_session,
-    register_session,
-    reset_connection_cache,
-)
-
-from smbclient._io import (
-    SEEK_CUR,
-    SEEK_END,
-    SEEK_SET,
-)
-
+from smbclient._io import SEEK_CUR, SEEK_END, SEEK_SET
 from smbclient._os import (
+    XATTR_CREATE,
+    XATTR_REPLACE,
+    SMBDirEntry,
+    SMBStatResult,
+    SMBStatVolumeResult,
     copyfile,
+    getxattr,
     link,
     listdir,
+    listxattr,
     lstat,
-    mkdir,
     makedirs,
+    mkdir,
     open_file,
     readlink,
     remove,
     removedirs,
+    removexattr,
     rename,
     renames,
     replace,
     rmdir,
     scandir,
+    setxattr,
     stat,
     stat_volume,
     symlink,
@@ -41,15 +38,12 @@ from smbclient._os import (
     unlink,
     utime,
     walk,
-    getxattr,
-    listxattr,
-    removexattr,
-    setxattr,
-    SMBDirEntry,
-    SMBStatResult,
-    SMBStatVolumeResult,
-    XATTR_CREATE,
-    XATTR_REPLACE,
+)
+from smbclient._pool import (
+    ClientConfig,
+    delete_session,
+    register_session,
+    reset_connection_cache,
 )
 
 logger = logging.getLogger(__name__)

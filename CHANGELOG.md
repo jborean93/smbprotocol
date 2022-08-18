@@ -1,7 +1,11 @@
 # Changelog
 
-## 1.9.1 - TBD
+## 1.10.0 - TBD
 
+* Require Python 3.7 or newer (dropped 3.6)
+* Created PEP 517 compliant package
+* Moved all setuptools configuration, except extension information, to `pyproject.toml`
+* Migrated project layout to a `src` based structure rather than including it in the project root
 * Allow `smbclient.copyfile` to copy files on the same server and not just the same share
 
 ## 1.9.0 - 2022-02-01

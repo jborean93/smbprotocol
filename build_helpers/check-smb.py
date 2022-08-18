@@ -12,7 +12,7 @@ def test_connection(server, port):
     conn.disconnect(True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     server = os.environ.get("SMB_SERVER", "127.0.0.1")
     port = int(os.environ.get("SMB_PORT", 445))
     print("Waiting for SMB server to be online")
@@ -28,8 +28,7 @@ if __name__ == '__main__':
             print("Connection attempt %d failed: %s" % (attempt, str(e)))
             attempt += 1
             if attempt == total_attempts:
-                raise Exception("Timeout while waiting for SMB server to come "
-                                "online")
+                raise Exception("Timeout while waiting for SMB server to come " "online")
 
             print("Sleeping for 5 seconds before next attempt")
             time.sleep(5)

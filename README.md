@@ -32,7 +32,7 @@ backlog for features that would be nice to have in this library.
 
 ## Requirements
 
-* Python 3.6+
+* Python 3.7+
 * For Kerberos auth on Linux
     * [python-gssapi](https://github.com/pythongssapi/python-gssapi)
     * [pykrb5](https://github.com/jborean93/pykrb5)

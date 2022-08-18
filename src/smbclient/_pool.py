@@ -9,14 +9,8 @@ import typing
 import uuid
 import warnings
 
-from smbprotocol._text import (
-    to_text,
-)
-
-from smbprotocol.connection import (
-    Connection,
-)
-
+from smbprotocol._text import to_text
+from smbprotocol.connection import Connection
 from smbprotocol.dfs import (
     DFSReferralEntryFlags,
     DFSReferralRequest,
@@ -24,27 +18,10 @@ from smbprotocol.dfs import (
     DomainEntry,
     ReferralEntry,
 )
-
-from smbprotocol.exceptions import (
-    BadNetworkName,
-    InvalidParameter,
-    ObjectPathNotFound,
-)
-
-from smbprotocol.ioctl import (
-    CtlCode,
-    IOCTLFlags,
-    SMB2IOCTLRequest,
-    SMB2IOCTLResponse,
-)
-
-from smbprotocol.session import (
-    Session,
-)
-
-from smbprotocol.tree import (
-    TreeConnect,
-)
+from smbprotocol.exceptions import BadNetworkName, InvalidParameter, ObjectPathNotFound
+from smbprotocol.ioctl import CtlCode, IOCTLFlags, SMB2IOCTLRequest, SMB2IOCTLResponse
+from smbprotocol.session import Session
+from smbprotocol.tree import TreeConnect
 
 log = logging.getLogger(__name__)
 
@@ -100,8 +77,17 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
             to a share to protect against MitM downgrade attacks..
     """
 
-    def __init__(self, client_guid=None, username=None, password=None, domain_controller=None, skip_dfs=False,
-                 auth_protocol='negotiate', require_secure_negotiate=True, **kwargs):
+    def __init__(
+        self,
+        client_guid=None,
+        username=None,
+        password=None,
+        domain_controller=None,
+        skip_dfs=False,
+        auth_protocol="negotiate",
+        require_secure_negotiate=True,
+        **kwargs
+    ):
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username
         self.password = password
@@ -118,7 +104,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
 
     @domain_controller.setter
     def domain_controller(self, value):
-        """ Setting the domain controller will try to get any DFS domain referrals for future lookups. """
+        """Setting the domain controller will try to get any DFS domain referrals for future lookups."""
         if self._domain_controller == value:
             return
 
@@ -128,22 +114,24 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         if not value or self.skip_dfs:
             return
 
-        ipc_tree = get_smb_tree(u'\\\\%s\\IPC$' % value)[0]
+        ipc_tree = get_smb_tree("\\\\%s\\IPC$" % value)[0]
         try:
-            domain_referral_response = dfs_request(ipc_tree, u'')
+            domain_referral_response = dfs_request(ipc_tree, "")
         except InvalidParameter:
-            log.warning("Specified domain controller %s return STATUS_INVALID_PARAMETER, cannot use as DFS domain "
-                        "cache source" % value)
+            log.warning(
+                "Specified domain controller %s return STATUS_INVALID_PARAMETER, cannot use as DFS domain "
+                "cache source" % value
+            )
             return
 
-        for domain_referral in domain_referral_response['referral_entries'].get_value():
-            if not domain_referral['referral_entry_flags'].has_flag(DFSReferralEntryFlags.NAME_LIST_REFERRAL):
+        for domain_referral in domain_referral_response["referral_entries"].get_value():
+            if not domain_referral["referral_entry_flags"].has_flag(DFSReferralEntryFlags.NAME_LIST_REFERRAL):
                 continue
 
             self._domain_cache.append(DomainEntry(domain_referral))
 
     def cache_referral(self, referral):
-        if referral['number_of_referrals'].get_value() > 0:
+        if referral["number_of_referrals"].get_value() > 0:
             self._referral_cache.append(ReferralEntry(referral))
 
     def lookup_domain(self, domain_name):  # type: (str) -> Optional[DomainEntry]
@@ -153,7 +141,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
                 return domain
 
     def lookup_referral(self, path_components: typing.List[str]) -> typing.Optional[ReferralEntry]:
-        """ Checks if the path exists in the DFS referral cache. """
+        """Checks if the path exists in the DFS referral cache."""
         # A lookup in ReferralCache involves searching for an entry with DFSPathPrefix that is a complete prefix of the
         # path being looked up.
         self._clear_expired_cache()
@@ -175,10 +163,10 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
     def set(self, **config):
         domain_controller = False
         for key, value in config.items():
-            if key.startswith('_'):
-                raise ValueError('Cannot set private attribute %s' % key)
+            if key.startswith("_"):
+                raise ValueError("Cannot set private attribute %s" % key)
 
-            elif key == 'domain_controller':
+            elif key == "domain_controller":
                 # This must be set last in case we are setting any username/password used for a domain referral lookup.
                 domain_controller = True
 
@@ -187,32 +175,32 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
 
         # Make sure we set this last in case different credentials were specified in the config
         if domain_controller:
-            self.domain_controller = config['domain_controller']
+            self.domain_controller = config["domain_controller"]
 
     def _clear_expired_cache(self) -> None:
         self._referral_cache = [refferal for refferal in self._referral_cache if not refferal.is_expired]
 
 
 def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
-    """ Send a DFS Referral request to the IPC tree and return the referrals. """
+    """Send a DFS Referral request to the IPC tree and return the referrals."""
     dfs_referral = DFSReferralRequest()
-    dfs_referral['request_file_name'] = to_text(path)
+    dfs_referral["request_file_name"] = to_text(path)
 
     ioctl_req = SMB2IOCTLRequest()
-    ioctl_req['ctl_code'] = CtlCode.FSCTL_DFS_GET_REFERRALS
-    ioctl_req['file_id'] = b"\xFF" * 16
-    ioctl_req['max_output_response'] = 56 * 1024
-    ioctl_req['flags'] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
-    ioctl_req['buffer'] = dfs_referral
+    ioctl_req["ctl_code"] = CtlCode.FSCTL_DFS_GET_REFERRALS
+    ioctl_req["file_id"] = b"\xFF" * 16
+    ioctl_req["max_output_response"] = 56 * 1024
+    ioctl_req["flags"] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+    ioctl_req["buffer"] = dfs_referral
 
     request = tree.session.connection.send(ioctl_req, sid=tree.session.session_id, tid=tree.tree_connect_id)
     response = tree.session.connection.receive(request)
 
     ioctl_resp = SMB2IOCTLResponse()
-    ioctl_resp.unpack(response['data'].get_value())
+    ioctl_resp.unpack(response["data"].get_value())
 
     dfs_response = DFSReferralResponse()
-    dfs_response.unpack(ioctl_resp['buffer'].get_value())
+    dfs_response.unpack(ioctl_resp["buffer"].get_value())
 
     return dfs_response
 
@@ -236,8 +224,9 @@ def delete_session(server, port=445, connection_cache=None):
         connection.disconnect(close=True)
 
 
-def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
-                 connection_cache=None):
+def get_smb_tree(
+    path, username=None, password=None, port=445, encrypt=None, connection_timeout=60, connection_cache=None
+):
     """
     Returns an active Tree connection and file path including the tree based on the UNC path passed in and other
     connection arguments. The opened connection is registered in a pool and re-used if a connection is made to the same
@@ -263,12 +252,12 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     # In case we need to nest a call to get_smb_tree, preserve the kwargs here so it's easier to update them in case
     # new kwargs are added.
     get_kwargs = {
-        'username': username,
-        'password': password,
-        'port': port,
-        'encrypt': encrypt,
-        'connection_timeout': connection_timeout,
-        'connection_cache': connection_cache,
+        "username": username,
+        "password": password,
+        "port": port,
+        "encrypt": encrypt,
+        "connection_timeout": connection_timeout,
+        "connection_cache": connection_cache,
     }
 
     # Normalise and check that the path contains at least 2 components, \\server\share
@@ -290,13 +279,13 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
         if domain_referral and not domain_referral.is_valid:
             # If the path is a valid domain name but our domain referral is not currently valid, issue a DC referral
             # to our known domain controller.
-            ipc_tree = get_smb_tree(u"\\\\%s\\IPC$" % client_config.domain_controller, **get_kwargs)[0]
+            ipc_tree = get_smb_tree("\\\\%s\\IPC$" % client_config.domain_controller, **get_kwargs)[0]
             referral_response = dfs_request(ipc_tree, domain_referral.domain_name)
             domain_referral.process_dc_referral(referral_response)
 
         if domain_referral:
             # Use the dc hint as the source for the root referral request
-            ipc_tree = get_smb_tree(u"\\%s\\IPC$" % domain_referral.dc_hint, **get_kwargs)[0]
+            ipc_tree = get_smb_tree("\\%s\\IPC$" % domain_referral.dc_hint, **get_kwargs)[0]
             referral_response = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
             client_config.cache_referral(referral_response)
             referral = client_config.lookup_referral(path_split)
@@ -307,9 +296,16 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
             path_split = [p for p in path.split("\\") if p]
 
     server = path_split[0]
-    session = register_session(server, username=username, password=password, port=port, encrypt=encrypt,
-                               connection_timeout=connection_timeout, connection_cache=connection_cache,
-                               auth_protocol=auth_protocol)
+    session = register_session(
+        server,
+        username=username,
+        password=password,
+        port=port,
+        encrypt=encrypt,
+        connection_timeout=connection_timeout,
+        connection_cache=connection_cache,
+        auth_protocol=auth_protocol,
+    )
 
     share_path = "\\\\%s\\%s" % (server, path_split[1])
     tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
@@ -318,7 +314,7 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
         try:
             tree.connect(require_secure_negotiate=client_config.require_secure_negotiate)
         except BadNetworkName:
-            ipc_path = u"\\\\%s\\IPC$" % server
+            ipc_path = "\\\\%s\\IPC$" % server
             if path == ipc_path:  # In case we already tried connecting to IPC$ but that failed.
                 raise
 
@@ -340,8 +336,17 @@ def get_smb_tree(path, username=None, password=None, port=445, encrypt=None, con
     return tree, file_path
 
 
-def register_session(server, username=None, password=None, port=445, encrypt=None, connection_timeout=60,
-                     connection_cache=None, auth_protocol='negotiate', require_signing=True):
+def register_session(
+    server,
+    username=None,
+    password=None,
+    port=445,
+    encrypt=None,
+    connection_timeout=60,
+    connection_cache=None,
+    auth_protocol="negotiate",
+    require_signing=True,
+):
     """
     Creates an active connection and session to the server specified. This can be manually called to register the
     credentials of a specific server instead of defining it on the first function connecting to the server. The opened
@@ -378,8 +383,13 @@ def register_session(server, username=None, password=None, port=445, encrypt=Non
     # just use the first session found or fall back to creating a new one with implicit auth/kerberos.
     session = next((s for s in connection.session_table.values() if username is None or s.username == username), None)
     if not session:
-        session = Session(connection, username=username, password=password, require_encryption=(encrypt is True),
-                          auth_protocol=auth_protocol)
+        session = Session(
+            connection,
+            username=username,
+            password=password,
+            require_encryption=(encrypt is True),
+            auth_protocol=auth_protocol,
+        )
         session.connect()
     elif encrypt is not None:
         # We cannot go from encryption to no encryption on an existing session but we can do the opposite.

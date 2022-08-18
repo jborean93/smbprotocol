@@ -9,20 +9,10 @@ import struct
 import textwrap
 import types
 import uuid
+from abc import ABCMeta, abstractmethod
+from binascii import hexlify
 
-from abc import (
-    ABCMeta,
-    abstractmethod,
-)
-
-from binascii import (
-    hexlify,
-)
-
-from smbprotocol._text import (
-    to_bytes,
-    to_text,
-)
+from smbprotocol._text import to_bytes, to_text
 
 TAB = "    "  # Instead of displaying a tab on the print, use 4 spaces
 
@@ -39,12 +29,11 @@ def _bytes_to_hex(bytes, pretty=False, hex_per_line=8):
             hex_list = [hex]
         else:
             idx = hex_per_line * 2
-            hex_list = list(hex[i:i + idx] for i in range(0, len(hex), idx))
+            hex_list = list(hex[i : i + idx] for i in range(0, len(hex), idx))
 
         hexes = []
         for h in hex_list:
-            hexes.append(
-                ' '.join(h[i:i + 2] for i in range(0, len(h), 2)).upper())
+            hexes.append(" ".join(h[i : i + 2] for i in range(0, len(h), 2)).upper())
         hex = "\n".join(hexes)
 
     return hex
@@ -58,11 +47,10 @@ def _indent_lines(string, prefix):
     lines = []
     for line in string.splitlines(True):
         lines.append(prefix + line if predicate(line) else line)
-    return ''.join(lines)
+    return "".join(lines)
 
 
 class Structure(object):
-
     def __init__(self):
         # Now that self.fields is set, loop through it again and set the
         # metadata around the fields and set the value based on default.
@@ -95,11 +83,11 @@ class Structure(object):
         hex_wrapper = textwrap.TextWrapper(
             width=33,  # set to show 8 hex values per line, 33 for 8, 56 for 16
             initial_indent=TAB + TAB,
-            subsequent_indent=TAB + TAB
+            subsequent_indent=TAB + TAB,
         )
         field_strings.append(hex_wrapper.fill(raw_hex))
 
-        string = "%s:\n%s" % (to_text(struct_name), '\n'.join([to_text(s) for s in field_strings]))
+        string = "%s:\n%s" % (to_text(struct_name), "\n".join([to_text(s) for s in field_strings]))
 
         return string
 
@@ -142,7 +130,6 @@ class Structure(object):
 
 
 class Field(metaclass=ABCMeta):
-
     def __init__(self, little_endian=True, default=None, size=None):
         """
         The base class of a Field object. This contains the framework that a
@@ -162,11 +149,10 @@ class Field(metaclass=ABCMeta):
         field_type = self.__class__.__name__
         self.little_endian = little_endian
 
-        if not (size is None or isinstance(size, int) or
-                isinstance(size, types.LambdaType)):
-            raise InvalidFieldDefinition("%s size for field must be an int or "
-                                         "None for a variable length"
-                                         % field_type)
+        if not (size is None or isinstance(size, int) or isinstance(size, types.LambdaType)):
+            raise InvalidFieldDefinition(
+                "%s size for field must be an int or " "None for a variable length" % field_type
+            )
         self.size = size
         self.default = default
         self.value = None
@@ -189,9 +175,10 @@ class Field(metaclass=ABCMeta):
         packed_value = self._pack_value(value)
         size = self._get_calculated_size(self.size, packed_value)
         if len(packed_value) != size:
-            raise ValueError("Invalid packed data length for field %s of %d "
-                             "does not fit field size of %d"
-                             % (self.name, len(packed_value), size))
+            raise ValueError(
+                "Invalid packed data length for field %s of %d "
+                "does not fit field size of %d" % (self.name, len(packed_value), size)
+            )
 
         return packed_value
 
@@ -228,7 +215,7 @@ class Field(metaclass=ABCMeta):
         """
         size = self._get_calculated_size(self.size, data)
         self.set_value(data[0:size])
-        return data[len(self):]
+        return data[len(self) :]
 
     @abstractmethod
     def _pack_value(self, value):
@@ -323,15 +310,9 @@ class Field(metaclass=ABCMeta):
         if isinstance(size, types.LambdaType):
             size = size(self.structure)
 
-        struct_format = {
-            1: 'B',
-            2: 'H',
-            4: 'L',
-            8: 'Q'
-        }
+        struct_format = {1: "B", 2: "H", 4: "L", 8: "Q"}
         if size not in struct_format.keys():
-            raise InvalidFieldDefinition("Cannot struct format of size %s"
-                                         % size)
+            raise InvalidFieldDefinition("Cannot struct format of size %s" % size)
         format_char = struct_format[size]
         if not unsigned:
             format_char = format_char.lower()
@@ -340,7 +321,6 @@ class Field(metaclass=ABCMeta):
 
 
 class IntField(Field):
-
     def __init__(self, size, unsigned=True, **kwargs):
         """
         Used to store an int value for a field. The size for these values MUST
@@ -351,8 +331,7 @@ class IntField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if size not in [1, 2, 4, 8]:
-            raise InvalidFieldDefinition("IntField size must have a value of "
-                                         "1, 2, 4, or 8 not %s" % str(size))
+            raise InvalidFieldDefinition("IntField size must have a value of " "1, 2, 4, or 8 not %s" % str(size))
         self.unsigned = unsigned
         super(IntField, self).__init__(size=size, **kwargs)
 
@@ -369,14 +348,14 @@ class IntField(Field):
             int_value = value
         elif isinstance(value, bytes):
             format = self._get_struct_format(self.size, self.unsigned)
-            struct_string = "%s%s"\
-                            % ("<" if self.little_endian else ">", format)
+            struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
         elif isinstance(value, int):
             int_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to "
-                            "an int" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to " "an int" % (self.name, type(value).__name__)
+            )
         return int_value
 
     def _get_packed_size(self):
@@ -403,16 +382,16 @@ class BytesField(Field):
             bytes_value = value
         elif isinstance(value, int):
             format = self._get_struct_format(self.size)
-            struct_string = "%s%s"\
-                            % ("<" if self.little_endian else ">", format)
+            struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
             bytes_value = struct.pack(struct_string, value)
         elif isinstance(value, Structure):
             bytes_value = value.pack()
         elif isinstance(value, bytes):
             bytes_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "byte string" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "byte string" % (self.name, type(value).__name__)
+            )
         return bytes_value
 
     def _get_packed_size(self):
@@ -425,9 +404,7 @@ class BytesField(Field):
 
 
 class ListField(Field):
-
-    def __init__(self, list_count=None, list_type=BytesField(),
-                 unpack_func=None, **kwargs):
+    def __init__(self, list_count=None, list_type=BytesField(), unpack_func=None, **kwargs):
         """
         Used to store a list of values that are the same time, the list can
         contain both fixed length values or variable length values but the
@@ -453,29 +430,25 @@ class ListField(Field):
             used when the list contains variable length values.
         :param kwargs: Any other kwarg to be sent to Field()
         """
-        if list_count is not None and not \
-                (isinstance(list_count, int) or
-                 isinstance(list_count, types.LambdaType)):
-            raise InvalidFieldDefinition("ListField list_count must be an "
-                                         "int, lambda, or None for a variable "
-                                         "list length")
+        if list_count is not None and not (isinstance(list_count, int) or isinstance(list_count, types.LambdaType)):
+            raise InvalidFieldDefinition(
+                "ListField list_count must be an " "int, lambda, or None for a variable " "list length"
+            )
         self.list_count = list_count
 
         if not isinstance(list_type, Field):
-            raise InvalidFieldDefinition("ListField list_type must be a "
-                                         "Field definition")
+            raise InvalidFieldDefinition("ListField list_type must be a " "Field definition")
         self.list_type = list_type
 
-        if unpack_func is not None and not isinstance(unpack_func,
-                                                      types.LambdaType):
-            raise InvalidFieldDefinition("ListField unpack_func must be a "
-                                         "lambda function or None")
-        elif unpack_func is None and \
-                (list_count is None or list_type.size is None):
-            raise InvalidFieldDefinition("ListField must either define "
-                                         "unpack_func as a lambda or set "
-                                         "list_count and list_size with a "
-                                         "size")
+        if unpack_func is not None and not isinstance(unpack_func, types.LambdaType):
+            raise InvalidFieldDefinition("ListField unpack_func must be a " "lambda function or None")
+        elif unpack_func is None and (list_count is None or list_type.size is None):
+            raise InvalidFieldDefinition(
+                "ListField must either define "
+                "unpack_func as a lambda or set "
+                "list_count and list_size with a "
+                "size"
+            )
         self.unpack_func = unpack_func
 
         super(ListField, self).__init__(**kwargs)
@@ -508,20 +481,19 @@ class ListField(Field):
             list_value = []
         elif isinstance(value, types.LambdaType):
             return value
-        elif isinstance(value, bytes) and isinstance(self.unpack_func,
-                                                     types.LambdaType):
+        elif isinstance(value, bytes) and isinstance(self.unpack_func, types.LambdaType):
             # use the lambda function to parse the bytes to a list
             list_value = self.unpack_func(self.structure, value)
         elif isinstance(value, bytes):
             # we have a fixed length array with a specified count
-            list_value = self._create_list_from_bytes(self.list_count,
-                                                      self.list_type, value)
+            list_value = self._create_list_from_bytes(self.list_count, self.list_type, value)
         elif isinstance(value, list):
             # manually parse each list entry to the field type specified
             list_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "list" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "list" % (self.name, type(value).__name__)
+            )
         list_value = [self._parse_sub_value(v) for v in list_value]
         return list_value
 
@@ -556,7 +528,7 @@ class ListField(Field):
         if len(list_string) == 0:
             string = "[]"
         else:
-            string = "[\n%s\n]" % ',\n'.join(list_string)
+            string = "[\n%s\n]" % ",\n".join(list_string)
         return string
 
     def _create_list_from_bytes(self, list_count, list_type, value):
@@ -574,7 +546,6 @@ class ListField(Field):
 
 
 class StructureField(Field):
-
     def __init__(self, structure_type, **kwargs):
         """
         Used to store a message packet Structure object as a field. Can store
@@ -618,11 +589,11 @@ class StructureField(Field):
         elif isinstance(value, Structure):
             structure_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "structure" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "structure" % (self.name, type(value).__name__)
+            )
 
-        if isinstance(structure_value, bytes) and self.structure_type and \
-                structure_value != b"":
+        if isinstance(structure_value, bytes) and self.structure_type and structure_value != b"":
             if isinstance(self.structure_type, types.LambdaType):
                 structure_type = self.structure_type(self.structure)
             else:
@@ -643,8 +614,7 @@ class StructureField(Field):
     def _get_field(self, key):
         structure_value = self._get_calculated_value(self.value)
         if isinstance(structure_value, bytes):
-            raise ValueError("Cannot get field %s when structure is defined "
-                             "as a byte string" % key)
+            raise ValueError("Cannot get field %s when structure is defined " "as a byte string" % key)
         field = structure_value._get_field(key)
         return field
 
@@ -671,20 +641,18 @@ class DateTimeField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if not (size is None or size == 8):
-            raise InvalidFieldDefinition("DateTimeField type must have a size "
-                                         "of 8 not %d" % size)
+            raise InvalidFieldDefinition("DateTimeField type must have a size " "of 8 not %d" % size)
         super(DateTimeField, self).__init__(size=8, **kwargs)
 
     def _pack_value(self, value):
         utc_tz = datetime.timezone.utc
         utc_dt = value.replace(tzinfo=value.tzinfo if value.tzinfo else utc_tz)
         td = utc_dt.astimezone(utc_tz) - datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=utc_tz)
-        epoch_time_ms = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10 ** 6)
+        epoch_time_ms = td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6
         ns100 = self.EPOCH_FILETIME + (epoch_time_ms * 10)
 
         format = self._get_struct_format(8)
-        struct_string = "%s%s"\
-                        % ("<" if self.little_endian else ">", format)
+        struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
         bytes_value = struct.pack(struct_string, ns100)
 
         return bytes_value
@@ -696,8 +664,7 @@ class DateTimeField(Field):
             datetime_value = value
         elif isinstance(value, bytes):
             format = self._get_struct_format(8)
-            struct_string = "%s%s"\
-                            % ("<" if self.little_endian else ">", format)
+            struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
         elif isinstance(value, int):
@@ -712,8 +679,9 @@ class DateTimeField(Field):
         elif isinstance(value, datetime.datetime):
             datetime_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "datetime" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "datetime" % (self.name, type(value).__name__)
+            )
         return datetime_value
 
     def _get_packed_size(self):
@@ -721,11 +689,10 @@ class DateTimeField(Field):
 
     def _to_string(self):
         datetime_value = self._get_calculated_value(self.value)
-        return datetime_value.isoformat(' ')
+        return datetime_value.isoformat(" ")
 
 
 class UuidField(Field):
-
     def __init__(self, size=None, **kwargs):
         """
         Used to store a UUID (GUID) as a Python UUID object.
@@ -735,8 +702,7 @@ class UuidField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if not (size is None or size == 16):
-            raise InvalidFieldDefinition("UuidField type must have a size of "
-                                         "16 not %d" % size)
+            raise InvalidFieldDefinition("UuidField type must have a size of " "16 not %d" % size)
         super(UuidField, self).__init__(size=16, **kwargs)
 
     def _pack_value(self, value):
@@ -759,8 +725,9 @@ class UuidField(Field):
         elif isinstance(value, types.LambdaType):
             uuid_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "uuid" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "uuid" % (self.name, type(value).__name__)
+            )
         return uuid_value
 
     def _get_packed_size(self):
@@ -772,7 +739,6 @@ class UuidField(Field):
 
 
 class EnumField(IntField):
-
     def __init__(self, enum_type, enum_strict=True, **kwargs):
         self.enum_type = enum_type
         self.enum_strict = enum_strict
@@ -787,8 +753,7 @@ class EnumField(IntField):
                 break
 
         if not valid and int_value != 0 and self.enum_strict:
-            raise ValueError("Enum value %d does not exist in enum type %s"
-                             % (int_value, self.enum_type))
+            raise ValueError("Enum value %d does not exist in enum type %s" % (int_value, self.enum_type))
         return int_value
 
     def _to_string(self):
@@ -805,7 +770,6 @@ class EnumField(IntField):
 
 
 class FlagField(IntField):
-
     def __init__(self, flag_type, flag_strict=True, **kwargs):
         self.flag_type = flag_type
         self.flag_strict = flag_strict
@@ -819,8 +783,7 @@ class FlagField(IntField):
                 break
 
         if not valid and self.flag_strict:
-            raise ValueError("Flag value does not exist in flag type %s"
-                             % self.flag_type)
+            raise ValueError("Flag value does not exist in flag type %s" % self.flag_type)
         self.set_value(self.value | flag)
 
     def has_flag(self, flag):
@@ -833,8 +796,7 @@ class FlagField(IntField):
             if isinstance(value, int):
                 current_val &= ~value
         if current_val != 0 and self.flag_strict:
-            raise ValueError("Invalid flag for field %s value set %d"
-                             % (self.name, current_val))
+            raise ValueError("Invalid flag for field %s value set %d" % (self.name, current_val))
 
         return int_value
 
@@ -851,7 +813,6 @@ class FlagField(IntField):
 
 
 class BoolField(Field):
-
     def __init__(self, size=1, **kwargs):
         """
         Used to store a boolean value in 1 byte. b"\x00" is False while b"\x01"
@@ -860,8 +821,7 @@ class BoolField(Field):
         :param kwargs: Any other kwargs to be sent to Field()
         """
         if size != 1:
-            raise InvalidFieldDefinition("BoolField size must have a value of "
-                                         "1, not %d" % size)
+            raise InvalidFieldDefinition("BoolField size must have a value of " "1, not %d" % size)
         super(BoolField, self).__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
@@ -877,8 +837,9 @@ class BoolField(Field):
         elif isinstance(value, types.LambdaType):
             bool_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "bool" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "bool" % (self.name, type(value).__name__)
+            )
         return bool_value
 
     def _get_packed_size(self):
@@ -889,20 +850,19 @@ class BoolField(Field):
 
 
 class TextField(BytesField):
-
-    def __init__(self, encoding='utf-16-le', null_terminated=False, **kwargs):
+    def __init__(self, encoding="utf-16-le", null_terminated=False, **kwargs):
         self.encoding = encoding
         self.null_terminated = null_terminated
         super(TextField, self).__init__(**kwargs)
 
     def _pack_value(self, value):
         if self.null_terminated:
-            value += u"\x00"
+            value += "\x00"
         return to_bytes(value, encoding=self.encoding)
 
     def _parse_value(self, value):
         if value is None:
-            text_value = u""
+            text_value = ""
         elif isinstance(value, bytes):
             text_value = to_text(value, encoding=self.encoding)
         elif isinstance(value, str):
@@ -910,8 +870,9 @@ class TextField(BytesField):
         elif isinstance(value, types.LambdaType):
             text_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a "
-                            "text string" % (self.name, type(value).__name__))
+            raise TypeError(
+                "Cannot parse value for field %s of type %s to a " "text string" % (self.name, type(value).__name__)
+            )
 
         return text_value
 
@@ -927,7 +888,7 @@ class TextField(BytesField):
         return self.value
 
     def unpack(self, data):
-        null_byte = u"\x00".encode(self.encoding)
+        null_byte = "\x00".encode(self.encoding)
 
         if self.null_terminated and self.size is None:
             # If the size wasn't specified and the string contains a null terminator, cut off the bytes there.
@@ -938,12 +899,12 @@ class TextField(BytesField):
                 actual_index = int(math.ceil(null_index / len(null_byte)) * len(null_byte))
 
                 self.set_value(data[0:actual_index])
-                return data[actual_index + len(null_byte):]
+                return data[actual_index + len(null_byte) :]
 
         size = self._get_calculated_size(self.size, data)
         raw_value = data[0:size]
         if self.null_terminated and bytes(raw_value).endswith(null_byte):
-            raw_value = raw_value[:len(null_byte) * -1]
+            raw_value = raw_value[: len(null_byte) * -1]
 
         self.set_value(raw_value)
         return data[size:]

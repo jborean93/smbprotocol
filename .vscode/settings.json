@@ -1,0 +1,25 @@
+{
+    "editor.formatOnSave": true,
+    "editor.rulers": [
+        80,
+        120
+    ],
+    "files.trimTrailingWhitespace": true,
+    "editor.trimAutoWhitespace": true,
+    "python.formatting.provider": "black",
+    "python.testing.pytestArgs": [
+        "tests",
+        "-vv"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        },
+    },
+    "python.linting.ignorePatterns": [
+        "tests/**"
+    ],
+    "python.envFile": "${workspaceFolder}/.vscode/.env",
+}

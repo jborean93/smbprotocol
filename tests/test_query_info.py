@@ -10,5 +10,7 @@ def test_query_info_deprecation():
         from smbprotocol import query_info
 
     assert len(record) == 1
-    assert str(record.list[0].message) == 'The smbprotocol.query_info file has been renamed to ' \
-                                          'smbprotocol.file_info and will be removed in the next major release.'
+    assert (
+        str(record.list[0].message) == "The smbprotocol.query_info file has been renamed to "
+        "smbprotocol.file_info and will be removed in the next major release."
+    )

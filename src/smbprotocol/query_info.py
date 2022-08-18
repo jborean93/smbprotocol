@@ -6,5 +6,8 @@ import warnings
 
 from smbprotocol.file_info import *
 
-warnings.warn("The smbprotocol.query_info file has been renamed to smbprotocol.file_info and will be removed in the "
-              "next major release.", DeprecationWarning)
+warnings.warn(
+    "The smbprotocol.query_info file has been renamed to smbprotocol.file_info and will be removed in the "
+    "next major release.",
+    DeprecationWarning,
+)

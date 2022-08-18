@@ -3,10 +3,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import struct
-
-from collections import (
-    OrderedDict,
-)
+from collections import OrderedDict
 
 from smbprotocol.structure import (
     BytesField,
@@ -29,6 +26,7 @@ class AccessMask(object):
     from the object being set. When setting the AccessMask on an ACE packet,
     any 32-bit value can be used and this is just as a guideline.
     """
+
     GENERIC_READ = 0x80000000
     GENERIC_WRITE = 0x40000000
     GENERIC_EXECUTE = 0x20000000
@@ -49,6 +47,7 @@ class AceType(object):
     2.4.4.1 ACE_HEADER AceType
     The type of ACE in the ACE packet.
     """
+
     # Current only have structures for the first 3
     ACCESS_ALLOWED_ACE_TYPE = 0x00
     ACCESS_DENIED_ACE_TYPE = 0x01
@@ -62,12 +61,12 @@ class AceType(object):
     SYSTEM_AUDIT_OBJECT_ACE_TYPE = 0x07
     SYSTEM_ALARM_OBJECT_ACE_TYPE = 0x08
     ACCESS_ALLOWED_CALLBACK_ACE_TYPE = 0x09
-    ACCESS_DENIED_CALLBACK_ACE_TYPE = 0x0a
-    ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE = 0x0b
-    ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE = 0x0c
-    SYSTEM_AUDIT_CALLBACK_ACE_TYPE = 0x0d
-    SYSTEM_ALARM_CALLBACK_ACE_TYPE = 0x0e
-    SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE = 0x0f
+    ACCESS_DENIED_CALLBACK_ACE_TYPE = 0x0A
+    ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE = 0x0B
+    ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE = 0x0C
+    SYSTEM_AUDIT_CALLBACK_ACE_TYPE = 0x0D
+    SYSTEM_ALARM_CALLBACK_ACE_TYPE = 0x0E
+    SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE = 0x0F
     SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE = 0x10
     SYSTEM_MANDATORY_LABEL_ACE_TYPE = 0x11
     SYSTEM_RESOURCE_ATTRIBUTE_ACE_TYPE = 0x12
@@ -81,6 +80,7 @@ class AceFlags(object):
     2.4.4.1 ACE_HEADER AceFlags
     Controls the ACE specified in the ACE packet.
     """
+
     CONTAINER_INHERIT_ACE = 0x02
     FAILED_ACCESS_ACE_FLAG = 0x80
     INHERIT_ONLY_ACE = 0x08
@@ -98,6 +98,7 @@ class AclRevision(object):
     ACL_REVISION - AceType 0, 1, 2, 3, 11, 12, 13 are valid
     ACL_REVISION_DS - AceType 5, 6, 7, 8, 11 are valid (Directory Service)
     """
+
     ACL_REVISION = 0x02
     ACL_REVISION_DS = 0x04  # not natively supported yet
 
@@ -109,6 +110,7 @@ class SDControl(object):
     2.4.6 SECURITY_DESCRIPTOR Control
     Specifies control access bit flags.
     """
+
     SELF_RELATIVE = 0x8000
     RM_CONTROL_VALID = 0x4000
     SACL_PROTECTED = 0x2000
@@ -138,33 +140,25 @@ class SIDPacket(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('revision', IntField(
-                size=1,
-                default=1
-            )),
-            ('sub_authority_count', IntField(
-                size=1,
-                default=lambda s: len(s['sub_authorities'].get_value())
-            )),
-            ('reserved', IntField(size=2)),
-            ('identifier_authority', IntField(
-                size=4,
-                little_endian=False
-            )),
-            ('sub_authorities', ListField(
-                list_type=IntField(size=4),
-                list_count=lambda s: s['sub_authority_count'].get_value()
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("revision", IntField(size=1, default=1)),
+                ("sub_authority_count", IntField(size=1, default=lambda s: len(s["sub_authorities"].get_value()))),
+                ("reserved", IntField(size=2)),
+                ("identifier_authority", IntField(size=4, little_endian=False)),
+                (
+                    "sub_authorities",
+                    ListField(list_type=IntField(size=4), list_count=lambda s: s["sub_authority_count"].get_value()),
+                ),
+            ]
+        )
         super(SIDPacket, self).__init__()
 
     def __str__(self):
-        revision = self['revision'].get_value()
-        id_authority = self['identifier_authority'].get_value()
-        sub_authorities = self['sub_authorities'].get_value()
-        sid_string = "S-%d-%d-%s" % (revision, id_authority,
-                                     "-".join(str(x) for x in sub_authorities))
+        revision = self["revision"].get_value()
+        id_authority = self["identifier_authority"].get_value()
+        sub_authorities = self["sub_authorities"].get_value()
+        sid_string = "S-%d-%d-%s" % (revision, id_authority, "-".join(str(x) for x in sub_authorities))
         return sid_string
 
     def from_string(self, sid_string):
@@ -178,16 +172,17 @@ class SIDPacket(Structure):
 
         sid_entries = sid_string.split("-")
         if len(sid_entries) < 3:
-            raise ValueError("A SID string must start with S and contain a "
-                             "revision and identifier authority, e.g. S-1-0")
+            raise ValueError(
+                "A SID string must start with S and contain a " "revision and identifier authority, e.g. S-1-0"
+            )
 
         revision = int(sid_entries[1])
         id_authority = int(sid_entries[2])
         sub_authorities = [int(i) for i in sid_entries[3:]]
 
-        self['revision'].set_value(revision)
-        self['identifier_authority'].set_value(id_authority)
-        self['sub_authorities'] = sub_authorities
+        self["revision"].set_value(revision)
+        self["identifier_authority"].set_value(id_authority)
+        self["sub_authorities"] = sub_authorities
 
 
 class AccessAllowedAce(Structure):
@@ -198,29 +193,15 @@ class AccessAllowedAce(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('ace_type', EnumField(
-                size=1,
-                default=AceType.ACCESS_ALLOWED_ACE_TYPE,
-                enum_type=AceType
-            )),
-            ('ace_flags', FlagField(
-                size=1,
-                flag_type=AceFlags
-            )),
-            ('ace_size', IntField(
-                size=2,
-                default=lambda s: 8 + len(s['sid'])
-            )),
-            ('mask', FlagField(
-                size=4,
-                flag_type=AccessMask,
-                flag_strict=False
-            )),
-            ('sid', StructureField(
-                structure_type=SIDPacket
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("ace_type", EnumField(size=1, default=AceType.ACCESS_ALLOWED_ACE_TYPE, enum_type=AceType)),
+                ("ace_flags", FlagField(size=1, flag_type=AceFlags)),
+                ("ace_size", IntField(size=2, default=lambda s: 8 + len(s["sid"]))),
+                ("mask", FlagField(size=4, flag_type=AccessMask, flag_strict=False)),
+                ("sid", StructureField(structure_type=SIDPacket)),
+            ]
+        )
         super(AccessAllowedAce, self).__init__()
 
 
@@ -232,29 +213,15 @@ class AccessDeniedAce(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('ace_type', EnumField(
-                size=1,
-                default=AceType.ACCESS_DENIED_ACE_TYPE,
-                enum_type=AceType
-            )),
-            ('ace_flags', FlagField(
-                size=1,
-                flag_type=AceFlags
-            )),
-            ('ace_size', IntField(
-                size=2,
-                default=lambda s: 8 + len(s['sid'])
-            )),
-            ('mask', FlagField(
-                size=4,
-                flag_type=AccessMask,
-                flag_strict=False
-            )),
-            ('sid', StructureField(
-                structure_type=SIDPacket
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("ace_type", EnumField(size=1, default=AceType.ACCESS_DENIED_ACE_TYPE, enum_type=AceType)),
+                ("ace_flags", FlagField(size=1, flag_type=AceFlags)),
+                ("ace_size", IntField(size=2, default=lambda s: 8 + len(s["sid"]))),
+                ("mask", FlagField(size=4, flag_type=AccessMask, flag_strict=False)),
+                ("sid", StructureField(structure_type=SIDPacket)),
+            ]
+        )
         super(AccessDeniedAce, self).__init__()
 
 
@@ -267,29 +234,15 @@ class SystemAuditAce(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('ace_type', EnumField(
-                size=1,
-                default=AceType.SYSTEM_AUDIT_ACE_TYPE,
-                enum_type=AceType
-            )),
-            ('ace_flags', FlagField(
-                size=1,
-                flag_type=AceFlags
-            )),
-            ('ace_size', IntField(
-                size=2,
-                default=lambda s: 8 + len(s['sid'])
-            )),
-            ('mask', FlagField(
-                size=4,
-                flag_type=AccessMask,
-                flag_strict=False
-            )),
-            ('sid', StructureField(
-                structure_type=SIDPacket
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("ace_type", EnumField(size=1, default=AceType.SYSTEM_AUDIT_ACE_TYPE, enum_type=AceType)),
+                ("ace_flags", FlagField(size=1, flag_type=AceFlags)),
+                ("ace_size", IntField(size=2, default=lambda s: 8 + len(s["sid"]))),
+                ("mask", FlagField(size=4, flag_type=AccessMask, flag_strict=False)),
+                ("sid", StructureField(structure_type=SIDPacket)),
+            ]
+        )
         super(SystemAuditAce, self).__init__()
 
 
@@ -307,37 +260,32 @@ class AclPacket(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('acl_revision', EnumField(
-                size=1,
-                default=AclRevision.ACL_REVISION,
-                enum_type=AclRevision
-            )),
-            ('sbz1', IntField(size=1)),
-            ('acl_size', IntField(
-                size=2,
-                default=lambda s: 8 + len(s['aces'])
-            )),
-            ('ace_count', IntField(
-                size=2,
-                default=lambda s: len(s['aces'].get_value())
-            )),
-            ('sbz2', IntField(size=2)),
-            ('aces', ListField(
-                list_count=lambda s: s['ace_count'].get_value(),
-                unpack_func=lambda s, d: self._unpack_aces(s, d)
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("acl_revision", EnumField(size=1, default=AclRevision.ACL_REVISION, enum_type=AclRevision)),
+                ("sbz1", IntField(size=1)),
+                ("acl_size", IntField(size=2, default=lambda s: 8 + len(s["aces"]))),
+                ("ace_count", IntField(size=2, default=lambda s: len(s["aces"].get_value()))),
+                ("sbz2", IntField(size=2)),
+                (
+                    "aces",
+                    ListField(
+                        list_count=lambda s: s["ace_count"].get_value(),
+                        unpack_func=lambda s, d: self._unpack_aces(s, d),
+                    ),
+                ),
+            ]
+        )
         super(AclPacket, self).__init__()
 
     def _unpack_aces(self, structure, data):
         aces = []
-        while data != b"" and len(aces) < structure['ace_count'].value:
+        while data != b"" and len(aces) < structure["ace_count"].value:
             ace_type = struct.unpack("<B", data[:1])[0]
             ace_struct = {
                 AceType.ACCESS_ALLOWED_ACE_TYPE: AccessAllowedAce(),
                 AceType.ACCESS_DENIED_ACE_TYPE: AccessDeniedAce(),
-                AceType.SYSTEM_AUDIT_ACE_TYPE: SystemAuditAce()
+                AceType.SYSTEM_AUDIT_ACE_TYPE: SystemAuditAce(),
             }.get(ace_type, None)
 
             if not ace_struct:
@@ -347,7 +295,7 @@ class AclPacket(Structure):
             else:
                 ace_struct.unpack(data)
                 aces.append(ace_struct)
-                data = data[len(ace_struct):]
+                data = data[len(ace_struct) :]
 
         return aces
 
@@ -361,58 +309,54 @@ class SMB2CreateSDBuffer(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('revision', IntField(
-                size=1,
-                default=1
-            )),
-            ('sbz1', IntField(size=1)),
-            ('control', FlagField(
-                size=2,
-                flag_type=SDControl
-            )),
-            ('offset_owner', IntField(size=4)),
-            ('offset_group', IntField(size=4)),
-            ('offset_sacl', IntField(size=4)),
-            ('offset_dacl', IntField(size=4)),
-            # buffer contains owner_sid, owner_group, sacl and dacl at
-            # different offset, use get/set_* to get and set the individual
-            # components instead of touching the buffer directly
-            ('buffer', BytesField()),
-        ])
+        self.fields = OrderedDict(
+            [
+                ("revision", IntField(size=1, default=1)),
+                ("sbz1", IntField(size=1)),
+                ("control", FlagField(size=2, flag_type=SDControl)),
+                ("offset_owner", IntField(size=4)),
+                ("offset_group", IntField(size=4)),
+                ("offset_sacl", IntField(size=4)),
+                ("offset_dacl", IntField(size=4)),
+                # buffer contains owner_sid, owner_group, sacl and dacl at
+                # different offset, use get/set_* to get and set the individual
+                # components instead of touching the buffer directly
+                ("buffer", BytesField()),
+            ]
+        )
         # used to store the buffer values so it can easily be rebuilt
         self._buffer = OrderedDict()
         super(SMB2CreateSDBuffer, self).__init__()
 
     def get_owner(self):
-        return self._get_sid_from_buffer('offset_owner')
+        return self._get_sid_from_buffer("offset_owner")
 
     def set_owner(self, sid):
-        self._buffer['owner'] = sid
+        self._buffer["owner"] = sid
         self._rebuild_buffer()
 
     def get_group(self):
-        return self._get_sid_from_buffer('offset_group')
+        return self._get_sid_from_buffer("offset_group")
 
     def set_group(self, sid):
-        self._buffer['group'] = sid
+        self._buffer["group"] = sid
         self._rebuild_buffer()
 
     def get_sacl(self):
-        return self._get_acl_from_buffer('offset_sacl', SDControl.SACL_PRESENT)
+        return self._get_acl_from_buffer("offset_sacl", SDControl.SACL_PRESENT)
 
     def set_sacl(self, acl):
         if acl:
-            self['control'].set_flag(SDControl.SACL_PRESENT)
+            self["control"].set_flag(SDControl.SACL_PRESENT)
         self._buffer["sacl"] = acl
         self._rebuild_buffer()
 
     def get_dacl(self):
-        return self._get_acl_from_buffer('offset_dacl', SDControl.DACL_PRESENT)
+        return self._get_acl_from_buffer("offset_dacl", SDControl.DACL_PRESENT)
 
     def set_dacl(self, acl):
         if acl:
-            self['control'].set_flag(SDControl.DACL_PRESENT)
+            self["control"].set_flag(SDControl.DACL_PRESENT)
         self._buffer["dacl"] = acl
         self._rebuild_buffer()
 
@@ -421,17 +365,17 @@ class SMB2CreateSDBuffer(Structure):
         if offset == 0:
             return None
 
-        buffer_data = self['buffer'].get_value()[offset - 20:]
+        buffer_data = self["buffer"].get_value()[offset - 20 :]
         sid = SIDPacket()
         sid.unpack(buffer_data)
         return sid
 
     def _get_acl_from_buffer(self, offset_field, flag):
-        if not self['control'].has_flag(flag):
+        if not self["control"].has_flag(flag):
             return None
 
         offset = self[offset_field].get_value() - 20
-        buffer_data = self['buffer'].get_value()[offset:]
+        buffer_data = self["buffer"].get_value()[offset:]
         length = struct.unpack("<H", buffer_data[2:4])[0]
         data = buffer_data[:length]
         acl = AclPacket()
@@ -451,4 +395,4 @@ class SMB2CreateSDBuffer(Structure):
             self[offset_field].set_value(offset_count)
             offset_count += len(field_bytes)
 
-        self['buffer'].set_value(buffer)
+        self["buffer"].set_value(buffer)

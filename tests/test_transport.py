@@ -2,30 +2,27 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import pytest
-
 import re
 import socket
 import struct
 import threading
 import time
 
-from smbprotocol.transport import (
-    DirectTCPPacket,
-    Tcp,
-)
+import pytest
+
+from smbprotocol.transport import DirectTCPPacket, Tcp
 
 
 @pytest.fixture()
 def server_tcp(request):
-    server_func_name = 'server_' + request.node.name
+    server_func_name = "server_" + request.node.name
     server_func = globals().get(server_func_name)
     if not server_func:
-        raise Exception('Test must have defined %s to run the server thread' % server_func_name)
+        raise Exception("Test must have defined %s to run the server thread" % server_func_name)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(("127.0.0.1", 0))
         sock.listen(1)
 
         server_thread = threading.Thread(target=server_func, args=(sock,))
@@ -40,42 +37,40 @@ def server_tcp(request):
 
 
 class TestDirectTcpPacket(object):
-
     def test_create_message(self):
         message = DirectTCPPacket()
-        message['smb2_message'] = b"\xfe\x53\x4d\x42"
-        expected = b"\x00\x00\x00\x04" \
-                   b"\xfe\x53\x4d\x42"
+        message["smb2_message"] = b"\xfe\x53\x4d\x42"
+        expected = b"\x00\x00\x00\x04" b"\xfe\x53\x4d\x42"
 
         actual = message.pack()
         assert len(message) == 8
-        assert message['stream_protocol_length'].get_value() == 4
+        assert message["stream_protocol_length"].get_value() == 4
         assert actual == expected
 
     def test_parse_message(self):
         actual = DirectTCPPacket()
-        data = b"\x00\x00\x00\x04" \
-               b"\xfe\x53\x4d\x42"
+        data = b"\x00\x00\x00\x04" b"\xfe\x53\x4d\x42"
         actual.unpack(data)
         assert len(actual) == 8
-        assert actual['stream_protocol_length'].get_value() == 4
-        assert isinstance(actual['smb2_message'].get_value(), bytes)
+        assert actual["stream_protocol_length"].get_value() == 4
+        assert isinstance(actual["smb2_message"].get_value(), bytes)
 
-        actual_header = actual['smb2_message']
+        actual_header = actual["smb2_message"]
         assert len(actual_header) == 4
         assert actual_header.get_value() == b"\xfe\x53\x4d\x42"
 
 
 class TestTcp(object):
-
     def test_normal_fail_message_too_big(self):
         tcp = Tcp("0.0.0.0", 0)
         tcp.connected = True
         with pytest.raises(ValueError) as exc:
             tcp.send(b"\x00" * 16777216)
-        assert str(exc.value) == "Data to be sent over Direct TCP size " \
-                                 "16777216 exceeds the max length allowed " \
-                                 "16777215"
+        assert (
+            str(exc.value) == "Data to be sent over Direct TCP size "
+            "16777216 exceeds the max length allowed "
+            "16777215"
+        )
 
     def test_invalid_host(self):
         tcp = Tcp("fake-host", 445)
@@ -85,11 +80,11 @@ class TestTcp(object):
 
 def test_small_recv(server_tcp):
     server_tcp.connect()
-    server_tcp.send(b'\x00')
+    server_tcp.send(b"\x00")
 
     actual = server_tcp.recv(10)
 
-    server_tcp.send(b'\x00')
+    server_tcp.send(b"\x00")
 
     assert actual == b"\x01\x02\x03\x04"
 
@@ -107,9 +102,9 @@ def server_test_small_recv(server):
         time.sleep(0.1)
         sock.send(b_len[2:])
 
-        sock.send(b'\x01\x02')
+        sock.send(b"\x01\x02")
         time.sleep(0.1)
-        sock.send(b'\x03\x04')
+        sock.send(b"\x03\x04")
 
         sock.recv(5)
 
@@ -124,7 +119,7 @@ def test_recv_timeout(server_tcp):
     with pytest.raises(TimeoutError):
         server_tcp.recv(1)
 
-    server_tcp.send(b'\x00')
+    server_tcp.send(b"\x00")
 
 
 def server_test_recv_timeout(server):
@@ -140,7 +135,7 @@ def server_test_recv_timeout(server):
 def test_recv_closed(server_tcp):
     server_tcp.connect()
     actual = server_tcp.recv(10)
-    assert actual == b''
+    assert actual == b""
     assert server_tcp.connected is False
 
 
@@ -160,12 +155,13 @@ def test_recv_closed_client(server_tcp):
 
     def recv():
         recv_res.append(server_tcp.recv(5))
+
     client_recv_t = threading.Thread(target=recv)
     client_recv_t.start()
 
     server_tcp.close()
     client_recv_t.join()
-    assert recv_res == [b'']
+    assert recv_res == [b""]
 
 
 def server_test_recv_closed_client(server):

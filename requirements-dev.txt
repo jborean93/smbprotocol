@@ -1,0 +1,10 @@
+black
+build
+cryptography >= 2.0
+isort
+pre-commit
+pyspnego
+pytest
+pytest-cov
+pytest-mock
+tox

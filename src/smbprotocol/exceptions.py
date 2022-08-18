@@ -7,29 +7,12 @@ import errno
 import ntpath
 import os
 import socket
+from collections import OrderedDict
 
-from collections import (
-    OrderedDict,
-)
-
-from smbprotocol import (
-    Dialects,
-)
-
-from smbprotocol._text import (
-    to_bytes,
-    to_text,
-)
-
-from smbprotocol.header import (
-    NtStatus,
-    SMB2HeaderResponse,
-)
-
-from smbprotocol.reparse_point import (
-    SymbolicLinkReparseDataBuffer,
-)
-
+from smbprotocol import Dialects
+from smbprotocol._text import to_bytes, to_text
+from smbprotocol.header import NtStatus, SMB2HeaderResponse
+from smbprotocol.reparse_point import SymbolicLinkReparseDataBuffer
 from smbprotocol.structure import (
     BytesField,
     EnumField,
@@ -66,7 +49,7 @@ class SMBOSError(OSError, SMBException):
         self.ntstatus = ntstatus
         self.filename2 = str(filename2) if filename2 else None
 
-        ntstatus_name = 'STATUS_UNKNOWN'
+        ntstatus_name = "STATUS_UNKNOWN"
         for name, val in vars(NtStatus).items():
             if ntstatus == val:
                 ntstatus_name = name
@@ -78,13 +61,15 @@ class SMBOSError(OSError, SMBException):
             NtStatus.STATUS_NOT_FOUND: errno.ENOENT,
             NtStatus.STATUS_OBJECT_NAME_COLLISION: errno.EEXIST,
             NtStatus.STATUS_PRIVILEGE_NOT_HELD: (errno.EACCES, "Required privilege not held"),
-            NtStatus.STATUS_SHARING_VIOLATION: (errno.EPERM, "The process cannot access the file because it is being "
-                                                             "used by another process"),
+            NtStatus.STATUS_SHARING_VIOLATION: (
+                errno.EPERM,
+                "The process cannot access the file because it is being " "used by another process",
+            ),
             NtStatus.STATUS_NOT_A_REPARSE_POINT: (errno.EINVAL, "The file or directory is not a reparse point"),
             NtStatus.STATUS_FILE_IS_A_DIRECTORY: errno.EISDIR,
             NtStatus.STATUS_NOT_A_DIRECTORY: errno.ENOTDIR,
             NtStatus.STATUS_DIRECTORY_NOT_EMPTY: errno.ENOTEMPTY,
-            NtStatus.STATUS_END_OF_FILE: getattr(errno, 'ENODATA', 120),  # Not present on py2 for Windows.
+            NtStatus.STATUS_END_OF_FILE: getattr(errno, "ENODATA", 120),  # Not present on py2 for Windows.
         }.get(ntstatus, (0, "Unknown NtStatus error returned '%s'" % ntstatus_name))
 
         if not isinstance(error_details, tuple):
@@ -93,8 +78,9 @@ class SMBOSError(OSError, SMBException):
         super(SMBOSError, self).__init__(error_details[0], error_details[1], str(filename))
 
     def __str__(self):
-        msg = "[Error {0}] [NtStatus 0x{1}] {2}: '{3}'".format(self.errno, format(self.ntstatus, 'x').zfill(8),
-                                                               self.strerror, self.filename)
+        msg = "[Error {0}] [NtStatus 0x{1}] {2}: '{3}'".format(
+            self.errno, format(self.ntstatus, "x").zfill(8), self.strerror, self.filename
+        )
         if self.filename2:
             msg += " -> '%s'" % self.filename2
 
@@ -102,11 +88,13 @@ class SMBOSError(OSError, SMBException):
 
 
 class SMBLinkRedirectionError(SMBException):
-
     @property
     def message(self):
-        msg = "Encountered symlink at '%s' that points to '%s' which cannot be redirected: %s" \
-              % (str(self.path), str(self.target), str(self.args[0]))
+        msg = "Encountered symlink at '%s' that points to '%s' which cannot be redirected: %s" % (
+            str(self.path),
+            str(self.target),
+            str(self.args[0]),
+        )
         return msg
 
     @property
@@ -122,7 +110,6 @@ class SMBLinkRedirectionError(SMBException):
 
 
 class SMBUnsupportedFeature(SMBException):
-
     @property
     def negotiated_dialect(self):
         return self.args[0]
@@ -154,20 +141,19 @@ class SMBUnsupportedFeature(SMBException):
         required_dialect = self._get_dialect_name(self.required_dialect)
         negotiated_dialect = self._get_dialect_name(self.negotiated_dialect)
 
-        msg = "%s is not available on the negotiated dialect %s, " \
-              "requires dialect %s%s"\
-              % (self.feature_name, negotiated_dialect, required_dialect,
-                 msg_suffix)
+        msg = "%s is not available on the negotiated dialect %s, " "requires dialect %s%s" % (
+            self.feature_name,
+            negotiated_dialect,
+            required_dialect,
+            msg_suffix,
+        )
         return msg
 
     def __str__(self):
         return self.message
 
     def _get_dialect_name(self, dialect):
-        dialect_field = EnumField(
-            enum_type=Dialects,
-            enum_strict=False,
-            size=2)
+        dialect_field = EnumField(enum_type=Dialects, enum_strict=False, size=2)
         dialect_field.set_value(dialect)
         return str(dialect_field)
 
@@ -179,23 +165,24 @@ class _SMBErrorRegistry(type):
         super(_SMBErrorRegistry, cls).__init__(name, bases, attributes)
 
         # Special case for the base SMBResponseException doesn't need to have _STATUS_CODE
-        if cls.__module__ == _SMBErrorRegistry.__module__ and cls.__name__ == 'SMBResponseException':
+        if cls.__module__ == _SMBErrorRegistry.__module__ and cls.__name__ == "SMBResponseException":
             return
 
-        if not hasattr(cls, '_STATUS_CODE'):
-            raise ValueError('%s.%s does not have the _STATUS_CODE class attribute set'
-                             % (cls.__module__, cls.__name__))
+        if not hasattr(cls, "_STATUS_CODE"):
+            raise ValueError(
+                "%s.%s does not have the _STATUS_CODE class attribute set" % (cls.__module__, cls.__name__)
+            )
 
         cls.__registry[cls._STATUS_CODE] = cls
 
     def __call__(cls, header=None):
         if header:
-            new_cls = cls.__registry.get(header['status'].get_value(), cls)
+            new_cls = cls.__registry.get(header["status"].get_value(), cls)
 
         else:
             header = SMB2HeaderResponse()
-            header['status'] = cls._STATUS_CODE
-            header['data'] = SMB2ErrorResponse()
+            header["status"] = cls._STATUS_CODE
+            header["data"] = SMB2ErrorResponse()
             new_cls = cls
 
         return super(_SMBErrorRegistry, new_cls).__call__(header)
@@ -210,7 +197,7 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
     _BASE_MESSAGE to provide a better explanation of the error.
     """
 
-    _BASE_MESSAGE = 'Unknown error.'
+    _BASE_MESSAGE = "Unknown error."
 
     def __init__(self, header):  # type: (SMB2HeaderResponse) -> None
         self.header = header
@@ -220,18 +207,20 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
         # list of error_details returned by the server, currently used in
         # the SMB 3.1.1 error response for certain situations
         error = SMB2ErrorResponse()
-        error.unpack(self.header['data'].get_value())
+        error.unpack(self.header["data"].get_value())
 
         error_details = []
-        for raw_error_data in error['error_data'].get_value():
-            error_id = raw_error_data['error_id'].get_value()
-            raw_data = raw_error_data['error_context_data'].get_value()
+        for raw_error_data in error["error_data"].get_value():
+            error_id = raw_error_data["error_id"].get_value()
+            raw_data = raw_error_data["error_context_data"].get_value()
             if self.status == NtStatus.STATUS_STOPPED_ON_SYMLINK:
                 error_data = SMB2SymbolicLinkErrorResponse()
                 error_data.unpack(raw_data)
 
-            elif self.status == NtStatus.STATUS_BAD_NETWORK_NAME and \
-                    error_id == ErrorContextId.SMB2_ERROR_ID_SHARE_REDIRECT:
+            elif (
+                self.status == NtStatus.STATUS_BAD_NETWORK_NAME
+                and error_id == ErrorContextId.SMB2_ERROR_ID_SHARE_REDIRECT
+            ):
                 error_data = SMB2ShareRedirectErrorContext()
                 error_data.unpack(raw_data)
 
@@ -249,25 +238,26 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
 
         for detail in self.error_details:
             if isinstance(detail, SMB2SymbolicLinkErrorResponse):
-                flag = str(detail['flags'])
+                flag = str(detail["flags"])
                 print_name = detail.get_print_name()
                 sub_name = detail.get_substitute_name()
                 error_details.append("Flag: %s, Print Name: %s, Substitute Name: %s" % (flag, print_name, sub_name))
 
             elif isinstance(detail, SMB2ShareRedirectErrorContext):
                 ip_addresses = []
-                for ip_addr in detail['ip_addr_move_list'].get_value():
+                for ip_addr in detail["ip_addr_move_list"].get_value():
                     ip_addresses.append(ip_addr.get_ipaddress())
 
-                resource_name = to_text(detail['resource_name'].get_value(), encoding='utf-16-le')
-                error_details.append("IP Addresses: '%s', Resource Name: %s"
-                                     % ("', '".join(ip_addresses), resource_name))
+                resource_name = to_text(detail["resource_name"].get_value(), encoding="utf-16-le")
+                error_details.append(
+                    "IP Addresses: '%s', Resource Name: %s" % ("', '".join(ip_addresses), resource_name)
+                )
 
             else:
                 # unknown error details in response, output raw bytes
                 error_details.append("Raw: %s" % to_text(binascii.hexlify(detail)))
 
-        error_msg = '%s %s: 0x%s' % (self._BASE_MESSAGE, str(self.header['status']), format(self.status, 'x').zfill(8))
+        error_msg = "%s %s: 0x%s" % (self._BASE_MESSAGE, str(self.header["status"]), format(self.status, "x").zfill(8))
         if error_details:
             error_msg += " - %s" % ", ".join(error_details)
 
@@ -275,7 +265,7 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
 
     @property
     def status(self):
-        return self.header['status'].get_value()
+        return self.header["status"].get_value()
 
     def __str__(self):
         return self.message
@@ -297,15 +287,19 @@ class StatusPending(SMBResponseException):
 
 
 class NotifyCleanup(SMBResponseException):
-    _BASE_MESSAGE = "Indicates that a notify change request has been completed due to closing the handle that made " \
-                    "the notify change request."
+    _BASE_MESSAGE = (
+        "Indicates that a notify change request has been completed due to closing the handle that made "
+        "the notify change request."
+    )
     _STATUS_CODE = NtStatus.STATUS_NOTIFY_CLEANUP
 
 
 class NotifyEnumDir(SMBResponseException):
-    _BASE_MESSAGE = "Indicates that a notify change request is being completed and that the information is not " \
-                    "being returned in the caller's buffer. The caller now needs to enumerate the files to find " \
-                    "the changes."
+    _BASE_MESSAGE = (
+        "Indicates that a notify change request is being completed and that the information is not "
+        "being returned in the caller's buffer. The caller now needs to enumerate the files to find "
+        "the changes."
+    )
     _STATUS_CODE = NtStatus.STATUS_NOTIFY_ENUM_DIR
 
 
@@ -345,8 +339,10 @@ class InvalidInfoClass(SMBResponseException):
 
 
 class InfoLengthMismatch(SMBResponseException):
-    _BASE_MESSAGE = "The specified information record length does not match the length that is required for the " \
-                    "specified information class."
+    _BASE_MESSAGE = (
+        "The specified information record length does not match the length that is required for the "
+        "specified information class."
+    )
     _STATUS_CODE = NtStatus.STATUS_INFO_LENGTH_MISMATCH
 
 
@@ -366,8 +362,9 @@ class InvalidDeviceRequest(SMBResponseException):
 
 
 class MoreProcessingRequired(SMBResponseException):
-    _BASE_MESSAGE = "The specified I/O request packet (IRP) cannot be disposed of because the I/O operation is not " \
-                    "complete."
+    _BASE_MESSAGE = (
+        "The specified I/O request packet (IRP) cannot be disposed of because the I/O operation is not " "complete."
+    )
     _STATUS_CODE = NtStatus.STATUS_MORE_PROCESSING_REQUIRED
 
 
@@ -457,8 +454,9 @@ class WrongPassword(SMBResponseException):
 
 
 class LogonFailure(SMBResponseException):
-    _BASE_MESSAGE = "The attempted logon is invalid. This is either due to a bad username or authentication " \
-                    "information."
+    _BASE_MESSAGE = (
+        "The attempted logon is invalid. This is either due to a bad username or authentication " "information."
+    )
     _STATUS_CODE = NtStatus.STATUS_LOGON_FAILURE
 
 
@@ -483,8 +481,10 @@ class PipeNotAvailable(SMBResponseException):
 
 
 class PipeBusy(SMBResponseException):
-    _BASE_MESSAGE = "The specified pipe is set to complete operations and there are current I/O operations queued " \
-                    "so that it cannot be changed to queue operations."
+    _BASE_MESSAGE = (
+        "The specified pipe is set to complete operations and there are current I/O operations queued "
+        "so that it cannot be changed to queue operations."
+    )
     _STATUS_CODE = NtStatus.STATUS_PIPE_BUSY
 
 
@@ -504,8 +504,10 @@ class PipeDisconnected(SMBResponseException):
 
 
 class FileIsADirectory(SMBResponseException):
-    _BASE_MESSAGE = "The file that was specified as a target is a directory, and the caller specified that it could " \
-                    "be anything but a directory."
+    _BASE_MESSAGE = (
+        "The file that was specified as a target is a directory, and the caller specified that it could "
+        "be anything but a directory."
+    )
     _STATUS_CODE = NtStatus.STATUS_FILE_IS_A_DIRECTORY
 
 
@@ -520,8 +522,10 @@ class BadNetworkName(SMBResponseException):
 
 
 class RequestNotAccepted(SMBResponseException):
-    _BASE_MESSAGE = "No more connections can be made to this remote computer at this time because the computer has " \
-                    "already accepted the maximum number of connections."
+    _BASE_MESSAGE = (
+        "No more connections can be made to this remote computer at this time because the computer has "
+        "already accepted the maximum number of connections."
+    )
     _STATUS_CODE = NtStatus.STATUS_REQUEST_NOT_ACCEPTED
 
 
@@ -556,8 +560,10 @@ class CannotDelete(SMBResponseException):
 
 
 class FileClosed(SMBResponseException):
-    _BASE_MESSAGE = "An I/O request other than close and several other special case operations was attempted using " \
-                    "a file object that had already been closed."
+    _BASE_MESSAGE = (
+        "An I/O request other than close and several other special case operations was attempted using "
+        "a file object that had already been closed."
+    )
     _STATUS_CODE = NtStatus.STATUS_FILE_CLOSED
 
 
@@ -567,8 +573,9 @@ class PipeBroken(SMBResponseException):
 
 
 class FSDriverRequired(SMBResponseException):
-    _BASE_MESSAGE = "A volume has been accessed for which a file system driver is required that " \
-                    "has not yet been loaded."
+    _BASE_MESSAGE = (
+        "A volume has been accessed for which a file system driver is required that " "has not yet been loaded."
+    )
     _STATUS_CODE = NtStatus.STATUS_FS_DRIVER_REQUIRED
 
 
@@ -615,6 +622,7 @@ class ErrorContextId(object):
     An identifier for the error context, it MUST be set to one of the following
     values.
     """
+
     SMB2_ERROR_ID_DEFAULT = 0x00000000
     SMB2_ERROR_ID_SHARE_REDIRECT = 0x53526472
 
@@ -627,6 +635,7 @@ class SymbolicLinkErrorFlags(object):
     Specifies whether the substitute name is an absolute target path or a path
     name relative to the directory containing the symbolic link
     """
+
     SYMLINK_FLAG_ABSOLUTE = 0x00000000
     SYMLINK_FLAG_RELATIVE = 0x00000001
 
@@ -638,6 +647,7 @@ class IpAddrType(object):
     2.2.2.2.2.1 MOVE_DST_IPADDR structure Type
     Indicates the type of the destionation IP address.
     """
+
     MOVE_DST_IPADDR_V4 = 0x00000001
     MOVE_DST_IPADDR_V6 = 0x00000002
 
@@ -653,29 +663,41 @@ class SMB2ErrorResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=9,
-            )),
-            ('error_context_count', IntField(
-                size=1,
-                default=lambda s: len(s['error_data'].get_value()),
-            )),
-            ('reserved', IntField(size=1)),
-            ('byte_count', IntField(
-                size=4,
-                default=lambda s: len(s['error_data']),
-            )),
-            ('error_data', ListField(
-                size=lambda s: s['byte_count'].get_value(),
-                list_count=lambda s: s['error_context_count'].get_value(),
-                list_type=StructureField(
-                    structure_type=SMB2ErrorContextResponse
+        self.fields = OrderedDict(
+            [
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=9,
+                    ),
                 ),
-                unpack_func=lambda s, d: self._error_data_value(s, d)
-            )),
-        ])
+                (
+                    "error_context_count",
+                    IntField(
+                        size=1,
+                        default=lambda s: len(s["error_data"].get_value()),
+                    ),
+                ),
+                ("reserved", IntField(size=1)),
+                (
+                    "byte_count",
+                    IntField(
+                        size=4,
+                        default=lambda s: len(s["error_data"]),
+                    ),
+                ),
+                (
+                    "error_data",
+                    ListField(
+                        size=lambda s: s["byte_count"].get_value(),
+                        list_count=lambda s: s["error_context_count"].get_value(),
+                        list_type=StructureField(structure_type=SMB2ErrorContextResponse),
+                        unpack_func=lambda s, d: self._error_data_value(s, d),
+                    ),
+                ),
+            ]
+        )
         super(SMB2ErrorResponse, self).__init__()
 
     def _error_data_value(self, structure, data):
@@ -683,14 +705,14 @@ class SMB2ErrorResponse(Structure):
 
         while len(data) > 0:
             response = SMB2ErrorContextResponse()
-            if structure['error_context_count'].get_value() > 0:
+            if structure["error_context_count"].get_value() > 0:
                 # Working with SMB 3.1.1+ where the errors are already in an SMB2ErrorContextReponse packet, unpack the
                 # data as usual
                 data = response.unpack(data)
             else:
                 # Working with an older SMB dialect where the response is set directly in the error_data field, need to
                 # manually craft the SMB2ErrorContextResponse with the data returned.
-                response['error_context_data'] = data
+                response["error_context_data"] = data
                 data = b""
 
             context_responses.append(response)
@@ -709,20 +731,31 @@ class SMB2ErrorContextResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('error_data_length', IntField(
-                size=4,
-                default=lambda s: len(s['error_context_data']),
-            )),
-            ('error_id', EnumField(
-                size=4,
-                default=ErrorContextId.SMB2_ERROR_ID_DEFAULT,
-                enum_type=ErrorContextId,
-            )),
-            ('error_context_data', BytesField(
-                size=lambda s: s['error_data_length'].get_value(),
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "error_data_length",
+                    IntField(
+                        size=4,
+                        default=lambda s: len(s["error_context_data"]),
+                    ),
+                ),
+                (
+                    "error_id",
+                    EnumField(
+                        size=4,
+                        default=ErrorContextId.SMB2_ERROR_ID_DEFAULT,
+                        enum_type=ErrorContextId,
+                    ),
+                ),
+                (
+                    "error_context_data",
+                    BytesField(
+                        size=lambda s: s["error_data_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(SMB2ErrorContextResponse, self).__init__()
 
 
@@ -737,51 +770,42 @@ class SMB2SymbolicLinkErrorResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('symlink_length', IntField(
-                size=4,
-                default=lambda s: len(s) - 4
-            )),
-            ('symlink_error_tag', BytesField(
-                size=4,
-                default=b"\x53\x59\x4d\x4c"
-            )),
-            ('reparse_tag', BytesField(
-                size=4,
-                default=b"\x0c\x00\x00\xa0"
-            )),
-            ('reparse_data_length', IntField(
-                size=2,
-                default=lambda s: len(s['path_buffer']) + 12
-            )),
-            # the len in utf-16-le bytes of the path beyond the substitute name
-            # of the original target, e.g. \\server\share\symlink\file.txt
-            # would be length of \file.txt in utf-16-le form, this is used by
-            # the client to find out what part of the original path to append
-            # to the substitute name returned by the server.
-            ('unparsed_path_length', IntField(size=2)),
-            ('substitute_name_offset', IntField(size=2)),
-            ('substitute_name_length', IntField(size=2)),
-            ('print_name_offset', IntField(size=2)),
-            ('print_name_length', IntField(size=2)),
-            ('flags', EnumField(
-                size=2,
-                enum_type=SymbolicLinkErrorFlags,
-            )),
-            # Not in the spec but Windows seems to add \x00\x80 to the end of flags which breaks our parsing. Cannot
-            # seem to figure out why but this just ignored that field.
-            ('reserved', IntField(size=2)),
-            # use the get/set_name functions to get/set these values as they
-            # also (d)encode the text and set the length and offset accordingly
-            ('path_buffer', BytesField(
-                size=lambda s: self._get_name_length(s, True)
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("symlink_length", IntField(size=4, default=lambda s: len(s) - 4)),
+                ("symlink_error_tag", BytesField(size=4, default=b"\x53\x59\x4d\x4c")),
+                ("reparse_tag", BytesField(size=4, default=b"\x0c\x00\x00\xa0")),
+                ("reparse_data_length", IntField(size=2, default=lambda s: len(s["path_buffer"]) + 12)),
+                # the len in utf-16-le bytes of the path beyond the substitute name
+                # of the original target, e.g. \\server\share\symlink\file.txt
+                # would be length of \file.txt in utf-16-le form, this is used by
+                # the client to find out what part of the original path to append
+                # to the substitute name returned by the server.
+                ("unparsed_path_length", IntField(size=2)),
+                ("substitute_name_offset", IntField(size=2)),
+                ("substitute_name_length", IntField(size=2)),
+                ("print_name_offset", IntField(size=2)),
+                ("print_name_length", IntField(size=2)),
+                (
+                    "flags",
+                    EnumField(
+                        size=2,
+                        enum_type=SymbolicLinkErrorFlags,
+                    ),
+                ),
+                # Not in the spec but Windows seems to add \x00\x80 to the end of flags which breaks our parsing. Cannot
+                # seem to figure out why but this just ignored that field.
+                ("reserved", IntField(size=2)),
+                # use the get/set_name functions to get/set these values as they
+                # also (d)encode the text and set the length and offset accordingly
+                ("path_buffer", BytesField(size=lambda s: self._get_name_length(s, True))),
+            ]
+        )
         super(SMB2SymbolicLinkErrorResponse, self).__init__()
 
     def _get_name_length(self, structure, first):
-        print_name_len = structure['print_name_length'].get_value()
-        sub_name_len = structure['substitute_name_length'].get_value()
+        print_name_len = structure["print_name_length"].get_value()
+        sub_name_len = structure["substitute_name_length"].get_value()
         return print_name_len + sub_name_len
 
     def set_name(self, print_name, substitute_name):
@@ -794,27 +818,27 @@ class SMB2SymbolicLinkErrorResponse(Structure):
         :param substitute_name: The substitute name string to set
         """
         # Ensure that the to_bytes input is an actual text string for py2 compat with native strings.
-        print_bytes = to_bytes(to_text(print_name), encoding='utf-16-le')
-        sub_bytes = to_bytes(to_text(substitute_name), encoding='utf-16-le')
+        print_bytes = to_bytes(to_text(print_name), encoding="utf-16-le")
+        sub_bytes = to_bytes(to_text(substitute_name), encoding="utf-16-le")
         path_buffer = print_bytes + sub_bytes
 
-        self['print_name_offset'].set_value(0)
-        self['print_name_length'].set_value(len(print_bytes))
-        self['substitute_name_offset'].set_value(len(print_bytes))
-        self['substitute_name_length'].set_value(len(sub_bytes))
-        self['path_buffer'].set_value(path_buffer)
+        self["print_name_offset"].set_value(0)
+        self["print_name_length"].set_value(len(print_bytes))
+        self["substitute_name_offset"].set_value(len(print_bytes))
+        self["substitute_name_length"].set_value(len(sub_bytes))
+        self["path_buffer"].set_value(path_buffer)
 
     def get_print_name(self):
-        offset = self['print_name_offset'].get_value()
-        length = self['print_name_length'].get_value()
-        name_bytes = self['path_buffer'].get_value()[offset:offset + length]
-        return to_text(name_bytes, encoding='utf-16-le')
+        offset = self["print_name_offset"].get_value()
+        length = self["print_name_length"].get_value()
+        name_bytes = self["path_buffer"].get_value()[offset : offset + length]
+        return to_text(name_bytes, encoding="utf-16-le")
 
     def get_substitute_name(self):
-        offset = self['substitute_name_offset'].get_value()
-        length = self['substitute_name_length'].get_value()
-        name_bytes = self['path_buffer'].get_value()[offset:offset + length]
-        return to_text(name_bytes, encoding='utf-16-le')
+        offset = self["substitute_name_offset"].get_value()
+        length = self["substitute_name_length"].get_value()
+        name_bytes = self["path_buffer"].get_value()[offset : offset + length]
+        return to_text(name_bytes, encoding="utf-16-le")
 
     def resolve_path(self, link_path):
         """
@@ -829,28 +853,30 @@ class SMB2SymbolicLinkErrorResponse(Structure):
         """
         substitute_name = self.get_substitute_name()
         print_name = self.get_print_name()
-        unparsed_path_length = self['unparsed_path_length'].get_value()
+        unparsed_path_length = self["unparsed_path_length"].get_value()
 
-        b_link_path = to_bytes(to_text(link_path), encoding='utf-16-le')
+        b_link_path = to_bytes(to_text(link_path), encoding="utf-16-le")
         unparsed_idx = len(b_link_path) - unparsed_path_length
-        base_link_path = to_text(b_link_path[:unparsed_idx], encoding='utf-16-le')
-        unparsed_path = to_text(b_link_path[unparsed_idx:], encoding='utf-16-le')
+        base_link_path = to_text(b_link_path[:unparsed_idx], encoding="utf-16-le")
+        unparsed_path = to_text(b_link_path[unparsed_idx:], encoding="utf-16-le")
 
         # Use the common code in SymbolicLinkReparseDataBuffer() to resolve the link target.
         symlink_buffer = SymbolicLinkReparseDataBuffer()
-        symlink_buffer['flags'] = self['flags'].get_value()
+        symlink_buffer["flags"] = self["flags"].get_value()
         symlink_buffer.set_name(substitute_name, print_name)
         target_path = symlink_buffer.resolve_link(base_link_path) + unparsed_path
 
-        if not target_path.startswith('\\\\'):
-            raise SMBLinkRedirectionError("Cannot resolve link targets that point to a local path", link_path,
-                                          print_name)
+        if not target_path.startswith("\\\\"):
+            raise SMBLinkRedirectionError(
+                "Cannot resolve link targets that point to a local path", link_path, print_name
+            )
 
         link_share = ntpath.splitdrive(link_path)[0]
         target_share = ntpath.splitdrive(target_path)[0]
         if link_share != target_share:
-            raise SMBLinkRedirectionError("Cannot resolve link targets that point to a different host/share",
-                                          link_path, print_name)
+            raise SMBLinkRedirectionError(
+                "Cannot resolve link targets that point to a different host/share", link_path, print_name
+            )
 
         return target_path
 
@@ -865,52 +891,31 @@ class SMB2ShareRedirectErrorContext(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=4,
-                default=lambda s: len(s)
-            )),
-            ('notification_type', IntField(
-                size=4,
-                default=3
-            )),
-            ('resource_name_offset', IntField(
-                size=4,
-                default=lambda s: self._resource_name_offset(s)
-            )),
-            ('resource_name_length', IntField(
-                size=4,
-                default=lambda s: len(s['resource_name'])
-            )),
-            ('flags', IntField(
-                size=2,
-                default=0
-            )),
-            ('target_type', IntField(
-                size=2,
-                default=0
-            )),
-            ('ip_addr_count', IntField(
-                size=4,
-                default=lambda s: len(s['ip_addr_move_list'].get_value())
-            )),
-            ('ip_addr_move_list', ListField(
-                size=lambda s: s['ip_addr_count'].get_value() * 24,
-                list_count=lambda s: s['ip_addr_count'].get_value(),
-                list_type=StructureField(
-                    size=24,
-                    structure_type=SMB2MoveDstIpAddrStructure
-                )
-            )),
-            ('resource_name', BytesField(
-                size=lambda s: s['resource_name_length'].get_value()
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("structure_size", IntField(size=4, default=lambda s: len(s))),
+                ("notification_type", IntField(size=4, default=3)),
+                ("resource_name_offset", IntField(size=4, default=lambda s: self._resource_name_offset(s))),
+                ("resource_name_length", IntField(size=4, default=lambda s: len(s["resource_name"]))),
+                ("flags", IntField(size=2, default=0)),
+                ("target_type", IntField(size=2, default=0)),
+                ("ip_addr_count", IntField(size=4, default=lambda s: len(s["ip_addr_move_list"].get_value()))),
+                (
+                    "ip_addr_move_list",
+                    ListField(
+                        size=lambda s: s["ip_addr_count"].get_value() * 24,
+                        list_count=lambda s: s["ip_addr_count"].get_value(),
+                        list_type=StructureField(size=24, structure_type=SMB2MoveDstIpAddrStructure),
+                    ),
+                ),
+                ("resource_name", BytesField(size=lambda s: s["resource_name_length"].get_value())),
+            ]
+        )
         super(SMB2ShareRedirectErrorContext, self).__init__()
 
     def _resource_name_offset(self, structure):
         min_structure_size = 24
-        addr_list_size = len(structure['ip_addr_move_list'])
+        addr_list_size = len(structure["ip_addr_move_list"])
         return min_structure_size + addr_list_size
 
 
@@ -923,51 +928,49 @@ class SMB2MoveDstIpAddrStructure(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('type', EnumField(
-                size=4,
-                enum_type=IpAddrType
-            )),
-            ('reserved', IntField(size=4)),
-            ('ip_address', BytesField(
-                size=lambda s: self._ip_address_size(s)
-            )),
-            ('reserved2', BytesField(
-                size=lambda s: self._reserved2_size(s),
-                default=lambda s: b"\x00" * self._reserved2_size(s)
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("type", EnumField(size=4, enum_type=IpAddrType)),
+                ("reserved", IntField(size=4)),
+                ("ip_address", BytesField(size=lambda s: self._ip_address_size(s))),
+                (
+                    "reserved2",
+                    BytesField(
+                        size=lambda s: self._reserved2_size(s), default=lambda s: b"\x00" * self._reserved2_size(s)
+                    ),
+                ),
+            ]
+        )
         super(SMB2MoveDstIpAddrStructure, self).__init__()
 
     def _ip_address_size(self, structure):
-        if structure['type'].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
+        if structure["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
             return 4
         else:
             return 16
 
     def _reserved2_size(self, structure):
-        if structure['type'].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
+        if structure["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
             return 12
         else:
             return 0
 
     def get_ipaddress(self):
         # get's the IP address in a human readable format
-        ip_address = self['ip_address'].get_value()
-        if self['type'].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
+        ip_address = self["ip_address"].get_value()
+        if self["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
             return socket.inet_ntoa(ip_address)
         else:
-            addr = binascii.hexlify(ip_address).decode('utf-8')
-            return ":".join([addr[i:i + 4] for i in range(0, len(addr), 4)])
+            addr = binascii.hexlify(ip_address).decode("utf-8")
+            return ":".join([addr[i : i + 4] for i in range(0, len(addr), 4)])
 
     def set_ipaddress(self, address):
         # set's the IP address from a human readable format, for IPv6, this
         # needs to be the full IPv6 address
-        if self['type'].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
-            self['ip_address'].set_value(socket.inet_aton(address))
+        if self["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:
+            self["ip_address"].set_value(socket.inet_aton(address))
         else:
             addr = address.replace(":", "")
             if len(addr) != 32:
-                raise ValueError("When setting an IPv6 address, it must be in "
-                                 "the full form without concatenation")
-            self['ip_address'].set_value(binascii.unhexlify(addr))
+                raise ValueError("When setting an IPv6 address, it must be in " "the full form without concatenation")
+            self["ip_address"].set_value(binascii.unhexlify(addr))

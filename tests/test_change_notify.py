@@ -2,21 +2,10 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import pytest
 import threading
 import uuid
 
-from smbprotocol.connection import (
-    Connection,
-)
-
-from smbprotocol.exceptions import (
-    InvalidParameter,
-    NotifyCleanup,
-)
-
-from smbprotocol.session import Session
-from smbprotocol.tree import TreeConnect
+import pytest
 
 from smbprotocol.change_notify import (
     CompletionFilter,
@@ -26,7 +15,8 @@ from smbprotocol.change_notify import (
     SMB2ChangeNotifyRequest,
     SMB2ChangeNotifyResponse,
 )
-
+from smbprotocol.connection import Connection
+from smbprotocol.exceptions import InvalidParameter, NotifyCleanup
 from smbprotocol.open import (
     CreateDisposition,
     CreateOptions,
@@ -34,52 +24,53 @@ from smbprotocol.open import (
     FileAttributes,
     FilePipePrinterAccessMask,
     ImpersonationLevel,
+    Open,
     ShareAccess,
-    Open
 )
+from smbprotocol.session import Session
+from smbprotocol.tree import TreeConnect
 
 
 class TestFileNotifyInformation(object):
 
-    DATA = b"\x00\x00\x00\x00" \
-           b"\x01\x00\x00\x00" \
-           b"\x08\x00\x00\x00" \
-           b"\x63\x00\x61\x00\x66\x00\xe9\x00"
+    DATA = b"\x00\x00\x00\x00" b"\x01\x00\x00\x00" b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
         message = FileNotifyInformation()
-        message['action'] = 1
-        message['file_name'] = u"café"
+        message["action"] = 1
+        message["file_name"] = "café"
         actual = message.pack()
         assert len(message) == 20
         assert actual == self.DATA
-        assert str(message['file_name']) == "café"
+        assert str(message["file_name"]) == "café"
 
     def test_parse_message(self):
         actual = FileNotifyInformation()
         assert actual.unpack(self.DATA) == b""
         assert len(actual) == 20
-        assert actual['next_entry_offset'].get_value() == 0
-        assert actual['action'].get_value() == 1
-        assert actual['file_name_length'].get_value() == 8
-        assert actual['file_name'].get_value() == u"café"
+        assert actual["next_entry_offset"].get_value() == 0
+        assert actual["action"].get_value() == 1
+        assert actual["file_name_length"].get_value() == 8
+        assert actual["file_name"].get_value() == "café"
 
 
 class TestSMB2ChangeNotifyRequest(object):
 
-    DATA = b"\x20\x00" \
-           b"\x00\x00" \
-           b"\x08\x00\x00\x00" \
-           b"\xff\xff\xff\xff\xff\xff\xff\xff" \
-           b"\xff\xff\xff\xff\xff\xff\xff\xff" \
-           b"\x01\x00\x00\x00" \
-           b"\x00\x00\x00\x00"
+    DATA = (
+        b"\x20\x00"
+        b"\x00\x00"
+        b"\x08\x00\x00\x00"
+        b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        b"\x01\x00\x00\x00"
+        b"\x00\x00\x00\x00"
+    )
 
     def test_create_message(self):
         message = SMB2ChangeNotifyRequest()
-        message['output_buffer_length'] = 8
-        message['file_id'] = b"\xff" * 16
-        message['completion_filter'] = 1
+        message["output_buffer_length"] = 8
+        message["file_id"] = b"\xff" * 16
+        message["completion_filter"] = 1
         actual = message.pack()
         assert len(message) == 32
         assert actual == self.DATA
@@ -88,24 +79,21 @@ class TestSMB2ChangeNotifyRequest(object):
         actual = SMB2ChangeNotifyRequest()
         assert actual.unpack(self.DATA) == b""
         assert len(actual) == 32
-        assert actual['structure_size'].get_value() == 32
-        assert actual['flags'].get_value() == 0
-        assert actual['output_buffer_length'].get_value() == 8
-        assert actual['file_id'].get_value() == b"\xff" * 16
-        assert actual['completion_filter'].get_value() == 1
-        assert actual['reserved'].get_value() == 0
+        assert actual["structure_size"].get_value() == 32
+        assert actual["flags"].get_value() == 0
+        assert actual["output_buffer_length"].get_value() == 8
+        assert actual["file_id"].get_value() == b"\xff" * 16
+        assert actual["completion_filter"].get_value() == 1
+        assert actual["reserved"].get_value() == 0
 
 
 class TestSMB2ChangeNotifyResponse(object):
 
-    DATA = b"\x09\x00" \
-           b"\x48\x00" \
-           b"\x04\x00\x00\x00" \
-           b"\x01\x02\x03\x04"
+    DATA = b"\x09\x00" b"\x48\x00" b"\x04\x00\x00\x00" b"\x01\x02\x03\x04"
 
     def test_create_message(self):
         message = SMB2ChangeNotifyResponse()
-        message['buffer'] = b"\x01\x02\x03\x04"
+        message["buffer"] = b"\x01\x02\x03\x04"
         actual = message.pack()
         assert len(message) == 12
         assert actual == self.DATA
@@ -114,25 +102,22 @@ class TestSMB2ChangeNotifyResponse(object):
         actual = SMB2ChangeNotifyResponse()
         assert actual.unpack(self.DATA) == b""
         assert len(actual) == 12
-        assert actual['structure_size'].get_value() == 9
-        assert actual['output_buffer_offset'].get_value() == 72
-        assert actual['output_buffer_length'].get_value() == 4
-        assert actual['buffer'].get_value() == b"\x01\x02\x03\x04"
+        assert actual["structure_size"].get_value() == 9
+        assert actual["output_buffer_offset"].get_value() == 72
+        assert actual["output_buffer_length"].get_value() == 4
+        assert actual["buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
 class TestChangeNotify(object):
-
     def _remove_file(self, tree, name):
         file_open = Open(tree, name)
         file_open.create(
             ImpersonationLevel.Impersonation,
             FilePipePrinterAccessMask.DELETE,
             FileAttributes.FILE_ATTRIBUTE_NORMAL,
-            ShareAccess.FILE_SHARE_READ |
-            ShareAccess.FILE_SHARE_WRITE |
-            ShareAccess.FILE_SHARE_DELETE,
+            ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
             CreateDisposition.FILE_OPEN_IF,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_DELETE_ON_CLOSE
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_DELETE_ON_CLOSE,
         ),
         file_open.close()
 
@@ -146,14 +131,14 @@ class TestChangeNotify(object):
             session.connect()
             tree.connect()
 
-            open.create(ImpersonationLevel.Impersonation,
-                        DirectoryAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                        ShareAccess.FILE_SHARE_READ |
-                        ShareAccess.FILE_SHARE_WRITE |
-                        ShareAccess.FILE_SHARE_DELETE,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(
+                ImpersonationLevel.Impersonation,
+                DirectoryAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_DIRECTORY_FILE,
+            )
 
             self._remove_file(tree, "directory-watch\\created file")
 
@@ -165,26 +150,28 @@ class TestChangeNotify(object):
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():
                 watcher.wait()
+
             watcher_wait_thread = threading.Thread(target=watcher_wait)
             watcher_wait_thread.daemon = True
             watcher_wait_thread.start()
 
             def watcher_event():
                 watcher.response_event.wait()
+
             watcher_event_thread = threading.Thread(target=watcher_event)
             watcher_event_thread.daemon = True
             watcher_event_thread.start()
 
             # Create the new file
             file_open = Open(tree, "directory-watch\\created file")
-            file_open.create(ImpersonationLevel.Impersonation,
-                             FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                             FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                             ShareAccess.FILE_SHARE_READ |
-                             ShareAccess.FILE_SHARE_WRITE |
-                             ShareAccess.FILE_SHARE_DELETE,
-                             CreateDisposition.FILE_OPEN_IF,
-                             CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file_open.create(
+                ImpersonationLevel.Impersonation,
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+            )
             file_open.close()
 
             watcher_wait_thread.join(timeout=2)
@@ -195,8 +182,8 @@ class TestChangeNotify(object):
             assert watcher.response_event.is_set()
             assert len(watcher.result) == 1
 
-            assert watcher.result[0]['file_name'].get_value() == u"created file"
-            assert watcher.result[0]['action'].get_value() == FileAction.FILE_ACTION_ADDED
+            assert watcher.result[0]["file_name"].get_value() == "created file"
+            assert watcher.result[0]["action"].get_value() == FileAction.FILE_ACTION_ADDED
 
             open.close()
         finally:
@@ -218,61 +205,64 @@ class TestChangeNotify(object):
             tree.connect()
 
             # Ensure the dir is clean of files.
-            open.create(ImpersonationLevel.Impersonation,
-                        DirectoryAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                        ShareAccess.FILE_SHARE_READ |
-                        ShareAccess.FILE_SHARE_WRITE |
-                        ShareAccess.FILE_SHARE_DELETE,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(
+                ImpersonationLevel.Impersonation,
+                DirectoryAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_DIRECTORY_FILE,
+            )
             self._remove_file(tree, "directory-watch\\created file")
             open.close()
 
             watcher = FileSystemWatcher(open)
             messages = [
-                open.create(ImpersonationLevel.Impersonation,
-                            DirectoryAccessMask.MAXIMUM_ALLOWED,
-                            FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                            ShareAccess.FILE_SHARE_READ |
-                            ShareAccess.FILE_SHARE_WRITE |
-                            ShareAccess.FILE_SHARE_DELETE,
-                            CreateDisposition.FILE_OPEN_IF,
-                            CreateOptions.FILE_DIRECTORY_FILE,
-                            send=False),
-                watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME, send=False)
+                open.create(
+                    ImpersonationLevel.Impersonation,
+                    DirectoryAccessMask.MAXIMUM_ALLOWED,
+                    FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                    ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                    CreateDisposition.FILE_OPEN_IF,
+                    CreateOptions.FILE_DIRECTORY_FILE,
+                    send=False,
+                ),
+                watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME, send=False),
             ]
 
             assert watcher.result is None
             assert watcher.response_event.is_set() is False
 
-            requests = connection.send_compound([m[0] for m in messages], sid=session.session_id,
-                                                tid=tree.tree_connect_id, related=True)
+            requests = connection.send_compound(
+                [m[0] for m in messages], sid=session.session_id, tid=tree.tree_connect_id, related=True
+            )
             [messages[i][1](req) for i, req in enumerate(requests)]
 
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():
                 watcher.wait()
+
             watcher_wait_thread = threading.Thread(target=watcher_wait)
             watcher_wait_thread.daemon = True
             watcher_wait_thread.start()
 
             def watcher_event():
                 watcher.response_event.wait()
+
             watcher_event_thread = threading.Thread(target=watcher_event)
             watcher_event_thread.daemon = True
             watcher_event_thread.start()
 
             # Create the new file
             file_open = Open(tree, "directory-watch\\created file")
-            file_open.create(ImpersonationLevel.Impersonation,
-                             FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                             FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                             ShareAccess.FILE_SHARE_READ |
-                             ShareAccess.FILE_SHARE_WRITE |
-                             ShareAccess.FILE_SHARE_DELETE,
-                             CreateDisposition.FILE_OPEN_IF,
-                             CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file_open.create(
+                ImpersonationLevel.Impersonation,
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+            )
             file_open.close()
 
             watcher_wait_thread.join(timeout=2)
@@ -283,8 +273,8 @@ class TestChangeNotify(object):
             assert watcher.response_event.is_set()
             assert len(watcher.result) == 1
 
-            assert watcher.result[0]['file_name'].get_value() == u"created file"
-            assert watcher.result[0]['action'].get_value() == FileAction.FILE_ACTION_ADDED
+            assert watcher.result[0]["file_name"].get_value() == "created file"
+            assert watcher.result[0]["action"].get_value() == FileAction.FILE_ACTION_ADDED
 
             open.close()
         finally:
@@ -300,14 +290,14 @@ class TestChangeNotify(object):
             session.connect()
             tree.connect()
 
-            open.create(ImpersonationLevel.Impersonation,
-                        DirectoryAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                        ShareAccess.FILE_SHARE_READ |
-                        ShareAccess.FILE_SHARE_WRITE |
-                        ShareAccess.FILE_SHARE_DELETE,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(
+                ImpersonationLevel.Impersonation,
+                DirectoryAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_DIRECTORY_FILE,
+            )
 
             self._remove_file(tree, "directory-watch\\created file")
 
@@ -319,26 +309,28 @@ class TestChangeNotify(object):
             # Run the wait in a separate thread so we can create the dir
             def watcher_wait():
                 watcher.wait()
+
             watcher_wait_thread = threading.Thread(target=watcher_wait)
             watcher_wait_thread.daemon = True
             watcher_wait_thread.start()
 
             def watcher_event():
                 watcher.response_event.wait()
+
             watcher_event_thread = threading.Thread(target=watcher_event)
             watcher_event_thread.daemon = True
             watcher_event_thread.start()
 
             # Create the new file
             file_open = Open(tree, "directory-watch\\created file")
-            file_open.create(ImpersonationLevel.Impersonation,
-                             FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                             FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                             ShareAccess.FILE_SHARE_READ |
-                             ShareAccess.FILE_SHARE_WRITE |
-                             ShareAccess.FILE_SHARE_DELETE,
-                             CreateDisposition.FILE_OPEN_IF,
-                             CreateOptions.FILE_NON_DIRECTORY_FILE)
+            file_open.create(
+                ImpersonationLevel.Impersonation,
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+            )
             file_open.close()
 
             watcher_wait_thread.join(timeout=2)
@@ -363,14 +355,14 @@ class TestChangeNotify(object):
             session.connect()
             tree.connect()
 
-            open.create(ImpersonationLevel.Impersonation,
-                        DirectoryAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                        ShareAccess.FILE_SHARE_READ |
-                        ShareAccess.FILE_SHARE_WRITE |
-                        ShareAccess.FILE_SHARE_DELETE,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(
+                ImpersonationLevel.Impersonation,
+                DirectoryAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_DIRECTORY_FILE,
+            )
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)
@@ -394,14 +386,14 @@ class TestChangeNotify(object):
             session.connect()
             tree.connect()
 
-            open.create(ImpersonationLevel.Impersonation,
-                        DirectoryAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                        ShareAccess.FILE_SHARE_READ |
-                        ShareAccess.FILE_SHARE_WRITE |
-                        ShareAccess.FILE_SHARE_DELETE,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_DIRECTORY_FILE)
+            open.create(
+                ImpersonationLevel.Impersonation,
+                DirectoryAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_DIRECTORY_FILE,
+            )
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)
@@ -435,14 +427,14 @@ class TestChangeNotify(object):
             session.connect()
             tree.connect()
 
-            open.create(ImpersonationLevel.Impersonation,
-                        FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
-                        FileAttributes.FILE_ATTRIBUTE_NORMAL,
-                        ShareAccess.FILE_SHARE_READ |
-                        ShareAccess.FILE_SHARE_WRITE |
-                        ShareAccess.FILE_SHARE_DELETE,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE)
+            open.create(
+                ImpersonationLevel.Impersonation,
+                FilePipePrinterAccessMask.MAXIMUM_ALLOWED,
+                FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+            )
 
             watcher = FileSystemWatcher(open)
             watcher.start(CompletionFilter.FILE_NOTIFY_CHANGE_FILE_NAME)

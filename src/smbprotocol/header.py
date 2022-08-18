@@ -2,22 +2,9 @@
 # Copyright: (c) 2020, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-from collections import (
-    OrderedDict,
-)
+from collections import OrderedDict
 
-from smbprotocol.structure import (
-    BytesField,
-    EnumField,
-    FlagField,
-    IntField,
-    Structure,
-)
-
-try:
-    from queue import Queue
-except ImportError:  # pragma: no cover
-    from Queue import Queue
+from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, Structure
 
 
 class Commands(object):
@@ -27,6 +14,7 @@ class Commands(object):
     2.2.1.2 SMB2 Packet Header - SYNC Command
     The command code of an SMB2 packet, it is used in the packet header.
     """
+
     SMB2_NEGOTIATE = 0x0000
     SMB2_SESSION_SETUP = 0x0001
     SMB2_LOGOFF = 0x0002
@@ -56,6 +44,7 @@ class NtStatus(object):
     These values are set in the status field of an SMB2Header response. This is
     not an exhaustive list but common values that are returned.
     """
+
     STATUS_SUCCESS = 0x00000000
     STATUS_UNSUCCESSFUL = 0xC0000001
     STATUS_NETWORK_NAME_DELETED = 0xC00000C9
@@ -129,6 +118,7 @@ class Smb2Flags(object):
     2.2.1.2 SMB2 Packet Header - SYNC Flags
     Indicates various processing rules that need to be done on the SMB2 packet.
     """
+
     SMB2_FLAGS_SERVER_TO_REDIR = 0x00000001
     SMB2_FLAGS_ASYNC_COMMAND = 0x00000002
     SMB2_FLAGS_RELATED_OPERATIONS = 0x00000004
@@ -147,37 +137,54 @@ class SMB2HeaderAsync(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b"\xfeSMB",
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('channel_sequence', IntField(size=2)),
-            ('reserved', IntField(size=2)),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands,
-            )),
-            ('credit_request', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('async_id', IntField(size=8)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField())
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "protocol_id",
+                    BytesField(
+                        size=4,
+                        default=b"\xfeSMB",
+                    ),
+                ),
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=64,
+                    ),
+                ),
+                ("credit_charge", IntField(size=2)),
+                ("channel_sequence", IntField(size=2)),
+                ("reserved", IntField(size=2)),
+                (
+                    "command",
+                    EnumField(
+                        size=2,
+                        enum_type=Commands,
+                    ),
+                ),
+                ("credit_request", IntField(size=2)),
+                (
+                    "flags",
+                    FlagField(
+                        size=4,
+                        flag_type=Smb2Flags,
+                    ),
+                ),
+                ("next_command", IntField(size=4)),
+                ("message_id", IntField(size=8)),
+                ("async_id", IntField(size=8)),
+                ("session_id", IntField(size=8)),
+                (
+                    "signature",
+                    BytesField(
+                        size=16,
+                        default=b"\x00" * 16,
+                    ),
+                ),
+                ("data", BytesField()),
+            ]
+        )
         super(SMB2HeaderAsync, self).__init__()
 
 
@@ -191,38 +198,49 @@ class SMB2HeaderRequest(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b"\xfeSMB",
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('channel_sequence', IntField(size=2)),
-            ('reserved', IntField(size=2)),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands
-            )),
-            ('credit_request', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('process_id', IntField(size=4)),
-            ('tree_id', IntField(size=4)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField())
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "protocol_id",
+                    BytesField(
+                        size=4,
+                        default=b"\xfeSMB",
+                    ),
+                ),
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=64,
+                    ),
+                ),
+                ("credit_charge", IntField(size=2)),
+                ("channel_sequence", IntField(size=2)),
+                ("reserved", IntField(size=2)),
+                ("command", EnumField(size=2, enum_type=Commands)),
+                ("credit_request", IntField(size=2)),
+                (
+                    "flags",
+                    FlagField(
+                        size=4,
+                        flag_type=Smb2Flags,
+                    ),
+                ),
+                ("next_command", IntField(size=4)),
+                ("message_id", IntField(size=8)),
+                ("process_id", IntField(size=4)),
+                ("tree_id", IntField(size=4)),
+                ("session_id", IntField(size=8)),
+                (
+                    "signature",
+                    BytesField(
+                        size=16,
+                        default=b"\x00" * 16,
+                    ),
+                ),
+                ("data", BytesField()),
+            ]
+        )
         super(SMB2HeaderRequest, self).__init__()
 
 
@@ -236,40 +254,53 @@ class SMB2HeaderResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('protocol_id', BytesField(
-                size=4,
-                default=b'\xfeSMB',
-            )),
-            ('structure_size', IntField(
-                size=2,
-                default=64,
-            )),
-            ('credit_charge', IntField(size=2)),
-            ('status', EnumField(
-                size=4,
-                enum_type=NtStatus,
-                enum_strict=False
-            )),
-            ('command', EnumField(
-                size=2,
-                enum_type=Commands,
-                enum_strict=False,
-            )),
-            ('credit_response', IntField(size=2)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=Smb2Flags,
-            )),
-            ('next_command', IntField(size=4)),
-            ('message_id', IntField(size=8)),
-            ('reserved', IntField(size=4)),
-            ('tree_id', IntField(size=4)),
-            ('session_id', IntField(size=8)),
-            ('signature', BytesField(
-                size=16,
-                default=b"\x00" * 16,
-            )),
-            ('data', BytesField()),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "protocol_id",
+                    BytesField(
+                        size=4,
+                        default=b"\xfeSMB",
+                    ),
+                ),
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=64,
+                    ),
+                ),
+                ("credit_charge", IntField(size=2)),
+                ("status", EnumField(size=4, enum_type=NtStatus, enum_strict=False)),
+                (
+                    "command",
+                    EnumField(
+                        size=2,
+                        enum_type=Commands,
+                        enum_strict=False,
+                    ),
+                ),
+                ("credit_response", IntField(size=2)),
+                (
+                    "flags",
+                    FlagField(
+                        size=4,
+                        flag_type=Smb2Flags,
+                    ),
+                ),
+                ("next_command", IntField(size=4)),
+                ("message_id", IntField(size=8)),
+                ("reserved", IntField(size=4)),
+                ("tree_id", IntField(size=4)),
+                ("session_id", IntField(size=8)),
+                (
+                    "signature",
+                    BytesField(
+                        size=16,
+                        default=b"\x00" * 16,
+                    ),
+                ),
+                ("data", BytesField()),
+            ]
+        )
         super(SMB2HeaderResponse, self).__init__()

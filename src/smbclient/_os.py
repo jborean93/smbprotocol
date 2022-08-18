@@ -12,35 +12,23 @@ import stat as py_stat
 import time
 
 from smbclient._io import (
-    ioctl_request,
-    query_info,
-    set_info,
     SMBDirectoryIO,
     SMBFileIO,
     SMBFileTransaction,
     SMBPipeIO,
     SMBRawIO,
+    ioctl_request,
+    query_info,
+    set_info,
 )
-
-from smbprotocol import (
-    MAX_PAYLOAD_SIZE,
-)
-
-from smbprotocol._text import (
-    to_bytes,
-    to_text,
-)
-
-from smbprotocol.exceptions import (
-    NoSuchFile,
-    SMBOSError,
-    SMBResponseException,
-)
-
+from smbprotocol import MAX_PAYLOAD_SIZE
+from smbprotocol._text import to_bytes, to_text
+from smbprotocol.exceptions import NoSuchFile, SMBOSError, SMBResponseException
 from smbprotocol.file_info import (
     FileAttributeTagInformation,
     FileBasicInformation,
     FileDispositionInformation,
+    FileFsFullSizeInformation,
     FileFsVolumeInformation,
     FileFullEaInformation,
     FileIdFullDirectoryInformation,
@@ -49,73 +37,69 @@ from smbprotocol.file_info import (
     FileLinkInformation,
     FileRenameInformation,
     FileStandardInformation,
-    FileFsFullSizeInformation
 )
-
-from smbprotocol.header import (
-    NtStatus,
-)
-
+from smbprotocol.header import NtStatus
 from smbprotocol.ioctl import (
     CtlCode,
     IOCTLFlags,
     SMB2SrvCopyChunk,
-    SMB2SrvCopyChunkResponse,
     SMB2SrvCopyChunkCopy,
-    SMB2SrvRequestResumeKey
+    SMB2SrvCopyChunkResponse,
+    SMB2SrvRequestResumeKey,
 )
-
 from smbprotocol.open import (
     CreateOptions,
     FileAttributes,
     FilePipePrinterAccessMask,
     QueryInfoFlags,
 )
-
 from smbprotocol.reparse_point import (
     ReparseDataBuffer,
     ReparseTags,
     SymbolicLinkFlags,
     SymbolicLinkReparseDataBuffer,
 )
+from smbprotocol.structure import DateTimeField
 
-from smbprotocol.structure import (
-    DateTimeField,
-)
-
-XATTR_CREATE = getattr(os, 'XATTR_CREATE', 1)
-XATTR_REPLACE = getattr(os, 'XATTR_REPLACE', 2)
+XATTR_CREATE = getattr(os, "XATTR_CREATE", 1)
+XATTR_REPLACE = getattr(os, "XATTR_REPLACE", 2)
 
 MAX_COPY_CHUNK_SIZE = 1 * 1024 * 1024  # maximum chunksize 1M from 3.3.3 in MS-SMB documentation
 MAX_COPY_CHUNK_COUNT = 16  # maximum total chunksize 16M from 3.3.3 in MS-SMB documentation
 
-SMBStatResult = collections.namedtuple('SMBStatResult', [
-    'st_mode',
-    'st_ino',
-    'st_dev',
-    'st_nlink',
-    'st_uid',
-    'st_gid',
-    'st_size',
-    'st_atime',
-    'st_mtime',
-    'st_ctime',
-    # Extra attributes not part of the base stat_result
-    'st_chgtime',  # ChangeTime, change of file metadata and not just data (mtime)
-    'st_atime_ns',
-    'st_mtime_ns',
-    'st_ctime_ns',
-    'st_chgtime_ns',
-    'st_file_attributes',
-    'st_reparse_tag',
-])
+SMBStatResult = collections.namedtuple(
+    "SMBStatResult",
+    [
+        "st_mode",
+        "st_ino",
+        "st_dev",
+        "st_nlink",
+        "st_uid",
+        "st_gid",
+        "st_size",
+        "st_atime",
+        "st_mtime",
+        "st_ctime",
+        # Extra attributes not part of the base stat_result
+        "st_chgtime",  # ChangeTime, change of file metadata and not just data (mtime)
+        "st_atime_ns",
+        "st_mtime_ns",
+        "st_ctime_ns",
+        "st_chgtime_ns",
+        "st_file_attributes",
+        "st_reparse_tag",
+    ],
+)
 
 
-SMBStatVolumeResult = collections.namedtuple('SMBStatVolumeResult', [
-    'total_size',
-    'caller_available_size',
-    'actual_available_size',
-])
+SMBStatVolumeResult = collections.namedtuple(
+    "SMBStatVolumeResult",
+    [
+        "total_size",
+        "caller_available_size",
+        "actual_available_size",
+    ],
+)
 
 
 def is_remote_path(path):  # type: (str) -> bool
@@ -125,7 +109,7 @@ def is_remote_path(path):  # type: (str) -> bool
     :param path: The filepath.
     :return: True iff the given path is a remote SMB path.
     """
-    return path.startswith('\\\\') or path.startswith('//')
+    return path.startswith("\\\\") or path.startswith("//")
 
 
 def copyfile(src, dst, **kwargs):
@@ -154,44 +138,54 @@ def copyfile(src, dst, **kwargs):
     if src_host.lower() != dst_host.lower():
         raise ValueError("Cannot copy a file to a different host than the src.")
 
-    with open_file(norm_src, mode='rb', share_access='r', buffering=0, **kwargs) as src_fd:
+    with open_file(norm_src, mode="rb", share_access="r", buffering=0, **kwargs) as src_fd:
         with SMBFileTransaction(src_fd) as transaction_src:
-            ioctl_request(transaction_src, CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
-                          flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL, output_size=32)
+            ioctl_request(
+                transaction_src,
+                CtlCode.FSCTL_SRV_REQUEST_RESUME_KEY,
+                flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
+                output_size=32,
+            )
 
         resume_response = SMB2SrvRequestResumeKey()
         resume_response.unpack(transaction_src.results[0])
-        resume_key = resume_response['resume_key'].get_value()
+        resume_key = resume_response["resume_key"].get_value()
 
         chunks = []
         offset = 0
         while offset < src_fd.fd.end_of_file:
             copychunk_struct = SMB2SrvCopyChunk()
-            copychunk_struct['source_offset'] = offset
-            copychunk_struct['target_offset'] = offset
-            copychunk_struct['length'] = min(MAX_COPY_CHUNK_SIZE, src_fd.fd.end_of_file - offset)
+            copychunk_struct["source_offset"] = offset
+            copychunk_struct["target_offset"] = offset
+            copychunk_struct["length"] = min(MAX_COPY_CHUNK_SIZE, src_fd.fd.end_of_file - offset)
 
             chunks.append(copychunk_struct)
             offset += MAX_COPY_CHUNK_SIZE
 
-        with open_file(norm_dst, mode='wb', share_access='r', buffering=0, **kwargs) as dst_fd:
+        with open_file(norm_dst, mode="wb", share_access="r", buffering=0, **kwargs) as dst_fd:
             for i in range(0, len(chunks), MAX_COPY_CHUNK_COUNT):
-                batch = chunks[i:i + MAX_COPY_CHUNK_COUNT]
+                batch = chunks[i : i + MAX_COPY_CHUNK_COUNT]
                 with SMBFileTransaction(dst_fd) as transaction_dst:
                     copychunkcopy_struct = SMB2SrvCopyChunkCopy()
-                    copychunkcopy_struct['source_key'] = resume_key
-                    copychunkcopy_struct['chunks'] = batch
+                    copychunkcopy_struct["source_key"] = resume_key
+                    copychunkcopy_struct["chunks"] = batch
 
-                    ioctl_request(transaction_dst, CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
-                                  flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL, output_size=12,
-                                  input_buffer=copychunkcopy_struct)
+                    ioctl_request(
+                        transaction_dst,
+                        CtlCode.FSCTL_SRV_COPYCHUNK_WRITE,
+                        flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
+                        output_size=12,
+                        input_buffer=copychunkcopy_struct,
+                    )
 
                 for result in transaction_dst.results:
                     copychunk_response = SMB2SrvCopyChunkResponse()
                     copychunk_response.unpack(result)
-                    if copychunk_response['chunks_written'].get_value() != len(batch):
-                        raise IOError("Failed to copy all the chunks in a server side copyfile: '%s' -> '%s'"
-                                      % (norm_src, norm_dst))
+                    if copychunk_response["chunks_written"].get_value() != len(batch):
+                        raise IOError(
+                            "Failed to copy all the chunks in a server side copyfile: '%s' -> '%s'"
+                            % (norm_src, norm_dst)
+                        )
 
 
 def link(src, dst, follow_symlinks=True, **kwargs):
@@ -215,13 +209,18 @@ def link(src, dst, follow_symlinks=True, **kwargs):
     if src_root.lower() != dst_root.lower():
         raise ValueError("Cannot hardlink a file to a different root than the src.")
 
-    raw = SMBFileIO(norm_src, mode='r', share_access='rwd',
-                    desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
-                    create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
+    raw = SMBFileIO(
+        norm_src,
+        mode="r",
+        share_access="rwd",
+        desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
+        create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs
+    )
     with SMBFileTransaction(raw) as transaction:
         link_info = FileLinkInformation()
-        link_info['replace_if_exists'] = False
-        link_info['file_name'] = to_text(dst_name[1:])
+        link_info["replace_if_exists"] = False
+        link_info["file_name"] = to_text(dst_name[1:])
         set_info(transaction, link_info)
 
 
@@ -236,11 +235,14 @@ def listdir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: A list containing the names of the entries in the directory.
     """
-    with SMBDirectoryIO(path, mode='r', share_access='r', **kwargs) as dir_fd:
+    with SMBDirectoryIO(path, mode="r", share_access="r", **kwargs) as dir_fd:
         try:
             raw_filenames = dir_fd.query_directory(search_pattern, FileInformationClass.FILE_NAMES_INFORMATION)
-            return list(e['file_name'].get_value().decode('utf-16-le') for e in raw_filenames if
-                        e['file_name'].get_value().decode('utf-16-le') not in ['.', '..'])
+            return list(
+                e["file_name"].get_value().decode("utf-16-le")
+                for e in raw_filenames
+                if e["file_name"].get_value().decode("utf-16-le") not in [".", ".."]
+            )
         except NoSuchFile:
             return []
 
@@ -264,7 +266,7 @@ def mkdir(path, **kwargs):
     :param path: The path to the directory to create.
     :param kwargs: Common SMB Session arguments for smbclient.
     """
-    raw = SMBDirectoryIO(path, mode='x', **kwargs)
+    raw = SMBDirectoryIO(path, mode="x", **kwargs)
     with SMBFileTransaction(raw):
         pass
 
@@ -305,8 +307,19 @@ def makedirs(path, exist_ok=False, **kwargs):
             create_queue.pop(-1)
 
 
-def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=None, share_access=None,
-              desired_access=None, file_attributes=None, file_type='file', **kwargs):
+def open_file(
+    path,
+    mode="r",
+    buffering=-1,
+    encoding=None,
+    errors=None,
+    newline=None,
+    share_access=None,
+    desired_access=None,
+    file_attributes=None,
+    file_type="file",
+    **kwargs
+):
     """
     Open a file on an SMB share and return a corresponding file object. If the file cannot be opened, an OSError is
     raised. This function is designed to mimic the builtin open() function but limits some functionality based on
@@ -361,19 +374,25 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
         file.
     """
     file_class = {
-        'file': SMBFileIO,
-        'dir': SMBDirectoryIO,
-        'pipe': SMBPipeIO,
+        "file": SMBFileIO,
+        "dir": SMBDirectoryIO,
+        "pipe": SMBPipeIO,
     }[file_type]
 
-    raw_fd = file_class(path, mode=mode, share_access=share_access, desired_access=desired_access,
-                        file_attributes=file_attributes, **kwargs)
+    raw_fd = file_class(
+        path,
+        mode=mode,
+        share_access=share_access,
+        desired_access=desired_access,
+        file_attributes=file_attributes,
+        **kwargs
+    )
     try:
         raw_fd.open()
 
         line_buffering = buffering == 1
         if buffering == 0:
-            if 'b' not in raw_fd.mode:
+            if "b" not in raw_fd.mode:
                 raise ValueError("can't have unbuffered text I/O")
 
             return raw_fd
@@ -390,7 +409,7 @@ def open_file(path, mode='r', buffering=-1, encoding=None, errors=None, newline=
 
         fd_buffer = buff_type(raw_fd, buffer_size=buffering)
 
-        if 'b' in raw_fd.mode:
+        if "b" in raw_fd.mode:
             return fd_buffer
 
         return io.TextIOWrapper(fd_buffer, encoding, errors, newline, line_buffering=line_buffering)
@@ -412,12 +431,12 @@ def readlink(path, **kwargs):
     """
     norm_path = ntpath.normpath(path)
     reparse_buffer = _get_reparse_point(norm_path, **kwargs)
-    reparse_tag = reparse_buffer['reparse_tag']
+    reparse_tag = reparse_buffer["reparse_tag"]
     if reparse_tag.get_value() != ReparseTags.IO_REPARSE_TAG_SYMLINK:
         raise ValueError("Cannot read link of reparse point with tag %s at '%s'" % (str(reparse_tag), norm_path))
 
     symlink_buffer = SymbolicLinkReparseDataBuffer()
-    symlink_buffer.unpack(reparse_buffer['data_buffer'].get_value())
+    symlink_buffer.unpack(reparse_buffer["data_buffer"].get_value())
     return symlink_buffer.resolve_link(norm_path)
 
 
@@ -522,15 +541,16 @@ def scandir(path, search_pattern="*", **kwargs):
     :param kwargs: Common SMB Session arguments for smbclient.
     :return: An iterator of DirEntry objects in the directory.
     """
-    connection_cache = kwargs.get('connection_cache', None)
-    with SMBDirectoryIO(path, share_access='rwd', **kwargs) as fd:
+    connection_cache = kwargs.get("connection_cache", None)
+    with SMBDirectoryIO(path, share_access="rwd", **kwargs) as fd:
         for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
-            filename = dir_info['file_name'].get_value().decode('utf-16-le')
-            if filename in [u'.', u'..']:
+            filename = dir_info["file_name"].get_value().decode("utf-16-le")
+            if filename in [".", ".."]:
                 continue
 
-            dir_entry = SMBDirEntry(SMBRawIO(u"%s\\%s" % (path, filename), **kwargs), dir_info,
-                                    connection_cache=connection_cache)
+            dir_entry = SMBDirEntry(
+                SMBRawIO("%s\\%s" % (path, filename), **kwargs), dir_info, connection_cache=connection_cache
+            )
             yield dir_entry
 
 
@@ -555,8 +575,14 @@ def stat(path, follow_symlinks=True, **kwargs):
             st_reparse_tag: An int representing the Windows IO_REPARSE_TAG_* constants. This is set to 0 unless
                 follow_symlinks=False and the path is a reparse point. See smbprotocol.reparse_point.ReparseTags.
     """
-    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
-                   create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
+    raw = SMBRawIO(
+        path,
+        mode="r",
+        share_access="rwd",
+        desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
+        create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs
+    )
     with SMBFileTransaction(raw) as transaction:
         query_info(transaction, FileBasicInformation)
         # volume_label is variable and can return up to the first 32 chars (32 * 2 for UTF-16) + null padding
@@ -567,9 +593,9 @@ def stat(path, follow_symlinks=True, **kwargs):
 
     basic_info, fs_volume, internal_info, standard_info, attribute_tag = transaction.results
 
-    reparse_tag = attribute_tag['reparse_tag'].get_value()
+    reparse_tag = attribute_tag["reparse_tag"].get_value()
 
-    file_attributes = basic_info['file_attributes']
+    file_attributes = basic_info["file_attributes"]
     st_mode = 0  # Permission bits are mostly symbolic, holdover from python stat behaviour
     if file_attributes.has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY):
         st_mode |= py_stat.S_IFDIR | 0o111
@@ -589,19 +615,19 @@ def stat(path, follow_symlinks=True, **kwargs):
 
     # The time fields are 100s of nanoseconds since 1601-01-01 UTC and we need to convert to nanoseconds since EPOCH.
     epoch_ft = DateTimeField.EPOCH_FILETIME
-    atime_ns = (basic_info['last_access_time'].get_value() - epoch_ft) * 100
-    mtime_ns = (basic_info['last_write_time'].get_value() - epoch_ft) * 100
-    ctime_ns = (basic_info['creation_time'].get_value() - epoch_ft) * 100
-    chgtime_ns = (basic_info['change_time'].get_value() - epoch_ft) * 100
+    atime_ns = (basic_info["last_access_time"].get_value() - epoch_ft) * 100
+    mtime_ns = (basic_info["last_write_time"].get_value() - epoch_ft) * 100
+    ctime_ns = (basic_info["creation_time"].get_value() - epoch_ft) * 100
+    chgtime_ns = (basic_info["change_time"].get_value() - epoch_ft) * 100
 
     return SMBStatResult(
         st_mode=st_mode,
-        st_ino=internal_info['index_number'].get_value(),
-        st_dev=fs_volume['volume_serial_number'].get_value(),
-        st_nlink=standard_info['number_of_links'].get_value(),
+        st_ino=internal_info["index_number"].get_value(),
+        st_dev=fs_volume["volume_serial_number"].get_value(),
+        st_nlink=standard_info["number_of_links"].get_value(),
         st_uid=0,
         st_gid=0,
-        st_size=standard_info['end_of_file'].get_value(),
+        st_size=standard_info["end_of_file"].get_value(),
         st_atime=atime_ns / 1000000000,
         st_mtime=mtime_ns / 1000000000,
         st_ctime=ctime_ns / 1000000000,
@@ -611,7 +637,7 @@ def stat(path, follow_symlinks=True, **kwargs):
         st_ctime_ns=ctime_ns,
         st_chgtime_ns=chgtime_ns,
         st_file_attributes=file_attributes.get_value(),
-        st_reparse_tag=reparse_tag
+        st_reparse_tag=reparse_tag,
     )
 
 
@@ -626,16 +652,17 @@ def stat_volume(path, **kwargs):
                 caller_available_size: Available size for the logged user of the file system
                 actual_available_size: Available size of the file system
     """
-    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
-                   **kwargs)
+    raw = SMBRawIO(
+        path, mode="r", share_access="rwd", desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES, **kwargs
+    )
     with SMBFileTransaction(raw) as transaction:
         query_info(transaction, FileFsFullSizeInformation)
     full_size = transaction.results[0]
-    unit_in_bytes = full_size['sectors_per_unit'].get_value() * full_size['bytes_per_sector'].get_value()
+    unit_in_bytes = full_size["sectors_per_unit"].get_value() * full_size["bytes_per_sector"].get_value()
     return SMBStatVolumeResult(
-        total_size=full_size['total_allocation_units'].get_value() * unit_in_bytes,
-        caller_available_size=full_size['caller_available_units'].get_value() * unit_in_bytes,
-        actual_available_size=full_size['actual_available_units'].get_value() * unit_in_bytes
+        total_size=full_size["total_allocation_units"].get_value() * unit_in_bytes,
+        caller_available_size=full_size["caller_available_units"].get_value() * unit_in_bytes,
+        actual_available_size=full_size["actual_available_units"].get_value() * unit_in_bytes,
     )
 
 
@@ -669,7 +696,7 @@ def symlink(src, dst, target_is_directory=False, **kwargs):
         norm_src = ntpath.abspath(ntpath.join(dst_dir, norm_src))
     else:
         flags = SymbolicLinkFlags.SYMLINK_FLAG_ABSOLUTE
-        substitute_name = '\\??\\UNC\\%s' % norm_src[2:]
+        substitute_name = "\\??\\UNC\\%s" % norm_src[2:]
 
     src_drive = ntpath.splitdrive(norm_src)[0]
     dst_drive = ntpath.splitdrive(norm_dst)[0]
@@ -686,24 +713,29 @@ def symlink(src, dst, target_is_directory=False, **kwargs):
         target_is_directory = py_stat.S_ISDIR(src_stat.st_mode)
 
     symlink_buffer = SymbolicLinkReparseDataBuffer()
-    symlink_buffer['flags'] = flags
+    symlink_buffer["flags"] = flags
     symlink_buffer.set_name(substitute_name, print_name)
 
     reparse_buffer = ReparseDataBuffer()
-    reparse_buffer['reparse_tag'] = ReparseTags.IO_REPARSE_TAG_SYMLINK
-    reparse_buffer['data_buffer'] = symlink_buffer
+    reparse_buffer["reparse_tag"] = ReparseTags.IO_REPARSE_TAG_SYMLINK
+    reparse_buffer["data_buffer"] = symlink_buffer
 
     co = CreateOptions.FILE_OPEN_REPARSE_POINT
     if target_is_directory:
         co |= CreateOptions.FILE_DIRECTORY_FILE
     else:
         co |= CreateOptions.FILE_NON_DIRECTORY_FILE
-    raw = SMBRawIO(norm_dst, mode='x', desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
-                   create_options=co, **kwargs)
+    raw = SMBRawIO(
+        norm_dst, mode="x", desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES, create_options=co, **kwargs
+    )
 
     with SMBFileTransaction(raw) as transaction:
-        ioctl_request(transaction, CtlCode.FSCTL_SET_REPARSE_POINT, flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
-                      input_buffer=reparse_buffer)
+        ioctl_request(
+            transaction,
+            CtlCode.FSCTL_SET_REPARSE_POINT,
+            flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL,
+            input_buffer=reparse_buffer,
+        )
 
 
 def truncate(path, length, **kwargs):
@@ -714,7 +746,7 @@ def truncate(path, length, **kwargs):
     :param length: The length in bytes to truncate the file to.
     :param kwargs: Common SMB Session arguments for smbclient.
     """
-    with open_file(path, mode='ab', **kwargs) as fd:
+    with open_file(path, mode="ab", **kwargs) as fd:
         fd.truncate(length)
 
 
@@ -773,15 +805,17 @@ def utime(path, times=None, ns=None, follow_symlinks=True, **kwargs):
         atime, mtime = tuple([op(t, op_amt) + DateTimeField.EPOCH_FILETIME for t in time_tuple])
     else:
         # time_ns() was only added in Python 3.7
-        time_ns = getattr(time, 'time_ns', None)
+        time_ns = getattr(time, "time_ns", None)
         if not time_ns:
+
             def time_ns():  # pragma: no cover
                 return int(time.time()) * 1000000000
 
         atime = mtime = (time_ns() // 100) + DateTimeField.EPOCH_FILETIME
 
-    _set_basic_information(path, last_access_time=atime, last_write_time=mtime, follow_symlinks=follow_symlinks,
-                           **kwargs)
+    _set_basic_information(
+        path, last_access_time=atime, last_write_time=mtime, follow_symlinks=follow_symlinks, **kwargs
+    )
 
 
 def walk(top, topdown=True, onerror=None, follow_symlinks=False, **kwargs):
@@ -853,11 +887,7 @@ def walk(top, topdown=True, onerror=None, follow_symlinks=False, **kwargs):
             # follow_symlinks is False.
             bottom_up_dirs.append(entry.path)
 
-    walk_kwargs = {
-        'topdown': topdown,
-        'onerror': onerror,
-        'follow_symlinks': follow_symlinks
-    }
+    walk_kwargs = {"topdown": topdown, "onerror": onerror, "follow_symlinks": follow_symlinks}
     walk_kwargs.update(kwargs)
 
     if topdown:
@@ -962,12 +992,18 @@ def setxattr(path, attribute, value, flags=0, follow_symlinks=True, **kwargs):
         elif flags == XATTR_REPLACE and not present:
             raise SMBOSError(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, path)
 
-    raw = SMBRawIO(path, mode='r', share_access='r', desired_access=FilePipePrinterAccessMask.FILE_WRITE_EA,
-                   create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
+    raw = SMBRawIO(
+        path,
+        mode="r",
+        share_access="r",
+        desired_access=FilePipePrinterAccessMask.FILE_WRITE_EA,
+        create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs
+    )
     with SMBFileTransaction(raw) as transaction:
         ea_info = FileFullEaInformation()
-        ea_info['ea_name'] = b_attribute
-        ea_info['ea_value'] = b_value
+        ea_info["ea_name"] = b_attribute
+        ea_info["ea_value"] = b_value
         set_info(transaction, ea_info)
 
 
@@ -975,57 +1011,81 @@ def _delete(raw_type, path, **kwargs):
     # Ensures we delete the symlink (if present) and don't follow it down.
     co = CreateOptions.FILE_OPEN_REPARSE_POINT
     co |= {
-        'dir': CreateOptions.FILE_DIRECTORY_FILE,
-        'file': CreateOptions.FILE_NON_DIRECTORY_FILE,
+        "dir": CreateOptions.FILE_DIRECTORY_FILE,
+        "file": CreateOptions.FILE_NON_DIRECTORY_FILE,
     }.get(raw_type.FILE_TYPE, 0)
 
     # Setting a shared_access of rwd means we can still delete a file that has an existing handle open, the file will
     # be deleted when that handle is closed. This replicates the os.remove() behaviour when running on Windows locally.
-    raw = raw_type(path, mode='r', share_access='rwd',
-                   desired_access=FilePipePrinterAccessMask.DELETE | FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
-                   create_options=co, **kwargs)
+    raw = raw_type(
+        path,
+        mode="r",
+        share_access="rwd",
+        desired_access=FilePipePrinterAccessMask.DELETE | FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
+        create_options=co,
+        **kwargs
+    )
 
     with SMBFileTransaction(raw) as transaction:
         # Make sure the file does not have the FILE_ATTRIBUTE_READONLY flag as Windows will fail to delete these files.
         basic_info = FileBasicInformation()
-        basic_info['creation_time'] = 0
-        basic_info['last_access_time'] = 0
-        basic_info['last_write_time'] = 0
-        basic_info['change_time'] = 0
-        basic_info['file_attributes'] = FileAttributes.FILE_ATTRIBUTE_NORMAL if raw_type.FILE_TYPE == 'file' else \
-            FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+        basic_info["creation_time"] = 0
+        basic_info["last_access_time"] = 0
+        basic_info["last_write_time"] = 0
+        basic_info["change_time"] = 0
+        basic_info["file_attributes"] = (
+            FileAttributes.FILE_ATTRIBUTE_NORMAL
+            if raw_type.FILE_TYPE == "file"
+            else FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+        )
         set_info(transaction, basic_info)
 
         info_buffer = FileDispositionInformation()
-        info_buffer['delete_pending'] = True
+        info_buffer["delete_pending"] = True
         set_info(transaction, info_buffer)
 
 
 def _get_extended_attributes(path, follow_symlinks=True, **kwargs):
-    raw = SMBRawIO(path, mode='r', share_access='r', desired_access=FilePipePrinterAccessMask.FILE_READ_EA,
-                   create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
+    raw = SMBRawIO(
+        path,
+        mode="r",
+        share_access="r",
+        desired_access=FilePipePrinterAccessMask.FILE_READ_EA,
+        create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs
+    )
 
     try:
         with SMBFileTransaction(raw) as transaction:
             # We don't know the EA size and FileEaInformation is too unreliable so just set the max size to the SMB2
             # payload length. It seems to fail if it goes any higher than this.
-            query_info(transaction, FileFullEaInformation, flags=QueryInfoFlags.SL_RESTART_SCAN,
-                       output_buffer_length=MAX_PAYLOAD_SIZE)
+            query_info(
+                transaction,
+                FileFullEaInformation,
+                flags=QueryInfoFlags.SL_RESTART_SCAN,
+                output_buffer_length=MAX_PAYLOAD_SIZE,
+            )
     except SMBOSError as err:
         if err.ntstatus == NtStatus.STATUS_NO_EAS_ON_FILE:
             return []
         raise
 
-    return [(e['ea_name'].get_value(), e['ea_value'].get_value()) for e in transaction.results[0]]
+    return [(e["ea_name"].get_value(), e["ea_value"].get_value()) for e in transaction.results[0]]
 
 
 def _get_reparse_point(path, **kwargs):
-    raw = SMBRawIO(path, mode='r', desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
-                   create_options=CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
+    raw = SMBRawIO(
+        path,
+        mode="r",
+        desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
+        create_options=CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs
+    )
 
     with SMBFileTransaction(raw) as transaction:
-        ioctl_request(transaction, CtlCode.FSCTL_GET_REPARSE_POINT, output_size=16384,
-                      flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL)
+        ioctl_request(
+            transaction, CtlCode.FSCTL_GET_REPARSE_POINT, output_size=16384, flags=IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
+        )
 
     reparse_buffer = ReparseDataBuffer()
     reparse_buffer.unpack(transaction.results[0])
@@ -1033,16 +1093,18 @@ def _get_reparse_point(path, **kwargs):
 
 
 def _rename_information(src, dst, replace_if_exists=False, **kwargs):
-    verb = 'replace' if replace_if_exists else 'rename'
+    verb = "replace" if replace_if_exists else "rename"
     if not is_remote_path(ntpath.normpath(dst)):
         raise ValueError("dst must be an absolute path to where the file or directory should be %sd." % verb)
 
     raw_args = dict(kwargs)
-    raw_args.update({
-        'mode': 'r',
-        'share_access': 'rwd',
-        'create_options': CreateOptions.FILE_OPEN_REPARSE_POINT,
-    })
+    raw_args.update(
+        {
+            "mode": "r",
+            "share_access": "rwd",
+            "create_options": CreateOptions.FILE_OPEN_REPARSE_POINT,
+        }
+    )
 
     # We open/close the dest (ignoring if the file does not exist) so we can resolve the DFS path and determine the
     # filename src needs to be renamed to.
@@ -1068,28 +1130,41 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
 
         with SMBFileTransaction(src_raw) as transaction:
             file_rename = FileRenameInformation()
-            file_rename['replace_if_exists'] = replace_if_exists
-            file_rename['file_name'] = to_text(dst_raw.fd.file_name)
+            file_rename["replace_if_exists"] = replace_if_exists
+            file_rename["file_name"] = to_text(dst_raw.fd.file_name)
             set_info(transaction, file_rename)
 
 
-def _set_basic_information(path, creation_time=0, last_access_time=0, last_write_time=0, change_time=0,
-                           file_attributes=0, follow_symlinks=True, **kwargs):
-    raw = SMBRawIO(path, mode='r', share_access='rwd', desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
-                   create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT, **kwargs)
+def _set_basic_information(
+    path,
+    creation_time=0,
+    last_access_time=0,
+    last_write_time=0,
+    change_time=0,
+    file_attributes=0,
+    follow_symlinks=True,
+    **kwargs
+):
+    raw = SMBRawIO(
+        path,
+        mode="r",
+        share_access="rwd",
+        desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
+        create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs
+    )
 
     with SMBFileTransaction(raw) as transaction:
         basic_info = FileBasicInformation()
-        basic_info['creation_time'] = creation_time
-        basic_info['last_access_time'] = last_access_time
-        basic_info['last_write_time'] = last_write_time
-        basic_info['change_time'] = change_time
-        basic_info['file_attributes'] = file_attributes
+        basic_info["creation_time"] = creation_time
+        basic_info["last_access_time"] = last_access_time
+        basic_info["last_write_time"] = last_write_time
+        basic_info["change_time"] = change_time
+        basic_info["file_attributes"] = file_attributes
         set_info(transaction, basic_info)
 
 
 class SMBDirEntry(object):
-
     def __init__(self, raw, dir_info, connection_cache=None):
         self._smb_raw = raw
         self._dir_info = dir_info
@@ -1098,16 +1173,16 @@ class SMBDirEntry(object):
         self._connection_cache = connection_cache
 
     def __str__(self):
-        return '<{0}: {1!r}>'.format(self.__class__.__name__, self.name)
+        return "<{0}: {1!r}>".format(self.__class__.__name__, self.name)
 
     @property
     def name(self):
-        """ The entry's base filename, relative to the scandir() path argument. """
+        """The entry's base filename, relative to the scandir() path argument."""
         return self._smb_raw.name.split("\\")[-1]
 
     @property
     def path(self):
-        """ The entry's full path name. """
+        """The entry's full path name."""
         return self._smb_raw.name
 
     def inode(self):
@@ -1117,7 +1192,7 @@ class SMBDirEntry(object):
         The result is cached on the 'smcblient.DirEntry' object. Use
         'smbclient.stat(entry.path, follow_symlinks=False).st_ino' to fetch up-to-date information.
         """
-        return self._dir_info['file_id'].get_value()
+        return self._dir_info["file_id"].get_value()
 
     def is_dir(self, follow_symlinks=True):
         """
@@ -1141,7 +1216,7 @@ class SMBDirEntry(object):
             return self._link_target_type_check(py_stat.S_ISDIR)
         else:
             # Python behaviour is to consider a symlink not a directory even if it has the DIRECTORY attribute.
-            return not is_lnk and self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
+            return not is_lnk and self._dir_info["file_attributes"].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
 
     def is_file(self, follow_symlinks=True):
         """
@@ -1165,8 +1240,9 @@ class SMBDirEntry(object):
             return self._link_target_type_check(py_stat.S_ISREG)
         else:
             # Python behaviour is to consider a symlink not a file even if it does not have the DIRECTORY attribute.
-            return not is_lnk and \
-                not self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
+            return not is_lnk and not self._dir_info["file_attributes"].has_flag(
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+            )
 
     def is_symlink(self):
         """
@@ -1181,7 +1257,7 @@ class SMBDirEntry(object):
 
         :return: Whether the path is a symbolic link.
         """
-        if self._dir_info['file_attributes'].has_flag(FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT):
+        if self._dir_info["file_attributes"].has_flag(FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT):
             # While a symlink is a reparse point, all reparse points aren't symlinks. We need to get the reparse tag
             # to use as our check. Unlike WIN32_FILE_DATA scanned locally, we don't get the reparse tag in the original
             # query result. We need to do a separate stat call to get this information.
@@ -1224,10 +1300,10 @@ class SMBDirEntry(object):
 
         # A DirEntry only needs these 2 properties to be set
         dir_info = FileIdFullDirectoryInformation()
-        dir_info['file_attributes'] = file_stat.st_file_attributes
-        dir_info['file_id'] = file_stat.st_ino
+        dir_info["file_attributes"] = file_stat.st_file_attributes
+        dir_info["file_id"] = file_stat.st_ino
 
-        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info, connection_cache=kwargs.get('connection_cache', None))
+        dir_entry = cls(SMBRawIO(path, **kwargs), dir_info, connection_cache=kwargs.get("connection_cache", None))
         dir_entry._stat = file_stat
         return dir_entry
 
