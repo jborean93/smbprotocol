@@ -10,50 +10,25 @@ import shutil
 import stat
 import sys
 
-from smbclient._io import (
-    query_info,
-    set_info,
-    SMBFileTransaction,
-    SMBRawIO,
-)
-
+from smbclient._io import SMBFileTransaction, SMBRawIO, query_info, set_info
+from smbclient._os import SMBDirEntry
+from smbclient._os import copyfile as smbclient_copyfile
 from smbclient._os import (
-    copyfile as smbclient_copyfile,
+    is_remote_path,
     makedirs,
     open_file,
     readlink,
     remove,
     rmdir,
     scandir,
-    stat as smbclient_stat,
-    symlink,
-    SMBDirEntry,
-    is_remote_path,
 )
-
-from smbclient.path import (
-    isdir,
-    islink,
-    samefile,
-)
-
-from smbprotocol import (
-    MAX_PAYLOAD_SIZE,
-)
-
-from smbprotocol.file_info import (
-    FileAttributes,
-    FileBasicInformation,
-)
-
-from smbprotocol.open import (
-    CreateOptions,
-    FilePipePrinterAccessMask,
-)
-
-from smbprotocol.structure import (
-    DateTimeField,
-)
+from smbclient._os import stat as smbclient_stat
+from smbclient._os import symlink
+from smbclient.path import isdir, islink, samefile
+from smbprotocol import MAX_PAYLOAD_SIZE
+from smbprotocol.file_info import FileAttributes, FileBasicInformation
+from smbprotocol.open import CreateOptions, FilePipePrinterAccessMask
+from smbprotocol.structure import DateTimeField
 
 
 def _basename(path):
@@ -204,7 +179,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
         return dst
 
     # Finally we are copying across different roots so we just chunk the data using copyfileobj
-    with src_open(src, mode='rb', **src_kwargs) as src_fd, dst_open(dst, mode='wb', **dst_kwargs) as dst_fd:
+    with src_open(src, mode="rb", **src_kwargs) as src_fd, dst_open(dst, mode="wb", **dst_kwargs) as dst_fd:
         copyfileobj(src_fd, dst_fd, MAX_PAYLOAD_SIZE)
 
     return dst
@@ -269,8 +244,16 @@ def copystat(src, dst, follow_symlinks=True, **kwargs):
         os.utime(dst, ns=(atime_ns, mtime_ns), follow_symlinks=follow_symlinks)
 
 
-def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_dangling_symlinks=False,
-             dirs_exist_ok=False, **kwargs):
+def copytree(
+    src,
+    dst,
+    symlinks=False,
+    ignore=None,
+    copy_function=copy2,
+    ignore_dangling_symlinks=False,
+    dirs_exist_ok=False,
+    **kwargs
+):
     """
     Recursively copy an entire directory tree rooted at src to a directory named dst and return the destination
     directory. dirs_exist_ok dictates whether to raise an exception in case dst or any missing parent directory
@@ -344,8 +327,16 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2, ignore_
                         raise
 
             if dir_entry.is_dir():
-                copytree(src_path, dst_path, symlinks, ignore, copy_function, ignore_dangling_symlinks, dirs_exist_ok,
-                         **kwargs)
+                copytree(
+                    src_path,
+                    dst_path,
+                    symlinks,
+                    ignore,
+                    copy_function,
+                    ignore_dangling_symlinks,
+                    dirs_exist_ok,
+                    **kwargs
+                )
             else:
                 copy_function(src_path, dst_path, **kwargs)
         except shutil.Error as err:
@@ -387,9 +378,12 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
     :param kwargs: Common arguments used to build the SMB Session.
     """
     if ignore_errors:
+
         def onerror(*args):
             pass
+
     elif onerror is None:
+
         def onerror(*args):
             raise
 
@@ -413,8 +407,10 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
         # In case the entry is a directory symbolic link we need to remove the dir itself and not recurse down into
         # it with rmtree. Doing that would result in a symbolic link target having it's contents removed even if it's
         # outside the rmtree scope.
-        if dir_entry.is_symlink() and \
-                dir_entry.stat(follow_symlinks=False).st_file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY:
+        if (
+            dir_entry.is_symlink()
+            and dir_entry.stat(follow_symlinks=False).st_file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+        ):
             try:
                 rmdir(dir_entry.path, **kwargs)
             except OSError:
@@ -445,7 +441,7 @@ def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
 
 
 def _get_file_stat(path, follow_symlinks=True, **kwargs):
-    if path.startswith('//') or path.startswith('\\\\'):
+    if path.startswith("//") or path.startswith("\\\\"):
         return smbclient_stat(path, follow_symlinks=follow_symlinks, **kwargs)
     else:
         # Source is a local path or accessible to the host, use the builtin os module to get the read only flag.
@@ -462,12 +458,18 @@ def _set_file_basic_info(file_path, follow_symlinks, read_only=None, atime_ns=No
     # read only attribute as that will remove any other attribute set on the file.
     new_attributes = 0
     if read_only is not None:
-        file_fd = SMBRawIO(file_path, mode='r', share_access='rw', create_options=co,
-                           desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES, **kwargs)
+        file_fd = SMBRawIO(
+            file_path,
+            mode="r",
+            share_access="rw",
+            create_options=co,
+            desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
+            **kwargs
+        )
         with SMBFileTransaction(file_fd) as transaction:
             query_info(transaction, FileBasicInformation)
 
-        existing_attributes = transaction.results[0]['file_attributes'].get_value()
+        existing_attributes = transaction.results[0]["file_attributes"].get_value()
         if read_only and existing_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0:
             new_attributes = existing_attributes | FileAttributes.FILE_ATTRIBUTE_READONLY
         elif not read_only and existing_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY != 0:
@@ -479,17 +481,23 @@ def _set_file_basic_info(file_path, follow_symlinks, read_only=None, atime_ns=No
 
     # Only set the attributes if there is actually a change to be made.
     if new_attributes or atime_ns is not None or mtime_ns is not None:
-        file_fd = SMBRawIO(file_path, mode='r', share_access='rw', create_options=co,
-                           desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES, **kwargs)
+        file_fd = SMBRawIO(
+            file_path,
+            mode="r",
+            share_access="rw",
+            create_options=co,
+            desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
+            **kwargs
+        )
 
         with SMBFileTransaction(file_fd) as transaction:
             basic_info = FileBasicInformation()
-            basic_info['file_attributes'] = new_attributes
+            basic_info["file_attributes"] = new_attributes
 
             if atime_ns is not None:
-                basic_info['last_access_time'] = int((atime_ns // 100) + DateTimeField.EPOCH_FILETIME)
+                basic_info["last_access_time"] = int((atime_ns // 100) + DateTimeField.EPOCH_FILETIME)
 
             if mtime_ns is not None:
-                basic_info['last_write_time'] = int((mtime_ns // 100) + DateTimeField.EPOCH_FILETIME)
+                basic_info["last_write_time"] = int((mtime_ns // 100) + DateTimeField.EPOCH_FILETIME)
 
             set_info(transaction, basic_info)

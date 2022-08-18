@@ -9,16 +9,9 @@ import socket
 import struct
 import threading
 import timeit
+from collections import OrderedDict
 
-from collections import (
-    OrderedDict,
-)
-
-from smbprotocol.structure import (
-    BytesField,
-    IntField,
-    Structure,
-)
+from smbprotocol.structure import BytesField, IntField, Structure
 
 log = logging.getLogger(__name__)
 
@@ -33,16 +26,24 @@ class DirectTCPPacket(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('stream_protocol_length', IntField(
-                size=4,
-                little_endian=False,
-                default=lambda s: len(s['smb2_message']),
-            )),
-            ('smb2_message', BytesField(
-                size=lambda s: s['stream_protocol_length'].get_value(),
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "stream_protocol_length",
+                    IntField(
+                        size=4,
+                        little_endian=False,
+                        default=lambda s: len(s["smb2_message"]),
+                    ),
+                ),
+                (
+                    "smb2_message",
+                    BytesField(
+                        size=lambda s: s["stream_protocol_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(DirectTCPPacket, self).__init__()
 
 
@@ -97,11 +98,13 @@ class Tcp(object):
         b_msg = header
         data_length = len(b_msg)
         if data_length > self.MAX_SIZE:
-            raise ValueError("Data to be sent over Direct TCP size %d exceeds the max length allowed %d"
-                             % (data_length, self.MAX_SIZE))
+            raise ValueError(
+                "Data to be sent over Direct TCP size %d exceeds the max length allowed %d"
+                % (data_length, self.MAX_SIZE)
+            )
 
         tcp_packet = DirectTCPPacket()
-        tcp_packet['smb2_message'] = b_msg
+        tcp_packet["smb2_message"] = b_msg
 
         data = tcp_packet.pack()
 
@@ -114,7 +117,7 @@ class Tcp(object):
         # We don't need a lock for recv as the receiver is called from 1 thread.
         b_packet_size, timeout = self._recv(4, timeout)
         if not b_packet_size:
-            return b''
+            return b""
 
         packet_size = struct.unpack(">L", b_packet_size)[0]
 
@@ -132,7 +135,7 @@ class Tcp(object):
             with self._close_lock:
                 if not self.connected:
                     # The socket was closed - need the no cover to avoid CI failing on race condition differences
-                    return None, timeout    # pragma: no cover
+                    return None, timeout  # pragma: no cover
 
                 read = select.select([self._sock], [], [], max(timeout, 1))[0]
                 timeout = timeout - (timeit.default_timer() - start_time)
@@ -148,7 +151,7 @@ class Tcp(object):
                     if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET]:
                         # Avoid collecting coverage here to avoid CI failing due to race condition differences
                         raise  # pragma: no cover
-                    b_data = b''
+                    b_data = b""
 
             read_len = len(b_data)
             log.debug("Socket recv() returned %s bytes (total %s)" % (read_len, length))
@@ -157,7 +160,7 @@ class Tcp(object):
                 self.close()
                 return None, timeout  # The socket has been shutdown
 
-            buffer[offset:offset + read_len] = b_data
+            buffer[offset : offset + read_len] = b_data
             offset += read_len
 
         return bytes(buffer), timeout

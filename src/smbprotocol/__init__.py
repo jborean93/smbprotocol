@@ -7,9 +7,11 @@ import logging
 try:
     from logging import NullHandler
 except ImportError:  # pragma: no cover
+
     class NullHandler(logging.Handler):
         def emit(self, record):
             pass
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
@@ -27,6 +29,7 @@ class Dialects(object):
     used in the SMBv1 negotiate request to say that dialects greater than
     2.0.2 is supported.
     """
+
     SMB_2_0_2 = 0x0202
     SMB_2_1_0 = 0x0210
     SMB_3_0_0 = 0x0300

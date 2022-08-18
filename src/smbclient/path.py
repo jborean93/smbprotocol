@@ -5,14 +5,8 @@
 import errno
 import stat as py_stat
 
-from smbclient._os import (
-    stat,
-)
-
-from smbprotocol.exceptions import (
-    SMBLinkRedirectionError,
-    SMBOSError,
-)
+from smbclient._os import stat
+from smbprotocol.exceptions import SMBLinkRedirectionError, SMBOSError
 
 
 def exists(path, **kwargs):

@@ -2,14 +2,9 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-from collections import (
-    OrderedDict,
-)
+from collections import OrderedDict
 
-from smbprotocol.header import (
-    NtStatus,
-)
-
+from smbprotocol.header import NtStatus
 from smbprotocol.structure import (
     BoolField,
     BytesField,
@@ -29,6 +24,7 @@ class CreateContextName(object):
     2.2.13.2 SMB2_CREATE_CONTEXT Request Values
     Valid names for the name to set on a SMB2_CREATE_CONTEXT Request entry
     """
+
     SMB2_CREATE_EA_BUFFER = b"\x45\x78\x74\x41"
 
     # note: the structures for this are located in security_descriptor.py
@@ -43,12 +39,9 @@ class CreateContextName(object):
     SMB2_CREATE_REQUEST_LEASE_V2 = b"\x52\x71\x4c\x73"
     SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2 = b"\x44\x48\x32\x51"
     SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2 = b"\x44\x48\x32\x43"
-    SMB2_CREATE_APP_INSTANCE_ID = b"\x45\xBC\xA6\x6A\xEF\xA7\xF7\x4A" \
-                                  b"\x90\x08\xFA\x46\x2E\x14\x4D\x74"
-    SMB2_CREATE_APP_INSTANCE_VERSION = b"\xB9\x82\xD0\xB7\x3B\x56\x07\x4F" \
-                                       b"\xA0\x7B\x52\x4A\x81\x16\xA0\x10"
-    SVHDX_OPEN_DEVICE_CONTEXT = b"\x9C\xCB\xCF\x9E\x04\xC1\xE6\x43" \
-                                b"\x98\x0E\x15\x8D\xA1\xF6\xEC\x83"
+    SMB2_CREATE_APP_INSTANCE_ID = b"\x45\xBC\xA6\x6A\xEF\xA7\xF7\x4A" b"\x90\x08\xFA\x46\x2E\x14\x4D\x74"
+    SMB2_CREATE_APP_INSTANCE_VERSION = b"\xB9\x82\xD0\xB7\x3B\x56\x07\x4F" b"\xA0\x7B\x52\x4A\x81\x16\xA0\x10"
+    SVHDX_OPEN_DEVICE_CONTEXT = b"\x9C\xCB\xCF\x9E\x04\xC1\xE6\x43" b"\x98\x0E\x15\x8D\xA1\xF6\xEC\x83"
 
     @staticmethod
     def get_response_structure(name, size=None):
@@ -76,7 +69,7 @@ class CreateContextName(object):
             CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2: SMB2CreateDurableHandleResponseV2(),
             CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2: SMB2CreateDurableHandleReconnectV2,
             CreateContextName.SMB2_CREATE_APP_INSTANCE_ID: SMB2CreateAppInstanceId(),
-            CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION: SMB2CreateAppInstanceVersion()
+            CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION: SMB2CreateAppInstanceVersion(),
         }.get(name, None)
 
 
@@ -87,6 +80,7 @@ class EAFlags(object):
     2.4.15 FileFullEaInformation Flags
     Specifies the flag used when setting extended attributes.
     """
+
     NONE = 0x0000000
     FILE_NEED_EA = 0x00000080
 
@@ -99,6 +93,7 @@ class LeaseState(object):
     The requested lease state, field is constructed with a combination of the
     following values.
     """
+
     SMB2_LEASE_NONE = 0x00
     SMB2_LEASE_READ_CACHING = 0x01
     SMB2_LEASE_HANDLE_CACHING = 0x02
@@ -112,6 +107,7 @@ class LeaseRequestFlags(object):
     2.2.13.2.10 SMB2_CREATE_REQUEST_LEASE_V2
     The flags to use on an SMB2CreateRequestLeaseV2 packet.
     """
+
     SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET = 0x00000004
 
 
@@ -121,6 +117,7 @@ class LeaseResponseFlags(object):
 
     2.2.14.2.10 SMB2_CREATE_RESPONSE_LEASE
     """
+
     SMB2_LEASE_FLAG_BREAK_IN_PROGRESS = 0x00000002
     SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET = 0x00000004  # V2 Response
 
@@ -132,6 +129,7 @@ class DurableHandleFlags(object):
     2.2.13.2.11 SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2
     Flags used on an SMB2CreateDurableHandleRequestV2 packet.
     """
+
     SMB2_DHANDLE_FLAG_PERSISTENT = 0x00000002
 
 
@@ -140,6 +138,7 @@ class SVHDXOriginatorFlags(object):
     [MS-RSVD] 2.2.4.12 SVHDX_OPEN_DEVICE_CONTEXT OriginatorFlags
     Used to indicate which component has originated or issued the operations.
     """
+
     SVHDX_ORIGINATOR_PVHDPARSER = 0x00000001
     SVHDX_ORIGINATOR_VHDMP = 0x00000004
 
@@ -154,62 +153,48 @@ class SMB2CreateContextRequest(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('next', IntField(size=4)),
-            ('name_offset', IntField(
-                size=2,
-                default=16
-            )),
-            ('name_length', IntField(
-                size=2,
-                default=lambda s: len(s['buffer_name'])
-            )),
-            ('reserved', IntField(size=2)),
-            ('data_offset', IntField(
-                size=2,
-                default=lambda s: self._buffer_data_offset(s)
-            )),
-            ('data_length', IntField(
-                size=4,
-                default=lambda s: len(s['buffer_data'])
-            )),
-            ('buffer_name', BytesField(
-                size=lambda s: s['name_length'].get_value()
-            )),
-            ('padding', BytesField(
-                size=lambda s: self._padding_size(s),
-                default=lambda s: b"\x00" * self._padding_size(s)
-            )),
-            ('buffer_data', BytesField(
-                size=lambda s: s['data_length'].get_value()
-            )),
-            # not actually a field but each list entry must start at the 8 byte
-            # alignment
-            ('padding2', BytesField(
-                size=lambda s: self._padding2_size(s),
-                default=lambda s: b"\x00" * self._padding2_size(s)
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("next", IntField(size=4)),
+                ("name_offset", IntField(size=2, default=16)),
+                ("name_length", IntField(size=2, default=lambda s: len(s["buffer_name"]))),
+                ("reserved", IntField(size=2)),
+                ("data_offset", IntField(size=2, default=lambda s: self._buffer_data_offset(s))),
+                ("data_length", IntField(size=4, default=lambda s: len(s["buffer_data"]))),
+                ("buffer_name", BytesField(size=lambda s: s["name_length"].get_value())),
+                (
+                    "padding",
+                    BytesField(size=lambda s: self._padding_size(s), default=lambda s: b"\x00" * self._padding_size(s)),
+                ),
+                ("buffer_data", BytesField(size=lambda s: s["data_length"].get_value())),
+                # not actually a field but each list entry must start at the 8 byte
+                # alignment
+                (
+                    "padding2",
+                    BytesField(
+                        size=lambda s: self._padding2_size(s), default=lambda s: b"\x00" * self._padding2_size(s)
+                    ),
+                ),
+            ]
+        )
         super(SMB2CreateContextRequest, self).__init__()
 
     def _buffer_data_offset(self, structure):
-        if structure['data_length'].get_value() == 0:
+        if structure["data_length"].get_value() == 0:
             return 0
         else:
-            return structure['name_offset'].get_value() + \
-                   len(structure['buffer_name']) + len(structure['padding'])
+            return structure["name_offset"].get_value() + len(structure["buffer_name"]) + len(structure["padding"])
 
     def _padding_size(self, structure):
-        if structure['data_length'].get_value() == 0:
+        if structure["data_length"].get_value() == 0:
             return 0
 
-        buffer_name_len = structure['name_length'].get_value()
+        buffer_name_len = structure["name_length"].get_value()
         mod = buffer_name_len % 8
         return mod if mod == 0 else 8 - mod
 
     def _padding2_size(self, structure):
-        data_length = len(structure['buffer_name']) + \
-            len(structure['padding']) + len(structure['buffer_data'])
+        data_length = len(structure["buffer_name"]) + len(structure["padding"]) + len(structure["buffer_data"])
         mod = data_length % 8
         return mod if mod == 0 else 8 - mod
 
@@ -221,14 +206,14 @@ class SMB2CreateContextRequest(Structure):
 
         :return: relevant Structure of buffer_data or bytes if unknown name
         """
-        buffer_name = self['buffer_name'].get_value()
-        structure = CreateContextName.get_response_structure(buffer_name, size=self['data_length'].get_value())
+        buffer_name = self["buffer_name"].get_value()
+        structure = CreateContextName.get_response_structure(buffer_name, size=self["data_length"].get_value())
         if structure:
-            structure.unpack(self['buffer_data'].get_value())
+            structure.unpack(self["buffer_data"].get_value())
             return structure
         else:
             # unknown structure, just return the raw bytes
-            return self['buffer_data'].get_value()
+            return self["buffer_data"].get_value()
 
     @staticmethod
     def pack_multiple(messages):
@@ -247,21 +232,23 @@ class SMB2CreateContextRequest(Structure):
         for i, msg in enumerate(messages):
             if not isinstance(msg, SMB2CreateContextRequest):
                 buffer = msg
-                buffer_name = getattr(msg, 'NAME', None)
+                buffer_name = getattr(msg, "NAME", None)
                 if buffer_name is None:
-                    raise ValueError("Invalid context message, must be either a SMB2CreateContextRequest or a "
-                                     "predefined structure object with NAME defined.")
+                    raise ValueError(
+                        "Invalid context message, must be either a SMB2CreateContextRequest or a "
+                        "predefined structure object with NAME defined."
+                    )
                 msg = SMB2CreateContextRequest()
-                msg['buffer_name'] = buffer_name
-                msg['buffer_data'] = buffer
+                msg["buffer_name"] = buffer_name
+                msg["buffer_data"] = buffer
 
             if i == msg_count - 1:
-                msg['next'] = 0
+                msg["next"] = 0
             else:
                 # because the end padding2 val won't be populated if the entry
                 # offset is 0, we set to 1 so the len calc is correct
-                msg['next'] = 1
-                msg['next'] = len(msg)
+                msg["next"] = 1
+                msg["next"] = len(msg)
 
             data += msg.pack()
         return data
@@ -278,42 +265,31 @@ class SMB2CreateEABuffer(Structure):
     NAME = CreateContextName.SMB2_CREATE_EA_BUFFER
 
     def __init__(self):
-        self.fields = OrderedDict([
-            # 0 if no more entries, otherwise offset after ea_value
-            ('next_entry_offset', IntField(size=4)),
-            ('flags', FlagField(
-                size=1,
-                flag_type=EAFlags
-            )),
-            ('ea_name_length', IntField(
-                size=1,
-                default=lambda s: len(s['ea_name']) - 1  # minus \x00
-            )),
-            ('ea_value_length', IntField(
-                size=2,
-                default=lambda s: len(s['ea_value'])
-            )),
-            # ea_name is ASCII byte encoded and needs a null terminator '\x00'
-            ('ea_name', BytesField(
-                size=lambda s: s['ea_name_length'].get_value() + 1
-            )),
-            ('ea_value', BytesField(
-                size=lambda s: s['ea_value_length'].get_value()
-            )),
-            # not actually a field but each list entry must start at the 4 byte
-            # alignment
-            ('padding', BytesField(
-                size=lambda s: self._padding_size(s),
-                default=lambda s: b"\x00" * self._padding_size(s)
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                # 0 if no more entries, otherwise offset after ea_value
+                ("next_entry_offset", IntField(size=4)),
+                ("flags", FlagField(size=1, flag_type=EAFlags)),
+                ("ea_name_length", IntField(size=1, default=lambda s: len(s["ea_name"]) - 1)),  # minus \x00
+                ("ea_value_length", IntField(size=2, default=lambda s: len(s["ea_value"]))),
+                # ea_name is ASCII byte encoded and needs a null terminator '\x00'
+                ("ea_name", BytesField(size=lambda s: s["ea_name_length"].get_value() + 1)),
+                ("ea_value", BytesField(size=lambda s: s["ea_value_length"].get_value())),
+                # not actually a field but each list entry must start at the 4 byte
+                # alignment
+                (
+                    "padding",
+                    BytesField(size=lambda s: self._padding_size(s), default=lambda s: b"\x00" * self._padding_size(s)),
+                ),
+            ]
+        )
         super(SMB2CreateEABuffer, self).__init__()
 
     def _padding_size(self, structure):
-        if structure['next_entry_offset'].get_value() == 0:
+        if structure["next_entry_offset"].get_value() == 0:
             return 0
 
-        data_length = len(structure['ea_name']) + len(structure['ea_value'])
+        data_length = len(structure["ea_name"]) + len(structure["ea_value"])
         mod = data_length % 4
         return mod if mod == 0 else 4 - mod
 
@@ -333,12 +309,12 @@ class SMB2CreateEABuffer(Structure):
         msg_count = len(messages)
         for i, msg in enumerate(messages):
             if i == msg_count - 1:
-                msg['next_entry_offset'] = 0
+                msg["next_entry_offset"] = 0
             else:
                 # because the end padding val won't be populated if the entry
                 # offset is 0, we set to 1 so the len calc is correct
-                msg['next_entry_offset'] = 1
-                msg['next_entry_offset'] = len(msg)
+                msg["next_entry_offset"] = 1
+                msg["next_entry_offset"] = len(msg)
             data += msg.pack()
 
         return data
@@ -354,9 +330,7 @@ class SMB2CreateDurableHandleRequest(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('durable_request', BytesField(size=16, default=b"\x00" * 16))
-        ])
+        self.fields = OrderedDict([("durable_request", BytesField(size=16, default=b"\x00" * 16))])
         super(SMB2CreateDurableHandleRequest, self).__init__()
 
 
@@ -368,9 +342,7 @@ class SMB2CreateDurableHandleResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('reserved', IntField(size=8))
-        ])
+        self.fields = OrderedDict([("reserved", IntField(size=8))])
         super(SMB2CreateDurableHandleResponse, self).__init__()
 
 
@@ -384,9 +356,7 @@ class SMB2CreateDurableHandleReconnect(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('data', BytesField(size=16))
-        ])
+        self.fields = OrderedDict([("data", BytesField(size=16))])
         super(SMB2CreateDurableHandleReconnect, self).__init__()
 
 
@@ -401,9 +371,7 @@ class SMB2CreateQueryMaximalAccessRequest(Structure):
     NAME = CreateContextName.SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('timestamp', DateTimeField())
-        ])
+        self.fields = OrderedDict([("timestamp", DateTimeField())])
         super(SMB2CreateQueryMaximalAccessRequest, self).__init__()
 
 
@@ -416,15 +384,13 @@ class SMB2CreateQueryMaximalAccessResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('query_status', EnumField(
-                size=4,
-                enum_type=NtStatus,
-                enum_strict=False
-            )),
-            # either FilePipePrinterAccessMask or DirectoryAccessMask
-            ('maximal_access', IntField(size=4))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("query_status", EnumField(size=4, enum_type=NtStatus, enum_strict=False)),
+                # either FilePipePrinterAccessMask or DirectoryAccessMask
+                ("maximal_access", IntField(size=4)),
+            ]
+        )
         super(SMB2CreateQueryMaximalAccessResponse, self).__init__()
 
 
@@ -439,9 +405,7 @@ class SMB2CreateAllocationSize(Structure):
     NAME = CreateContextName.SMB2_CREATE_ALLOCATION_SIZE
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('allocation_size', IntField(size=8))
-        ])
+        self.fields = OrderedDict([("allocation_size", IntField(size=8))])
         super(SMB2CreateAllocationSize, self).__init__()
 
 
@@ -456,9 +420,7 @@ class SMB2CreateTimewarpToken(Structure):
     NAME = CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('timestamp', DateTimeField())
-        ])
+        self.fields = OrderedDict([("timestamp", DateTimeField())])
         super(SMB2CreateTimewarpToken, self).__init__()
 
 
@@ -472,15 +434,14 @@ class SMB2CreateRequestLease(Structure):
     NAME = CreateContextName.SMB2_CREATE_REQUEST_LEASE
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('lease_key', BytesField(size=16)),
-            ('lease_state', FlagField(
-                size=4,
-                flag_type=LeaseState
-            )),
-            ('lease_flags', IntField(size=4)),
-            ('lease_duration', IntField(size=8))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("lease_key", BytesField(size=16)),
+                ("lease_state", FlagField(size=4, flag_type=LeaseState)),
+                ("lease_flags", IntField(size=4)),
+                ("lease_duration", IntField(size=8)),
+            ]
+        )
         super(SMB2CreateRequestLease, self).__init__()
 
 
@@ -492,18 +453,14 @@ class SMB2CreateResponseLease(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('lease_key', BytesField(size=16)),
-            ('lease_state', FlagField(
-                size=4,
-                flag_type=LeaseState
-            )),
-            ('lease_flags', FlagField(
-                size=4,
-                flag_type=LeaseResponseFlags
-            )),
-            ('lease_duration', IntField(size=8))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("lease_key", BytesField(size=16)),
+                ("lease_state", FlagField(size=4, flag_type=LeaseState)),
+                ("lease_flags", FlagField(size=4, flag_type=LeaseResponseFlags)),
+                ("lease_duration", IntField(size=8)),
+            ]
+        )
         super(SMB2CreateResponseLease, self).__init__()
 
 
@@ -517,14 +474,13 @@ class SMB2CreateQueryOnDiskIDResponse(Structure):
     NAME = CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('disk_file_id', IntField(size=8)),
-            ('volume_id', IntField(size=8)),
-            ('reserved', BytesField(
-                size=16,
-                default=b"\x00" * 16
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("disk_file_id", IntField(size=8)),
+                ("volume_id", IntField(size=8)),
+                ("reserved", BytesField(size=16, default=b"\x00" * 16)),
+            ]
+        )
         super(SMB2CreateQueryOnDiskIDResponse, self).__init__()
 
 
@@ -540,21 +496,17 @@ class SMB2CreateRequestLeaseV2(Structure):
     NAME = CreateContextName.SMB2_CREATE_REQUEST_LEASE_V2
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('lease_key', BytesField(size=16)),
-            ('lease_state', FlagField(
-                size=4,
-                flag_type=LeaseState
-            )),
-            ('lease_flags', FlagField(
-                size=4,
-                flag_type=LeaseRequestFlags
-            )),
-            ('lease_duration', IntField(size=8)),
-            ('parent_lease_key', BytesField(size=16)),
-            ('epoch', BytesField(size=2)),
-            ('reserved', IntField(size=2))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("lease_key", BytesField(size=16)),
+                ("lease_state", FlagField(size=4, flag_type=LeaseState)),
+                ("lease_flags", FlagField(size=4, flag_type=LeaseRequestFlags)),
+                ("lease_duration", IntField(size=8)),
+                ("parent_lease_key", BytesField(size=16)),
+                ("epoch", BytesField(size=2)),
+                ("reserved", IntField(size=2)),
+            ]
+        )
         super(SMB2CreateRequestLeaseV2, self).__init__()
 
 
@@ -566,21 +518,17 @@ class SMB2CreateResponseLeaseV2(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('lease_key', BytesField(size=16)),
-            ('lease_state', FlagField(
-                size=4,
-                flag_type=LeaseState
-            )),
-            ('flags', FlagField(
-                size=4,
-                flag_type=LeaseResponseFlags
-            )),
-            ('lease_duration', IntField(size=8)),
-            ('parent_lease_key', BytesField(size=16)),
-            ('epoch', IntField(size=2)),
-            ('reserved', IntField(size=2))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("lease_key", BytesField(size=16)),
+                ("lease_state", FlagField(size=4, flag_type=LeaseState)),
+                ("flags", FlagField(size=4, flag_type=LeaseResponseFlags)),
+                ("lease_duration", IntField(size=8)),
+                ("parent_lease_key", BytesField(size=16)),
+                ("epoch", IntField(size=2)),
+                ("reserved", IntField(size=2)),
+            ]
+        )
         super(SMB2CreateResponseLeaseV2, self).__init__()
 
 
@@ -596,16 +544,15 @@ class SMB2CreateDurableHandleRequestV2(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2
 
     def __init__(self):
-        self.fields = OrderedDict([
-            # timeout in milliseconds
-            ('timeout', IntField(size=4)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=DurableHandleFlags
-            )),
-            ('reserved', IntField(size=8)),
-            ('create_guid', UuidField(size=16))
-        ])
+        self.fields = OrderedDict(
+            [
+                # timeout in milliseconds
+                ("timeout", IntField(size=4)),
+                ("flags", FlagField(size=4, flag_type=DurableHandleFlags)),
+                ("reserved", IntField(size=8)),
+                ("create_guid", UuidField(size=16)),
+            ]
+        )
         super(SMB2CreateDurableHandleRequestV2, self).__init__()
 
 
@@ -620,14 +567,13 @@ class SMB2CreateDurableHandleReconnectV2(Structure):
     NAME = CreateContextName.SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('file_id', BytesField(size=16)),
-            ('create_guid', UuidField(size=16)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=DurableHandleFlags
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("file_id", BytesField(size=16)),
+                ("create_guid", UuidField(size=16)),
+                ("flags", FlagField(size=4, flag_type=DurableHandleFlags)),
+            ]
+        )
         super(SMB2CreateDurableHandleReconnectV2, self).__init__()
 
 
@@ -640,13 +586,9 @@ class SMB2CreateDurableHandleResponseV2(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('timeout', IntField(size=4)),
-            ('flags', FlagField(
-                size=4,
-                flag_type=DurableHandleFlags
-            ))
-        ])
+        self.fields = OrderedDict(
+            [("timeout", IntField(size=4)), ("flags", FlagField(size=4, flag_type=DurableHandleFlags))]
+        )
         super(SMB2CreateDurableHandleResponseV2, self).__init__()
 
 
@@ -662,14 +604,13 @@ class SMB2CreateAppInstanceId(Structure):
     NAME = CreateContextName.SMB2_CREATE_APP_INSTANCE_ID
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=20
-            )),
-            ('reserved', IntField(size=2)),
-            ('app_instance_id', BytesField(size=16))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("structure_size", IntField(size=2, default=20)),
+                ("reserved", IntField(size=2)),
+                ("app_instance_id", BytesField(size=16)),
+            ]
+        )
         super(SMB2CreateAppInstanceId, self).__init__()
 
 
@@ -684,34 +625,19 @@ class SMB2SVHDXOpenDeviceContextRequest(Structure):
     NAME = CreateContextName.SVHDX_OPEN_DEVICE_CONTEXT
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('version', IntField(
-                size=4,
-                default=1
-            )),
-            ('has_initiator_id', BoolField(
-                size=1,
-                default=lambda s: len(s['initiator_host_name']) > 0
-            )),
-            ('reserved', BytesField(
-                size=3,
-                default=b"\x00\x00\x00"
-            )),
-            ('initiator_id', UuidField(size=16)),
-            ('originator_flags', EnumField(
-                size=4,
-                enum_type=SVHDXOriginatorFlags
-            )),
-            ('open_request_id', IntField(size=8)),
-            ('initiator_host_name_length', IntField(
-                size=2,
-                default=lambda s: len(s['initiator_host_name'])
-            )),
-            # utf-16-le encoded string
-            ('initiator_host_name', BytesField(
-                size=lambda s: s['initiator_host_name_length'].get_value()
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("version", IntField(size=4, default=1)),
+                ("has_initiator_id", BoolField(size=1, default=lambda s: len(s["initiator_host_name"]) > 0)),
+                ("reserved", BytesField(size=3, default=b"\x00\x00\x00")),
+                ("initiator_id", UuidField(size=16)),
+                ("originator_flags", EnumField(size=4, enum_type=SVHDXOriginatorFlags)),
+                ("open_request_id", IntField(size=8)),
+                ("initiator_host_name_length", IntField(size=2, default=lambda s: len(s["initiator_host_name"]))),
+                # utf-16-le encoded string
+                ("initiator_host_name", BytesField(size=lambda s: s["initiator_host_name_length"].get_value())),
+            ]
+        )
         super(SMB2SVHDXOpenDeviceContextRequest, self).__init__()
 
 
@@ -725,35 +651,20 @@ class SMB2SVHDXOpenDeviceContextResponse(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('version', IntField(
-                size=4,
-                default=1
-            )),
-            ('has_initiator_id', BoolField(
-                size=1,
-                default=lambda s: len(s['initiator_host_name']) > 0
-            )),
-            ('reserved', BytesField(
-                size=3,
-                default=b"\x00\x00\x00"
-            )),
-            ('initiator_id', UuidField(size=16)),
-            ('flags', IntField(size=4)),
-            ('originator_flags', EnumField(
-                size=4,
-                enum_type=SVHDXOriginatorFlags
-            )),
-            ('open_request_id', IntField(size=8)),
-            ('initiator_host_name_length', IntField(
-                size=2,
-                default=lambda s: len(s['initiator_host_name'])
-            )),
-            # utf-16-le encoded string
-            ('initiator_host_name', BytesField(
-                size=lambda s: s['initiator_host_name_length'].get_value()
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("version", IntField(size=4, default=1)),
+                ("has_initiator_id", BoolField(size=1, default=lambda s: len(s["initiator_host_name"]) > 0)),
+                ("reserved", BytesField(size=3, default=b"\x00\x00\x00")),
+                ("initiator_id", UuidField(size=16)),
+                ("flags", IntField(size=4)),
+                ("originator_flags", EnumField(size=4, enum_type=SVHDXOriginatorFlags)),
+                ("open_request_id", IntField(size=8)),
+                ("initiator_host_name_length", IntField(size=2, default=lambda s: len(s["initiator_host_name"]))),
+                # utf-16-le encoded string
+                ("initiator_host_name", BytesField(size=lambda s: s["initiator_host_name_length"].get_value())),
+            ]
+        )
         super(SMB2SVHDXOpenDeviceContextResponse, self).__init__()
 
 
@@ -768,39 +679,24 @@ class SMB2SVHDXOpenDeviceContextV2Request(Structure):
     NAME = CreateContextName.SVHDX_OPEN_DEVICE_CONTEXT
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('version', IntField(
-                size=4,
-                default=2
-            )),
-            ('has_initiator_id', BoolField(
-                size=1,
-                default=lambda s: len(s['initiator_host_name']) > 0
-            )),
-            ('reserved', BytesField(
-                size=3,
-                default=b"\x00\x00\x00"
-            )),
-            ('initiator_id', UuidField(size=16)),
-            ('originator_flags', EnumField(
-                size=4,
-                enum_type=SVHDXOriginatorFlags
-            )),
-            ('open_request_id', IntField(size=8)),
-            ('initiator_host_name_length', IntField(
-                size=2,
-                default=lambda s: len(s['initiator_host_name'])
-            )),
-            # utf-16-le encoded string
-            ('initiator_host_name', BytesField(
-                size=lambda s: s['initiator_host_name_length'].get_value()
-            )),
-            ('virtual_disk_properties_initialized', IntField(size=4)),
-            ('server_service_version', IntField(size=4)),
-            ('virtual_sector_size', IntField(size=4)),
-            ('physical_sector_size', IntField(size=4)),
-            ('virtual_size', IntField(size=8))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("version", IntField(size=4, default=2)),
+                ("has_initiator_id", BoolField(size=1, default=lambda s: len(s["initiator_host_name"]) > 0)),
+                ("reserved", BytesField(size=3, default=b"\x00\x00\x00")),
+                ("initiator_id", UuidField(size=16)),
+                ("originator_flags", EnumField(size=4, enum_type=SVHDXOriginatorFlags)),
+                ("open_request_id", IntField(size=8)),
+                ("initiator_host_name_length", IntField(size=2, default=lambda s: len(s["initiator_host_name"]))),
+                # utf-16-le encoded string
+                ("initiator_host_name", BytesField(size=lambda s: s["initiator_host_name_length"].get_value())),
+                ("virtual_disk_properties_initialized", IntField(size=4)),
+                ("server_service_version", IntField(size=4)),
+                ("virtual_sector_size", IntField(size=4)),
+                ("physical_sector_size", IntField(size=4)),
+                ("virtual_size", IntField(size=8)),
+            ]
+        )
         super(SMB2SVHDXOpenDeviceContextV2Request, self).__init__()
 
 
@@ -814,40 +710,25 @@ class SMB2SVHDXOpenDeviceContextV2Response(Structure):
     """
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('version', IntField(
-                size=4,
-                default=2
-            )),
-            ('has_initiator_id', BoolField(
-                size=1,
-                default=lambda s: len(s['initiator_host_name']) > 0
-            )),
-            ('reserved', BytesField(
-                size=3,
-                default=b"\x00\x00\x00"
-            )),
-            ('initiator_id', UuidField(size=16)),
-            ('flags', IntField(size=4)),
-            ('originator_flags', EnumField(
-                size=4,
-                enum_type=SVHDXOriginatorFlags
-            )),
-            ('open_request_id', IntField(size=8)),
-            ('initiator_host_name_length', IntField(
-                size=2,
-                default=lambda s: len(s['initiator_host_name'])
-            )),
-            # utf-16-le encoded string
-            ('initiator_host_name', BytesField(
-                size=lambda s: s['initiator_host_name_length'].get_value()
-            )),
-            ('virtual_disk_properties_initialized', IntField(size=4)),
-            ('server_service_version', IntField(size=4)),
-            ('virtual_sector_size', IntField(size=4)),
-            ('physical_sector_size', IntField(size=4)),
-            ('virtual_size', IntField(size=8))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("version", IntField(size=4, default=2)),
+                ("has_initiator_id", BoolField(size=1, default=lambda s: len(s["initiator_host_name"]) > 0)),
+                ("reserved", BytesField(size=3, default=b"\x00\x00\x00")),
+                ("initiator_id", UuidField(size=16)),
+                ("flags", IntField(size=4)),
+                ("originator_flags", EnumField(size=4, enum_type=SVHDXOriginatorFlags)),
+                ("open_request_id", IntField(size=8)),
+                ("initiator_host_name_length", IntField(size=2, default=lambda s: len(s["initiator_host_name"]))),
+                # utf-16-le encoded string
+                ("initiator_host_name", BytesField(size=lambda s: s["initiator_host_name_length"].get_value())),
+                ("virtual_disk_properties_initialized", IntField(size=4)),
+                ("server_service_version", IntField(size=4)),
+                ("virtual_sector_size", IntField(size=4)),
+                ("physical_sector_size", IntField(size=4)),
+                ("virtual_size", IntField(size=8)),
+            ]
+        )
         super(SMB2SVHDXOpenDeviceContextV2Response, self).__init__()
 
 
@@ -863,14 +744,13 @@ class SMB2CreateAppInstanceVersion(Structure):
     NAME = CreateContextName.SMB2_CREATE_APP_INSTANCE_VERSION
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=24
-            )),
-            ('reserved', IntField(size=2)),
-            ('padding', IntField(size=4)),
-            ('app_instance_version_high', IntField(size=8)),
-            ('app_instance_version_low', IntField(size=8))
-        ])
+        self.fields = OrderedDict(
+            [
+                ("structure_size", IntField(size=2, default=24)),
+                ("reserved", IntField(size=2)),
+                ("padding", IntField(size=4)),
+                ("app_instance_version_high", IntField(size=8)),
+                ("app_instance_version_low", IntField(size=8)),
+            ]
+        )
         super(SMB2CreateAppInstanceVersion, self).__init__()

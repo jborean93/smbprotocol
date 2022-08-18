@@ -2,28 +2,14 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import pytest
 import uuid
 
-from smbprotocol import (
-    Dialects,
-)
+import pytest
 
-from smbprotocol.connection import (
-    Ciphers,
-    Connection,
-    SigningAlgorithms,
-)
-
-from smbprotocol.exceptions import (
-    AccessDenied,
-    SMBException,
-)
-
-from smbprotocol.session import (
-    Session,
-)
-
+from smbprotocol import Dialects
+from smbprotocol.connection import Ciphers, Connection, SigningAlgorithms
+from smbprotocol.exceptions import AccessDenied, SMBException
+from smbprotocol.session import Session
 from smbprotocol.tree import (
     SMB2TreeConnectRequest,
     SMB2TreeConnectResponse,
@@ -33,101 +19,88 @@ from smbprotocol.tree import (
 
 
 class TestSMB2TreeConnectRequest(object):
-
     def test_create_message(self):
         message = SMB2TreeConnectRequest()
-        message['flags'] = 2
-        message['buffer'] = "\\\\127.0.0.1\\c$".encode("utf-16-le")
-        expected = b"\x09\x00" \
-                   b"\x02\x00" \
-                   b"\x48\x00" \
-                   b"\x1c\x00" \
-                   b"\x5c\x00\x5c\x00\x31\x00\x32\x00" \
-                   b"\x37\x00\x2e\x00\x30\x00\x2e\x00" \
-                   b"\x30\x00\x2e\x00\x31\x00\x5c\x00" \
-                   b"\x63\x00\x24\x00"
+        message["flags"] = 2
+        message["buffer"] = "\\\\127.0.0.1\\c$".encode("utf-16-le")
+        expected = (
+            b"\x09\x00"
+            b"\x02\x00"
+            b"\x48\x00"
+            b"\x1c\x00"
+            b"\x5c\x00\x5c\x00\x31\x00\x32\x00"
+            b"\x37\x00\x2e\x00\x30\x00\x2e\x00"
+            b"\x30\x00\x2e\x00\x31\x00\x5c\x00"
+            b"\x63\x00\x24\x00"
+        )
         actual = message.pack()
         assert len(message) == 36
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2TreeConnectRequest()
-        data = b"\x09\x00" \
-               b"\x02\x00" \
-               b"\x48\x00" \
-               b"\x1c\x00" \
-               b"\x5c\x00\x5c\x00\x31\x00\x32\x00" \
-               b"\x37\x00\x2e\x00\x30\x00\x2e\x00" \
-               b"\x30\x00\x2e\x00\x31\x00\x5c\x00" \
-               b"\x63\x00\x24\x00"
+        data = (
+            b"\x09\x00"
+            b"\x02\x00"
+            b"\x48\x00"
+            b"\x1c\x00"
+            b"\x5c\x00\x5c\x00\x31\x00\x32\x00"
+            b"\x37\x00\x2e\x00\x30\x00\x2e\x00"
+            b"\x30\x00\x2e\x00\x31\x00\x5c\x00"
+            b"\x63\x00\x24\x00"
+        )
         actual.unpack(data)
         assert len(actual) == 36
-        assert actual['structure_size'].get_value() == 9
-        assert actual['flags'].get_value() == 2
-        assert actual['path_offset'].get_value() == 72
-        assert actual['path_length'].get_value() == 28
-        assert actual['buffer'].get_value() == "\\\\127.0.0.1\\c$"\
-            .encode("utf-16-le")
+        assert actual["structure_size"].get_value() == 9
+        assert actual["flags"].get_value() == 2
+        assert actual["path_offset"].get_value() == 72
+        assert actual["path_length"].get_value() == 28
+        assert actual["buffer"].get_value() == "\\\\127.0.0.1\\c$".encode("utf-16-le")
 
 
 class TestSMB2TreeConnectResponse(object):
-
     def test_create_message(self):
         message = SMB2TreeConnectResponse()
-        message['share_type'] = 1
-        message['share_flags'] = 2
-        message['capabilities'] = 8
-        message['maximal_access'] = 10
-        expected = b"\x10\x00" \
-                   b"\x01" \
-                   b"\x00" \
-                   b"\x02\x00\x00\x00" \
-                   b"\x08\x00\x00\x00" \
-                   b"\x0a\x00\x00\x00"
+        message["share_type"] = 1
+        message["share_flags"] = 2
+        message["capabilities"] = 8
+        message["maximal_access"] = 10
+        expected = b"\x10\x00" b"\x01" b"\x00" b"\x02\x00\x00\x00" b"\x08\x00\x00\x00" b"\x0a\x00\x00\x00"
         actual = message.pack()
         assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2TreeConnectResponse()
-        data = b"\x10\x00" \
-               b"\x01" \
-               b"\x00" \
-               b"\x02\x00\x00\x00" \
-               b"\x08\x00\x00\x00" \
-               b"\x0a\x00\x00\x00"
+        data = b"\x10\x00" b"\x01" b"\x00" b"\x02\x00\x00\x00" b"\x08\x00\x00\x00" b"\x0a\x00\x00\x00"
         actual.unpack(data)
         assert len(actual) == 16
-        assert actual['structure_size'].get_value() == 16
-        assert actual['share_type'].get_value() == 1
-        assert actual['reserved'].get_value() == 0
-        assert actual['share_flags'].get_value() == 2
-        assert actual['capabilities'].get_value() == 8
-        assert actual['maximal_access'].get_value() == 10
+        assert actual["structure_size"].get_value() == 16
+        assert actual["share_type"].get_value() == 1
+        assert actual["reserved"].get_value() == 0
+        assert actual["share_flags"].get_value() == 2
+        assert actual["capabilities"].get_value() == 8
+        assert actual["maximal_access"].get_value() == 10
 
 
 class TestSMB2TreeDisconnect(object):
-
     def test_create_message(self):
         message = SMB2TreeDisconnect()
-        expected = b"\x04\x00" \
-                   b"\x00\x00"
+        expected = b"\x04\x00" b"\x00\x00"
         actual = message.pack()
         assert len(message) == 4
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2TreeDisconnect()
-        data = b"\x04\x00" \
-               b"\x00\x00"
+        data = b"\x04\x00" b"\x00\x00"
         actual.unpack(data)
         assert len(actual) == 4
-        assert actual['structure_size'].get_value() == 4
-        assert actual['reserved'].get_value() == 0
+        assert actual["structure_size"].get_value() == 4
+        assert actual["reserved"].get_value() == 0
 
 
 class TestTreeConnect(object):
-
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)
@@ -246,8 +219,7 @@ class TestTreeConnect(object):
             session.connect()
             with pytest.raises(SMBException) as exc:
                 tree.connect()
-            assert "Secure negotiate failed to verify server dialect, " \
-                   "Actual: 770, Expected: 768" in str(exc.value)
+            assert "Secure negotiate failed to verify server dialect, " "Actual: 770, Expected: 768" in str(exc.value)
         finally:
             connection.disconnect(True)
 
@@ -269,12 +241,16 @@ class TestTreeConnect(object):
             connection.disconnect(True)
             tree.disconnect()  # test that disconnect can be run mutliple times
 
-    @pytest.mark.parametrize('cipher', [
-        Ciphers.AES_128_CCM,
-        Ciphers.AES_128_GCM,
-        Ciphers.AES_256_CCM,
-        Ciphers.AES_256_GCM,
-    ], ids=['AES_128_CCM', 'AES_128_GCM', 'AES_256_CCM', 'AES_256_GCM'])
+    @pytest.mark.parametrize(
+        "cipher",
+        [
+            Ciphers.AES_128_CCM,
+            Ciphers.AES_128_GCM,
+            Ciphers.AES_256_CCM,
+            Ciphers.AES_256_GCM,
+        ],
+        ids=["AES_128_CCM", "AES_128_GCM", "AES_256_CCM", "AES_256_GCM"],
+    )
     def test_encryption(self, cipher, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(preferred_encryption_algos=[cipher])
@@ -293,11 +269,15 @@ class TestTreeConnect(object):
         finally:
             connection.disconnect(True)
 
-    @pytest.mark.parametrize('algo', [
-        SigningAlgorithms.AES_GMAC,
-        SigningAlgorithms.AES_CMAC,
-        SigningAlgorithms.HMAC_SHA256,
-    ], ids=['AES_GMAC', 'AES_CMAC', 'HMAC_SHA256'])
+    @pytest.mark.parametrize(
+        "algo",
+        [
+            SigningAlgorithms.AES_GMAC,
+            SigningAlgorithms.AES_CMAC,
+            SigningAlgorithms.HMAC_SHA256,
+        ],
+        ids=["AES_GMAC", "AES_CMAC", "HMAC_SHA256"],
+    )
     def test_signing(self, algo, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(preferred_signing_algos=[algo])

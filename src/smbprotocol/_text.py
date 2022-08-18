@@ -3,7 +3,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 
-def to_bytes(value, encoding='utf-8'):
+def to_bytes(value, encoding="utf-8"):
     """
     Makes sure the value is encoded as a byte string.
 
@@ -16,7 +16,7 @@ def to_bytes(value, encoding='utf-8'):
     return value.encode(encoding)
 
 
-def to_text(value, encoding='utf-8'):
+def to_text(value, encoding="utf-8"):
     """
     Makes sure the value is decoded as a text string.
 

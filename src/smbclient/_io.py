@@ -4,18 +4,9 @@
 
 import io
 import logging
-import math
 
-from smbclient._pool import (
-    ClientConfig,
-    dfs_request,
-    get_smb_tree,
-)
-
-from smbprotocol import (
-    MAX_PAYLOAD_SIZE,
-)
-
+from smbclient._pool import ClientConfig, dfs_request, get_smb_tree
+from smbprotocol import MAX_PAYLOAD_SIZE
 from smbprotocol.exceptions import (
     NoMoreFiles,
     ObjectNameNotFound,
@@ -25,18 +16,8 @@ from smbprotocol.exceptions import (
     SMBOSError,
     SMBResponseException,
 )
-
-from smbprotocol.ioctl import (
-    IOCTLFlags,
-    SMB2IOCTLRequest,
-    SMB2IOCTLResponse,
-)
-
-from smbprotocol.file_info import (
-    FileAttributes,
-    FileEndOfFileInformation,
-)
-
+from smbprotocol.file_info import FileAttributes, FileEndOfFileInformation
+from smbprotocol.ioctl import IOCTLFlags, SMB2IOCTLRequest, SMB2IOCTLResponse
 from smbprotocol.open import (
     CreateDisposition,
     CreateOptions,
@@ -64,18 +45,19 @@ def _parse_share_access(raw, mode):
     share_access = 0
     if raw:
         share_access_map = {
-            'r': ShareAccess.FILE_SHARE_READ,
-            'w': ShareAccess.FILE_SHARE_WRITE,
-            'd': ShareAccess.FILE_SHARE_DELETE,
+            "r": ShareAccess.FILE_SHARE_READ,
+            "w": ShareAccess.FILE_SHARE_WRITE,
+            "d": ShareAccess.FILE_SHARE_DELETE,
         }
         for c in raw:
             access_val = share_access_map.get(c)
             if access_val is None:
-                raise ValueError("Invalid share_access char %s, can only be %s"
-                                 % (c, ", ".join(sorted(share_access_map.keys()))))
+                raise ValueError(
+                    "Invalid share_access char %s, can only be %s" % (c, ", ".join(sorted(share_access_map.keys())))
+                )
             share_access |= access_val
 
-        if 'r' in mode:
+        if "r" in mode:
             share_access |= ShareAccess.FILE_SHARE_READ
 
     return share_access
@@ -84,14 +66,14 @@ def _parse_share_access(raw, mode):
 def _parse_mode(raw, invalid=""):
     create_disposition = 0
     disposition_map = {
-        'r': CreateDisposition.FILE_OPEN,
-        'w': CreateDisposition.FILE_OVERWRITE_IF,
-        'x': CreateDisposition.FILE_CREATE,
-        'a': CreateDisposition.FILE_OPEN_IF,
+        "r": CreateDisposition.FILE_OPEN,
+        "w": CreateDisposition.FILE_OVERWRITE_IF,
+        "x": CreateDisposition.FILE_CREATE,
+        "a": CreateDisposition.FILE_OPEN_IF,
         # These have no bearing on the CreateDisposition but are here so ValueError isn't raised
-        '+': 0,
-        'b': 0,
-        't': 0,
+        "+": 0,
+        "b": 0,
+        "t": 0,
     }
     if invalid:
         for invalid_char in invalid:
@@ -120,11 +102,11 @@ def _chunk_size(connection, length, operation):
     :param operation: The operation the chunk is for: 'read', 'write', 'transact'
     :return: The size of the chunk we can use and the number of credits to request for the next operation.
     """
-    max_size = getattr(connection, 'max_%s_size' % operation)
+    max_size = getattr(connection, "max_%s_size" % operation)
 
     # Determine the maximum data length we can send for the operation. We do this by checking the available credits and
     # calculating whatever is the smallest; length, negotiated operation size, available credit size).
-    available_credits = connection.sequence_window['high'] - connection.sequence_window['low']
+    available_credits = connection.sequence_window["high"] - connection.sequence_window["low"]
     chunk_size = min(length, max_size, available_credits * MAX_PAYLOAD_SIZE)
 
     # Determine how many credits we need to fully optimize subsequent calls for the remaining amount of data. Basically
@@ -159,7 +141,7 @@ def _resolve_dfs(raw_io):
     if not info:
         raise ObjectPathNotFound()
 
-    connection_kwargs = getattr(raw_io, '_%s__kwargs' % SMBRawIO.__name__, {})
+    connection_kwargs = getattr(raw_io, "_%s__kwargs" % SMBRawIO.__name__, {})
 
     for target in info:
         new_path = raw_path.replace(info.dfs_path, target.target_path, 1)
@@ -187,17 +169,17 @@ def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_
     :param input_buffer: Specify an optional input buffer for the request.
     """
     ioctl_req = SMB2IOCTLRequest()
-    ioctl_req['ctl_code'] = ctl_code
-    ioctl_req['file_id'] = transaction.raw.fd.file_id
-    ioctl_req['max_output_response'] = output_size
-    ioctl_req['flags'] = flags
-    ioctl_req['buffer'] = input_buffer
+    ioctl_req["ctl_code"] = ctl_code
+    ioctl_req["file_id"] = transaction.raw.fd.file_id
+    ioctl_req["max_output_response"] = output_size
+    ioctl_req["flags"] = flags
+    ioctl_req["buffer"] = input_buffer
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)
         query_resp = SMB2IOCTLResponse()
-        query_resp.unpack(response['data'].get_value())
-        return query_resp['buffer'].get_value()
+        query_resp.unpack(response["data"].get_value())
+        return query_resp["buffer"].get_value()
 
     transaction += (ioctl_req, _receive_resp)
 
@@ -213,16 +195,16 @@ def query_info(transaction, info_class, flags=0, output_buffer_length=None):
     """
     info_obj = info_class()
     query_req = SMB2QueryInfoRequest()
-    query_req['info_type'] = info_obj.INFO_TYPE
-    query_req['file_info_class'] = info_obj.INFO_CLASS
-    query_req['file_id'] = transaction.raw.fd.file_id
-    query_req['output_buffer_length'] = len(info_obj) if output_buffer_length is None else output_buffer_length
-    query_req['flags'] = flags
+    query_req["info_type"] = info_obj.INFO_TYPE
+    query_req["file_info_class"] = info_obj.INFO_CLASS
+    query_req["file_id"] = transaction.raw.fd.file_id
+    query_req["output_buffer_length"] = len(info_obj) if output_buffer_length is None else output_buffer_length
+    query_req["flags"] = flags
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)
         query_resp = SMB2QueryInfoResponse()
-        query_resp.unpack(response['data'].get_value())
+        query_resp.unpack(response["data"].get_value())
         return query_resp.parse_buffer(info_class)
 
     transaction += (query_req, _receive_resp)
@@ -236,22 +218,21 @@ def set_info(transaction, info_buffer):
     :param info_buffer: The input information class to set.
     """
     set_req = SMB2SetInfoRequest()
-    set_req['info_type'] = info_buffer.INFO_TYPE
-    set_req['file_info_class'] = info_buffer.INFO_CLASS
-    set_req['file_id'] = transaction.raw.fd.file_id
-    set_req['buffer'] = info_buffer
+    set_req["info_type"] = info_buffer.INFO_TYPE
+    set_req["file_info_class"] = info_buffer.INFO_CLASS
+    set_req["file_id"] = transaction.raw.fd.file_id
+    set_req["buffer"] = info_buffer
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)
         set_resp = SMB2SetInfoResponse()
-        set_resp.unpack(response['data'].get_value())
+        set_resp.unpack(response["data"].get_value())
         return set_resp
 
     transaction += (set_req, _receive_resp)
 
 
 class SMBFileTransaction(object):
-
     def __init__(self, raw):
         """
         Stores compound requests in 1 class that can be committed when required. Either uses the opened raw object or
@@ -282,13 +263,7 @@ class SMBFileTransaction(object):
         is not already opened.
         """
         remove_index = []
-        if (
-                self.raw.closed and
-                (
-                        not self._actions or
-                        not isinstance(self._actions[0][0], SMB2CreateRequest)
-                )
-        ):
+        if self.raw.closed and (not self._actions or not isinstance(self._actions[0][0], SMB2CreateRequest)):
             self.raw.open(transaction=self)
             self._actions.insert(0, self._actions.pop(-1))  # Need to move the create to the start
             remove_index.insert(0, 0)
@@ -370,10 +345,11 @@ class SMBFileTransaction(object):
 class SMBRawIO(io.RawIOBase):
 
     FILE_TYPE = None  # 'file', 'dir', or None (for unknown)
-    _INVALID_MODE = ''
+    _INVALID_MODE = ""
 
-    def __init__(self, path, mode='r', share_access=None, desired_access=None, file_attributes=None,
-                 create_options=0, **kwargs):
+    def __init__(
+        self, path, mode="r", share_access=None, desired_access=None, file_attributes=None, create_options=0, **kwargs
+    ):
         tree, fd_path = get_smb_tree(path, **kwargs)
         self.share_access = share_access
         self.fd = Open(tree, fd_path)
@@ -388,25 +364,32 @@ class SMBRawIO(io.RawIOBase):
 
             # While we can open a directory, the values for FilePipePrinterAccessMask also apply to Dirs so just use
             # the same enum to simplify code.
-            if 'r' in self.mode or '+' in self.mode:
-                desired_access |= FilePipePrinterAccessMask.FILE_READ_DATA | \
-                                  FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES | \
-                                  FilePipePrinterAccessMask.FILE_READ_EA
-            if 'w' in self.mode or 'x' in self.mode or 'a' in self.mode or '+' in self.mode:
-                desired_access |= FilePipePrinterAccessMask.FILE_WRITE_DATA | \
-                                  FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES | \
-                                  FilePipePrinterAccessMask.FILE_WRITE_EA
+            if "r" in self.mode or "+" in self.mode:
+                desired_access |= (
+                    FilePipePrinterAccessMask.FILE_READ_DATA
+                    | FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES
+                    | FilePipePrinterAccessMask.FILE_READ_EA
+                )
+            if "w" in self.mode or "x" in self.mode or "a" in self.mode or "+" in self.mode:
+                desired_access |= (
+                    FilePipePrinterAccessMask.FILE_WRITE_DATA
+                    | FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES
+                    | FilePipePrinterAccessMask.FILE_WRITE_EA
+                )
         self._desired_access = desired_access
 
         if file_attributes is None:
-            file_attributes = FileAttributes.FILE_ATTRIBUTE_DIRECTORY if self.FILE_TYPE == 'dir' \
+            file_attributes = (
+                FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+                if self.FILE_TYPE == "dir"
                 else FileAttributes.FILE_ATTRIBUTE_NORMAL
+            )
         self._file_attributes = file_attributes
 
         self._create_options = create_options
         self._create_options |= {
-            'dir': CreateOptions.FILE_DIRECTORY_FILE,
-            'file': CreateOptions.FILE_NON_DIRECTORY_FILE,
+            "dir": CreateOptions.FILE_DIRECTORY_FILE,
+            "file": CreateOptions.FILE_NON_DIRECTORY_FILE,
         }.get(self.FILE_TYPE, 0)
 
         super(SMBRawIO, self).__init__()
@@ -437,7 +420,7 @@ class SMBRawIO(io.RawIOBase):
             self.fd.close()
 
     def flush(self):
-        if self._flush and self.FILE_TYPE != 'pipe':
+        if self._flush and self.FILE_TYPE != "pipe":
             self.fd.flush()
 
     def open(self, transaction=None):
@@ -468,12 +451,12 @@ class SMBRawIO(io.RawIOBase):
 
         if open_at_end:
             transaction.commit()
-            if 'a' in self.mode and self.FILE_TYPE != 'pipe':
+            if "a" in self.mode and self.FILE_TYPE != "pipe":
                 self._offset = self.fd.end_of_file
 
     def readable(self):
-        """ True if file was opened in a read mode. """
-        return 'r' in self.mode or '+' in self.mode
+        """True if file was opened in a read mode."""
+        return "r" in self.mode or "+" in self.mode
 
     def seek(self, offset, whence=SEEK_SET):
         """
@@ -496,7 +479,7 @@ class SMBRawIO(io.RawIOBase):
         return self._offset
 
     def seekable(self):
-        """ True if file supports random-access. """
+        """True if file supports random-access."""
         return True
 
     def tell(self):
@@ -516,7 +499,7 @@ class SMBRawIO(io.RawIOBase):
         """
         with SMBFileTransaction(self) as transaction:
             eof_info = FileEndOfFileInformation()
-            eof_info['end_of_file'] = size
+            eof_info["end_of_file"] = size
             set_info(transaction, eof_info)
 
         self.fd.end_of_file = size
@@ -524,8 +507,8 @@ class SMBRawIO(io.RawIOBase):
         return size
 
     def writable(self):
-        """ True if file was opened in a write mode. """
-        return 'w' in self.mode or 'x' in self.mode or 'a' in self.mode or '+' in self.mode
+        """True if file was opened in a write mode."""
+        return "w" in self.mode or "x" in self.mode or "a" in self.mode or "+" in self.mode
 
     def readall(self):
         """
@@ -539,10 +522,10 @@ class SMBRawIO(io.RawIOBase):
             read_length = min(
                 # We always want to be reading a minimum of 64KiB.
                 max(self.fd.end_of_file - self._offset, MAX_PAYLOAD_SIZE),
-                self.fd.connection.max_read_size  # We can never read more than this.
+                self.fd.connection.max_read_size,  # We can never read more than this.
             )
 
-            buffer = bytearray(b'\x00' * read_length)
+            buffer = bytearray(b"\x00" * read_length)
             bytes_read = self.readinto(buffer)
             if not bytes_read:
                 break
@@ -561,10 +544,10 @@ class SMBRawIO(io.RawIOBase):
         :param b: bytes-like object to read the data into.
         :return: The number of bytes read.
         """
-        if self._offset >= self.fd.end_of_file and self.FILE_TYPE != 'pipe':
+        if self._offset >= self.fd.end_of_file and self.FILE_TYPE != "pipe":
             return 0
 
-        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'read')
+        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), "read")
 
         log.debug("Read %d -%d.", self._offset, chunk_size)
         read_msg, recv_func = self.fd.read(self._offset, chunk_size, send=False)
@@ -572,7 +555,7 @@ class SMBRawIO(io.RawIOBase):
             read_msg,
             sid=self.fd.tree_connect.session.session_id,
             tid=self.fd.tree_connect.tree_connect_id,
-            credit_request=credit_request
+            credit_request=credit_request,
         )
 
         try:
@@ -581,9 +564,9 @@ class SMBRawIO(io.RawIOBase):
             # A pipe will block until it returns the data available or was closed/broken.
             file_bytes = b""
 
-        b[:len(file_bytes)] = file_bytes
+        b[: len(file_bytes)] = file_bytes
 
-        if self.FILE_TYPE != 'pipe':
+        if self.FILE_TYPE != "pipe":
             self._offset += len(file_bytes)
 
         return len(file_bytes)
@@ -596,7 +579,7 @@ class SMBRawIO(io.RawIOBase):
         The number of bytes actually written is returned. This can be less than
         the length of b as it depends on the underlying connection.
         """
-        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), 'write')
+        chunk_size, credit_request = _chunk_size(self.fd.connection, len(b), "write")
         data = bytes(b[:chunk_size])
 
         write_msg, recv_func = self.fd.write(data, offset=self._offset, send=False)
@@ -604,11 +587,11 @@ class SMBRawIO(io.RawIOBase):
             write_msg,
             sid=self.fd.tree_connect.session.session_id,
             tid=self.fd.tree_connect.tree_connect_id,
-            credit_request=credit_request
+            credit_request=credit_request,
         )
         bytes_written = recv_func(request)
 
-        if self.FILE_TYPE != 'pipe':
+        if self.FILE_TYPE != "pipe":
             self._offset += bytes_written
             self.fd.end_of_file = max(self.fd.end_of_file, self._offset)
             self._flush = True
@@ -618,8 +601,8 @@ class SMBRawIO(io.RawIOBase):
 
 class SMBDirectoryIO(SMBRawIO):
 
-    FILE_TYPE = 'dir'
-    _INVALID_MODE = 'w+'
+    FILE_TYPE = "dir"
+    _INVALID_MODE = "w+"
 
     def query_directory(self, pattern, info_class):
         query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
@@ -645,12 +628,12 @@ class SMBDirectoryIO(SMBRawIO):
 
 class SMBFileIO(SMBRawIO):
 
-    FILE_TYPE = 'file'
+    FILE_TYPE = "file"
 
 
 class SMBPipeIO(SMBRawIO):
 
-    FILE_TYPE = 'pipe'
+    FILE_TYPE = "pipe"
 
     def seekable(self):
         return False

@@ -24,8 +24,34 @@ on:
   - cron: 0 9 * * *
 
 jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Select python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Build smbprotocol
+      run: |
+        python -m pip install build
+        python -m build
+
+    - name: Upload built smbprotocol
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifact
+        path: ./dist/*
+
   test:
     name: test
+    needs:
+    - build
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -37,7 +63,6 @@ jobs:
         - windows-2019
         - windows-2022
         python-version:
-        - 3.6
         - 3.7
         - 3.8
         - 3.9
@@ -54,8 +79,6 @@ jobs:
         - os: windows-2019
           python-arch: x86
         - os: windows-2019
-          python-version: 3.6
-        - os: windows-2019
           python-version: 3.7
         - os: windows-2019
           python-version: 3.8
@@ -69,6 +92,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         architecture: ${{ matrix.python-arch }}
+
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifact
+        path: ./dist
 
     - name: Extract OS name
       shell: bash
@@ -113,25 +141,12 @@ jobs:
     needs:
     - test
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v2
-
-    - name: Installing baseline packages
-      run: |
-        echo "Installing baseline pip packages"
-        python -m pip install --upgrade pip setuptools wheel
-
-    - name: Build package
-      run: python setup.py sdist bdist_wheel
-
-    - name: Capture Wheel and SDist
-      uses: actions/upload-artifact@v2
+    - uses: actions/download-artifact@v2
       with:
         name: artifact
-        path: dist/*
+        path: ./dist
 
     - name: Publish
       if: startsWith(github.ref, 'refs/tags/v')

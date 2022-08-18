@@ -54,13 +54,23 @@ lib::setup::python_requirements() {
         echo "::group::Installing Python Requirements"
     fi
 
-    python -m pip install --upgrade pip setuptools wheel
-
     echo "Installing smbprotocol"
-    python -m pip install .
+    # Getting the version is important so that pip prioritises our local dist
+    python -m pip install build
+    PACKAGE_VERSION="$( python -c "import build.util; print(build.util.project_wheel_metadata('.').get('Version'))" )"
+
+    if [ "$(expr substr $(uname -s) 1 5)" == "MINGW" ]; then
+        DIST_LINK_PATH="$( echo "${PWD}/dist" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/' )"
+    else
+        DIST_LINK_PATH="${PWD}/dist"
+    fi
+
+    python -m pip install smbprotocol=="${PACKAGE_VERSION}" \
+        --find-links "file://${DIST_LINK_PATH}" \
+        --verbose
 
     echo "Installing dev dependencies"
-    python -m pip install -r requirements-test.txt
+    python -m pip install -r requirements-dev.txt
 
     if [ x"${GITHUB_ACTIONS}" = "xtrue" ]; then
         echo "::endgroup::"
@@ -72,11 +82,8 @@ lib::sanity::run() {
         echo "::group::Running Sanity Checks"
     fi
 
-    python -m pycodestyle \
-        . \
-        --verbose \
-        --show-source \
-        --statistics
+    python -m black . --check
+    python -m isort . --check-only
 
     if [ x"${GITHUB_ACTIONS}" = "xtrue" ]; then
         echo "::endgroup::"

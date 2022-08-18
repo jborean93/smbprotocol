@@ -5,54 +5,22 @@
 import hashlib
 import logging
 import random
+from collections import OrderedDict
+
 import spnego
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.kbkdf import KBKDFHMAC, CounterLocation, Mode
 
-from collections import (
-    OrderedDict,
-)
-
-from cryptography.hazmat.backends import (
-    default_backend,
-)
-
-from cryptography.hazmat.primitives import (
-    hashes,
-)
-
-from cryptography.hazmat.primitives.kdf.kbkdf import (
-    CounterLocation,
-    KBKDFHMAC,
-    Mode,
-)
-
-from smbprotocol import (
-    Dialects,
-)
-
-from smbprotocol.connection import (
-    Capabilities,
-    Ciphers,
-    SecurityMode,
-)
-
+from smbprotocol import Dialects
+from smbprotocol.connection import Capabilities, Ciphers, SecurityMode
 from smbprotocol.exceptions import (
     MoreProcessingRequired,
     SMBAuthenticationError,
     SMBException,
 )
-
-from smbprotocol.header import (
-    Commands,
-    NtStatus,
-)
-
-from smbprotocol.structure import (
-    BytesField,
-    EnumField,
-    FlagField,
-    IntField,
-    Structure,
-)
+from smbprotocol.header import Commands, NtStatus
+from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, Structure
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +32,7 @@ class SessionFlags(object):
     2.2.6 SMB2 SESSION_SETUP Response Flags
     Flags the indicates additional information about the session.
     """
+
     SMB2_SESSION_FLAG_IS_GUEST = 0x0001
     SMB2_SESSION_FLAG_IS_NULL = 0x0002
     SMB2_SESSION_FLAG_ENCRYPT_DATA = 0x0004
@@ -77,37 +46,58 @@ class SMB2SessionSetupRequest(Structure):
     The SMB2 SESSION_SETUP Request packet is sent by the client to request a
     new authenticated session within a new or existing SMB 2 connection.
     """
+
     COMMAND = Commands.SMB2_SESSION_SETUP
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=25,
-            )),
-            ('flags', IntField(size=1)),
-            ('security_mode', EnumField(
-                size=1,
-                enum_type=SecurityMode,
-            )),
-            ('capabilities', FlagField(
-                size=4,
-                flag_type=Capabilities,
-            )),
-            ('channel', IntField(size=4)),
-            ('security_buffer_offset', IntField(
-                size=2,
-                default=88,  # (header size 64) + (response size 24)
-            )),
-            ('security_buffer_length', IntField(
-                size=2,
-                default=lambda s: len(s['buffer']),
-            )),
-            ('previous_session_id', IntField(size=8)),
-            ('buffer', BytesField(
-                size=lambda s: s['security_buffer_length'].get_value(),
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=25,
+                    ),
+                ),
+                ("flags", IntField(size=1)),
+                (
+                    "security_mode",
+                    EnumField(
+                        size=1,
+                        enum_type=SecurityMode,
+                    ),
+                ),
+                (
+                    "capabilities",
+                    FlagField(
+                        size=4,
+                        flag_type=Capabilities,
+                    ),
+                ),
+                ("channel", IntField(size=4)),
+                (
+                    "security_buffer_offset",
+                    IntField(
+                        size=2,
+                        default=88,  # (header size 64) + (response size 24)
+                    ),
+                ),
+                (
+                    "security_buffer_length",
+                    IntField(
+                        size=2,
+                        default=lambda s: len(s["buffer"]),
+                    ),
+                ),
+                ("previous_session_id", IntField(size=8)),
+                (
+                    "buffer",
+                    BytesField(
+                        size=lambda s: s["security_buffer_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(SMB2SessionSetupRequest, self).__init__()
 
 
@@ -119,30 +109,48 @@ class SMB2SessionSetupResponse(Structure):
     The SMB2 SESSION_SETUP Response packet is sent by the server in response to
     an SMB2 SESSION_SETUP Request.
     """
+
     COMMAND = Commands.SMB2_SESSION_SETUP
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=9,
-            )),
-            ('session_flags', FlagField(
-                size=2,
-                flag_type=SessionFlags,
-            )),
-            ('security_buffer_offset', IntField(
-                size=2,
-                default=72,  # (header size 64) + (response size 8)
-            )),
-            ('security_buffer_length', IntField(
-                size=2,
-                default=lambda s: len(s['buffer']),
-            )),
-            ('buffer', BytesField(
-                size=lambda s: s['security_buffer_length'].get_value(),
-            ))
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=9,
+                    ),
+                ),
+                (
+                    "session_flags",
+                    FlagField(
+                        size=2,
+                        flag_type=SessionFlags,
+                    ),
+                ),
+                (
+                    "security_buffer_offset",
+                    IntField(
+                        size=2,
+                        default=72,  # (header size 64) + (response size 8)
+                    ),
+                ),
+                (
+                    "security_buffer_length",
+                    IntField(
+                        size=2,
+                        default=lambda s: len(s["buffer"]),
+                    ),
+                ),
+                (
+                    "buffer",
+                    BytesField(
+                        size=lambda s: s["security_buffer_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(SMB2SessionSetupResponse, self).__init__()
 
 
@@ -154,23 +162,16 @@ class SMB2Logoff(Structure):
     Request and response to request the termination of a particular session as
     specified by the header.
     """
+
     COMMAND = Commands.SMB2_LOGOFF
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=4
-            )),
-            ('reserved', IntField(size=2))
-        ])
+        self.fields = OrderedDict([("structure_size", IntField(size=2, default=4)), ("reserved", IntField(size=2))])
         super(SMB2Logoff, self).__init__()
 
 
 class Session(object):
-
-    def __init__(self, connection, username=None, password=None,
-                 require_encryption=True, auth_protocol='negotiate'):
+    def __init__(self, connection, username=None, password=None, require_encryption=True, auth_protocol="negotiate"):
         """
         [MS-SMB2] v53.0 2017-09-15
 
@@ -263,14 +264,20 @@ class Session(object):
     def connect(self):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
         try:
-            context = spnego.client(self.username, self.password, service='cifs', hostname=self.connection.server_name,
-                                    options=spnego.NegotiateOptions.session_key, protocol=self.auth_protocol)
+            context = spnego.client(
+                self.username,
+                self.password,
+                service="cifs",
+                hostname=self.connection.server_name,
+                options=spnego.NegotiateOptions.session_key,
+                protocol=self.auth_protocol,
+            )
         except spnego.exceptions.SpnegoError as err:
             raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
 
         self.connection.preauth_session_table[self.session_id] = self
         in_token = self.connection.gss_negotiate_token
-        if self.auth_protocol != 'negotiate':
+        if self.auth_protocol != "negotiate":
             in_token = None  # The GSS Negotiate Token can only be used for Negotiate auth.
 
         while not context.complete or in_token:
@@ -283,9 +290,9 @@ class Session(object):
                 break
 
             session_setup = SMB2SessionSetupRequest()
-            session_setup['capabilities'] = Capabilities.SMB2_GLOBAL_CAP_DFS
-            session_setup['security_mode'] = self.connection.client_security_mode
-            session_setup['buffer'] = out_token
+            session_setup["capabilities"] = Capabilities.SMB2_GLOBAL_CAP_DFS
+            session_setup["security_mode"] = self.connection.client_security_mode
+            session_setup["buffer"] = out_token
 
             log.info("Sending SMB2_SESSION_SETUP request message")
             request = self.connection.send(session_setup, sid=self.session_id, credit_request=64)
@@ -294,12 +301,12 @@ class Session(object):
             try:
                 response = self.connection.receive(request)
             except MoreProcessingRequired as exc:
-                mid = request.message['message_id'].get_value()
+                mid = request.message["message_id"].get_value()
                 response = exc.header
 
             # If this is the first time we received the actual session_id, update the preauth table with the server
             # assigned id.
-            session_id = response['session_id'].get_value()
+            session_id = response["session_id"].get_value()
             if self.session_id < 0:
                 del self.connection.preauth_session_table[self.session_id]
                 self.connection.preauth_session_table[session_id] = self
@@ -307,14 +314,14 @@ class Session(object):
             self.session_id = session_id
 
             setup_response = SMB2SessionSetupResponse()
-            setup_response.unpack(response['data'].get_value())
+            setup_response.unpack(response["data"].get_value())
 
-            in_token = setup_response['buffer'].get_value()
+            in_token = setup_response["buffer"].get_value()
 
-            status = response['status'].get_value()
+            status = response["status"].get_value()
             if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
                 log.info("More processing is required for SMB2_SESSION_SETUP")
-                preauth_value = self.connection.preauth_session_table.pop(response['message_id'].get_value())
+                preauth_value = self.connection.preauth_session_table.pop(response["message_id"].get_value())
                 self.preauth_integrity_hash_value.append(preauth_value)
 
         log.info("Setting session id to %s" % self.session_id)
@@ -360,7 +367,7 @@ class Session(object):
             self.signing_key = self.session_key
             self.application_key = self.session_key
 
-        flags = setup_response['session_flags']
+        flags = setup_response["session_flags"]
         if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_ENCRYPT_DATA) or self.require_encryption:
             # make sure the connection actually supports encryption
             if not self.connection.supports_encryption:
@@ -372,8 +379,9 @@ class Session(object):
         else:
             self.encrypt_data = False
 
-        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_GUEST) or \
-                flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_NULL):
+        if flags.has_flag(SessionFlags.SMB2_SESSION_FLAG_IS_GUEST) or flags.has_flag(
+            SessionFlags.SMB2_SESSION_FLAG_IS_NULL
+        ):
             self.session_key = None
             self.signing_key = None
             self.application_key = None
@@ -382,8 +390,10 @@ class Session(object):
 
             if self.signing_required or self.encrypt_data:
                 self.session_id = None
-                raise SMBException("SMB encryption or signing was required but session was authenticated as a guest "
-                                   "which does not support encryption or signing")
+                raise SMBException(
+                    "SMB encryption or signing was required but session was authenticated as a guest "
+                    "which does not support encryption or signing"
+                )
 
         if self.signing_required:
             log.info("Verifying the SMB Setup Session signature as auth is successful")
@@ -415,7 +425,7 @@ class Session(object):
         log.info("Session: %s - Receiving Logoff response" % self.username)
         res = self.connection.receive(request)
         res_logoff = SMB2Logoff()
-        res_logoff.unpack(res['data'].get_value())
+        res_logoff.unpack(res["data"].get_value())
         log.debug(res_logoff)
         self._connected = False
         del self.connection.session_table[self.session_id]
@@ -442,6 +452,6 @@ class Session(object):
             label=label,
             context=context,
             fixed=None,
-            backend=default_backend()
+            backend=default_backend(),
         )
         return kdf.derive(ki)

@@ -4,21 +4,10 @@
 
 import logging
 import threading
+from collections import OrderedDict
 
-from collections import (
-    OrderedDict,
-)
-
-from smbprotocol.exceptions import (
-    Cancelled,
-    NotifyEnumDir,
-)
-
-from smbprotocol.header import (
-    Commands,
-    NtStatus,
-)
-
+from smbprotocol.exceptions import Cancelled, NotifyEnumDir
+from smbprotocol.header import Commands, NtStatus
 from smbprotocol.structure import (
     BytesField,
     EnumField,
@@ -36,6 +25,7 @@ class ChangeNotifyFlags(object):
     [MS-SMB2] 2.2.35 SMB2 CHANGE_NOTIFY Request - Flags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/598f395a-e7a2-4cc8-afb3-ccb30dd2df7c
     """
+
     NONE = 0
     SMB2_WATCH_TREE = 0x0001
 
@@ -45,6 +35,7 @@ class CompletionFilter(object):
     [MS-SMB2] 2.2.35 SMB2 CHANGE_NOTIFY Request - CompletionFilter
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/598f395a-e7a2-4cc8-afb3-ccb30dd2df7c
     """
+
     FILE_NOTIFY_CHANGE_FILE_NAME = 0x00000001
     FILE_NOTIFY_CHANGE_DIR_NAME = 0x00000002
     FILE_NOTIFY_CHANGE_ATTRIBUTES = 0x00000004
@@ -64,6 +55,7 @@ class FileAction(object):
     [MS-FSCC] 2.7.1 FILE_NOTIFY_INFORMATION - Action
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/634043d7-7b39-47e9-9e26-bda64685e4c9
     """
+
     FILE_ACTION_ADDED = 0x00000001
     FILE_ACTION_REMOVED = 0x00000002
     FILE_ACTION_MODIFIED = 0x00000003
@@ -82,22 +74,34 @@ class FileNotifyInformation(Structure):
     [Ms-FSCC] 2.7.1 FILE_NOTIFY_INFORMATION
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/634043d7-7b39-47e9-9e26-bda64685e4c9
     """
+
     def __init__(self):
-        self.fields = OrderedDict([
-            ('next_entry_offset', IntField(size=4)),
-            ('action', EnumField(
-                size=4,
-                enum_type=FileAction,
-            )),
-            ('file_name_length', IntField(
-                size=4,
-                default=lambda s: len(s['file_name']),
-            )),
-            ('file_name', TextField(
-                encoding='utf-16-le',
-                size=lambda s: s['file_name_length'].get_value(),
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                ("next_entry_offset", IntField(size=4)),
+                (
+                    "action",
+                    EnumField(
+                        size=4,
+                        enum_type=FileAction,
+                    ),
+                ),
+                (
+                    "file_name_length",
+                    IntField(
+                        size=4,
+                        default=lambda s: len(s["file_name"]),
+                    ),
+                ),
+                (
+                    "file_name",
+                    TextField(
+                        encoding="utf-16-le",
+                        size=lambda s: s["file_name_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(FileNotifyInformation, self).__init__()
 
 
@@ -108,26 +112,38 @@ class SMB2ChangeNotifyRequest(Structure):
 
     Sent by the client to request change notifications on a directory.
     """
+
     COMMAND = Commands.SMB2_CHANGE_NOTIFY
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=32,
-            )),
-            ('flags', FlagField(
-                size=2,
-                flag_type=ChangeNotifyFlags,
-            )),
-            ('output_buffer_length', IntField(size=4)),
-            ('file_id', BytesField(size=16)),
-            ('completion_filter', FlagField(
-                size=4,
-                flag_type=CompletionFilter,
-            )),
-            ('reserved', IntField(size=4)),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=32,
+                    ),
+                ),
+                (
+                    "flags",
+                    FlagField(
+                        size=2,
+                        flag_type=ChangeNotifyFlags,
+                    ),
+                ),
+                ("output_buffer_length", IntField(size=4)),
+                ("file_id", BytesField(size=16)),
+                (
+                    "completion_filter",
+                    FlagField(
+                        size=4,
+                        flag_type=CompletionFilter,
+                    ),
+                ),
+                ("reserved", IntField(size=4)),
+            ]
+        )
         super(SMB2ChangeNotifyRequest, self).__init__()
 
 
@@ -138,31 +154,45 @@ class SMB2ChangeNotifyResponse(Structure):
 
     Sent by the server to transmit the results of a client's change notify request.
     """
+
     COMMAND = Commands.SMB2_CHANGE_NOTIFY
 
     def __init__(self):
-        self.fields = OrderedDict([
-            ('structure_size', IntField(
-                size=2,
-                default=9,
-            )),
-            ('output_buffer_offset', IntField(
-                size=2,
-                default=72,
-            )),
-            ('output_buffer_length', IntField(
-                size=4,
-                default=lambda s: len(s['buffer']),
-            )),
-            ('buffer', BytesField(
-                size=lambda s: s['output_buffer_length'].get_value(),
-            )),
-        ])
+        self.fields = OrderedDict(
+            [
+                (
+                    "structure_size",
+                    IntField(
+                        size=2,
+                        default=9,
+                    ),
+                ),
+                (
+                    "output_buffer_offset",
+                    IntField(
+                        size=2,
+                        default=72,
+                    ),
+                ),
+                (
+                    "output_buffer_length",
+                    IntField(
+                        size=4,
+                        default=lambda s: len(s["buffer"]),
+                    ),
+                ),
+                (
+                    "buffer",
+                    BytesField(
+                        size=lambda s: s["output_buffer_length"].get_value(),
+                    ),
+                ),
+            ]
+        )
         super(SMB2ChangeNotifyResponse, self).__init__()
 
 
 class FileSystemWatcher(object):
-
     def __init__(self, open):
         """
         A class that encapsulates a FileSystemWatcher over SMB. It is designed to make it easy to run the watcher in
@@ -194,7 +224,7 @@ class FileSystemWatcher(object):
             return None
         if self._request is None or self._request.response is None:
             return None
-        elif self._request.response['status'].get_value() == NtStatus.STATUS_PENDING:
+        elif self._request.response["status"].get_value() == NtStatus.STATUS_PENDING:
             return None
         elif self._t_exc:
             raise self._t_exc
@@ -203,10 +233,10 @@ class FileSystemWatcher(object):
             if self._file_actions is not None:
                 return self._file_actions
 
-            response = self._request.response['data'].get_value()
+            response = self._request.response["data"].get_value()
             change_response = SMB2ChangeNotifyResponse()
             change_response.unpack(response)
-            response_buffer = change_response['buffer'].get_value()
+            response_buffer = change_response["buffer"].get_value()
 
             self._file_actions = []
             current_offset = 0
@@ -217,14 +247,14 @@ class FileSystemWatcher(object):
 
                 self._file_actions.append(notify_info)
 
-                current_offset += notify_info['next_entry_offset'].get_value()
-                is_next = notify_info['next_entry_offset'].get_value() != 0
+                current_offset += notify_info["next_entry_offset"].get_value()
+                is_next = notify_info["next_entry_offset"].get_value() != 0
 
         return self._file_actions
 
     @property
     def cancelled(self):
-        """ States whether the change notify request was cancelled or not. """""
+        """ States whether the change notify request was cancelled or not. """ ""
         return self._request is not None and self._request.cancelled is True
 
     def start(self, completion_filter, flags=0, output_buffer_length=65536, send=True):
@@ -244,17 +274,20 @@ class FileSystemWatcher(object):
             unpack function. Note the compound request must not close the dir the watcher is started on.
         """
         change_notify = SMB2ChangeNotifyRequest()
-        change_notify['flags'] = flags
-        change_notify['output_buffer_length'] = output_buffer_length
-        change_notify['file_id'] = self.open.file_id
-        change_notify['completion_filter'] = completion_filter
+        change_notify["flags"] = flags
+        change_notify["output_buffer_length"] = output_buffer_length
+        change_notify["file_id"] = self.open.file_id
+        change_notify["completion_filter"] = completion_filter
 
-        log.info("Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request"
-                 % (self.open.tree_connect.session.username, self.open.tree_connect.share_name, self.open.file_name))
+        log.info(
+            "Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request"
+            % (self.open.tree_connect.session.username, self.open.tree_connect.share_name, self.open.file_name)
+        )
         log.debug(change_notify)
         if send:
-            request = self.open.connection.send(change_notify, self.open.tree_connect.session.session_id,
-                                                self.open.tree_connect.tree_connect_id)
+            request = self.open.connection.send(
+                change_notify, self.open.tree_connect.session.session_id, self.open.tree_connect.tree_connect_id
+            )
             self._start_response(request)
             return
         else:

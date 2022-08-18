@@ -5,42 +5,21 @@
 import ctypes
 import ntpath
 import os
-import pytest
 import re
 import shutil
 import stat
 import sys
 
-from smbclient import (
-    listdir,
-    makedirs,
-    mkdir,
-    open_file,
-    readlink,
-    remove,
-    rmdir,
-    stat as smbclient_stat,
-    symlink,
-    utime,
-)
+import pytest
 
-from smbclient._io import (
-    set_info,
-    SMBFileTransaction,
-    SMBRawIO,
-)
-
-from smbclient._os import (
-    is_remote_path,
-)
-
-from smbclient.path import (
-    exists,
-    islink,
-    samefile,
-)
-
+from smbclient import listdir, makedirs, mkdir, open_file, readlink, remove, rmdir
+from smbclient import stat as smbclient_stat
+from smbclient import symlink, utime
+from smbclient._io import SMBFileTransaction, SMBRawIO, set_info
+from smbclient._os import is_remote_path
+from smbclient.path import exists, islink, samefile
 from smbclient.shutil import (
+    _basename,
     copy,
     copy2,
     copyfile,
@@ -48,33 +27,25 @@ from smbclient.shutil import (
     copystat,
     copytree,
     rmtree,
-    _basename,
 )
-
-from smbprotocol.exceptions import (
-    SMBOSError,
-)
-
-from smbprotocol.file_info import (
-    FileBasicInformation,
-)
-
-from smbprotocol.open import (
-    CreateOptions,
-    FileAttributes,
-    FilePipePrinterAccessMask,
-)
+from smbprotocol.exceptions import SMBOSError
+from smbprotocol.file_info import FileBasicInformation
+from smbprotocol.open import CreateOptions, FileAttributes, FilePipePrinterAccessMask
 
 if os.name == "nt":
     from ctypes.wintypes import FILETIME
 
 
 def _set_file_attributes(path, attributes):
-    with SMBRawIO(path, mode='rb', create_options=CreateOptions.FILE_OPEN_REPARSE_POINT,
-                  desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES) as fd:
+    with SMBRawIO(
+        path,
+        mode="rb",
+        create_options=CreateOptions.FILE_OPEN_REPARSE_POINT,
+        desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
+    ) as fd:
         with SMBFileTransaction(fd) as transaction:
             basic_info = FileBasicInformation()
-            basic_info['file_attributes'] = attributes
+            basic_info["file_attributes"] = attributes
             set_info(transaction, basic_info)
 
 
@@ -83,7 +54,7 @@ def copy_from_to(src_filename, dst_filename):
     assert actual == dst_filename
 
     with open_file(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
     if is_remote_path(src_filename):
         src_stat = smbclient_stat(src_filename)
@@ -96,8 +67,9 @@ def copy_from_to(src_filename, dst_filename):
     assert actual.st_ctime != src_stat.st_ctime
     if hasattr(src_stat, "st_chgtime") and hasattr(actual, "st_chgtime"):
         assert actual.st_chgtime != src_stat.st_chgtime
-        assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-            FileAttributes.FILE_ATTRIBUTE_READONLY
+        assert (
+            actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+        )
 
 
 def test_basename_local():
@@ -106,8 +78,8 @@ def test_basename_local():
 
 def test_copy(smb_share):
     src_filename = "%s\\source.txt" % smb_share
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
 
     dst_filename = "%s\\target.txt" % smb_share
 
@@ -116,10 +88,10 @@ def test_copy(smb_share):
 
 def test_copy_from_local(smb_share, tmp_path):
     src_filename = tmp_path / "source.txt"
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
 
-    if os.name == 'nt':
+    if os.name == "nt":
         # The tests in CI on Windows sometimes overlap, explicitly set the
         # create time of the local file to something in the past.
         timestamp = 116444736000000000  # EPOCH as 100ns since 1601-01-01
@@ -132,7 +104,8 @@ def test_copy_from_local(smb_share, tmp_path):
             None,
             3,  # OPEN_EXISTING
             128,  # FILE_ATTRIBUTE_NORMAL
-            None)
+            None,
+        )
         ctypes.windll.kernel32.SetFileTime(handle, ref_time, ref_time, ref_time)
         ctypes.windll.kernel32.CloseHandle(handle)
 
@@ -146,14 +119,14 @@ def test_copy_with_dir_as_target(smb_share):
     dst_filename = "%s\\directory" % smb_share
     mkdir(dst_filename)
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     actual = copy(src_filename, dst_filename)
     assert actual == ntpath.join(dst_filename, "source.txt")
 
     with open_file("%s\\source.txt" % dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
     src_stat = smbclient_stat(src_filename)
 
@@ -167,8 +140,8 @@ def test_copy_with_dir_as_target(smb_share):
 
 def test_copy_raises_when_source_and_target_identical_remote(smb_share):
     filename = "%s\\file.txt" % smb_share
-    with open_file(filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(filename, mode="w") as fd:
+        fd.write("content")
 
     expected = "are the same file"
     with pytest.raises(Exception, match=re.escape(expected)):
@@ -176,31 +149,32 @@ def test_copy_raises_when_source_and_target_identical_remote(smb_share):
 
 
 def test_copy_raises_when_source_and_target_identical_local(tmpdir):
-    test_dir = tmpdir.mkdir('test').strpath
-    filename = os.path.join(test_dir, 'file.txt')
-    with open(filename, mode='w') as fd:
-        fd.write(u"content")
+    test_dir = tmpdir.mkdir("test").strpath
+    filename = os.path.join(test_dir, "file.txt")
+    with open(filename, mode="w") as fd:
+        fd.write("content")
 
     expected = "are the same file"
     with pytest.raises(Exception, match=re.escape(expected)):
         copy(filename, filename)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copy2(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
     utime(src_filename, times=(1024, 1024))
 
     actual = copy2(src_filename, dst_filename)
     assert actual == dst_filename
 
     with open_file(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
     src_stat = smbclient_stat(src_filename)
 
@@ -212,22 +186,23 @@ def test_copy2(smb_share):
     assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copy2_with_dir_as_target(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\directory" % smb_share
     mkdir(dst_filename)
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
     utime(src_filename, times=(1024, 1024))
 
     actual = copy2(src_filename, dst_filename)
     assert actual == ntpath.join(dst_filename, "source.txt")
 
     with open_file("%s\\source.txt" % dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
     src_stat = smbclient_stat(src_filename)
 
@@ -241,8 +216,8 @@ def test_copy2_with_dir_as_target(smb_share):
 
 def test_copy2_raises_when_source_and_target_identical_remote(smb_share):
     filename = "%s\\file.txt" % smb_share
-    with open_file(filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(filename, mode="w") as fd:
+        fd.write("content")
 
     expected = "are the same file"
     with pytest.raises(Exception, match=re.escape(expected)):
@@ -250,10 +225,10 @@ def test_copy2_raises_when_source_and_target_identical_remote(smb_share):
 
 
 def test_copy2_raises_when_source_and_target_identical_local(tmpdir):
-    test_dir = tmpdir.mkdir('test').strpath
-    filename = os.path.join(test_dir, 'file.txt')
-    with open(filename, mode='w') as fd:
-        fd.write(u"content")
+    test_dir = tmpdir.mkdir("test").strpath
+    filename = os.path.join(test_dir, "file.txt")
+    with open(filename, mode="w") as fd:
+        fd.write("content")
 
     expected = "are the same file"
     with pytest.raises(Exception, match=re.escape(expected)):
@@ -262,8 +237,8 @@ def test_copy2_raises_when_source_and_target_identical_local(tmpdir):
 
 def test_copyfile_identical(smb_share):
     filename = "%s\\file.txt" % smb_share
-    with open_file(filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(filename, mode="w") as fd:
+        fd.write("content")
 
     expected = "are the same file"
     with pytest.raises(Exception, match=re.escape(expected)):
@@ -274,31 +249,31 @@ def test_copyfile_remote_to_remote(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     actual = copyfile(src_filename, dst_filename)
     assert actual == dst_filename
 
     with open_file(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
 
 def test_copyfile_remote_to_remote_existing(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"something different")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("something different")
 
     actual = copyfile(src_filename, dst_filename)
     assert actual == dst_filename
 
     with open_file(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
 
 def test_copyfile_local_to_remote(smb_share, tmpdir):
@@ -306,14 +281,14 @@ def test_copyfile_local_to_remote(smb_share, tmpdir):
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
 
     actual = copyfile(src_filename, dst_filename)
     assert actual == dst_filename
 
     with open_file(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
 
 def test_copyfile_remote_to_local(smb_share, tmpdir):
@@ -321,14 +296,14 @@ def test_copyfile_remote_to_local(smb_share, tmpdir):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     actual = copyfile(src_filename, dst_filename)
     assert actual == dst_filename
 
     with open(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
 
 def test_copyfile_local_to_local(tmpdir):
@@ -336,14 +311,14 @@ def test_copyfile_local_to_local(tmpdir):
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
 
     actual = copyfile(src_filename, dst_filename)
     assert actual == dst_filename
 
     with open(dst_filename) as fd:
-        assert fd.read() == u"content"
+        assert fd.read() == "content"
 
 
 def test_copyfile_fail_src_is_dir(smb_share):
@@ -361,8 +336,8 @@ def test_copyfile_fail_dst_is_dir(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     mkdir(dst_filename)
 
@@ -371,49 +346,52 @@ def test_copyfile_fail_dst_is_dir(smb_share):
         copyfile(src_filename, dst_filename)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copyfile_symlink_follow(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     src_link = "%s\\source-link.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     symlink(src_filename, src_link)
     actual = copyfile(src_link, dst_filename)
     assert actual == dst_filename
 
-    with open_file(dst_filename, mode='r') as fd:
-        assert fd.read() == u"content"
+    with open_file(dst_filename, mode="r") as fd:
+        assert fd.read() == "content"
 
     assert not islink(dst_filename)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copyfile_symlink_dont_follow(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     src_link = "%s\\source-link.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     symlink(src_filename, src_link)
     actual = copyfile(src_link, dst_filename, follow_symlinks=False)
     assert actual == dst_filename
 
-    with open_file(dst_filename, mode='r') as fd:
-        assert fd.read() == u"content"
+    with open_file(dst_filename, mode="r") as fd:
+        assert fd.read() == "content"
 
     assert islink(dst_filename)
     assert readlink(dst_filename) == ntpath.normpath(src_filename)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copyfile_symlink_across_boundary_fail(smb_share):
     src_filename = "%s\\link" % smb_share
 
@@ -428,11 +406,11 @@ def test_copymode_of_file(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -441,8 +419,8 @@ def test_copymode_of_file(smb_share):
 
     remove(src_filename)
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -454,11 +432,11 @@ def test_copymode_of_file_with_no_attributes(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -467,8 +445,8 @@ def test_copymode_of_file_with_no_attributes(smb_share):
 
     remove(src_filename)
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     # Remove the Archive attribute on the dest file to simulate the file having only just READONLY.
     _set_file_attributes(dst_filename, FileAttributes.FILE_ATTRIBUTE_READONLY)
@@ -483,8 +461,9 @@ def test_copymode_of_dir(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
 
-    with open_file(src_dirname, mode='xb', file_type='dir', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY,
-                   buffering=0):
+    with open_file(
+        src_dirname, mode="xb", file_type="dir", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY, buffering=0
+    ):
         pass
     mkdir(dst_dirname)
 
@@ -507,12 +486,12 @@ def test_copymode_local_to_remote(smb_share, tmpdir):
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -521,8 +500,8 @@ def test_copymode_local_to_remote(smb_share, tmpdir):
 
     os.chmod(src_filename, stat.S_IWRITE)  # Needed when running on Windows as os.remove will fail to remove.
     os.remove(src_filename)
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -535,11 +514,11 @@ def test_copymode_remote_to_local(smb_share, tmpdir):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -547,8 +526,8 @@ def test_copymode_remote_to_local(smb_share, tmpdir):
     assert stat.S_IMODE(actual) & stat.S_IWRITE == 0
 
     remove(src_filename)
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -561,12 +540,12 @@ def test_copymode_local_to_local(tmpdir):
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -575,8 +554,8 @@ def test_copymode_local_to_local(tmpdir):
 
     os.chmod(src_filename, stat.S_IWRITE)  # Needed when running on Windows as os.remove will fail to remove.
     os.remove(src_filename)
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_filename, dst_filename)
 
@@ -584,19 +563,18 @@ def test_copymode_local_to_local(tmpdir):
     assert stat.S_IMODE(actual) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(os.name == 'nt',
-                    reason="Windows and local symlinks fall flat with local paths.")
+@pytest.mark.skipif(os.name == "nt", reason="Windows and local symlinks fall flat with local paths.")
 def test_copymode_local_to_local_symlink_follow(tmpdir):
-    test_dir = tmpdir.mkdir('test')
+    test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % test_dir
     dst_link = "%s\\target-link.txt" % test_dir
@@ -614,8 +592,8 @@ def test_copymode_local_to_local_symlink_follow(tmpdir):
 
     os.chmod(src_filename, stat.S_IWRITE)  # Needed when running on Windows as os.remove will fail to remove.
     os.remove(src_filename)
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_link, dst_link)
 
@@ -626,19 +604,18 @@ def test_copymode_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(sys.platform.startswith('darwin'),
-                    reason="On macOS os.chmod supports symlinks.")
+@pytest.mark.skipif(sys.platform.startswith("darwin"), reason="On macOS os.chmod supports symlinks.")
 def test_copymode_local_to_local_symlink_dont_follow(tmpdir):
-    test_dir = tmpdir.mkdir('test')
+    test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % test_dir
     dst_link = "%s\\target-link.txt" % test_dir
@@ -661,17 +638,18 @@ def test_copymode_missing_dst(smb_share):
         copymode(smb_share, "%s\\missing.txt" % smb_share)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copymode_symlink_follow(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % smb_share
     dst_link = "%s\\target-link.txt" % smb_share
@@ -688,8 +666,8 @@ def test_copymode_symlink_follow(smb_share):
     assert actual_link & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
     remove(src_filename)
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
     copymode(src_link, dst_link)
 
@@ -700,17 +678,18 @@ def test_copymode_symlink_follow(smb_share):
     assert actual_link & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copymode_symlink_dont_follow(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % smb_share
     dst_link = "%s\\target-link.txt" % smb_share
@@ -739,18 +718,19 @@ def test_copymode_symlink_dont_follow(smb_share):
     assert actual_link & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copystat_of_file(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
     utime(src_filename, (1024, 1024))
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copystat(src_filename, dst_filename)
 
@@ -760,14 +740,16 @@ def test_copystat_of_file(smb_share):
     assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copystat_of_dir(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
 
-    with open_file(src_dirname, mode='xb', file_type='dir', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY,
-                   buffering=0):
+    with open_file(
+        src_dirname, mode="xb", file_type="dir", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY, buffering=0
+    ):
         pass
     utime(src_dirname, (-1024, -1024))  # Test out dates earlier than EPOCH.
 
@@ -781,20 +763,21 @@ def test_copystat_of_dir(smb_share):
     assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copystat_local_to_remote(smb_share, tmpdir):
     test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
     os.utime(src_filename, (1024, 1024))
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copystat(src_filename, dst_filename)
 
@@ -804,19 +787,20 @@ def test_copystat_local_to_remote(smb_share, tmpdir):
     assert actual.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copystat_remote_to_local(smb_share, tmpdir):
     test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
     utime(src_filename, times=(1024, 1024))
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copystat(src_filename, dst_filename)
 
@@ -831,13 +815,13 @@ def test_copystat_local_to_local(tmpdir):
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
     os.utime(src_filename, (1024, 1024))
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     copystat(src_filename, dst_filename)
 
@@ -847,20 +831,19 @@ def test_copystat_local_to_local(tmpdir):
     assert stat.S_IMODE(actual.st_mode) & stat.S_IWRITE == 0
 
 
-@pytest.mark.skipif(os.name == 'nt',
-                    reason="Windows and local symlinks fall flat with local paths.")
+@pytest.mark.skipif(os.name == "nt", reason="Windows and local symlinks fall flat with local paths.")
 def test_copystat_local_to_local_symlink_follow(tmpdir):
-    test_dir = tmpdir.mkdir('test')
+    test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
     os.utime(src_filename, (1024, 1024))
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % test_dir
     dst_link = "%s\\target-link.txt" % test_dir
@@ -881,19 +864,18 @@ def test_copystat_local_to_local_symlink_follow(tmpdir):
     assert stat.S_IMODE(actual_link.st_mode) & stat.S_IWRITE == stat.S_IWRITE
 
 
-@pytest.mark.skipif(sys.platform.startswith('darwin'),
-                    reason="On macOS os.chmod supports symlinks.")
+@pytest.mark.skipif(sys.platform.startswith("darwin"), reason="On macOS os.chmod supports symlinks.")
 def test_copystat_local_to_local_symlink_dont_follow_fail(tmpdir):
-    test_dir = tmpdir.mkdir('test')
+    test_dir = tmpdir.mkdir("test")
     src_filename = "%s\\source.txt" % test_dir
     dst_filename = "%s\\target.txt" % test_dir
 
-    with open(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(src_filename, mode="w") as fd:
+        fd.write("content")
     os.chmod(src_filename, stat.S_IREAD)
 
-    with open(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % test_dir
     dst_link = "%s\\target-link.txt" % test_dir
@@ -906,18 +888,19 @@ def test_copystat_local_to_local_symlink_dont_follow_fail(tmpdir):
         copystat(src_link, dst_link, follow_symlinks=False)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copystat_symlink_follow(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w', file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
+        fd.write("content")
     utime(src_filename, times=(1024, 1024))
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % smb_share
     dst_link = "%s\\target-link.txt" % smb_share
@@ -930,8 +913,10 @@ def test_copystat_symlink_follow(smb_share):
     actual_file = smbclient_stat(dst_link)
     assert actual_file.st_atime == 1024
     assert actual_file.st_mtime == 1024
-    assert actual_file.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        actual_file.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY
+        == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
 
     actual_link = smbclient_stat(dst_link, follow_symlinks=False)
     assert actual_link.st_atime != 1024
@@ -939,17 +924,18 @@ def test_copystat_symlink_follow(smb_share):
     assert actual_link.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copystat_symlink_dont_follow(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
 
-    with open_file(src_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
 
-    with open_file(dst_filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(dst_filename, mode="w") as fd:
+        fd.write("content")
 
     src_link = "%s\\source-link.txt" % smb_share
     dst_link = "%s\\target-link.txt" % smb_share
@@ -970,8 +956,10 @@ def test_copystat_symlink_dont_follow(smb_share):
     actual_link = smbclient_stat(dst_link, follow_symlinks=False)
     assert actual_link.st_atime == 1024
     assert actual_link.st_mtime == 1024
-    assert actual_link.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        actual_link.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY
+        == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
 
 
 def test_copystat_missing_src(smb_share):
@@ -1000,17 +988,19 @@ def test_copytree_missing_dst(smb_share):
 
     utime("%s\\dir1\\subdir1\\subdir2" % src_dirname, times=(1024, 1024))
 
-    with open_file("%s\\file1.txt" % src_dirname, mode='w',
-                   file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"file1.txt")
+    with open_file(
+        "%s\\file1.txt" % src_dirname, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY
+    ) as fd:
+        fd.write("file1.txt")
 
-    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file2.txt")
+    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode="w") as fd:
+        fd.write("file2.txt")
     utime("%s\\dir1\\file2.txt" % src_dirname, times=(1024, 1024))
 
-    with open_file("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode='w',
-                   file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"file3.txt")
+    with open_file(
+        "%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY
+    ) as fd:
+        fd.write("file3.txt")
 
     actual = copytree(src_dirname, dst_dirname)
 
@@ -1022,35 +1012,39 @@ def test_copytree_missing_dst(smb_share):
     assert sorted(list(listdir("%s\\dir1\\subdir1\\subdir2" % dst_dirname))) == []
 
     with open_file("%s\\file1.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file1.txt"
+        assert fd.read() == "file1.txt"
     with open_file("%s\\dir1\\file2.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file2.txt"
+        assert fd.read() == "file2.txt"
     with open_file("%s\\dir1\\subdir1\\file3.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file3.txt"
+        assert fd.read() == "file3.txt"
 
     file1_stat = smbclient_stat("%s\\file1.txt" % dst_dirname)
-    assert file1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        file1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
 
     file2_stat = smbclient_stat("%s\\dir1\\file2.txt" % dst_dirname)
     assert file2_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
     file3_stat = smbclient_stat("%s\\dir1\\subdir1\\file3.txt" % dst_dirname)
-    assert file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
 
     dir1_stat = smbclient_stat("%s\\dir1" % dst_dirname)
     assert dir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
     subdir1_stat = smbclient_stat("%s\\dir1\\subdir1" % dst_dirname)
-    assert subdir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        subdir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY
+        == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
 
     subdir2_stat = smbclient_stat("%s\\dir1\\subdir1\\subdir2" % dst_dirname)
     assert subdir2_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
     # Samba server's cannot set the datetime so only run this if the server is supported.
-    if os.name == 'nt' or os.environ.get('SMB_FORCE', False):
+    if os.name == "nt" or os.environ.get("SMB_FORCE", False):
         assert file1_stat.st_atime != 1024
         assert file1_stat.st_mtime != 1024
 
@@ -1088,14 +1082,14 @@ def test_copytree_existing_dst_ignore(smb_share):
 
     mkdir(src_dirname)
 
-    with open_file("%s\\file1.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file1.txt")
+    with open_file("%s\\file1.txt" % src_dirname, mode="w") as fd:
+        fd.write("file1.txt")
 
-    with open_file("%s\\file2.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file2.txt")
+    with open_file("%s\\file2.txt" % src_dirname, mode="w") as fd:
+        fd.write("file2.txt")
 
-    with open_file("%s\\file3.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file3.txt")
+    with open_file("%s\\file3.txt" % src_dirname, mode="w") as fd:
+        fd.write("file3.txt")
 
     actual = copytree(src_dirname, dst_dirname)
     assert actual == dst_dirname
@@ -1114,32 +1108,33 @@ def test_copytree_existing_dst_ignore(smb_share):
     assert file2_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == 0
 
     file3_stat = smbclient_stat("%s\\file3.txt" % dst_dirname)
-    assert file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
 
 
 def test_copytree_with_ignore(smb_share):
     def ignore(name, children):
-        if name.endswith(u'source'):
-            assert sorted(children) == ['dir1', 'file1.txt']
-            return ['file1.txt']
-        elif name.endswith(u'subdir1'):
-            assert sorted(children) == ['file3.txt', 'subdir2']
-            return ['subdir2']
+        if name.endswith("source"):
+            assert sorted(children) == ["dir1", "file1.txt"]
+            return ["file1.txt"]
+        elif name.endswith("subdir1"):
+            assert sorted(children) == ["file3.txt", "subdir2"]
+            return ["subdir2"]
         else:
-            assert sorted(children) == ['file2.txt', 'subdir1']
+            assert sorted(children) == ["file2.txt", "subdir1"]
             return []
 
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
 
     makedirs("%s\\dir1\\subdir1\\subdir2" % src_dirname)
-    with open_file("%s\\file1.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file1.txt")
-    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file2.txt")
-    with open_file("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file3.txt")
+    with open_file("%s\\file1.txt" % src_dirname, mode="w") as fd:
+        fd.write("file1.txt")
+    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode="w") as fd:
+        fd.write("file2.txt")
+    with open_file("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode="w") as fd:
+        fd.write("file3.txt")
 
     actual = copytree(src_dirname, dst_dirname, ignore=ignore)
     assert actual == dst_dirname
@@ -1149,13 +1144,14 @@ def test_copytree_with_ignore(smb_share):
     assert sorted(list(listdir("%s\\dir1\\subdir1" % dst_dirname))) == ["file3.txt"]
 
     with open_file("%s\\dir1\\file2.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file2.txt"
+        assert fd.read() == "file2.txt"
     with open_file("%s\\dir1\\subdir1\\file3.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file3.txt"
+        assert fd.read() == "file3.txt"
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="Samba does not update timestamps")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_copytree_with_copy(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\sub-folder\\target" % smb_share
@@ -1166,17 +1162,19 @@ def test_copytree_with_copy(smb_share):
 
     utime("%s\\dir1\\subdir1\\subdir2" % src_dirname, times=(1024, 1024))
 
-    with open_file("%s\\file1.txt" % src_dirname, mode='w',
-                   file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"file1.txt")
+    with open_file(
+        "%s\\file1.txt" % src_dirname, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY
+    ) as fd:
+        fd.write("file1.txt")
 
-    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file2.txt")
+    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode="w") as fd:
+        fd.write("file2.txt")
     utime("%s\\dir1\\file2.txt" % src_dirname, times=(1024, 1024))
 
-    with open_file("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode='w',
-                   file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY) as fd:
-        fd.write(u"file3.txt")
+    with open_file(
+        "%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode="w", file_attributes=FileAttributes.FILE_ATTRIBUTE_READONLY
+    ) as fd:
+        fd.write("file3.txt")
 
     actual = copytree(src_dirname, dst_dirname, copy_function=copy)
 
@@ -1188,15 +1186,16 @@ def test_copytree_with_copy(smb_share):
     assert sorted(list(listdir("%s\\dir1\\subdir1\\subdir2" % dst_dirname))) == []
 
     with open_file("%s\\file1.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file1.txt"
+        assert fd.read() == "file1.txt"
     with open_file("%s\\dir1\\file2.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file2.txt"
+        assert fd.read() == "file2.txt"
     with open_file("%s\\dir1\\subdir1\\file3.txt" % dst_dirname) as fd:
-        assert fd.read() == u"file3.txt"
+        assert fd.read() == "file3.txt"
 
     file1_stat = smbclient_stat("%s\\file1.txt" % dst_dirname)
-    assert file1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        file1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
     assert file1_stat.st_atime != 1024
     assert file1_stat.st_mtime != 1024
 
@@ -1206,8 +1205,9 @@ def test_copytree_with_copy(smb_share):
     assert file2_stat.st_mtime != 1024
 
     file3_stat = smbclient_stat("%s\\dir1\\subdir1\\file3.txt" % dst_dirname)
-    assert file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        file3_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
     assert file3_stat.st_atime != 1024
     assert file3_stat.st_mtime != 1024
 
@@ -1217,8 +1217,10 @@ def test_copytree_with_copy(smb_share):
     assert dir1_stat.st_mtime != 1024
 
     subdir1_stat = smbclient_stat("%s\\dir1\\subdir1" % dst_dirname)
-    assert subdir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY == \
-        FileAttributes.FILE_ATTRIBUTE_READONLY
+    assert (
+        subdir1_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_READONLY
+        == FileAttributes.FILE_ATTRIBUTE_READONLY
+    )
     assert subdir1_stat.st_atime != 1024
     assert subdir1_stat.st_mtime != 1024
 
@@ -1235,11 +1237,11 @@ def test_copytree_with_errors_raises(smb_share):
 
     makedirs("%s\\dir1" % src_dirname)
 
-    with open_file("%s\\file1.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file1.txt")
+    with open_file("%s\\file1.txt" % src_dirname, mode="w") as fd:
+        fd.write("file1.txt")
 
-    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"file2.txt")
+    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode="w") as fd:
+        fd.write("file2.txt")
 
     actual = copytree(src_dirname, dst_dirname)
     assert actual == dst_dirname
@@ -1254,7 +1256,7 @@ def test_copytree_with_errors_raises(smb_share):
     assert len(actual.value.args[0]) == 2
     for err in actual.value.args[0]:
         # We cannot guarantee the order the SMB server will return the dir listing
-        if err[0].endswith('file1.txt'):
+        if err[0].endswith("file1.txt"):
             assert err[0] == "%s\\file1.txt" % src_dirname
             assert err[1] == "%s\\file1.txt" % dst_dirname
 
@@ -1265,8 +1267,9 @@ def test_copytree_with_errors_raises(smb_share):
         assert "STATUS_ACCESS_DENIED" in err[2]
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copytree_with_symlink_and_not_flag(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
@@ -1274,33 +1277,34 @@ def test_copytree_with_symlink_and_not_flag(smb_share):
     makedirs("%s\\dir" % src_dirname)
     symlink("%s\\dir" % src_dirname, "%s\\link" % src_dirname)
 
-    with open_file("%s\\file.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"1")
+    with open_file("%s\\file.txt" % src_dirname, mode="w") as fd:
+        fd.write("1")
     symlink("%s\\file.txt" % src_dirname, "%s\\link.txt" % src_dirname)
 
-    with open_file("%s\\dir\\file.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"2")
+    with open_file("%s\\dir\\file.txt" % src_dirname, mode="w") as fd:
+        fd.write("2")
 
     actual = copytree(src_dirname, dst_dirname)
     assert actual == dst_dirname
 
     assert not islink("%s\\link.txt" % dst_dirname)
     with open_file("%s\\link.txt" % dst_dirname) as fd:
-        assert fd.read() == u"1"
+        assert fd.read() == "1"
 
     assert not samefile("%s\\link.txt" % dst_dirname, "%s\\file.txt" % src_dirname)
     assert not samefile("%s\\link.txt" % dst_dirname, "%s\\file.txt" % dst_dirname)
 
     assert not islink("%s\\link" % dst_dirname)
     with open_file("%s\\link\\file.txt" % dst_dirname) as fd:
-        assert fd.read() == u"2"
+        assert fd.read() == "2"
 
     assert not samefile("%s\\link\\file.txt" % dst_dirname, "%s\\dir\\file.txt" % src_dirname)
     assert not samefile("%s\\link\\file.txt" % dst_dirname, "%s\\dir\\file.txt" % dst_dirname)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copytree_with_symlink_and_flag(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
@@ -1308,12 +1312,12 @@ def test_copytree_with_symlink_and_flag(smb_share):
     makedirs("%s\\dir" % src_dirname)
     symlink("%s\\dir" % src_dirname, "%s\\link" % src_dirname)
 
-    with open_file("%s\\file.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"content")
+    with open_file("%s\\file.txt" % src_dirname, mode="w") as fd:
+        fd.write("content")
     symlink("%s\\file.txt" % src_dirname, "%s\\link.txt" % src_dirname)
 
-    with open_file("%s\\dir\\file.txt" % src_dirname, mode='w') as fd:
-        fd.write(u"content")
+    with open_file("%s\\dir\\file.txt" % src_dirname, mode="w") as fd:
+        fd.write("content")
 
     actual = copytree(src_dirname, dst_dirname, symlinks=True)
     assert actual == dst_dirname
@@ -1329,8 +1333,9 @@ def test_copytree_with_symlink_and_flag(smb_share):
     assert not samefile("%s\\link.txt" % dst_dirname, "%s\\file.txt" % dst_dirname)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copytree_with_broken_symlink_fail(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
@@ -1355,8 +1360,9 @@ def test_copytree_with_broken_symlink_fail(smb_share):
     assert "No such file or directory" in err2[2]
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_copytree_with_broken_symlink_ignore(smb_share):
     src_dirname = "%s\\source" % smb_share
     dst_dirname = "%s\\target" % smb_share
@@ -1375,13 +1381,13 @@ def test_rmtree(smb_share):
     mkdir("%s\\dir2" % smb_share)
     mkdir("%s\\dir2\\dir3" % smb_share)
 
-    with open_file("%s\\dir2\\dir3\\file1" % smb_share, mode='w') as fd:
-        fd.write(u"content")
+    with open_file("%s\\dir2\\dir3\\file1" % smb_share, mode="w") as fd:
+        fd.write("content")
 
-    with open_file("%s\\dir2\\file2" % smb_share, mode='w') as fd:
-        fd.write(u"content")
+    with open_file("%s\\dir2\\file2" % smb_share, mode="w") as fd:
+        fd.write("content")
 
-    if os.name == "nt" or os.environ.get('SMB_FORCE', False):
+    if os.name == "nt" or os.environ.get("SMB_FORCE", False):
         # File symlink
         symlink("%s\\dir2\\file2" % smb_share, "%s\\dir2\\file3" % smb_share)
         symlink("missing", "%s\\dir2\\file3-broken" % smb_share)
@@ -1413,18 +1419,18 @@ def test_rmtree_non_existing(smb_share):
 
     rmtree(dir_name, onerror=callback)
     assert len(callback_args) == 2
-    assert callback_args[0][0].__name__ == 'scandir'
+    assert callback_args[0][0].__name__ == "scandir"
     assert callback_args[0][1] == dir_name
     assert isinstance(callback_args[0][2][1], SMBOSError)
-    assert callback_args[1][0].__name__ == 'rmdir'
+    assert callback_args[1][0].__name__ == "rmdir"
     assert callback_args[1][1] == dir_name
     assert isinstance(callback_args[1][2][1], SMBOSError)
 
 
 def test_rmtree_as_file(smb_share):
     filename = "%s\\file.txt" % smb_share
-    with open_file(filename, mode='w') as fd:
-        fd.write(u"content")
+    with open_file(filename, mode="w") as fd:
+        fd.write("content")
 
     expected = "[NtStatus 0xc0000103] Not a directory: "
     with pytest.raises(OSError, match=re.escape(expected)):
@@ -1439,16 +1445,17 @@ def test_rmtree_as_file(smb_share):
 
     rmtree(filename, onerror=callback)
     assert len(callback_args) == 2
-    assert callback_args[0][0].__name__ == 'scandir'
+    assert callback_args[0][0].__name__ == "scandir"
     assert callback_args[0][1] == filename
     assert isinstance(callback_args[0][2][1], SMBOSError)
-    assert callback_args[1][0].__name__ == 'rmdir'
+    assert callback_args[1][0].__name__ == "rmdir"
     assert callback_args[1][1] == filename
     assert isinstance(callback_args[1][2][1], SMBOSError)
 
 
-@pytest.mark.skipif(os.name != "nt" and not os.environ.get('SMB_FORCE', False),
-                    reason="cannot create symlinks on Samba")
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
+)
 def test_rmtree_symlink_as_dir(smb_share):
     src_dirname = "%s\\dir" % smb_share
     dst_dirname = "%s\\target" % smb_share
@@ -1471,6 +1478,6 @@ def test_rmtree_symlink_as_dir(smb_share):
 
     rmtree(dst_dirname, onerror=callback)
     assert len(callback_args) == 1
-    assert callback_args[0][0].__name__ == 'islink'
+    assert callback_args[0][0].__name__ == "islink"
     assert callback_args[0][1] == dst_dirname
     assert isinstance(callback_args[0][2][1], OSError)
