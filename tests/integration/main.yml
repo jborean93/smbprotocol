@@ -1,13 +1,3 @@
-- hosts: all
-  vars_prompt:
-  - name: artifact_url_prompt
-    prompt: Please enter the Azure Pipelines wheels download URL
-    private: no
-
-  tasks:
-  - set_fact:
-      artifact_url: '{{ artifact_url_prompt }}'
-
 - name: get network adapter for each Windows host
   hosts: windows
   gather_facts: no
@@ -174,29 +164,29 @@
       product_id: '{{ item.product_id }}'
       state: present
     with_items:
-    - url: https://www.python.org/ftp/python/3.6.8/python-3.6.8.exe
-      product_id: '{B56829C6-1C25-469E-B351-1467C6295566}'
-      arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.6.8/python-3.6.8-amd64.exe
-      product_id: '{E1155302-B578-4D8C-8431-FAE677FBC58C}'
-      arguments: /quiet InstallAllUsers=1 Shortcuts=0
     - url: https://www.python.org/ftp/python/3.7.9/python-3.7.9.exe
-      product_id: '{9FA66FEC-55E8-4977-9F34-167E360A5343}'
+      product_id: '{65048DA1-5996-4FF9-B20A-66EB2E68D0A4}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
     - url: https://www.python.org/ftp/python/3.7.9/python-3.7.9-amd64.exe
-      product_id: '{CD14E774-992D-4A34-B3D8-6BBEC890D918}'
+      product_id: '{FF740026-2FC0-4F8A-A046-8B316AF4ECA6}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
     - url: https://www.python.org/ftp/python/3.8.10/python-3.8.10.exe
-      product_id: '{0627E042-BBD1-4FE2-AAEF-C54BA4A69326}'
+      product_id: '{4196628C-AE5C-4304-B166-B7C1E93CDC25}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
     - url: https://www.python.org/ftp/python/3.8.10/python-3.8.10-amd64.exe
-      product_id: '{A0FBEF5B-B925-4F86-9B50-A7315736C481}'
+      product_id: '{080E0048-853C-49FB-96ED-30DEF7AB6E34}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.9.6/python-3.9.6.exe
-      product_id: '{4CDA2845-E7DB-47F5-95DB-99A48381690E}'
+    - url: https://www.python.org/ftp/python/3.9.13/python-3.9.13.exe
+      product_id: '{E23C472D-F346-4D47-A909-9D48E5D7252F}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
-    - url: https://www.python.org/ftp/python/3.9.6/python-3.9.6-amd64.exe
-      product_id: '{9BE9E7F0-F9F1-487B-A2FC-790CD2898388}'
+    - url: https://www.python.org/ftp/python/3.9.13/python-3.9.13-amd64.exe
+      product_id: '{90A30DAB-6FD8-4CF8-BB8B-C0DB21C69F20}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.10.6/python-3.10.6.exe
+      product_id: '{8B822DC2-4E2B-471A-B26C-6249A722DDB9}'
+      arguments: /quiet InstallAllUsers=1 Shortcuts=0
+    - url: https://www.python.org/ftp/python/3.10.6/python-3.10.6-amd64.exe
+      product_id: '{C3A057F3-209B-4244-9697-D69031B81AAB}'
       arguments: /quiet InstallAllUsers=1 Shortcuts=0
 
   - name: ensure virtualenv package is installed for each Python install
@@ -206,25 +196,50 @@
     with_items: '{{ python_interpreters }}'
 
   - name: create virtualenv for each Python install
-    win_command: '"{{ item }}\python.exe" -m virtualenv "{{ python_venv_path }}\{{ item | win_basename }}"'
+    win_command: '"{{ item }}\python.exe" -m venv "{{ python_venv_path }}\{{ item | win_basename }}"'
     args:
       creates: '{{ python_venv_path }}\{{ item | win_basename }}'
     with_items: '{{ python_interpreters }}'
 
-  - name: download wheel artifacts
-    win_get_url:
-      url: '{{ artifact_url }}'
+  - name: copy across wheel artifacts
+    win_copy:
+      src: artifact.zip
       dest: C:\temp\wheels.zip
+
+  - name: ensure wheel dir exists
+    win_file:
+      path: C:\temp\wheels
+      state: directory
 
   - name: extract wheel from archive
     win_unzip:
       src: C:\temp\wheels.zip
-      dest: C:\temp
+      dest: C:\temp\wheels
 
-  - name: install smbprotocol wheel into virtualenv
-    win_shell: |
-      &'{{ python_venv_path }}\{{ item | win_basename }}\Scripts\pip.exe' install --no-index --find-links=C:/temp/wheels --no-deps smbprotocol
-      &'{{ python_venv_path }}\{{ item | win_basename }}\Scripts\pip.exe' install --find-links=C:/temp/wheels smbprotocol pytest
+  - name: get smbprotocol artifact sdist filename
+    win_find:
+      paths: C:\temp\wheels
+      patterns: 'smbprotocol-*.tar.gz'
+      use_regex: false
+    register: smbprotocol_sdist_file
+
+  - name: verify sdist was found
+    assert:
+      that:
+      - smbprotocol_sdist_file.files | count == 1
+
+  - name: get smbprotocol artifact version
+    set_fact:
+      smbprotocol_version: >-
+        {{ smbprotocol_sdist_file.files[0].filename | regex_replace('smbprotocol-(?P<version>.*)\.tar\.gz', '\g<version>') }}
+
+  - name: install smbprotocol into virtualenv
+    win_command: >-
+      "{{ python_venv_path }}\{{ item | win_basename }}\Scripts\python.exe" -m pip
+      install
+      smbprotocol=={{ smbprotocol_version }}
+      pytest
+      --find-links=C:/temp/wheels
     args:
       creates: '{{ python_venv_path }}\{{ item | win_basename }}\Lib\site-packages\smbprotocol'
     with_items: '{{ python_interpreters }}'
@@ -258,8 +273,8 @@
       - gssntlmssp
       - krb5-devel
       - krb5-workstation
-      - python3
-      - python3-devel
+      - python38
+      - python38-devel
       - unzip
       - vim
       state: present
@@ -268,8 +283,7 @@
     pip:
       name:
       - virtualenv
-      - wheel
-      executable: /usr/bin/pip3
+      executable: /usr/bin/pip3.8
 
   - name: setup NetworkManager to use dnsmasq
     copy:
@@ -290,37 +304,45 @@
       src: krb5.conf.tmpl
       dest: /etc/krb5.conf
 
-  - name: download wheel artifacts
-    get_url:
-      url: '{{ artifact_url }}'
-      dest: ~/wheels.zip
+  - name: ensure wheel dir exists
+    file:
+      path: ~/wheels
+      state: directory
     become: no
 
   - name: extract wheel artifacts
     unarchive:
-      src: ~/wheels.zip
-      dest: ~/
-      remote_src: yes
+      src: artifact.zip
+      dest: ~/wheels
     become: no
 
-  - name: find the universal wheel
+  - name: get smbprotocol artifact sdist filename
     find:
       paths: ~/wheels
-      patterns: smbprotocol-*-py2.py3-none-any.whl
+      patterns: 'smbprotocol-*.tar.gz'
       recurse: no
       file_type: file
     become: no
-    register: wheel_artifact
+    register: smbprotocol_sdist_file
+
+  - name: verify sdist was found
+    assert:
+      that:
+      - smbprotocol_sdist_file.files | count == 1
+
+  - name: get smbprotocol artifact version
+    set_fact:
+      smbprotocol_version: >-
+        {{ smbprotocol_sdist_file.files[0].path | basename | regex_replace('smbprotocol-(?P<version>.*)\.tar\.gz', '\g<version>') }}
 
   - name: create a virtualenv for each Python interpeter
     pip:
       name:
-      - gssapi
       - pytest
-      - wheel
-      - '{{ wheel_artifact.files[0].path }}'
+      - smbprotocol[kerberos] == {{ smbprotocol_version }}
       virtualenv: '{{ python_venv_path }}/{{ item | basename }}'
       virtualenv_python: '{{ item }}'
+      extra_args: --find-links file:///{{ smbprotocol_sdist_file.files[0].path | dirname }}
     become: no
     with_items: '{{ python_interpreters }}'
 
