@@ -351,6 +351,9 @@ class SMBRawIO(io.RawIOBase):
         self, path, mode="r", share_access=None, desired_access=None, file_attributes=None, create_options=0, **kwargs
     ):
         tree, fd_path = get_smb_tree(path, **kwargs)
+        if tree.is_dfs_share:
+            fd_path = "\\".join(p for p in path.split("\\") if p)
+
         self.share_access = share_access
         self.fd = Open(tree, fd_path)
         self._mode = mode

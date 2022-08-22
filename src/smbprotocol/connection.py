@@ -1193,10 +1193,12 @@ class Connection(object):
         requests = []
         session = self.session_table.get(session_id, None)
         tree = None
+        is_dfs = False
         if tree_id and session:
             if tree_id not in session.tree_connect_table:
                 raise SMBException("Cannot find Tree with the ID %d in the session tree table" % tree_id)
             tree = session.tree_connect_table[tree_id]
+            is_dfs = tree.is_dfs_share
 
         total_requests = len(messages)
         for i, message in enumerate(messages):
@@ -1244,6 +1246,9 @@ class Connection(object):
             header["session_id"] = session_id if session_id and session_id > 0 else 0
             header["data"] = message.pack()
             header["next_command"] = next_command
+
+            if is_dfs and message.COMMAND == Commands.SMB2_CREATE:
+                header["flags"].set_flag(Smb2Flags.SMB2_FLAGS_DFS_OPERATIONS)
 
             if i != 0 and related:
                 header["session_id"] = b"\xff" * 8
