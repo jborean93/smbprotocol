@@ -38,9 +38,8 @@ ansible-playbook main.yml -vv
 ansible-playbook tests.yml -vv
 ```
 
-When running `main.yml` it will prompt for the Azure Pipelines artifacts URL to use as the compiled source of smbprotocol.
-This URL can be gotten by clicking on the published artifacts of a CI run and getting the URL for the `wheels
-artifact.
+Before running `main.yml`, download the `artifact` zip from the GitHub Actions workflow to test.
+This zip should be placed in the same directory as the playbook as `artifact.zip`.
 
 The following tags are set for `main.yml`
 

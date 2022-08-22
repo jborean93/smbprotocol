@@ -114,3 +114,4 @@ ENV/
 # Vagrant test files
 build-scripts/.vagrant
 tests/integration/.vagrant/
+tests/integration/artifact.zip
