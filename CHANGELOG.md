@@ -7,6 +7,7 @@
 * Moved all setuptools configuration, except extension information, to `pyproject.toml`
 * Migrated project layout to a `src` based structure rather than including it in the project root
 * Allow `smbclient.copyfile` to copy files on the same server and not just the same share
+* Improve DFS opens by setting the DFS operation header flag when opening a file on a share marked as a DFS share
 
 ## 1.9.0 - 2022-02-01
 
