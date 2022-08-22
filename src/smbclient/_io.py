@@ -351,6 +351,16 @@ class SMBRawIO(io.RawIOBase):
         self, path, mode="r", share_access=None, desired_access=None, file_attributes=None, create_options=0, **kwargs
     ):
         tree, fd_path = get_smb_tree(path, **kwargs)
+
+        # When opening a file on a DFS tree the raw path used in the CREATE
+        # request is the the original DFS path as the server should normalise
+        # it and return STATUS_PATH_NOT_COVERED if it's served by a DFS target
+        # server. The fd_path returned by get_smb_tree is still kept as it's
+        # needed for rename operations that need the tree relative path to
+        # rename files/dirs to.
+        # https://github.com/jborean93/smbprotocol/issues/170
+        # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/448cb979-7321-4598-89df-e5c97135b566
+        self._fd_path = fd_path
         if tree.is_dfs_share:
             fd_path = "\\".join(p for p in path.split("\\") if p)
 
