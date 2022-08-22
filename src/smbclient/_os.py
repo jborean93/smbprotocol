@@ -1131,7 +1131,7 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
         with SMBFileTransaction(src_raw) as transaction:
             file_rename = FileRenameInformation()
             file_rename["replace_if_exists"] = replace_if_exists
-            file_rename["file_name"] = to_text(dst_raw._fd_path)
+            file_rename["file_name"] = to_text(dst_raw.fd.file_name)
             set_info(transaction, file_rename)
 
 
