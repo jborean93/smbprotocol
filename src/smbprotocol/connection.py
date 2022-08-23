@@ -1247,7 +1247,7 @@ class Connection(object):
             header["data"] = message.pack()
             header["next_command"] = next_command
 
-            if is_dfs and message.COMMAND == Commands.SMB2_CREATE:
+            if is_dfs:
                 header["flags"].set_flag(Smb2Flags.SMB2_FLAGS_DFS_OPERATIONS)
 
             if i != 0 and related:

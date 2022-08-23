@@ -1128,10 +1128,18 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
         if src_guid != dst_guid or src_share.lower() != dst_share.lower():
             raise ValueError("Cannot %s a file to a different root than the src." % verb)
 
+        dst_tree = dst_raw.fd.tree_connect
+        dst_path = dst_raw.fd.file_name
+        if dst_tree.is_dfs_share and dst_path.startswith(dst_tree.share_name[2:]):
+            # Special handling when dst is on a DFS share, the renamed file
+            # should not include the DFS share itself that is present on the
+            # Open.file_name. Strip out that prefix if present.
+            dst_path = dst_path[len(dst_tree.share_name) - 1 :]
+
         with SMBFileTransaction(src_raw) as transaction:
             file_rename = FileRenameInformation()
             file_rename["replace_if_exists"] = replace_if_exists
-            file_rename["file_name"] = to_text(dst_raw._fd_path)
+            file_rename["file_name"] = to_text(dst_path)
             set_info(transaction, file_rename)
 
 

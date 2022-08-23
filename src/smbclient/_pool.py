@@ -329,8 +329,17 @@ def get_smb_tree(
 
             return get_smb_tree(path, **get_kwargs)
 
+    # When opening a file on a DFS tree the raw path used in the CREATE
+    # request is the the original DFS path as the server should normalise
+    # it and return STATUS_PATH_NOT_COVERED if it's served by a DFS target
+    # server.
+    # https://github.com/jborean93/smbprotocol/issues/170
+    # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/448cb979-7321-4598-89df-e5c97135b566
     file_path = ""
-    if len(path_split) > 2:
+    if tree.is_dfs_share:
+        file_path = "\\".join(path_split)
+
+    elif len(path_split) > 2:
         file_path = "\\".join(path_split[2:])
 
     return tree, file_path
