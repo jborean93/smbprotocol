@@ -2,6 +2,8 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from __future__ import annotations
+
 import binascii
 import hashlib
 import hmac
@@ -10,6 +12,7 @@ import os
 import struct
 import threading
 import time
+import typing as t
 from collections import OrderedDict
 from datetime import datetime
 from threading import Lock
@@ -20,6 +23,7 @@ from cryptography.hazmat.primitives.ciphers import aead, algorithms
 
 from smbprotocol import MAX_PAYLOAD_SIZE, Dialects
 from smbprotocol._text import to_text
+from smbprotocol._transport import SMBProtocol, SMBTransport, create_connection
 from smbprotocol.exceptions import (
     SMB2SymbolicLinkErrorResponse,
     SMBConnectionClosed,
@@ -47,7 +51,6 @@ from smbprotocol.structure import (
     TextField,
     UuidField,
 )
-from smbprotocol.transport import Tcp
 
 log = logging.getLogger(__name__)
 
@@ -722,6 +725,113 @@ class SMB2TransformHeader(Structure):
         super(SMB2TransformHeader, self).__init__()
 
 
+class ConnectionProtocol(SMBProtocol):
+    def __init__(
+        self,
+        connection: Connection,
+    ) -> None:
+        self.connection = connection
+
+    def connection_made(self, transport: SMBTransport) -> None:
+        self.connection.connected = True
+
+    def connection_closed(
+        self,
+        exc: t.Optional[Exception],
+    ) -> None:
+        self.connection._connection_exc = exc
+        self.connection.connected = False
+
+        # Ensure all remaining requests are not blocked waiting for a response
+        for request in self.connection.outstanding_requests.values():
+            request.response_event.set()
+
+    def data_received(self, data: bytes) -> None:
+        is_encrypted = data[:4] == b"\xfdSMB"
+        if is_encrypted:
+            msg = SMB2TransformHeader()
+            msg.unpack(data)
+            data = self.connection._decrypt(msg)
+
+        next_command = -1
+        while next_command != 0:
+            next_command = struct.unpack("<L", data[20:24])[0]
+            header_length = next_command if next_command != 0 else len(data)
+            b_header = data[:header_length]
+            data = data[header_length:]
+
+            header = SMB2HeaderResponse()
+            header.unpack(b_header)
+
+            message_id = header["message_id"].get_value()
+            request = self.connection.outstanding_requests[message_id]
+
+            # Typically you want to get the Session Id from the first message
+            # in a compound request but that is unreliable for async responses.
+            # Instead get the Session Id from the original request object if
+            # the Session Id is 0xFFFFFFFFFFFFFFFF.
+            # https://social.msdn.microsoft.com/Forums/en-US/a580f7bc-6746-4876-83db-6ac209b202c4/mssmb2-change-notify-response-sessionid?forum=os_fileservices
+            session_id = header["session_id"].get_value()
+            if session_id == 0xFFFFFFFFFFFFFFFF:
+                session_id = request.session_id
+
+            # No need to waste CPU cycles to verify the signature if we already
+            # decrypted the header.
+            if not is_encrypted:
+                self.connection.verify_signature(header, session_id)
+
+            credit_response = header["credit_response"].get_value()
+            if credit_response == 0 and not self.connection.supports_multi_credit:
+                # If the dialect does not support credits we still need to
+                # adjust our sequence window. Otherwise the credit response may
+                # be 0 in the case of compound responses and the last response
+                # contains the credits that were granted.
+                credit_response += 1
+
+            with self.connection.sequence_lock:
+                self.connection.sequence_window["high"] += credit_response
+
+            command = header["command"].get_value()
+            status = header["status"].get_value()
+            if command == Commands.SMB2_NEGOTIATE:
+                self.connection.preauth_integrity_hash_value.append(b_header)
+
+            elif command == Commands.SMB2_SESSION_SETUP and status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
+                self.connection.preauth_session_table[message_id] = b_header
+
+            with request.response_event_lock:
+                if header["flags"].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
+                    request.async_id = b_header[32:40]
+
+                request.response = header
+                request.response_event.set()
+
+                # When we send a ping in this thread we want to make sure it
+                # doesn't linger in the outstanding request queue.
+                if request.message["reserved"].get_value() == 1:
+                    self.connection.outstanding_requests.pop(message_id, None)
+
+    def echo(self) -> None:
+        # Check if the connection has unanswered keepalive echo requests with
+        # the reserved field set. When unanswered keep alive echo exists, the
+        # server did not respond withing two times the timeout. We assume that
+        # the server connection is dead and close it.
+        for r in self.connection.outstanding_requests.values():
+            if (
+                r.response is None
+                and r.message["command"].get_value() == Commands.SMB2_ECHO
+                and r.message["reserved"].get_value() == 1
+            ):
+                raise SMBConnectionClosed("Connection timed out. Server did not respond within timeout.")
+
+        log.debug("Sending SMB2 Echo to keep connection alive")
+        for sid in self.connection.session_table.keys():
+            req = self.connection.send(SMB2Echo(), sid=sid)
+            # Set this reserved field to 1 as we use that internally to check whether the outstanding
+            # requests queue should be cleared in this thread or not.
+            req.message["reserved"] = 1
+
+
 class Connection(object):
     def __init__(self, guid, server_name, port=445, require_signing=True):
         """
@@ -744,7 +854,10 @@ class Connection(object):
         )
         self.server_name = server_name
         self.port = port
-        self.transport = None  # Instanciated in .connect()
+        self._transport = None
+        self._protocol = None
+        self.connected = False
+        self._connection_exc: t.Optional[Exception] = None
 
         # Table of Session entries, the order is important for smbclient.
         self.session_table = OrderedDict()
@@ -815,9 +928,6 @@ class Connection(object):
         # The signing algorithm that was negotiated
         self.signing_algorithm_id = None
 
-        # Keep track of the message processing thread's potential traceback that it may raise.
-        self._t_exc = None
-
     def connect(self, dialect=None, timeout=60, preferred_encryption_algos=None, preferred_signing_algos=None):
         """
         Will connect to the target server and negotiate the capabilities
@@ -857,13 +967,12 @@ class Connection(object):
             See :class:`SigningAlgorithms` for a list of known identifiers.
         """
         log.info("Setting up transport connection")
-        self.transport = Tcp(self.server_name, self.port, timeout)
-        self.transport.connect()
-        t_worker = threading.Thread(
-            target=self._process_message_thread, name="msg_worker-%s:%s" % (self.server_name, self.port)
+        self._protocol, self._transport = create_connection(
+            self.server_name,
+            self.port,
+            lambda: ConnectionProtocol(self),
+            timeout,
         )
-        t_worker.daemon = True
-        t_worker.start()
 
         log.info("Starting negotiation with SMB server")
         enc_algos = preferred_encryption_algos or [
@@ -939,12 +1048,16 @@ class Connection(object):
             tree connections of each session.
         """
         # We cannot close the session or tree if the socket has been closed.
-        if close and self.transport.connected:
-            for session in list(self.session_table.values()):
-                session.disconnect(True)
+        try:
+            if close and self.connected:
+                for session in list(self.session_table.values()):
+                    session.disconnect(True)
 
-        log.info("Disconnecting transport connection")
-        self.transport.close()
+        finally:
+            log.info("Disconnecting transport connection")
+            if self._transport:
+                self._transport.close()
+                self._transport = None
 
     def send(
         self, message, sid=None, tid=None, credit_request=None, message_id=None, async_id=None, force_signature=False
@@ -1167,13 +1280,13 @@ class Connection(object):
                 % (binascii.hexlify(actual).decode(), binascii.hexlify(expected).decode())
             )
 
-    def _check_worker_running(self):
-        """Checks that the message worker thread is still running and raises it's exception if it has failed."""
-        if self._t_exc is not None:
-            self.disconnect(False)
-            raise self._t_exc
+    def _check_worker_running(self) -> None:
+        if self._connection_exc is not None:
+            raise SMBConnectionClosed(
+                f"Unknown error in socket connection: {self._connection_exc}"
+            ) from self._connection_exc
 
-        elif not self.transport.connected:
+        elif not self.connected:
             raise SMBConnectionClosed("SMB socket was closed, cannot send or receive any more data")
 
     def _send(
@@ -1286,121 +1399,10 @@ class Connection(object):
             requests[0].related_ids = [r.message["message_id"].get_value() for r in requests][1:]
 
         if session and session.encrypt_data or tree and tree.encrypt_data:
-            send_data = self._encrypt(send_data, session)
+            send_data = self._encrypt(send_data, session).pack()
 
-        self._check_worker_running()
-        self.transport.send(send_data)
+        self._transport.write(send_data)
         return requests
-
-    def _process_message_thread(self):
-        try:
-            while True:
-                # Wait for a max of 10 minutes before sending an echo that tells the SMB server the client is still
-                # available. This stops the server from closing the connection and the associated sessions on a long
-                # lived connection. A brief test shows Windows kills a connection at ~16 minutes so 10 minutes is a
-                # safe choice.
-                # https://github.com/jborean93/smbprotocol/issues/31
-                try:
-                    b_msg = self.transport.recv(600)
-                except TimeoutError as ex:
-                    # Check if the connection has unanswered keepalive echo requests with the reserved field set.
-                    # When unanswered keep alive echo exists, the server did not respond withing two times the timeout.
-                    # We assume that the server connection is dead and close it.
-                    for r in self.outstanding_requests.values():
-                        if (
-                            r.response is None
-                            and r.message["command"].get_value() == Commands.SMB2_ECHO
-                            and r.message["reserved"].get_value() == 1
-                        ):
-                            # connection will be closed in finally block
-                            raise SMBConnectionClosed(
-                                "Connection timed out. Server did not respond within timeout."
-                            ) from ex
-
-                    log.debug("Sending SMB2 Echo to keep connection alive")
-                    for sid in self.session_table.keys():
-                        req = self.send(SMB2Echo(), sid=sid)
-                        # Set this reserved field to 1 as we use that internally to check whether the outstanding
-                        # requests queue should be cleared in this thread or not.
-                        req.message["reserved"] = 1
-                    continue
-
-                # If recv didn't return any data then the socket is considered to be closed.
-                if not b_msg:
-                    return
-
-                is_encrypted = b_msg[:4] == b"\xfdSMB"
-                if is_encrypted:
-                    msg = SMB2TransformHeader()
-                    msg.unpack(b_msg)
-                    b_msg = self._decrypt(msg)
-
-                next_command = -1
-                while next_command != 0:
-                    next_command = struct.unpack("<L", b_msg[20:24])[0]
-                    header_length = next_command if next_command != 0 else len(b_msg)
-                    b_header = b_msg[:header_length]
-                    b_msg = b_msg[header_length:]
-
-                    header = SMB2HeaderResponse()
-                    header.unpack(b_header)
-
-                    message_id = header["message_id"].get_value()
-                    request = self.outstanding_requests[message_id]
-
-                    # Typically you want to get the Session Id from the first message in a compound request but that is
-                    # unreliable for async responses. Instead get the Session Id from the original request object if
-                    # the Session Id is 0xFFFFFFFFFFFFFFFF.
-                    # https://social.msdn.microsoft.com/Forums/en-US/a580f7bc-6746-4876-83db-6ac209b202c4/mssmb2-change-notify-response-sessionid?forum=os_fileservices
-                    session_id = header["session_id"].get_value()
-                    if session_id == 0xFFFFFFFFFFFFFFFF:
-                        session_id = request.session_id
-
-                    # No need to waste CPU cycles to verify the signature if we already decrypted the header.
-                    if not is_encrypted:
-                        self.verify_signature(header, session_id)
-
-                    credit_response = header["credit_response"].get_value()
-                    if credit_response == 0 and not self.supports_multi_credit:
-                        # If the dialect does not support credits we still need to adjust our sequence window.
-                        # Otherwise the credit response may be 0 in the case of compound responses and the last
-                        # response contains the credits that were granted.
-                        credit_response += 1
-
-                    with self.sequence_lock:
-                        self.sequence_window["high"] += credit_response
-
-                    command = header["command"].get_value()
-                    status = header["status"].get_value()
-                    if command == Commands.SMB2_NEGOTIATE:
-                        self.preauth_integrity_hash_value.append(b_header)
-
-                    elif command == Commands.SMB2_SESSION_SETUP and status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
-                        self.preauth_session_table[message_id] = b_header
-
-                    with request.response_event_lock:
-                        if header["flags"].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
-                            request.async_id = b_header[32:40]
-
-                        request.response = header
-                        request.response_event.set()
-
-                        # When we send a ping in this thread we want to make sure it doesn't linger in the outstanding
-                        # request queue.
-                        if request.message["reserved"].get_value() == 1:
-                            self.outstanding_requests.pop(message_id, None)
-        except Exception as exc:
-            # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
-            self._t_exc = exc
-
-            # While a caller of send/receive could theoretically catch this exception, we consider any failures
-            # here a fatal errors and the connection should be closed so we exit the worker thread.
-            self.disconnect(False)
-
-        finally:
-            # Make sure we fire all the request events to ensure the main thread isn't waiting on a receive.
-            for request in self.outstanding_requests.values():
-                request.response_event.set()
 
     def _generate_signature(self, b_header, signing_key, message_id, response, command):
         b_header = b_header[:48] + (b"\x00" * 16) + b_header[64:]

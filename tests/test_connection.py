@@ -34,6 +34,8 @@ from smbprotocol.header import Smb2Flags, SMB2HeaderResponse
 from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.session import Session
 
+pytest.test("Fix transport specific tests")
+
 
 class TestSMB2NegotiateRequest(object):
     def test_create_message(self):

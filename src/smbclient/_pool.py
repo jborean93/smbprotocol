@@ -403,7 +403,7 @@ def register_session(
     connection = connection_cache.get(connection_key, None)
 
     # Make sure we ignore any connections that may have had a closed connection
-    if not connection or not connection.transport.connected:
+    if not connection or not connection.connected:
         connection = Connection(ClientConfig().client_guid, server, port, require_signing=require_signing)
         connection.connect(timeout=connection_timeout)
         connection_cache[connection_key] = connection
