@@ -250,6 +250,167 @@ class TestSMB3NegotiateRequest(object):
         assert isinstance(net_name["data"].get_value(), SMB2NetnameNegotiateContextId)
         assert net_name["data"]["net_name"].get_value() == "café"
 
+    def test_create_message_with_context_no_padding(self):
+        message = SMB3NegotiateRequest()
+        message["security_mode"] = SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+        message["capabilities"] = 69
+        message["client_guid"] = uuid.UUID(bytes=b"\x33" * 16)
+        message["dialects"] = [Dialects.SMB_3_1_1]
+
+        preauth_req = SMB2NegotiateContextRequest()
+        preauth_req["context_type"] = NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+        preauth = SMB2PreauthIntegrityCapabilities()
+        preauth["hash_algorithms"] = [HashAlgorithms.SHA_512]
+        preauth["salt"] = b"\x11" * 32
+        preauth_req["data"] = preauth
+
+        enc_cap_req = SMB2NegotiateContextRequest()
+        enc_cap_req["context_type"] = NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+        enc_cap = SMB2EncryptionCapabilities()
+        enc_cap["ciphers"] = [Ciphers.AES_128_GCM, Ciphers.AES_128_CCM]
+        enc_cap_req["data"] = enc_cap
+
+        netname_req = SMB2NegotiateContextRequest()
+        netname_req["context_type"] = NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID
+        netname = SMB2NetnameNegotiateContextId()
+        netname["net_name"] = "testing1"  # Length is specific to test no padding needed
+        netname_req["data"] = netname
+
+        signing_req = SMB2NegotiateContextRequest()
+        signing_req["context_type"] = NegotiateContextType.SMB2_SIGNING_CAPABILITIES
+        signing = SMB2SigningCapabilities()
+        signing["signing_algorithms"] = [
+            SigningAlgorithms.AES_GMAC,
+            SigningAlgorithms.AES_CMAC,
+            SigningAlgorithms.HMAC_SHA256,
+        ]
+        signing_req["data"] = signing
+
+        message["negotiate_context_list"] = [preauth_req, enc_cap_req, netname_req, signing_req]
+
+        expected = (
+            b"\x24\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+            b"\x00\x00"
+            b"\x45\x00\x00\x00"
+            b"\x33\x33\x33\x33\x33\x33\x33\x33"
+            b"\x33\x33\x33\x33\x33\x33\x33\x33"
+            b"\x68\x00\x00\x00"
+            b"\x04\x00"
+            b"\x00\x00"
+            b"\x11\x03"
+            b"\x00\x00"
+            b"\x01\x00\x26\x00\x00\x00\x00\x00"
+            b"\x01\x00\x20\x00\x01\x00\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x00\x00"
+            b"\x02\x00\x06\x00\x00\x00\x00\x00"
+            b"\x02\x00\x02\x00\x01\x00\x00\x00"
+            b"\x05\x00\x10\x00\x00\x00\x00\x00"
+            b"\x74\x00\x65\x00\x73\x00\x74\x00"
+            b"\x69\x00\x6e\x00\x67\x00\x31\x00"
+            b"\x08\x00\x08\x00\x00\x00\x00\x00"
+            b"\x03\x00\x02\x00\x01\x00\x00\x00"
+        )
+        actual = message.pack()
+        assert len(message) == 144
+        assert actual == expected
+
+    def test_parse_message_with_context_no_padding(self):
+        actual = SMB3NegotiateRequest()
+        data = (
+            b"\x24\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+            b"\x00\x00"
+            b"\x45\x00\x00\x00"
+            b"\x33\x33\x33\x33\x33\x33\x33\x33"
+            b"\x33\x33\x33\x33\x33\x33\x33\x33"
+            b"\x68\x00\x00\x00"
+            b"\x04\x00"
+            b"\x00\x00"
+            b"\x11\x03"
+            b"\x00\x00"
+            b"\x01\x00\x26\x00\x00\x00\x00\x00"
+            b"\x01\x00\x20\x00\x01\x00\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x11\x11"
+            b"\x11\x11\x11\x11\x11\x11\x00\x00"
+            b"\x02\x00\x06\x00\x00\x00\x00\x00"
+            b"\x02\x00\x02\x00\x01\x00\x00\x00"
+            b"\x05\x00\x10\x00\x00\x00\x00\x00"
+            b"\x74\x00\x65\x00\x73\x00\x74\x00"
+            b"\x69\x00\x6e\x00\x67\x00\x31\x00"
+            b"\x08\x00\x08\x00\x00\x00\x00\x00"
+            b"\x03\x00\x02\x00\x01\x00\x00\x00"
+        )
+        actual.unpack(data)
+        assert len(actual) == 140
+        assert actual["structure_size"].get_value() == 36
+        assert actual["dialect_count"].get_value() == 1
+        assert actual["security_mode"].get_value() == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
+        assert actual["reserved"].get_value() == 0
+        assert actual["capabilities"].get_value() == 69
+        assert actual["client_guid"].get_value() == uuid.UUID(bytes=b"\x33" * 16)
+        assert actual["negotiate_context_offset"].get_value() == 104
+        assert actual["negotiate_context_count"].get_value() == 4
+        assert actual["reserved2"].get_value() == 0
+        assert actual["dialects"].get_value() == [
+            Dialects.SMB_3_1_1,
+        ]
+        assert actual["padding"].get_value() == b"\x00\x00"
+
+        assert len(actual["negotiate_context_list"].get_value()) == 4
+
+        preauth = actual["negotiate_context_list"][0]
+        assert isinstance(preauth, SMB2NegotiateContextRequest)
+        assert len(preauth) == 46
+        assert preauth["context_type"].get_value() == NegotiateContextType.SMB2_PREAUTH_INTEGRITY_CAPABILITIES
+        assert preauth["data_length"].get_value() == 38
+        assert preauth["reserved"].get_value() == 0
+        assert isinstance(preauth["data"].get_value(), SMB2PreauthIntegrityCapabilities)
+        assert preauth["data"]["hash_algorithm_count"].get_value() == 1
+        assert preauth["data"]["salt_length"].get_value() == 32
+        assert preauth["data"]["hash_algorithms"].get_value() == [HashAlgorithms.SHA_512]
+        assert preauth["data"]["salt"].get_value() == b"\x11" * 32
+
+        enc_cap = actual["negotiate_context_list"][1]
+        assert isinstance(enc_cap, SMB2NegotiateContextRequest)
+        assert len(enc_cap) == 14
+        assert enc_cap["context_type"].get_value() == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
+        assert enc_cap["data_length"].get_value() == 6
+        assert enc_cap["reserved"].get_value() == 0
+        assert isinstance(enc_cap["data"].get_value(), SMB2EncryptionCapabilities)
+        assert enc_cap["data"]["cipher_count"].get_value() == 2
+        assert enc_cap["data"]["ciphers"].get_value() == [Ciphers.AES_128_GCM, Ciphers.AES_128_CCM]
+
+        netname = actual["negotiate_context_list"][2]
+        assert isinstance(netname, SMB2NegotiateContextRequest)
+        assert len(netname) == 24
+        assert netname["context_type"].get_value() == NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID
+        assert netname["data_length"].get_value() == 16
+        assert netname["reserved"].get_value() == 0
+        assert isinstance(netname["data"].get_value(), SMB2NetnameNegotiateContextId)
+        assert netname["data"]["net_name"].get_value() == "testing1"
+
+        signing = actual["negotiate_context_list"][3]
+        assert isinstance(signing, SMB2NegotiateContextRequest)
+        assert len(signing) == 16
+        assert signing["context_type"].get_value() == NegotiateContextType.SMB2_SIGNING_CAPABILITIES
+        assert signing["data_length"].get_value() == 8
+        assert signing["reserved"].get_value() == 0
+        assert isinstance(signing["data"].get_value(), SMB2SigningCapabilities)
+        assert signing["data"]["signing_algorithm_count"].get_value() == 3
+        assert signing["data"]["signing_algorithms"].get_value() == [
+            SigningAlgorithms.AES_GMAC,
+            SigningAlgorithms.AES_CMAC,
+            SigningAlgorithms.HMAC_SHA256,
+        ]
+
 
 class TestSMB2NegotiateContextRequest(object):
     def test_create_message(self):
