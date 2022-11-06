@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.10.0 - TBD
+## 1.10.0 - 2022-11-07
 
 * Require Python 3.7 or newer (dropped 3.6)
 * Created PEP 517 compliant package
