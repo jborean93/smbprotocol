@@ -8,6 +8,7 @@
 * Migrated project layout to a `src` based structure rather than including it in the project root
 * Allow `smbclient.copyfile` to copy files on the same server and not just the same share
 * Improve DFS opens by setting the DFS operation header flag when opening a file on a share marked as a DFS share
+* Fix negotiate request padding when using a hostname with a length of 8 characters
 
 ## 1.9.0 - 2022-02-01
 

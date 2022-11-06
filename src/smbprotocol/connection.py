@@ -307,9 +307,7 @@ class SMB3NegotiateRequest(Structure):
         data_length = struct.unpack("<H", data[2:4])[0]
         negotiate_context = SMB2NegotiateContextRequest()
         negotiate_context.unpack(data[: data_length + 8])
-        padded_size = data_length % 8
-        if padded_size != 0:
-            padded_size = 8 - padded_size
+        padded_size = 8 - (data_length % 8 or 8)
 
         return negotiate_context, data[8 + data_length + padded_size :]
 
@@ -376,7 +374,7 @@ class SMB2NegotiateContextRequest(Structure):
 
     def _padding_size(self, structure):
         data_size = len(structure["data"])
-        return 8 - data_size if data_size <= 8 else 8 - (data_size % 8)
+        return 8 - (data_size % 8 or 8)
 
 
 class SMB2PreauthIntegrityCapabilities(Structure):
