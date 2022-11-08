@@ -3,6 +3,7 @@
 ## 1.10.1 - TBD
 
 * Raise the original `BadNetworkName` error if the server doesn't indicate it supports DFS or `FSDriverRequired` was raised trying to lookup the DFS information - https://github.com/jborean93/smbprotocol/issues/196
+* Fix pre auth session id tracking if the intermediate token messages return 0 as the session id
 
 ## 1.10.0 - 2022-11-07
 
