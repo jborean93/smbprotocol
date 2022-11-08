@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.1 - TBD
+
+* Raise the original `BadNetworkName` error if the server doesn't indicate it supports DFS or `FSDriverRequired` was raised trying to lookup the DFS information - https://github.com/jborean93/smbprotocol/issues/196
+
 ## 1.10.0 - 2022-11-07
 
 * Require Python 3.7 or newer (dropped 3.6)

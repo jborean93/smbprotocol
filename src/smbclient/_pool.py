@@ -10,7 +10,7 @@ import uuid
 import warnings
 
 from smbprotocol._text import to_text
-from smbprotocol.connection import Connection
+from smbprotocol.connection import Capabilities, Connection
 from smbprotocol.dfs import (
     DFSReferralEntryFlags,
     DFSReferralRequest,
@@ -18,7 +18,12 @@ from smbprotocol.dfs import (
     DomainEntry,
     ReferralEntry,
 )
-from smbprotocol.exceptions import BadNetworkName, InvalidParameter, ObjectPathNotFound
+from smbprotocol.exceptions import (
+    BadNetworkName,
+    FSDriverRequired,
+    InvalidParameter,
+    ObjectPathNotFound,
+)
 from smbprotocol.ioctl import CtlCode, IOCTLFlags, SMB2IOCTLRequest, SMB2IOCTLResponse
 from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
@@ -313,14 +318,29 @@ def get_smb_tree(
         tree = TreeConnect(session, share_path)
         try:
             tree.connect(require_secure_negotiate=client_config.require_secure_negotiate)
-        except BadNetworkName:
+        except BadNetworkName as err:
+            # If the server doesn't mention it supports DFS then don't try to
+            # resolve the DFS path.
+            if not session.connection.server_capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_DFS):
+                raise
+
             ipc_path = "\\\\%s\\IPC$" % server
             if path == ipc_path:  # In case we already tried connecting to IPC$ but that failed.
                 raise
 
             # The share could be a DFS root, issue a root referral request to the hostname and cache the result.
             ipc_tree = get_smb_tree(ipc_path, **get_kwargs)[0]
-            referral = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
+            try:
+                referral = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
+            except FSDriverRequired:
+                # If the DFS Request fails with STATUS_FS_DRIVER_REQUIRED then
+                # the server doesn't support DFS requests and the original
+                # BadNetworkName error should be raised instead of this one.
+                # This provides better context as to why a failure occured, i.e.
+                # a bad share path was provided.
+                # https://github.com/jborean93/smbprotocol/issues/196
+                raise err
+
             client_config.cache_referral(referral)
 
             # Sometimes a DFS referral may return 0 referrals, this needs to be checked here to avoid repeats.
