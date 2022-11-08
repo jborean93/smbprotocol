@@ -276,6 +276,7 @@ class Session(object):
             raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
 
         self.connection.preauth_session_table[self.session_id] = self
+
         in_token = self.connection.gss_negotiate_token
         if self.auth_protocol != "negotiate":
             in_token = None  # The GSS Negotiate Token can only be used for Negotiate auth.
@@ -307,11 +308,11 @@ class Session(object):
             # If this is the first time we received the actual session_id, update the preauth table with the server
             # assigned id.
             session_id = response["session_id"].get_value()
-            if self.session_id < 0:
+            if self.session_id < 0 and session_id:
                 del self.connection.preauth_session_table[self.session_id]
                 self.connection.preauth_session_table[session_id] = self
 
-            self.session_id = session_id
+                self.session_id = session_id
 
             setup_response = SMB2SessionSetupResponse()
             setup_response.unpack(response["data"].get_value())
