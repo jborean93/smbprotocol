@@ -29,7 +29,6 @@ from smbprotocol.structure import DateTimeField
 
 
 class TestFileNameInformation(object):
-
     DATA = b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
@@ -51,7 +50,6 @@ class TestFileNameInformation(object):
 
 
 class TestFileAllInformation(object):
-
     DATA = (
         b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
@@ -281,7 +279,6 @@ class TestFileDirectoryInformation(object):
 
 
 class TestFileDispositionInformation(object):
-
     DATA = b"\x01"
 
     def test_create_message(self):
@@ -390,7 +387,6 @@ class TestFileFullDirectoryInformation(object):
 
 
 class TestFileFullEaInformation(object):
-
     DATA = b"\x14\x00\x00\x00" b"\x00" b"\x04" b"\x04\x00" b"\x43\x41\x46\xe9\x00" b"\x63\x61\x66\xe9"
 
     def test_create_message(self):
@@ -420,7 +416,6 @@ class TestFileFullEaInformation(object):
 
 
 class TestFileGetEaInformation(object):
-
     DATA = b"\x14\x00\x00\x00" b"\x04" b"\x43\x41\x46\xe9\x00"
 
     def test_create_message(self):
@@ -608,7 +603,6 @@ class TestFileIdFullDirectoryInformation(object):
 
 
 class TestFileLinkInformation(object):
-
     DATA = (
         b"\x01"
         b"\x00\x00\x00\x00\x00\x00\x00"
@@ -673,7 +667,6 @@ class TestFileNamesInformation(object):
 
 
 class TestFileRenameInformation(object):
-
     DATA = (
         b"\x01"
         b"\x00\x00\x00\x00\x00\x00\x00"
@@ -746,7 +739,6 @@ class TestFileStandardInformation(object):
 
 
 class TestFileFsObjectInformation(object):
-
     DATA = (
         b"\x01\x02\x03\x04\x05\x06\x07\x08"
         b"\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"
@@ -780,7 +772,6 @@ class TestFileFsObjectInformation(object):
 
 
 class TestFileFsVolumeInformation(object):
-
     DATA = (
         b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         b"\x0a\x00\x00\x00"
@@ -815,7 +806,6 @@ class TestFileFsVolumeInformation(object):
 
 
 class TestFileFsFullSizeInformation(object):
-
     DATA = (
         b"\xa4\x6f\xd6\x01\x00\x00\x00\x00"
         b"\x9c\x41\x12\x01\x00\x00\x00\x00"

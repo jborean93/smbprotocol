@@ -32,7 +32,6 @@ from smbprotocol.tree import TreeConnect
 
 
 class TestFileNotifyInformation(object):
-
     DATA = b"\x00\x00\x00\x00" b"\x01\x00\x00\x00" b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
@@ -55,7 +54,6 @@ class TestFileNotifyInformation(object):
 
 
 class TestSMB2ChangeNotifyRequest(object):
-
     DATA = (
         b"\x20\x00"
         b"\x00\x00"
@@ -88,7 +86,6 @@ class TestSMB2ChangeNotifyRequest(object):
 
 
 class TestSMB2ChangeNotifyResponse(object):
-
     DATA = b"\x09\x00" b"\x48\x00" b"\x04\x00\x00\x00" b"\x01\x02\x03\x04"
 
     def test_create_message(self):

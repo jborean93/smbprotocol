@@ -1331,7 +1331,6 @@ def test_scandir_with_cache(smb_real):
     smbclient.mkdir(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3], connection_cache=cache)
 
     try:
-
         dir_path = ntpath.join(share_path, "directory")
         smbclient.makedirs(dir_path, exist_ok=True, connection_cache=cache)
 

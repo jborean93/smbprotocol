@@ -620,7 +620,6 @@ class StructureField(Field):
 
 
 class DateTimeField(Field):
-
     EPOCH_FILETIME = 116444736000000000  # epoch as a MS FILETIME int
 
     def __init__(self, size=None, **kwargs):
@@ -668,7 +667,6 @@ class DateTimeField(Field):
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
         elif isinstance(value, int):
-
             time_microseconds = (value - self.EPOCH_FILETIME) // 10
             try:
                 datetime_value = datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=time_microseconds)

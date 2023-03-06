@@ -252,7 +252,7 @@ def copytree(
     copy_function=copy2,
     ignore_dangling_symlinks=False,
     dirs_exist_ok=False,
-    **kwargs
+    **kwargs,
 ):
     """
     Recursively copy an entire directory tree rooted at src to a directory named dst and return the destination
@@ -335,7 +335,7 @@ def copytree(
                     copy_function,
                     ignore_dangling_symlinks,
                     dirs_exist_ok,
-                    **kwargs
+                    **kwargs,
                 )
             else:
                 copy_function(src_path, dst_path, **kwargs)
@@ -464,7 +464,7 @@ def _set_file_basic_info(file_path, follow_symlinks, read_only=None, atime_ns=No
             share_access="rw",
             create_options=co,
             desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
-            **kwargs
+            **kwargs,
         )
         with SMBFileTransaction(file_fd) as transaction:
             query_info(transaction, FileBasicInformation)
@@ -487,7 +487,7 @@ def _set_file_basic_info(file_path, follow_symlinks, read_only=None, atime_ns=No
             share_access="rw",
             create_options=co,
             desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
-            **kwargs
+            **kwargs,
         )
 
         with SMBFileTransaction(file_fd) as transaction:

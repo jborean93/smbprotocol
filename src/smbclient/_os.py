@@ -215,7 +215,7 @@ def link(src, dst, follow_symlinks=True, **kwargs):
         share_access="rwd",
         desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
         create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
-        **kwargs
+        **kwargs,
     )
     with SMBFileTransaction(raw) as transaction:
         link_info = FileLinkInformation()
@@ -318,7 +318,7 @@ def open_file(
     desired_access=None,
     file_attributes=None,
     file_type="file",
-    **kwargs
+    **kwargs,
 ):
     """
     Open a file on an SMB share and return a corresponding file object. If the file cannot be opened, an OSError is
@@ -385,7 +385,7 @@ def open_file(
         share_access=share_access,
         desired_access=desired_access,
         file_attributes=file_attributes,
-        **kwargs
+        **kwargs,
     )
     try:
         raw_fd.open()
@@ -581,7 +581,7 @@ def stat(path, follow_symlinks=True, **kwargs):
         share_access="rwd",
         desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
         create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
-        **kwargs
+        **kwargs,
     )
     with SMBFileTransaction(raw) as transaction:
         query_info(transaction, FileBasicInformation)
@@ -998,7 +998,7 @@ def setxattr(path, attribute, value, flags=0, follow_symlinks=True, **kwargs):
         share_access="r",
         desired_access=FilePipePrinterAccessMask.FILE_WRITE_EA,
         create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
-        **kwargs
+        **kwargs,
     )
     with SMBFileTransaction(raw) as transaction:
         ea_info = FileFullEaInformation()
@@ -1023,7 +1023,7 @@ def _delete(raw_type, path, **kwargs):
         share_access="rwd",
         desired_access=FilePipePrinterAccessMask.DELETE | FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
         create_options=co,
-        **kwargs
+        **kwargs,
     )
 
     with SMBFileTransaction(raw) as transaction:
@@ -1052,7 +1052,7 @@ def _get_extended_attributes(path, follow_symlinks=True, **kwargs):
         share_access="r",
         desired_access=FilePipePrinterAccessMask.FILE_READ_EA,
         create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
-        **kwargs
+        **kwargs,
     )
 
     try:
@@ -1079,7 +1079,7 @@ def _get_reparse_point(path, **kwargs):
         mode="r",
         desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
         create_options=CreateOptions.FILE_OPEN_REPARSE_POINT,
-        **kwargs
+        **kwargs,
     )
 
     with SMBFileTransaction(raw) as transaction:
@@ -1151,7 +1151,7 @@ def _set_basic_information(
     change_time=0,
     file_attributes=0,
     follow_symlinks=True,
-    **kwargs
+    **kwargs,
 ):
     raw = SMBRawIO(
         path,
@@ -1159,7 +1159,7 @@ def _set_basic_information(
         share_access="rwd",
         desired_access=FilePipePrinterAccessMask.FILE_WRITE_ATTRIBUTES,
         create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
-        **kwargs
+        **kwargs,
     )
 
     with SMBFileTransaction(raw) as transaction:

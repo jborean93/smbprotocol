@@ -11,7 +11,6 @@ from smbprotocol.header import (
 
 
 class TestSMB2HeaderAsync(object):
-
     DATA = (
         b"\xfe\x53\x4d\x42"
         b"\x40\x00"

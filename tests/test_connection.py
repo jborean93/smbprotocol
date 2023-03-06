@@ -791,7 +791,6 @@ class TestSMB2Echo(object):
 
 
 class TestSMB2CancelRequest(object):
-
     DATA = b"\x04\x00" b"\x00\x00"
 
     def test_create_message(self):
