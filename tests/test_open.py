@@ -970,7 +970,6 @@ class TestSMB2QueryDirectoryResponse(object):
 
 
 class TestSMB2QueryInfoRequest(object):
-
     DATA = (
         b"\x29\x00"
         b"\x01"
@@ -1164,7 +1163,6 @@ class TestSMB2SetInfoResponse(object):
 
 
 class TestOpen(object):
-
     # basic file open tests for each dialect
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])

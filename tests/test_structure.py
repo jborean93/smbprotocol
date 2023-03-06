@@ -1026,7 +1026,6 @@ class TestUuidField(object):
 
 
 class TestDateTimeField(object):
-
     DATE = datetime(year=1993, month=6, day=11, hour=7, minute=52, second=34, microsecond=34)
 
     class StructureTest(Structure):
@@ -1489,7 +1488,6 @@ class TestBoolField(object):
 
 
 class TestTextField(object):
-
     STRING_VALUE = "Hello World - café"
 
     class StructureTest(Structure):

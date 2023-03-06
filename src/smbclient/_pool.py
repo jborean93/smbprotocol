@@ -91,7 +91,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         skip_dfs=False,
         auth_protocol="negotiate",
         require_secure_negotiate=True,
-        **kwargs
+        **kwargs,
     ):
         self.client_guid = client_guid or uuid.uuid4()
         self.username = username

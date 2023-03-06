@@ -343,7 +343,6 @@ class SMBFileTransaction(object):
 
 
 class SMBRawIO(io.RawIOBase):
-
     FILE_TYPE = None  # 'file', 'dir', or None (for unknown)
     _INVALID_MODE = ""
 
@@ -601,7 +600,6 @@ class SMBRawIO(io.RawIOBase):
 
 
 class SMBDirectoryIO(SMBRawIO):
-
     FILE_TYPE = "dir"
     _INVALID_MODE = "w+"
 
@@ -628,12 +626,10 @@ class SMBDirectoryIO(SMBRawIO):
 
 
 class SMBFileIO(SMBRawIO):
-
     FILE_TYPE = "file"
 
 
 class SMBPipeIO(SMBRawIO):
-
     FILE_TYPE = "pipe"
 
     def seekable(self):

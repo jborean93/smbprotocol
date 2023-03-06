@@ -26,7 +26,6 @@ class TestReparseTags(object):
 
 
 class TestReparseDataBuffer(object):
-
     DATA = b"\x0c\x00\x00\xa0" b"\x04\x00" b"\x00\x00" b"\x01\x02\x03\x04"
 
     def test_create_message(self):
@@ -50,7 +49,6 @@ class TestReparseDataBuffer(object):
 
 
 class TestSymbolicLinkReparseDataBuffer(object):
-
     # Purposefully but the print name before sub name to test that the get_*_name() functions can handle any order.
     DATA = (
         b"\x08\x00"
