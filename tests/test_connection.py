@@ -35,7 +35,7 @@ from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.session import Session
 
 
-class TestSMB2NegotiateRequest(object):
+class TestSMB2NegotiateRequest:
     def test_create_message(self):
         message = SMB2NegotiateRequest()
         message["security_mode"] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
@@ -93,7 +93,7 @@ class TestSMB2NegotiateRequest(object):
         ]
 
 
-class TestSMB3NegotiateRequest(object):
+class TestSMB3NegotiateRequest:
     def test_create_message(self):
         message = SMB3NegotiateRequest()
         message["security_mode"] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
@@ -412,7 +412,7 @@ class TestSMB3NegotiateRequest(object):
         ]
 
 
-class TestSMB2NegotiateContextRequest(object):
+class TestSMB2NegotiateContextRequest:
     def test_create_message(self):
         message = SMB2NegotiateContextRequest()
         message["context_type"] = NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
@@ -449,7 +449,7 @@ class TestSMB2NegotiateContextRequest(object):
         )
 
 
-class TestSMB2PreauthIntegrityCapabilities(object):
+class TestSMB2PreauthIntegrityCapabilities:
     def test_create_message(self):
         message = SMB2PreauthIntegrityCapabilities()
         message["hash_algorithms"] = [HashAlgorithms.SHA_512]
@@ -474,7 +474,7 @@ class TestSMB2PreauthIntegrityCapabilities(object):
         assert actual["salt"].get_value() == b"\x01" * 16
 
 
-class TestSMB2EncryptionCapabilities(object):
+class TestSMB2EncryptionCapabilities:
     def test_create_message(self):
         message = SMB2EncryptionCapabilities()
         message["ciphers"] = [Ciphers.AES_128_CCM, Ciphers.AES_128_GCM]
@@ -534,7 +534,7 @@ class TestSMB2SigningCapabilities:
         ]
 
 
-class TestSMB2NegotiateResponse(object):
+class TestSMB2NegotiateResponse:
     def test_create_message(self):
         message = SMB2NegotiateResponse()
         message["security_mode"] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
@@ -772,7 +772,7 @@ class TestSMB2NegotiateResponse(object):
         assert preauth_cap["salt"].get_value() == b"\x22" * 32
 
 
-class TestSMB2Echo(object):
+class TestSMB2Echo:
     def test_create_message(self):
         message = SMB2Echo()
         expected = b"\x04\x00" b"\x00\x00"
@@ -790,7 +790,7 @@ class TestSMB2Echo(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2CancelRequest(object):
+class TestSMB2CancelRequest:
     DATA = b"\x04\x00" b"\x00\x00"
 
     def test_create_message(self):
@@ -807,7 +807,7 @@ class TestSMB2CancelRequest(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2TransformHeader(object):
+class TestSMB2TransformHeader:
     def test_create_message(self):
         message = SMB2TransformHeader()
         message["nonce"] = b"\xff" * 16
@@ -856,7 +856,7 @@ class TestSMB2TransformHeader(object):
         assert actual["data"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestConnection(object):
+class TestConnection:
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)

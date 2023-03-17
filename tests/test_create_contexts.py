@@ -42,7 +42,7 @@ from smbprotocol.create_contexts import (
 from smbprotocol.header import NtStatus
 
 
-class TestCreateContextName(object):
+class TestCreateContextName:
     def test_get_response_known(self):
         name = CreateContextName.SMB2_CREATE_QUERY_ON_DISK_ID
         actual = CreateContextName.get_response_structure(name)
@@ -55,7 +55,7 @@ class TestCreateContextName(object):
         assert actual == expected
 
 
-class TestSMB2CreateContextName(object):
+class TestSMB2CreateContextName:
     def test_create_message(self):
         ea_buffer1 = SMB2CreateEABuffer()
         ea_buffer1["ea_name"] = "Authors\x00".encode("ascii")
@@ -315,7 +315,7 @@ class TestSMB2CreateContextName(object):
         assert actual == b"\x20\x00\x00\x00"
 
 
-class TestSMB2CreateEABuffer(object):
+class TestSMB2CreateEABuffer:
     def test_create_message(self):
         msg1 = SMB2CreateEABuffer()
         msg1["ea_name"] = "Authors\x00".encode("ascii")
@@ -396,7 +396,7 @@ class TestSMB2CreateEABuffer(object):
         assert actual2["padding"].get_value() == b""
 
 
-class TestSMB2CreateDurableHandleRequest(object):
+class TestSMB2CreateDurableHandleRequest:
     def test_create_message(self):
         message = SMB2CreateDurableHandleRequest()
         expected = b"\x00" * 16
@@ -413,7 +413,7 @@ class TestSMB2CreateDurableHandleRequest(object):
         assert actual["durable_request"].get_value() == b"\x00" * 16
 
 
-class TestSMB2CreateDurableHandleResponse(object):
+class TestSMB2CreateDurableHandleResponse:
     def test_create_message(self):
         message = SMB2CreateDurableHandleResponse()
         expected = b"\x00" * 8
@@ -430,7 +430,7 @@ class TestSMB2CreateDurableHandleResponse(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2CreateDurableHandleReconnect(object):
+class TestSMB2CreateDurableHandleReconnect:
     def test_create_message(self):
         message = SMB2CreateDurableHandleReconnect()
         message["data"] = b"\xff" * 16
@@ -448,7 +448,7 @@ class TestSMB2CreateDurableHandleReconnect(object):
         assert actual["data"].pack() == b"\xff" * 16
 
 
-class TestSMB2CreateQueryMaximalAccessRequest(object):
+class TestSMB2CreateQueryMaximalAccessRequest:
     def test_create_message(self):
         message = SMB2CreateQueryMaximalAccessRequest()
         message["timestamp"] = datetime.utcfromtimestamp(0)
@@ -466,7 +466,7 @@ class TestSMB2CreateQueryMaximalAccessRequest(object):
         assert actual["timestamp"].get_value() == datetime.utcfromtimestamp(0)
 
 
-class TestSMB2CreateQueryMaximalAccessResponse(object):
+class TestSMB2CreateQueryMaximalAccessResponse:
     def test_create_message(self):
         message = SMB2CreateQueryMaximalAccessResponse()
         message["maximal_access"] = 2032127
@@ -485,7 +485,7 @@ class TestSMB2CreateQueryMaximalAccessResponse(object):
         assert actual["maximal_access"].get_value() == 2032127
 
 
-class TestSMB2CreateAllocationSize(object):
+class TestSMB2CreateAllocationSize:
     def test_create_message(self):
         message = SMB2CreateAllocationSize()
         message["allocation_size"] = 1024
@@ -503,7 +503,7 @@ class TestSMB2CreateAllocationSize(object):
         assert actual["allocation_size"].get_value() == 1024
 
 
-class TestSMB2CreateTimewarpToken(object):
+class TestSMB2CreateTimewarpToken:
     def test_create_message(self):
         message = SMB2CreateTimewarpToken()
         message["timestamp"] = datetime.utcfromtimestamp(0)
@@ -521,7 +521,7 @@ class TestSMB2CreateTimewarpToken(object):
         assert actual["timestamp"].get_value() == datetime.utcfromtimestamp(0)
 
 
-class TestSMB2CreateRequestLease(object):
+class TestSMB2CreateRequestLease:
     def test_create_message(self):
         message = SMB2CreateRequestLease()
         message["lease_key"] = b"\xff" * 16
@@ -556,7 +556,7 @@ class TestSMB2CreateRequestLease(object):
         assert actual["lease_duration"].get_value() == 10
 
 
-class TestSMB2CreateResponseLease(object):
+class TestSMB2CreateResponseLease:
     def test_create_message(self):
         message = SMB2CreateResponseLease()
         message["lease_key"] = b"\xff" * 16
@@ -592,7 +592,7 @@ class TestSMB2CreateResponseLease(object):
         assert actual["lease_duration"].get_value() == 12
 
 
-class TestSMB2CreateQueryOnDiskIDResponse(object):
+class TestSMB2CreateQueryOnDiskIDResponse:
     def test_create_message(self):
         message = SMB2CreateQueryOnDiskIDResponse()
         message["disk_file_id"] = 43065671436753645
@@ -623,7 +623,7 @@ class TestSMB2CreateQueryOnDiskIDResponse(object):
         assert actual["reserved"].get_value() == b"\x00" * 16
 
 
-class TestSMB2CreateRequestLeaseV2(object):
+class TestSMB2CreateRequestLeaseV2:
     def test_create_message(self):
         message = SMB2CreateRequestLeaseV2()
         message["lease_key"] = b"\xff" * 16
@@ -672,7 +672,7 @@ class TestSMB2CreateRequestLeaseV2(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2CreateResponseLeaseV2(object):
+class TestSMB2CreateResponseLeaseV2:
     def test_create_message(self):
         message = SMB2CreateResponseLeaseV2()
         message["lease_key"] = b"\xff" * 16
@@ -721,7 +721,7 @@ class TestSMB2CreateResponseLeaseV2(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2CreateDurableHandleRequestV2(object):
+class TestSMB2CreateDurableHandleRequestV2:
     def test_create_message(self):
         message = SMB2CreateDurableHandleRequestV2()
         message["timeout"] = 100
@@ -756,7 +756,7 @@ class TestSMB2CreateDurableHandleRequestV2(object):
         assert actual["create_guid"].get_value() == uuid.UUID(bytes=b"\xff" * 16)
 
 
-class TestSMB2CreateDurableHandleReconnectV2(object):
+class TestSMB2CreateDurableHandleReconnectV2:
     def test_create_message(self):
         message = SMB2CreateDurableHandleReconnectV2()
         message["file_id"] = b"\xff" * 16
@@ -790,7 +790,7 @@ class TestSMB2CreateDurableHandleReconnectV2(object):
         assert actual["flags"].get_value() == DurableHandleFlags.SMB2_DHANDLE_FLAG_PERSISTENT
 
 
-class TestSMB2CreateDurableHandleResponseV2(object):
+class TestSMB2CreateDurableHandleResponseV2:
     def test_create_message(self):
         message = SMB2CreateDurableHandleResponseV2()
         message["timeout"] = 10
@@ -809,7 +809,7 @@ class TestSMB2CreateDurableHandleResponseV2(object):
         assert actual["flags"].get_value() == 0
 
 
-class TestSMB2CreateAppInstanceId(object):
+class TestSMB2CreateAppInstanceId:
     def test_create_message(self):
         message = SMB2CreateAppInstanceId()
         message["app_instance_id"] = b"\xff" * 16
@@ -829,7 +829,7 @@ class TestSMB2CreateAppInstanceId(object):
         assert actual["app_instance_id"].get_value() == b"\xff" * 16
 
 
-class TestSMB2SVHDXOpenDeviceContextRequest(object):
+class TestSMB2SVHDXOpenDeviceContextRequest:
     def test_create_message(self):
         message = SMB2SVHDXOpenDeviceContextRequest()
         message["initiator_id"] = b"\xff" * 16
@@ -879,7 +879,7 @@ class TestSMB2SVHDXOpenDeviceContextRequest(object):
         assert actual["initiator_host_name"].get_value() == "hostname".encode("utf-16-le")
 
 
-class TestSMB2SVHDXOpenDeviceContextResponse(object):
+class TestSMB2SVHDXOpenDeviceContextResponse:
     def test_create_message(self):
         message = SMB2SVHDXOpenDeviceContextResponse()
         message["initiator_id"] = b"\xff" * 16
@@ -931,7 +931,7 @@ class TestSMB2SVHDXOpenDeviceContextResponse(object):
         assert actual["initiator_host_name"].get_value() == "hostname".encode("utf-16-le")
 
 
-class TestSMB2SVHDXOpenDeviceContextV2Request(object):
+class TestSMB2SVHDXOpenDeviceContextV2Request:
     def test_create_message(self):
         message = SMB2SVHDXOpenDeviceContextV2Request()
         message["initiator_id"] = b"\xff" * 16
@@ -996,7 +996,7 @@ class TestSMB2SVHDXOpenDeviceContextV2Request(object):
         assert actual["virtual_size"].get_value() == 0
 
 
-class TestSMB2SVHDXOpenDeviceContextV2Response(object):
+class TestSMB2SVHDXOpenDeviceContextV2Response:
     def test_create_message(self):
         message = SMB2SVHDXOpenDeviceContextV2Response()
         message["initiator_id"] = b"\xff" * 16
@@ -1063,7 +1063,7 @@ class TestSMB2SVHDXOpenDeviceContextV2Response(object):
         assert actual["virtual_size"].get_value() == 0
 
 
-class TestSMB2CreateAppInstanceVersion(object):
+class TestSMB2CreateAppInstanceVersion:
     def test_create_message(self):
         message = SMB2CreateAppInstanceVersion()
         message["app_instance_version_high"] = 10

@@ -17,7 +17,7 @@ from smbprotocol.security_descriptor import (
 )
 
 
-class TestSIDPacket(object):
+class TestSIDPacket:
     def test_create_message(self):
         sid = "S-1-1-0"
         message = SIDPacket()
@@ -109,7 +109,7 @@ class TestSIDPacket(object):
         assert sub_auth[4] == 1104
 
 
-class TestAccessAllowedAce(object):
+class TestAccessAllowedAce:
     def test_create_message(self):
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
@@ -155,7 +155,7 @@ class TestAccessAllowedAce(object):
         assert str(actual["sid"].get_value()) == "S-1-1-0"
 
 
-class TestAccessDeniedAce(object):
+class TestAccessDeniedAce:
     def test_create_message(self):
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
@@ -201,7 +201,7 @@ class TestAccessDeniedAce(object):
         assert str(actual["sid"].get_value()) == "S-1-1-0"
 
 
-class TestSystemAuditAce(object):
+class TestSystemAuditAce:
     def test_create_message(self):
         sid = SIDPacket()
         sid.from_string("S-1-1-0")
@@ -247,7 +247,7 @@ class TestSystemAuditAce(object):
         assert str(actual["sid"].get_value()) == "S-1-1-0"
 
 
-class TestAclPacket(object):
+class TestAclPacket:
     def test_create_message(self):
         sid1 = SIDPacket()
         sid1.from_string("S-1-1-0")
@@ -377,7 +377,7 @@ class TestAclPacket(object):
         assert aces[2] == b"\x05\x00\x14\x00\x00\x00\x00\x00" b"\x01\x01\x00\x00\x00\x00\x00\x01" b"\x00\x00\x00\x00"
 
 
-class TestSMB2SDBuffer(object):
+class TestSMB2SDBuffer:
     def test_create_message(self):
         sid1 = SIDPacket()
         sid1.from_string("S-1-1-0")

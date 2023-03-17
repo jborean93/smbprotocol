@@ -7,7 +7,7 @@ from collections import OrderedDict
 from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, Structure
 
 
-class Commands(object):
+class Commands:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -36,7 +36,7 @@ class Commands(object):
     SMB2_OPLOCK_BREAK = 0x0012
 
 
-class NtStatus(object):
+class NtStatus:
     """
     [MS-ERREF] https://msdn.microsoft.com/en-au/library/cc704588.aspx
 
@@ -111,7 +111,7 @@ class NtStatus(object):
     STATUS_SERVER_UNAVAILABLE = 0xC0000466
 
 
-class Smb2Flags(object):
+class Smb2Flags:
     """
     [MS-SMB2] v53.0 2017-09-15
 

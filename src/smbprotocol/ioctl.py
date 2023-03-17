@@ -21,7 +21,7 @@ from smbprotocol.structure import (
 )
 
 
-class CtlCode(object):
+class CtlCode:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -52,7 +52,7 @@ class CtlCode(object):
     FSCTL_VALIDATE_NEGOTIATE_INFO = 0x00140204
 
 
-class IOCTLFlags(object):
+class IOCTLFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -64,7 +64,7 @@ class IOCTLFlags(object):
     SMB2_0_IOCTL_IS_FSCTL = 0x00000001
 
 
-class HashVersion(object):
+class HashVersion:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -76,7 +76,7 @@ class HashVersion(object):
     SRV_HASH_VER_2 = 0x00000002
 
 
-class HashRetrievalType(object):
+class HashRetrievalType:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -89,7 +89,7 @@ class HashRetrievalType(object):
     SRV_HASH_RETRIEVE_FILE_BASED = 0x00000002
 
 
-class IfCapability(object):
+class IfCapability:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -101,7 +101,7 @@ class IfCapability(object):
     RDMA_CAPABLE = 0x00000002
 
 
-class SockAddrFamily(object):
+class SockAddrFamily:
     """
     [MS-SMB2] v53.0 2017-09-15
 

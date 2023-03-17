@@ -10,7 +10,7 @@ from smbprotocol.header import (
 )
 
 
-class TestSMB2HeaderAsync(object):
+class TestSMB2HeaderAsync:
     DATA = (
         b"\xfe\x53\x4d\x42"
         b"\x40\x00"
@@ -59,7 +59,7 @@ class TestSMB2HeaderAsync(object):
         assert actual["data"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2HeaderRequest(object):
+class TestSMB2HeaderRequest:
     def test_create_message(self):
         header = SMB2HeaderRequest()
         header["command"] = Commands.SMB2_SESSION_SETUP
@@ -126,7 +126,7 @@ class TestSMB2HeaderRequest(object):
         assert actual["data"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2HeaderResponse(object):
+class TestSMB2HeaderResponse:
     def test_create_message(self):
         header = SMB2HeaderResponse()
         header["command"] = Commands.SMB2_SESSION_SETUP

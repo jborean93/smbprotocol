@@ -16,7 +16,7 @@ from smbprotocol.structure import (
 )
 
 
-class AccessMask(object):
+class AccessMask:
     """
     [MS-DTYP]
 
@@ -40,7 +40,7 @@ class AccessMask(object):
     DELETE = 0x00010000
 
 
-class AceType(object):
+class AceType:
     """
     [MS-DTYP]
 
@@ -73,7 +73,7 @@ class AceType(object):
     SYSTEM_SCOPED_POLICY_ID_ACE_TYPE = 0x13
 
 
-class AceFlags(object):
+class AceFlags:
     """
     [MS-DTYP]
 
@@ -90,7 +90,7 @@ class AceFlags(object):
     SUCCESSFUL_ACCESS_ACE_FLAG = 0x40
 
 
-class AclRevision(object):
+class AclRevision:
     """
     [MS-DTYP]
 
@@ -103,7 +103,7 @@ class AclRevision(object):
     ACL_REVISION_DS = 0x04  # not natively supported yet
 
 
-class SDControl(object):
+class SDControl:
     """
     [MS-DTYP]
 

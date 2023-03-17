@@ -28,7 +28,7 @@ from smbprotocol.file_info import (
 from smbprotocol.structure import DateTimeField
 
 
-class TestFileNameInformation(object):
+class TestFileNameInformation:
     DATA = b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
@@ -49,7 +49,7 @@ class TestFileNameInformation(object):
         assert actual["file_name"].get_value() == "café"
 
 
-class TestFileAllInformation(object):
+class TestFileAllInformation:
     DATA = (
         b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
@@ -133,7 +133,7 @@ class TestFileAllInformation(object):
         assert name["file_name"].get_value() == ""
 
 
-class TestFileBothDirectoryInformation(object):
+class TestFileBothDirectoryInformation:
     def test_create_message(self):
         message = FileBothDirectoryInformation()
         message["creation_time"] = datetime.utcfromtimestamp(1024)
@@ -214,7 +214,7 @@ class TestFileBothDirectoryInformation(object):
         assert actual["file_name"].get_value() == "file1.txt".encode("utf-16-le")
 
 
-class TestFileDirectoryInformation(object):
+class TestFileDirectoryInformation:
     def test_create_message(self):
         message = FileDirectoryInformation()
         message["creation_time"] = datetime.utcfromtimestamp(1024)
@@ -278,7 +278,7 @@ class TestFileDirectoryInformation(object):
         assert actual["file_name"].get_value() == "file1.txt".encode("utf-16-le")
 
 
-class TestFileDispositionInformation(object):
+class TestFileDispositionInformation:
     DATA = b"\x01"
 
     def test_create_message(self):
@@ -299,7 +299,7 @@ class TestFileDispositionInformation(object):
         assert actual["delete_pending"].get_value() is True
 
 
-class TestFileEndOfFileInformation(object):
+class TestFileEndOfFileInformation:
     def test_create_message(self):
         message = FileEndOfFileInformation()
         message["end_of_file"] = 1049459
@@ -319,7 +319,7 @@ class TestFileEndOfFileInformation(object):
         assert actual["end_of_file"].get_value() == 1049459
 
 
-class TestFileFullDirectoryInformation(object):
+class TestFileFullDirectoryInformation:
     def test_create_message(self):
         message = FileFullDirectoryInformation()
         message["creation_time"] = datetime.utcfromtimestamp(1024)
@@ -386,7 +386,7 @@ class TestFileFullDirectoryInformation(object):
         assert actual["file_name"].get_value() == "file1.txt".encode("utf-16-le")
 
 
-class TestFileFullEaInformation(object):
+class TestFileFullEaInformation:
     DATA = b"\x14\x00\x00\x00" b"\x00" b"\x04" b"\x04\x00" b"\x43\x41\x46\xe9\x00" b"\x63\x61\x66\xe9"
 
     def test_create_message(self):
@@ -415,7 +415,7 @@ class TestFileFullEaInformation(object):
         assert actual["ea_value"].get_value() == b"\x63\x61\x66\xe9"
 
 
-class TestFileGetEaInformation(object):
+class TestFileGetEaInformation:
     DATA = b"\x14\x00\x00\x00" b"\x04" b"\x43\x41\x46\xe9\x00"
 
     def test_create_message(self):
@@ -440,7 +440,7 @@ class TestFileGetEaInformation(object):
         assert actual["padding"].get_value() == 0
 
 
-class TestFileIdBothDirectoryInformation(object):
+class TestFileIdBothDirectoryInformation:
     def test_create_message(self):
         message = FileIdBothDirectoryInformation()
         message["creation_time"] = datetime.utcfromtimestamp(1024)
@@ -528,7 +528,7 @@ class TestFileIdBothDirectoryInformation(object):
         assert actual["file_name"].get_value() == "file1.txt".encode("utf-16-le")
 
 
-class TestFileIdFullDirectoryInformation(object):
+class TestFileIdFullDirectoryInformation:
     def test_create_message(self):
         message = FileIdFullDirectoryInformation()
         message["creation_time"] = datetime.utcfromtimestamp(1024)
@@ -602,7 +602,7 @@ class TestFileIdFullDirectoryInformation(object):
         assert actual["file_name"].get_value() == "file1.txt".encode("utf-16-le")
 
 
-class TestFileLinkInformation(object):
+class TestFileLinkInformation:
     DATA = (
         b"\x01"
         b"\x00\x00\x00\x00\x00\x00\x00"
@@ -631,7 +631,7 @@ class TestFileLinkInformation(object):
         assert actual["file_name"].get_value() == "café"
 
 
-class TestFileNamesInformation(object):
+class TestFileNamesInformation:
     def test_create_message(self):
         message = FileNamesInformation()
         message["file_name"] = "file1.txt".encode("utf-16-le")
@@ -666,7 +666,7 @@ class TestFileNamesInformation(object):
         assert actual["file_name"].get_value() == "file1.txt".encode("utf-16-le")
 
 
-class TestFileRenameInformation(object):
+class TestFileRenameInformation:
     DATA = (
         b"\x01"
         b"\x00\x00\x00\x00\x00\x00\x00"
@@ -695,7 +695,7 @@ class TestFileRenameInformation(object):
         assert actual["file_name"].get_value() == "café"
 
 
-class TestFileStandardInformation(object):
+class TestFileStandardInformation:
     def test_create_message(self):
         message = FileStandardInformation()
         message["allocation_size"] = 123456
@@ -738,7 +738,7 @@ class TestFileStandardInformation(object):
         assert actual["directory"].get_value() is False
 
 
-class TestFileFsObjectInformation(object):
+class TestFileFsObjectInformation:
     DATA = (
         b"\x01\x02\x03\x04\x05\x06\x07\x08"
         b"\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"
@@ -771,7 +771,7 @@ class TestFileFsObjectInformation(object):
         assert actual["extended_info"].get_value() == b"\x00" * 48
 
 
-class TestFileFsVolumeInformation(object):
+class TestFileFsVolumeInformation:
     DATA = (
         b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         b"\x0a\x00\x00\x00"
@@ -805,7 +805,7 @@ class TestFileFsVolumeInformation(object):
         assert actual["volume_label"].get_value() == "café"
 
 
-class TestFileFsFullSizeInformation(object):
+class TestFileFsFullSizeInformation:
     DATA = (
         b"\xa4\x6f\xd6\x01\x00\x00\x00\x00"
         b"\x9c\x41\x12\x01\x00\x00\x00\x00"

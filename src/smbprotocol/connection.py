@@ -52,7 +52,7 @@ from smbprotocol.transport import Tcp
 log = logging.getLogger(__name__)
 
 
-class SecurityMode(object):
+class SecurityMode:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -64,7 +64,7 @@ class SecurityMode(object):
     SMB2_NEGOTIATE_SIGNING_REQUIRED = 0x0002
 
 
-class Capabilities(object):
+class Capabilities:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -81,7 +81,7 @@ class Capabilities(object):
     SMB2_GLOBAL_CAP_ENCRYPTION = 0x00000040
 
 
-class NegotiateContextType(object):
+class NegotiateContextType:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -98,7 +98,7 @@ class NegotiateContextType(object):
     SMB2_SIGNING_CAPABILITIES = 0x0008
 
 
-class HashAlgorithms(object):
+class HashAlgorithms:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -109,7 +109,7 @@ class HashAlgorithms(object):
     SHA_512 = 0x0001
 
 
-class Ciphers(object):
+class Ciphers:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -722,7 +722,7 @@ class SMB2TransformHeader(Structure):
         super(SMB2TransformHeader, self).__init__()
 
 
-class Connection(object):
+class Connection:
     def __init__(self, guid, server_name, port=445, require_signing=True):
         """
         [MS-SMB2] v53.0 2017-09-15
@@ -1656,7 +1656,7 @@ class Connection(object):
         return credit_charge
 
 
-class Request(object):
+class Request:
     def __init__(self, message, message_type, connection, session_id=None):
         """
         [MS-SMB2] v53.0 2017-09-15

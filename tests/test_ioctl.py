@@ -32,7 +32,7 @@ from smbprotocol.ioctl import (
 )
 
 
-class TestSMB2IOCTLRequest(object):
+class TestSMB2IOCTLRequest:
     def test_create_message(self):
         message = SMB2IOCTLRequest()
         message["ctl_code"] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
@@ -120,7 +120,7 @@ class TestSMB2IOCTLRequest(object):
         assert actual["buffer"].get_value() == b"\x12\x13\x14\x15"
 
 
-class TestSMB2SrvCopyChunkCopy(object):
+class TestSMB2SrvCopyChunkCopy:
     def test_create_message(self):
         chunk1 = SMB2SrvCopyChunk()
         chunk1["source_offset"] = 0
@@ -190,7 +190,7 @@ class TestSMB2SrvCopyChunkCopy(object):
         assert chunk2["reserved"].get_value() == 0
 
 
-class TestSMB2SrvCopyChunk(object):
+class TestSMB2SrvCopyChunk:
     def test_create_message(self):
         message = SMB2SrvCopyChunk()
         message["source_offset"] = 1234
@@ -222,7 +222,7 @@ class TestSMB2SrvCopyChunk(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2SrcReadHashRequest(object):
+class TestSMB2SrcReadHashRequest:
     def test_create_message(self):
         message = SMB2SrvReadHashRequest()
         message["hash_version"] = HashVersion.SRV_HASH_VER_2
@@ -258,7 +258,7 @@ class TestSMB2SrcReadHashRequest(object):
         assert actual["offset"].get_value() == 10
 
 
-class TestSMB2SrvNetworkResiliencyRequest(object):
+class TestSMB2SrvNetworkResiliencyRequest:
     def test_create_message(self):
         message = SMB2SrvNetworkResiliencyRequest()
         message["timeout"] = 100
@@ -276,7 +276,7 @@ class TestSMB2SrvNetworkResiliencyRequest(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2ValidateNegotiateInfoRequest(object):
+class TestSMB2ValidateNegotiateInfoRequest:
     def test_create_message(self):
         message = SMB2ValidateNegotiateInfoRequest()
         message["capabilities"] = 8
@@ -317,7 +317,7 @@ class TestSMB2ValidateNegotiateInfoRequest(object):
         assert len(actual["dialects"].get_value()) == 2
 
 
-class TestSMB2IOCTLResponse(object):
+class TestSMB2IOCTLResponse:
     def test_create_message(self):
         message = SMB2IOCTLResponse()
         message["ctl_code"] = CtlCode.FSCTL_VALIDATE_NEGOTIATE_INFO
@@ -375,7 +375,7 @@ class TestSMB2IOCTLResponse(object):
         assert actual["buffer"].get_value() == b"\x20\x21\x22\x23"
 
 
-class TestSMB2SrvCopyChunkResponse(object):
+class TestSMB2SrvCopyChunkResponse:
     def test_create_message(self):
         message = SMB2SrvCopyChunkResponse()
         message["chunks_written"] = 2
@@ -396,7 +396,7 @@ class TestSMB2SrvCopyChunkResponse(object):
         assert actual["total_bytes_written"].get_value() == 10
 
 
-class TestSMB2SrvSnapshotArray(object):
+class TestSMB2SrvSnapshotArray:
     def test_create_message(self):
         message = SMB2SrvSnapshotArray()
         message["snapshot_array_size"] = 2
@@ -417,7 +417,7 @@ class TestSMB2SrvSnapshotArray(object):
         assert actual["snapshots"].get_value() == b"\x00\x00\x00\x00"
 
 
-class TestSMB2SrvRequestResumeKey(object):
+class TestSMB2SrvRequestResumeKey:
     def test_create_message(self):
         message = SMB2SrvRequestResumeKey()
         message["resume_key"] = b"\xff" * 24
@@ -445,7 +445,7 @@ class TestSMB2SrvRequestResumeKey(object):
         assert actual["context_length"].get_value() == 0
 
 
-class TestSMB2NetworkInterfaceInfo(object):
+class TestSMB2NetworkInterfaceInfo:
     def test_create_message(self):
         addr1 = SockAddrIn()
         addr1.set_ipaddress("10.0.2.15")
@@ -548,7 +548,7 @@ class TestSMB2NetworkInterfaceInfo(object):
         assert actual_sock2["family"].get_value() == SockAddrFamily.INTER_NETWORK_V6
 
 
-class TestSockAddrStorage(object):
+class TestSockAddrStorage:
     def test_create_message_ipv4(self):
         message = SockAddrStorage()
         message["family"] = SockAddrFamily.INTER_NETWORK
@@ -610,7 +610,7 @@ class TestSockAddrStorage(object):
         assert sock_addr.get_ipaddress() == "fe80:0000:0000:0000:894a:2dbc:1d9c:2da1"
 
 
-class TestSockAddrIn(object):
+class TestSockAddrIn:
     def test_create_message(self):
         message = SockAddrIn()
         message.set_ipaddress("10.0.2.15")
@@ -638,7 +638,7 @@ class TestSockAddrIn(object):
         assert actual.get_ipaddress() == "10.0.2.15"
 
 
-class TestSockAddrIn6(object):
+class TestSockAddrIn6:
     def test_create_message(self):
         message = SockAddrIn6()
         message.set_ipaddress("fe80:0000:0000:0000:894a:2dbc:1d9c:2da1")
@@ -680,7 +680,7 @@ class TestSockAddrIn6(object):
         assert actual.get_ipaddress() == "fe80:0000:0000:0000:894a:2dbc:1d9c:2da1"
 
 
-class TestSMB2ValidateNegotiateInfoResponse(object):
+class TestSMB2ValidateNegotiateInfoResponse:
     def test_create_message(self):
         message = SMB2ValidateNegotiateInfoResponse()
         message["capabilities"] = 8

@@ -29,14 +29,14 @@ from smbprotocol.exceptions import (
 from smbprotocol.header import NtStatus
 
 
-class TestSMBException(object):
+class TestSMBException:
     def test_exception(self):
         with pytest.raises(SMBException) as exc:
             raise SMBException("smb error")
         assert str(exc.value) == "smb error"
 
 
-class TestSMBAuthenticationError(object):
+class TestSMBAuthenticationError:
     def test_exception(self):
         with pytest.raises(SMBAuthenticationError) as exc:
             raise SMBAuthenticationError("auth error")
@@ -48,7 +48,7 @@ class TestSMBAuthenticationError(object):
         assert str(exc.value) == "auth error"
 
 
-class TestSMBOSError(object):
+class TestSMBOSError:
     def test_error(self):
         with pytest.raises(SMBOSError) as err:
             raise SMBOSError(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, "filéname")
@@ -83,7 +83,7 @@ class TestSMBOSError(object):
         assert str(err.value) == "[Error 13] [NtStatus 0xc0000061] Required privilege not held: 'filéname'"
 
 
-class TestSMBUnsupportedFeature(object):
+class TestSMBUnsupportedFeature:
     def test_exception_needs_newer(self):
         with pytest.raises(SMBUnsupportedFeature) as exc:
             raise SMBUnsupportedFeature(Dialects.SMB_3_0_0, Dialects.SMB_3_1_1, "feature", True)
@@ -112,7 +112,7 @@ class TestSMBUnsupportedFeature(object):
         )
 
 
-class TestSMBResponseException(object):
+class TestSMBResponseException:
     def test_throw_default_exception(self):
         error_resp = SMB2ErrorResponse()
         header = self._get_header(error_resp)
@@ -264,7 +264,7 @@ class TestSMBResponseException(object):
         return header
 
 
-class TestSMB2ErrorResponse(object):
+class TestSMB2ErrorResponse:
     def test_create_message_plain(self):
         # This is a plain error response without the error context response
         # data appended
@@ -318,7 +318,7 @@ class TestSMB2ErrorResponse(object):
         assert error_data[0]["error_context_data"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2ErrorContextResponse(object):
+class TestSMB2ErrorContextResponse:
     def test_create_message(self):
         message = SMB2ErrorContextResponse()
         message["error_id"] = ErrorContextId.SMB2_ERROR_ID_SHARE_REDIRECT
@@ -339,7 +339,7 @@ class TestSMB2ErrorContextResponse(object):
         assert actual["error_context_data"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2SymbolicLinkErrorResponse(object):
+class TestSMB2SymbolicLinkErrorResponse:
     def test_create_message(self):
         message = SMB2SymbolicLinkErrorResponse()
         message.set_name(r"C:\temp\folder", r"\??\C:\temp\folder")
@@ -547,7 +547,7 @@ class TestSMB2SymbolicLinkErrorResponse(object):
             resp.resolve_path(link_path)
 
 
-class TestSMB2ShareRedirectErrorContext(object):
+class TestSMB2ShareRedirectErrorContext:
     def test_create_message(self):
         message = SMB2ShareRedirectErrorContext()
         ip1 = SMB2MoveDstIpAddrStructure()
@@ -628,7 +628,7 @@ class TestSMB2ShareRedirectErrorContext(object):
         assert actual["resource_name"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2MoveDstIpAddrStructure(object):
+class TestSMB2MoveDstIpAddrStructure:
     def test_create_message_v4(self):
         message = SMB2MoveDstIpAddrStructure()
         message["type"] = IpAddrType.MOVE_DST_IPADDR_V4

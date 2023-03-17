@@ -26,7 +26,7 @@ from .conftest import DC_REFERRAL, DOMAIN_REFERRAL, ROOT_REFERRAL, TARGET_REFERR
 UNICODE_TEXT = "ÜseӜ" + to_text(b"\xF0\x9D\x84\x9E")
 
 
-class TestDomainEntry(object):
+class TestDomainEntry:
     def test_domain_entry(self):
         domain_entry = DomainEntry(DOMAIN_REFERRAL["referral_entries"].get_value()[0])
         assert domain_entry.domain_list == []
@@ -61,7 +61,7 @@ class TestDomainEntry(object):
             domain_entry.dc_hint = "invalid"
 
 
-class TestReferralEntry(object):
+class TestReferralEntry:
     def test_root_referral_entry(self):
         referral_entry = ReferralEntry(ROOT_REFERRAL)
         assert referral_entry.dfs_path == "\\domain.test\\dfs"
@@ -114,7 +114,7 @@ class TestReferralEntry(object):
             referral_entry.target_hint = DFSTarget("fake", False)
 
 
-class TestDFSReferralRequest(object):
+class TestDFSReferralRequest:
     def test_create_message(self):
         share = "\\\\server\\shares\\%s" % UNICODE_TEXT
 
@@ -159,7 +159,7 @@ class TestDFSReferralRequest(object):
         assert actual["request_file_name"].get_value() == share
 
 
-class TestDFSReferralRequestEx(object):
+class TestDFSReferralRequestEx:
     def test_create_message(self):
         share = "\\\\server\\shares\\%s" % UNICODE_TEXT
 
@@ -225,7 +225,7 @@ class TestDFSReferralRequestEx(object):
         assert actual["site_name"].get_value() == UNICODE_TEXT
 
 
-class TestDFSReferralResponse(object):
+class TestDFSReferralResponse:
     def test_parse_message_v1(self):
         actual = DFSReferralResponse()
         data = (

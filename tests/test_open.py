@@ -68,7 +68,7 @@ from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
 
 
-class TestSMB2CreateRequest(object):
+class TestSMB2CreateRequest:
     def test_create_message(self):
         timewarp_token = SMB2CreateTimewarpToken()
         timewarp_token["timestamp"] = datetime.utcfromtimestamp(0)
@@ -268,7 +268,7 @@ class TestSMB2CreateRequest(object):
         assert actual["buffer_contexts"].get_value() == []
 
 
-class TestSMB2CreateResponse(object):
+class TestSMB2CreateResponse:
     def test_create_message(self):
         message = SMB2CreateResponse()
         message["flag"] = FileFlags.SMB2_CREATE_FLAG_REPARSEPOINT
@@ -456,7 +456,7 @@ class TestSMB2CreateResponse(object):
         assert actual["buffer"].get_value() == []
 
 
-class TestSMB2CloseRequest(object):
+class TestSMB2CloseRequest:
     def test_create_message(self):
         message = SMB2CloseRequest()
         message["flags"].set_flag(CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB)
@@ -489,7 +489,7 @@ class TestSMB2CloseRequest(object):
         assert actual["file_id"].get_value() == b"\xff" * 16
 
 
-class TestSMB2CloseResponse(object):
+class TestSMB2CloseResponse:
     def test_create_message(self):
         message = SMB2CloseResponse()
         message["creation_time"] = datetime.utcfromtimestamp(0)
@@ -540,7 +540,7 @@ class TestSMB2CloseResponse(object):
         assert actual["file_attributes"].get_value() == 0
 
 
-class TestSMB2FlushRequest(object):
+class TestSMB2FlushRequest:
     def test_create_message(self):
         message = SMB2FlushRequest()
         message["file_id"] = b"\xff" * 16
@@ -572,7 +572,7 @@ class TestSMB2FlushRequest(object):
         assert actual["file_id"].pack() == b"\xff" * 16
 
 
-class TestSMB2FlushResponse(object):
+class TestSMB2FlushResponse:
     def test_create_message(self):
         message = SMB2FlushResponse()
         expected = b"\x04\x00" b"\x00\x00"
@@ -589,7 +589,7 @@ class TestSMB2FlushResponse(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2ReadRequest(object):
+class TestSMB2ReadRequest:
     def test_create_message(self):
         message = SMB2ReadRequest()
         message["padding"] = b"\x50"
@@ -713,7 +713,7 @@ class TestSMB2ReadRequest(object):
         assert actual["buffer"].get_value() == b"\x00" * 16
 
 
-class TestSMB2ReadResponse(object):
+class TestSMB2ReadResponse:
     def test_create_message(self):
         message = SMB2ReadResponse()
         message["data_offset"] = 80
@@ -742,7 +742,7 @@ class TestSMB2ReadResponse(object):
         assert actual["buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2WriteRequest(object):
+class TestSMB2WriteRequest:
     def test_create_message(self):
         message = SMB2WriteRequest()
         message["offset"] = 131072
@@ -863,7 +863,7 @@ class TestSMB2WriteRequest(object):
         assert actual["buffer_channel_info"].get_value() == b"\x00" * 16
 
 
-class TestSMB2WriteResponse(object):
+class TestSMB2WriteResponse:
     def test_create_message(self):
         message = SMB2WriteResponse()
         message["count"] = 58040
@@ -885,7 +885,7 @@ class TestSMB2WriteResponse(object):
         assert actual["write_channel_info_length"].get_value() == 0
 
 
-class TestSMB2QueryDirectoryRequest(object):
+class TestSMB2QueryDirectoryRequest:
     def test_create_message(self):
         message = SMB2QueryDirectoryRequest()
         message["file_information_class"] = FileInformationClass.FILE_NAMES_INFORMATION
@@ -936,7 +936,7 @@ class TestSMB2QueryDirectoryRequest(object):
         assert actual["buffer"].get_value().decode("utf-16-le") == "*"
 
 
-class TestSMB2QueryDirectoryResponse(object):
+class TestSMB2QueryDirectoryResponse:
     def test_create_message(self):
         message = SMB2QueryDirectoryResponse()
         message["buffer"] = b"\x10\x00\x00\x00\x00\x00\x00\x00" b"\x02\x00\x00\x00\x2E\x00\x00\x00"
@@ -969,7 +969,7 @@ class TestSMB2QueryDirectoryResponse(object):
         assert actual["buffer"].get_value() == b"\x10\x00\x00\x00\x00\x00\x00\x00" b"\x02\x00\x00\x00\x2E\x00\x00\x00"
 
 
-class TestSMB2QueryInfoRequest(object):
+class TestSMB2QueryInfoRequest:
     DATA = (
         b"\x29\x00"
         b"\x01"
@@ -1016,7 +1016,7 @@ class TestSMB2QueryInfoRequest(object):
         assert actual["buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2QueryInfoResponse(object):
+class TestSMB2QueryInfoResponse:
     def test_create_message(self):
         message = SMB2QueryInfoResponse()
         message["buffer"] = b"\x01\x02\x03\x04"
@@ -1090,7 +1090,7 @@ class TestSMB2QueryInfoResponse(object):
         assert actual[2]["ea_value"].get_value() == b"\x00\x01\x02\x03"
 
 
-class TestSMB2SetInfoRequest(object):
+class TestSMB2SetInfoRequest:
     def test_create_message(self):
         message = SMB2SetInfoRequest()
         message["info_type"] = 1
@@ -1143,7 +1143,7 @@ class TestSMB2SetInfoRequest(object):
         assert actual["buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2SetInfoResponse(object):
+class TestSMB2SetInfoResponse:
     def test_create_message(self):
         message = SMB2SetInfoResponse()
         expected = b"\x02\x00"
@@ -1162,7 +1162,7 @@ class TestSMB2SetInfoResponse(object):
         assert actual["structure_size"].get_value() == 2
 
 
-class TestOpen(object):
+class TestOpen:
     # basic file open tests for each dialect
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])

@@ -232,7 +232,7 @@ def set_info(transaction, info_buffer):
     transaction += (set_req, _receive_resp)
 
 
-class SMBFileTransaction(object):
+class SMBFileTransaction:
     def __init__(self, raw):
         """
         Stores compound requests in 1 class that can be committed when required. Either uses the opened raw object or

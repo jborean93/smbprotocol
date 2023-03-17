@@ -18,7 +18,7 @@ from smbprotocol.session import (
 from smbprotocol.session import spnego as pyspnego
 
 
-class TestSMB2SessionSetupRequest(object):
+class TestSMB2SessionSetupRequest:
     def test_create_message(self):
         message = SMB2SessionSetupRequest()
         message["security_mode"] = SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
@@ -63,7 +63,7 @@ class TestSMB2SessionSetupRequest(object):
         assert actual["buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSMB2SessionSetupResponse(object):
+class TestSMB2SessionSetupResponse:
     def test_create_message(self):
         message = SMB2SessionSetupResponse()
         message["session_flags"] = 1
@@ -85,7 +85,7 @@ class TestSMB2SessionSetupResponse(object):
         assert actual["buffer"].get_value() == b"\x04\x03\x02\x01"
 
 
-class TestSMB2Logoff(object):
+class TestSMB2Logoff:
     def test_create_message(self):
         message = SMB2Logoff()
         expected = b"\x04\x00" b"\x00\x00"
@@ -102,7 +102,7 @@ class TestSMB2Logoff(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSession(object):
+class TestSession:
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)

@@ -17,7 +17,7 @@ from smbprotocol.structure import (
 )
 
 
-class CreateContextName(object):
+class CreateContextName:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -73,7 +73,7 @@ class CreateContextName(object):
         }.get(name, None)
 
 
-class EAFlags(object):
+class EAFlags:
     """
     [MS-FSCC]
 
@@ -85,7 +85,7 @@ class EAFlags(object):
     FILE_NEED_EA = 0x00000080
 
 
-class LeaseState(object):
+class LeaseState:
     """
     [MS-SMB2]
 
@@ -100,7 +100,7 @@ class LeaseState(object):
     SMB2_LEASE_WRITE_CACHING = 0x04
 
 
-class LeaseRequestFlags(object):
+class LeaseRequestFlags:
     """
     [MS-SMB2]
 
@@ -111,7 +111,7 @@ class LeaseRequestFlags(object):
     SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET = 0x00000004
 
 
-class LeaseResponseFlags(object):
+class LeaseResponseFlags:
     """
     [MS-SMB2]
 
@@ -122,7 +122,7 @@ class LeaseResponseFlags(object):
     SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET = 0x00000004  # V2 Response
 
 
-class DurableHandleFlags(object):
+class DurableHandleFlags:
     """
     [MS-SMB2]
 
@@ -133,7 +133,7 @@ class DurableHandleFlags(object):
     SMB2_DHANDLE_FLAG_PERSISTENT = 0x00000002
 
 
-class SVHDXOriginatorFlags(object):
+class SVHDXOriginatorFlags:
     """
     [MS-RSVD] 2.2.4.12 SVHDX_OPEN_DEVICE_CONTEXT OriginatorFlags
     Used to indicate which component has originated or issued the operations.
