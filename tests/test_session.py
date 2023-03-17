@@ -248,7 +248,7 @@ class TestSession:
             session = Session(connection, smb_real[0], smb_real[1])
             with pytest.raises(SMBException) as exc:
                 session.connect()
-            assert str(exc.value) == "SMB encryption is required but the " "connection does not support it"
+            assert str(exc.value) == "SMB encryption is required but the connection does not support it"
         finally:
             connection.disconnect(True)
 

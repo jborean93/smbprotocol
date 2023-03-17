@@ -723,7 +723,7 @@ def test_open_file_with_read_share_access(smb_share):
 
     with smbclient.open_file(file_path):
         expected = (
-            "[NtStatus 0xc0000043] The process cannot access the file because it is being used by " "another process"
+            "[NtStatus 0xc0000043] The process cannot access the file because it is being used by another process"
         )
         with pytest.raises(OSError, match=re.escape(expected)):
             smbclient.open_file(file_path)
@@ -742,7 +742,7 @@ def test_open_file_with_write_share_access(smb_share):
 
     with smbclient.open_file(file_path, mode="w") as fd:
         expected = (
-            "[NtStatus 0xc0000043] The process cannot access the file because it is being used by " "another process: "
+            "[NtStatus 0xc0000043] The process cannot access the file because it is being used by another process: "
         )
         with pytest.raises(OSError, match=re.escape(expected)):
             smbclient.open_file(file_path, mode="a")

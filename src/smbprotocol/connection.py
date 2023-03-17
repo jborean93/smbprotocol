@@ -1112,7 +1112,7 @@ class Connection:
         :param credit_request: The number of credits to request
         :return: the credits that were granted by the server
         """
-        log.info("Sending Echo request with a timeout of %d and credit " "request of %d" % (timeout, credit_request))
+        log.info("Sending Echo request with a timeout of %d and credit request of %d" % (timeout, credit_request))
 
         echo_msg = SMB2Echo()
         log.debug(echo_msg)
@@ -1566,7 +1566,7 @@ class Connection:
             int_cap["data"]["hash_algorithms"] = [HashAlgorithms.SHA_512]
             int_cap["data"]["salt"] = self.salt
             log.debug(
-                "Adding preauth integrity capabilities of hash SHA512 " "and salt %s to negotiate request" % self.salt
+                "Adding preauth integrity capabilities of hash SHA512 and salt %s to negotiate request" % self.salt
             )
 
             enc_cap = SMB2NegotiateContextRequest()
@@ -1574,7 +1574,7 @@ class Connection:
             enc_cap["data"] = SMB2EncryptionCapabilities()
             supported_ciphers = encryption_algorithms
             enc_cap["data"]["ciphers"] = supported_ciphers
-            log.debug("Adding encryption capabilities of AES128|256 GCM and " "AES128|256 CCM to negotiate request")
+            log.debug("Adding encryption capabilities of AES128|256 GCM and AES128|256 CCM to negotiate request")
 
             netname_id = SMB2NegotiateContextRequest()
             netname_id["context_type"] = NegotiateContextType.SMB2_NETNAME_NEGOTIATE_CONTEXT_ID

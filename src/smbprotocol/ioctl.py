@@ -590,7 +590,7 @@ class SockAddrIn6(Structure):
         # e.g. fe80:0000:0000:0000:0000:0000:0000:0000 and not any short form
         address = address.replace(":", "")
         if len(address) != 32:
-            raise ValueError("When setting an IPv6 address, it must be in the " "full form without concatenation")
+            raise ValueError("When setting an IPv6 address, it must be in the full form without concatenation")
         self["ipv6_address"].set_value(binascii.unhexlify(address))
 
 

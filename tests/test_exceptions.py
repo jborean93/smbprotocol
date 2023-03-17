@@ -663,7 +663,7 @@ class TestSMB2MoveDstIpAddrStructure:
         message["type"] = IpAddrType.MOVE_DST_IPADDR_V6
         with pytest.raises(ValueError) as exc:
             message.set_ipaddress("abc")
-        assert str(exc.value) == "When setting an IPv6 address, it must be " "in the full form without concatenation"
+        assert str(exc.value) == "When setting an IPv6 address, it must be in the full form without concatenation"
 
     def test_parse_message_v4(self):
         actual = SMB2MoveDstIpAddrStructure()

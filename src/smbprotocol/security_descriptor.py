@@ -173,7 +173,7 @@ class SIDPacket(Structure):
         sid_entries = sid_string.split("-")
         if len(sid_entries) < 3:
             raise ValueError(
-                "A SID string must start with S and contain a " "revision and identifier authority, e.g. S-1-0"
+                "A SID string must start with S and contain a revision and identifier authority, e.g. S-1-0"
             )
 
         revision = int(sid_entries[1])

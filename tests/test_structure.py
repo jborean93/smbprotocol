@@ -352,12 +352,12 @@ class TestIntField:
     def test_invalid_size_none(self):
         with pytest.raises(InvalidFieldDefinition) as exc:
             IntField(size=None)
-        assert str(exc.value) == "IntField size must have a value of 1, 2, " "4, or 8 not None"
+        assert str(exc.value) == "IntField size must have a value of 1, 2, 4, or 8 not None"
 
     def test_invalid_size_bad_int(self):
         with pytest.raises(InvalidFieldDefinition) as exc:
             IntField(size=3)
-        assert str(exc.value) == "IntField size must have a value of 1, 2, " "4, or 8 not 3"
+        assert str(exc.value) == "IntField size must have a value of 1, 2, 4, or 8 not 3"
 
     def test_set_none(self):
         field = self.StructureTest()["field"]
@@ -400,7 +400,7 @@ class TestIntField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to an int"
+        assert str(exc.value) == "Cannot parse value for field field of type list to an int"
 
     def test_byte_order(self):
         class ByteOrderStructure(Structure):
@@ -502,7 +502,7 @@ class TestBytesField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to a byte string"
+        assert str(exc.value) == "Cannot parse value for field field of type list to a byte string"
 
     def test_pack_invalid_size(self):
         field = self.StructureTest()["field"]
@@ -511,7 +511,7 @@ class TestBytesField:
         assert len(field) == 2
         with pytest.raises(ValueError) as exc:
             field.pack()
-        assert str(exc.value) == "Invalid packed data length for field " "field of 2 does not fit field size of 4"
+        assert str(exc.value) == "Invalid packed data length for field field of 2 does not fit field size of 4"
 
     def test_set_int_invalid_size(self):
         class InvalidSizeStructure(Structure):
@@ -532,7 +532,7 @@ class TestBytesField:
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidSizeStructure()
-        assert str(exc.value) == "BytesField size for field must be an int " "or None for a variable length"
+        assert str(exc.value) == "BytesField size for field must be an int or None for a variable length"
 
 
 class TestListField:
@@ -667,7 +667,7 @@ class TestListField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value(0)
-        assert str(exc.value) == "Cannot parse value for field field of " "type int to a list"
+        assert str(exc.value) == "Cannot parse value for field field of type int to a list"
 
     def test_list_count_not_int_or_lambda(self):
         class InvalidListField(Structure):
@@ -677,7 +677,7 @@ class TestListField:
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
-        assert str(exc.value) == "ListField list_count must be an int, " "lambda, or None for a variable list length"
+        assert str(exc.value) == "ListField list_count must be an int, lambda, or None for a variable list length"
 
     def test_unpack_func_not_lambda(self):
         class InvalidListField(Structure):
@@ -687,7 +687,7 @@ class TestListField:
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
-        assert str(exc.value) == "ListField unpack_func must be a lambda " "function or None"
+        assert str(exc.value) == "ListField unpack_func must be a lambda function or None"
 
     def test_list_field_not_field(self):
         class InvalidListField(Structure):
@@ -697,7 +697,7 @@ class TestListField:
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
-        assert str(exc.value) == "ListField list_type must be a Field " "definition"
+        assert str(exc.value) == "ListField list_type must be a Field definition"
 
     def test_list_unpack_list_type_size_not_defined(self):
         class InvalidListField(Structure):
@@ -904,7 +904,7 @@ class TestStructureField:
         field.set_value(b"\x7d\x00\x00\x00\x14\x15\x16\x17")
         with pytest.raises(ValueError) as exc:
             field["field"]
-        assert str(exc.value) == "Cannot get field field when structure is " "defined as a byte string"
+        assert str(exc.value) == "Cannot get field field when structure is defined as a byte string"
 
     def test_set_structure_field(self):
         field = self.StructureTest()["field"]
@@ -920,7 +920,7 @@ class TestStructureField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to a structure"
+        assert str(exc.value) == "Cannot parse value for field field of type list to a structure"
 
 
 class TestUuidField:
@@ -1001,7 +1001,7 @@ class TestUuidField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to a uuid"
+        assert str(exc.value) == "Cannot parse value for field field of type list to a uuid"
 
     def test_invalid_size_none(self):
         with pytest.raises(InvalidFieldDefinition) as exc:
@@ -1147,12 +1147,12 @@ class TestDateTimeField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to a datetime"
+        assert str(exc.value) == "Cannot parse value for field field of type list to a datetime"
 
     def test_invalid_size_none(self):
         with pytest.raises(InvalidFieldDefinition) as exc:
             DateTimeField(size=4)
-        assert str(exc.value) == "DateTimeField type must have a size of 8 " "not 4"
+        assert str(exc.value) == "DateTimeField type must have a size of 8 not 4"
 
 
 class TestEnumField:
@@ -1256,13 +1256,13 @@ class TestEnumField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to an int"
+        assert str(exc.value) == "Cannot parse value for field field of type list to an int"
 
     def test_set_invalid_value(self):
         field = self.StructureTest()["field"]
         with pytest.raises(ValueError) as exc:
             field.set_value(0x13)
-        assert str(exc.value) == "Enum value 19 does not exist in enum type " "<class 'smbprotocol.header.Commands'>"
+        assert str(exc.value) == "Enum value 19 does not exist in enum type <class 'smbprotocol.header.Commands'>"
 
 
 class TestFlagField:
@@ -1345,7 +1345,7 @@ class TestFlagField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to an int"
+        assert str(exc.value) == "Cannot parse value for field field of type list to an int"
 
     def test_check_flag_set(self):
         field = self.StructureTest()["field"]
@@ -1362,9 +1362,7 @@ class TestFlagField:
         field = self.StructureTest()["field"]
         with pytest.raises(ValueError) as ex:
             field.set_flag(10)
-        assert (
-            str(ex.value) == "Flag value does not exist in flag type " "<class 'smbprotocol.connection.Capabilities'>"
-        )
+        assert str(ex.value) == "Flag value does not exist in flag type <class 'smbprotocol.connection.Capabilities'>"
 
     def test_set_invalid_value(self):
         field = self.StructureTest()["field"]
@@ -1484,7 +1482,7 @@ class TestBoolField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to a bool"
+        assert str(exc.value) == "Cannot parse value for field field of type list to a bool"
 
 
 class TestTextField:
@@ -1567,7 +1565,7 @@ class TestTextField:
         field.name = "field"
         with pytest.raises(TypeError) as exc:
             field.set_value([])
-        assert str(exc.value) == "Cannot parse value for field field of " "type list to a text string"
+        assert str(exc.value) == "Cannot parse value for field field of type list to a text string"
 
     def test_set_with_different_encoding(self):
         structure = self.StructureTest()

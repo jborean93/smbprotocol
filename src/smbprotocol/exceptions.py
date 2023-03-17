@@ -63,7 +63,7 @@ class SMBOSError(OSError, SMBException):
             NtStatus.STATUS_PRIVILEGE_NOT_HELD: (errno.EACCES, "Required privilege not held"),
             NtStatus.STATUS_SHARING_VIOLATION: (
                 errno.EPERM,
-                "The process cannot access the file because it is being " "used by another process",
+                "The process cannot access the file because it is being used by another process",
             ),
             NtStatus.STATUS_NOT_A_REPARSE_POINT: (errno.EINVAL, "The file or directory is not a reparse point"),
             NtStatus.STATUS_FILE_IS_A_DIRECTORY: errno.EISDIR,
@@ -141,7 +141,7 @@ class SMBUnsupportedFeature(SMBException):
         required_dialect = self._get_dialect_name(self.required_dialect)
         negotiated_dialect = self._get_dialect_name(self.negotiated_dialect)
 
-        msg = "%s is not available on the negotiated dialect %s, " "requires dialect %s%s" % (
+        msg = "%s is not available on the negotiated dialect %s, requires dialect %s%s" % (
             self.feature_name,
             negotiated_dialect,
             required_dialect,
@@ -365,7 +365,7 @@ class InvalidDeviceRequest(SMBResponseException):
 
 class MoreProcessingRequired(SMBResponseException):
     _BASE_MESSAGE = (
-        "The specified I/O request packet (IRP) cannot be disposed of because the I/O operation is not " "complete."
+        "The specified I/O request packet (IRP) cannot be disposed of because the I/O operation is not complete."
     )
     _STATUS_CODE = NtStatus.STATUS_MORE_PROCESSING_REQUIRED
 
@@ -457,7 +457,7 @@ class WrongPassword(SMBResponseException):
 
 class LogonFailure(SMBResponseException):
     _BASE_MESSAGE = (
-        "The attempted logon is invalid. This is either due to a bad username or authentication " "information."
+        "The attempted logon is invalid. This is either due to a bad username or authentication information."
     )
     _STATUS_CODE = NtStatus.STATUS_LOGON_FAILURE
 
@@ -576,7 +576,7 @@ class PipeBroken(SMBResponseException):
 
 class FSDriverRequired(SMBResponseException):
     _BASE_MESSAGE = (
-        "A volume has been accessed for which a file system driver is required that " "has not yet been loaded."
+        "A volume has been accessed for which a file system driver is required that has not yet been loaded."
     )
     _STATUS_CODE = NtStatus.STATUS_FS_DRIVER_REQUIRED
 
@@ -974,5 +974,5 @@ class SMB2MoveDstIpAddrStructure(Structure):
         else:
             addr = address.replace(":", "")
             if len(addr) != 32:
-                raise ValueError("When setting an IPv6 address, it must be in " "the full form without concatenation")
+                raise ValueError("When setting an IPv6 address, it must be in the full form without concatenation")
             self["ip_address"].set_value(binascii.unhexlify(addr))
