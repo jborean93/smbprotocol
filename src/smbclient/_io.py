@@ -392,7 +392,7 @@ class SMBRawIO(io.RawIOBase):
             "file": CreateOptions.FILE_NON_DIRECTORY_FILE,
         }.get(self.FILE_TYPE, 0)
 
-        super(SMBRawIO, self).__init__()
+        super().__init__()
 
     def __enter__(self):
         self.open()

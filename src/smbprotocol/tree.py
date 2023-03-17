@@ -131,7 +131,7 @@ class SMB2TreeConnectRequest(Structure):
                 ("buffer", BytesField(size=lambda s: s["path_length"].get_value())),
             ]
         )
-        super(SMB2TreeConnectRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2TreeConnectResponse(Structure):
@@ -174,7 +174,7 @@ class SMB2TreeConnectResponse(Structure):
                 ("maximal_access", IntField(size=4)),
             ]
         )
-        super(SMB2TreeConnectResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2TreeDisconnect(Structure):
@@ -201,7 +201,7 @@ class SMB2TreeDisconnect(Structure):
                 ("reserved", IntField(size=2)),
             ]
         )
-        super(SMB2TreeDisconnect, self).__init__()
+        super().__init__()
 
 
 class TreeConnect:

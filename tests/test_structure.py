@@ -77,7 +77,7 @@ class Structure2(Structure):
                 ),
             ]
         )
-        super(Structure2, self).__init__()
+        super().__init__()
 
 
 class Structure1(Structure):
@@ -125,7 +125,7 @@ class Structure1(Structure):
             ]
         )
 
-        super(Structure1, self).__init__()
+        super().__init__()
 
 
 class TestStructure:
@@ -275,7 +275,7 @@ class TestStructure:
                         ("end", BytesField()),
                     ]
                 )
-                super(Structure3, self).__init__()
+                super().__init__()
 
         structure = Structure3()
         structure["end"] = b"\x01\x02\x03\x04"
@@ -294,7 +294,7 @@ class TestIntField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", IntField(size=4, default=1234))])
-            super(TestIntField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -324,7 +324,7 @@ class TestIntField:
         class UnsignedStructure(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", IntField(size=2, unsigned=False, default=-1))])
-                super(UnsignedStructure, self).__init__()
+                super().__init__()
 
         field = UnsignedStructure()["field"]
         expected = b"\xff\xff"
@@ -406,7 +406,7 @@ class TestIntField:
         class ByteOrderStructure(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", IntField(size=2, little_endian=False, default=10))])
-                super(ByteOrderStructure, self).__init__()
+                super().__init__()
 
         field = ByteOrderStructure()["field"]
         expected = b"\x00\x0a"
@@ -418,7 +418,7 @@ class TestBytesField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", BytesField(size=4, default=b"\x10\x11\x12\x13"))])
-            super(TestBytesField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -517,7 +517,7 @@ class TestBytesField:
         class InvalidSizeStructure(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", BytesField(size=3))])
-                super(InvalidSizeStructure, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             field = InvalidSizeStructure()["field"]
@@ -528,7 +528,7 @@ class TestBytesField:
         class InvalidSizeStructure(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", BytesField(size="a"))])
-                super(InvalidSizeStructure, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidSizeStructure()
@@ -550,7 +550,7 @@ class TestListField:
                     )
                 ]
             )
-            super(TestListField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -601,7 +601,7 @@ class TestListField:
                 self.fields = OrderedDict(
                     [("field", ListField(size=7, unpack_func=lambda s, d: [b"\x01\x02", b"\x03\x04\x05\x06", b"\07"]))]
                 )
-                super(UnpackListStructure, self).__init__()
+                super().__init__()
 
         field = UnpackListStructure()["field"]
         field.unpack(b"\x00")
@@ -673,7 +673,7 @@ class TestListField:
         class InvalidListField(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", ListField(list_count="a"))])
-                super(InvalidListField, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
@@ -683,7 +683,7 @@ class TestListField:
         class InvalidListField(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", ListField(unpack_func="a"))])
-                super(InvalidListField, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
@@ -693,7 +693,7 @@ class TestListField:
         class InvalidListField(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", ListField(list_type="a"))])
-                super(InvalidListField, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
@@ -703,7 +703,7 @@ class TestListField:
         class InvalidListField(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", ListField(list_count=1))])
-                super(InvalidListField, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
@@ -717,7 +717,7 @@ class TestListField:
         class InvalidListField(Structure):
             def __init__(self):
                 self.fields = OrderedDict([("field", ListField(list_type=BytesField(size=1)))])
-                super(InvalidListField, self).__init__()
+                super().__init__()
 
         with pytest.raises(InvalidFieldDefinition) as exc:
             InvalidListField()
@@ -739,7 +739,7 @@ class TestStructureField:
                     )
                 ]
             )
-            super(TestStructureField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -927,7 +927,7 @@ class TestUuidField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", UuidField())])
-            super(TestUuidField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -1040,7 +1040,7 @@ class TestDateTimeField:
                     )
                 ]
             )
-            super(TestDateTimeField.StructureTest, self).__init__()
+            super().__init__()
 
     @pytest.mark.parametrize(
         "raw, expected_dt, expected_bytes",
@@ -1170,7 +1170,7 @@ class TestEnumField:
                     ),
                 ]
             )
-            super(TestEnumField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -1198,7 +1198,7 @@ class TestEnumField:
                         )
                     ]
                 )
-                super(StructureTestDefaultZero, self).__init__()
+                super().__init__()
 
         field = StructureTestDefaultZero()["field"]
         expected = "(0) UNKNOWN_ENUM"
@@ -1280,7 +1280,7 @@ class TestFlagField:
                     ),
                 ]
             )
-            super(TestFlagField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -1377,7 +1377,7 @@ class TestBoolField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", BoolField(size=1))])
-            super(TestBoolField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -1493,7 +1493,7 @@ class TestTextField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", TextField(encoding="utf-8", default=TestTextField.STRING_VALUE))])
-            super(TestTextField.StructureTest, self).__init__()
+            super().__init__()
 
     def test_get_size(self):
         field = self.StructureTest()["field"]
@@ -1605,4 +1605,4 @@ class TestTextFieldNullTerminated(TestTextField):
                     )
                 ]
             )
-            super(TestTextFieldNullTerminated.StructureTest, self).__init__()
+            super().__init__()

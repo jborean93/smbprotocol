@@ -152,7 +152,7 @@ class SIDPacket(Structure):
                 ),
             ]
         )
-        super(SIDPacket, self).__init__()
+        super().__init__()
 
     def __str__(self):
         revision = self["revision"].get_value()
@@ -202,7 +202,7 @@ class AccessAllowedAce(Structure):
                 ("sid", StructureField(structure_type=SIDPacket)),
             ]
         )
-        super(AccessAllowedAce, self).__init__()
+        super().__init__()
 
 
 class AccessDeniedAce(Structure):
@@ -222,7 +222,7 @@ class AccessDeniedAce(Structure):
                 ("sid", StructureField(structure_type=SIDPacket)),
             ]
         )
-        super(AccessDeniedAce, self).__init__()
+        super().__init__()
 
 
 class SystemAuditAce(Structure):
@@ -243,7 +243,7 @@ class SystemAuditAce(Structure):
                 ("sid", StructureField(structure_type=SIDPacket)),
             ]
         )
-        super(SystemAuditAce, self).__init__()
+        super().__init__()
 
 
 class AclPacket(Structure):
@@ -276,7 +276,7 @@ class AclPacket(Structure):
                 ),
             ]
         )
-        super(AclPacket, self).__init__()
+        super().__init__()
 
     def _unpack_aces(self, structure, data):
         aces = []
@@ -326,7 +326,7 @@ class SMB2CreateSDBuffer(Structure):
         )
         # used to store the buffer values so it can easily be rebuilt
         self._buffer = OrderedDict()
-        super(SMB2CreateSDBuffer, self).__init__()
+        super().__init__()
 
     def get_owner(self):
         return self._get_sid_from_buffer("offset_owner")

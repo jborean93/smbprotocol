@@ -38,7 +38,7 @@ class _ConfigSingleton(type):
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls.__instances:
-            config = super(_ConfigSingleton, cls).__call__(*args, **kwargs)
+            config = super().__call__(*args, **kwargs)
             cls.__instances[cls] = config
 
             # Needs to be done after the config instance is in the singleton dict due to setting this value will kick

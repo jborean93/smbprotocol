@@ -362,7 +362,7 @@ class SMB2CreateRequest(Structure):
                 ),
             ]
         )
-        super(SMB2CreateRequest, self).__init__()
+        super().__init__()
 
     def _name_length(self, structure):
         buffer_path = structure["buffer_path"].get_value()
@@ -445,7 +445,7 @@ class SMB2CreateResponse(Structure):
                 ),
             ]
         )
-        super(SMB2CreateResponse, self).__init__()
+        super().__init__()
 
     def _create_contexts_offset(self, structure):
         if len(structure["buffer"]) == 0:
@@ -486,7 +486,7 @@ class SMB2CloseRequest(Structure):
                 ("file_id", BytesField(size=16)),
             ]
         )
-        super(SMB2CloseRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2CloseResponse(Structure):
@@ -521,7 +521,7 @@ class SMB2CloseResponse(Structure):
                 ),
             ]
         )
-        super(SMB2CloseResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2FlushRequest(Structure):
@@ -544,7 +544,7 @@ class SMB2FlushRequest(Structure):
                 ("file_id", BytesField(size=16)),
             ]
         )
-        super(SMB2FlushRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2FlushResponse(Structure):
@@ -559,7 +559,7 @@ class SMB2FlushResponse(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("structure_size", IntField(size=2, default=4)), ("reserved", IntField(size=2))])
-        super(SMB2FlushResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2ReadRequest(Structure):
@@ -589,7 +589,7 @@ class SMB2ReadRequest(Structure):
                 ("buffer", BytesField(size=lambda s: self._get_buffer_length(s), default=b"\x00")),
             ]
         )
-        super(SMB2ReadRequest, self).__init__()
+        super().__init__()
 
     def _get_read_channel_info_offset(self, structure):
         if structure["channel"].get_value() == 0:
@@ -633,7 +633,7 @@ class SMB2ReadResponse(Structure):
                 ("buffer", BytesField(size=lambda s: s["data_length"].get_value())),
             ]
         )
-        super(SMB2ReadResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2WriteRequest(Structure):
@@ -669,7 +669,7 @@ class SMB2WriteRequest(Structure):
                 ("buffer_channel_info", BytesField(size=lambda s: s["write_channel_info_length"].get_value())),
             ]
         )
-        super(SMB2WriteRequest, self).__init__()
+        super().__init__()
 
     def _get_write_channel_info_offset(self, structure):
         if len(structure["buffer_channel_info"]) == 0:
@@ -702,7 +702,7 @@ class SMB2WriteResponse(Structure):
                 ("write_channel_info_length", IntField(size=2)),
             ]
         )
-        super(SMB2WriteResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2QueryDirectoryRequest(Structure):
@@ -730,7 +730,7 @@ class SMB2QueryDirectoryRequest(Structure):
                 ("buffer", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(SMB2QueryDirectoryRequest, self).__init__()
+        super().__init__()
 
     @staticmethod
     def unpack_response(file_information_class, buffer):
@@ -787,7 +787,7 @@ class SMB2QueryDirectoryResponse(Structure):
                 ("buffer", BytesField(size=lambda s: s["output_buffer_length"].get_value())),
             ]
         )
-        super(SMB2QueryDirectoryResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2QueryInfoRequest(Structure):
@@ -860,7 +860,7 @@ class SMB2QueryInfoRequest(Structure):
                 ),
             ]
         )
-        super(SMB2QueryInfoRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2QueryInfoResponse(Structure):
@@ -905,7 +905,7 @@ class SMB2QueryInfoResponse(Structure):
                 ),
             ]
         )
-        super(SMB2QueryInfoResponse, self).__init__()
+        super().__init__()
 
     def parse_buffer(self, file_info_type):
         buffer = self["buffer"].get_value()
@@ -985,7 +985,7 @@ class SMB2SetInfoRequest(Structure):
                 ("buffer", BytesField(size=lambda s: s["buffer_length"].get_value())),
             ]
         )
-        super(SMB2SetInfoRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2SetInfoResponse(Structure):
@@ -1005,7 +1005,7 @@ class SMB2SetInfoResponse(Structure):
                 ("structure_size", IntField(size=2, default=2)),
             ]
         )
-        super(SMB2SetInfoResponse, self).__init__()
+        super().__init__()
 
 
 class Open:

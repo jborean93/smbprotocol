@@ -135,7 +135,7 @@ class ReparseDataBuffer(Structure):
                 ("data_buffer", BytesField(size=lambda s: s["reparse_data_length"].get_value())),
             ]
         )
-        super(ReparseDataBuffer, self).__init__()
+        super().__init__()
 
 
 class SymbolicLinkReparseDataBuffer(Structure):
@@ -168,7 +168,7 @@ class SymbolicLinkReparseDataBuffer(Structure):
                 ),
             ]
         )
-        super(SymbolicLinkReparseDataBuffer, self).__init__()
+        super().__init__()
 
     def get_substitute_name(self):
         return self._get_name("substitute")

@@ -160,7 +160,7 @@ class SMB2IOCTLRequest(Structure):
                 ("buffer", BytesField(size=lambda s: s["input_count"].get_value())),
             ]
         )
-        super(SMB2IOCTLRequest, self).__init__()
+        super().__init__()
 
     def _buffer_offset_value(self, structure):
         # The offset from the beginning of the SMB2 header to the value of the
@@ -198,7 +198,7 @@ class SMB2SrvCopyChunkCopy(Structure):
                 ),
             ]
         )
-        super(SMB2SrvCopyChunkCopy, self).__init__()
+        super().__init__()
 
 
 class SMB2SrvCopyChunk(Structure):
@@ -219,7 +219,7 @@ class SMB2SrvCopyChunk(Structure):
                 ("reserved", IntField(size=4)),
             ]
         )
-        super(SMB2SrvCopyChunk, self).__init__()
+        super().__init__()
 
 
 class SMB2SrvReadHashRequest(Structure):
@@ -242,7 +242,7 @@ class SMB2SrvReadHashRequest(Structure):
                 ("offset", IntField(size=8)),
             ]
         )
-        super(SMB2SrvReadHashRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2SrvNetworkResiliencyRequest(Structure):
@@ -262,7 +262,7 @@ class SMB2SrvNetworkResiliencyRequest(Structure):
                 ("reserved", IntField(size=4)),
             ]
         )
-        super(SMB2SrvNetworkResiliencyRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2ValidateNegotiateInfoRequest(Structure):
@@ -304,7 +304,7 @@ class SMB2ValidateNegotiateInfoRequest(Structure):
                 ),
             ]
         )
-        super(SMB2ValidateNegotiateInfoRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2IOCTLResponse(Structure):
@@ -344,7 +344,7 @@ class SMB2IOCTLResponse(Structure):
                 ),
             ]
         )
-        super(SMB2IOCTLResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2SrvCopyChunkResponse(Structure):
@@ -362,7 +362,7 @@ class SMB2SrvCopyChunkResponse(Structure):
                 ("total_bytes_written", IntField(size=4)),
             ]
         )
-        super(SMB2SrvCopyChunkResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2SrvSnapshotArray(Structure):
@@ -384,7 +384,7 @@ class SMB2SrvSnapshotArray(Structure):
                 ("snapshots", BytesField()),
             ]
         )
-        super(SMB2SrvSnapshotArray, self).__init__()
+        super().__init__()
 
 
 class SMB2SrvRequestResumeKey(Structure):
@@ -415,7 +415,7 @@ class SMB2SrvRequestResumeKey(Structure):
                 ),
             ]
         )
-        super(SMB2SrvRequestResumeKey, self).__init__()
+        super().__init__()
 
 
 class SMB2NetworkInterfaceInfo(Structure):
@@ -442,7 +442,7 @@ class SMB2NetworkInterfaceInfo(Structure):
                 ("sock_addr_storage", StructureField(size=128, structure_type=SockAddrStorage)),
             ]
         )
-        super(SMB2NetworkInterfaceInfo, self).__init__()
+        super().__init__()
 
     @staticmethod
     def pack_multiple(messages):
@@ -511,7 +511,7 @@ class SockAddrStorage(Structure):
                 ),
             ]
         )
-        super(SockAddrStorage, self).__init__()
+        super().__init__()
 
     def _get_buffer_size(self, structure):
         if structure["family"].get_value() == SockAddrFamily.INTER_NETWORK:
@@ -544,7 +544,7 @@ class SockAddrIn(Structure):
         self.fields = OrderedDict(
             [("port", IntField(size=2)), ("ipv4_address", BytesField(size=4)), ("reserved", IntField(size=8))]
         )
-        super(SockAddrIn, self).__init__()
+        super().__init__()
 
     def get_ipaddress(self):
         addr_bytes = self["ipv4_address"].get_value()
@@ -575,7 +575,7 @@ class SockAddrIn6(Structure):
                 ("scope_id", IntField(size=4)),
             ]
         )
-        super(SockAddrIn6, self).__init__()
+        super().__init__()
 
     def get_ipaddress(self):
         # get's the full IPv6 Address, note this is the full address and has
@@ -618,4 +618,4 @@ class SMB2ValidateNegotiateInfoResponse(Structure):
                 ("dialect", EnumField(size=2, enum_type=Dialects)),
             ]
         )
-        super(SMB2ValidateNegotiateInfoResponse, self).__init__()
+        super().__init__()

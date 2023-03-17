@@ -102,7 +102,7 @@ class FileNotifyInformation(Structure):
                 ),
             ]
         )
-        super(FileNotifyInformation, self).__init__()
+        super().__init__()
 
 
 class SMB2ChangeNotifyRequest(Structure):
@@ -144,7 +144,7 @@ class SMB2ChangeNotifyRequest(Structure):
                 ("reserved", IntField(size=4)),
             ]
         )
-        super(SMB2ChangeNotifyRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2ChangeNotifyResponse(Structure):
@@ -189,7 +189,7 @@ class SMB2ChangeNotifyResponse(Structure):
                 ),
             ]
         )
-        super(SMB2ChangeNotifyResponse, self).__init__()
+        super().__init__()
 
 
 class FileSystemWatcher:

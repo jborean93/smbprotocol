@@ -206,7 +206,7 @@ class FileNameInformation(Structure):
                 ),
             ]
         )
-        super(FileNameInformation, self).__init__()
+        super().__init__()
 
 
 class FileAccessInformation(Structure):
@@ -225,7 +225,7 @@ class FileAccessInformation(Structure):
                 ("access_flags", IntField(size=4)),
             ]
         )
-        super(FileAccessInformation, self).__init__()
+        super().__init__()
 
 
 class FileAllInformation(Structure):
@@ -305,7 +305,7 @@ class FileAllInformation(Structure):
                 ),
             ]
         )
-        super(FileAllInformation, self).__init__()
+        super().__init__()
 
 
 class FileAlignmentInformation(Structure):
@@ -329,7 +329,7 @@ class FileAlignmentInformation(Structure):
                 ),
             ]
         )
-        super(FileAlignmentInformation, self).__init__()
+        super().__init__()
 
 
 class FileAttributeTagInformation(Structure):
@@ -362,7 +362,7 @@ class FileAttributeTagInformation(Structure):
                 ),
             ]
         )
-        super(FileAttributeTagInformation, self).__init__()
+        super().__init__()
 
 
 class FileBasicInformation(Structure):
@@ -392,7 +392,7 @@ class FileBasicInformation(Structure):
                 ("reserved", IntField(size=4)),
             ]
         )
-        super(FileBasicInformation, self).__init__()
+        super().__init__()
 
 
 class FileBothDirectoryInformation(Structure):
@@ -438,7 +438,7 @@ class FileBothDirectoryInformation(Structure):
                 ("file_name", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(FileBothDirectoryInformation, self).__init__()
+        super().__init__()
 
 
 class FileDirectoryInformation(Structure):
@@ -473,7 +473,7 @@ class FileDirectoryInformation(Structure):
                 ("file_name", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(FileDirectoryInformation, self).__init__()
+        super().__init__()
 
 
 class FileDispositionInformation(Structure):
@@ -491,7 +491,7 @@ class FileDispositionInformation(Structure):
                 ("delete_pending", BoolField(size=1)),
             ]
         )
-        super(FileDispositionInformation, self).__init__()
+        super().__init__()
 
 
 class FileEaInformation(Structure):
@@ -509,7 +509,7 @@ class FileEaInformation(Structure):
                 ("ea_size", IntField(size=4)),
             ]
         )
-        super(FileEaInformation, self).__init__()
+        super().__init__()
 
 
 class FileEndOfFileInformation(Structure):
@@ -527,7 +527,7 @@ class FileEndOfFileInformation(Structure):
                 ("end_of_file", IntField(size=8)),
             ]
         )
-        super(FileEndOfFileInformation, self).__init__()
+        super().__init__()
 
 
 class FileFullDirectoryInformation(Structure):
@@ -563,7 +563,7 @@ class FileFullDirectoryInformation(Structure):
                 ("file_name", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(FileFullDirectoryInformation, self).__init__()
+        super().__init__()
 
 
 class FileFullEaInformation(Structure):
@@ -610,7 +610,7 @@ class FileFullEaInformation(Structure):
                 ),
             ]
         )
-        super(FileFullEaInformation, self).__init__()
+        super().__init__()
 
 
 class FileGetEaInformation(Structure):
@@ -639,7 +639,7 @@ class FileGetEaInformation(Structure):
                 ("padding", IntField(size=1)),
             ]
         )
-        super(FileGetEaInformation, self).__init__()
+        super().__init__()
 
 
 class FileIdBothDirectoryInformation(Structure):
@@ -687,7 +687,7 @@ class FileIdBothDirectoryInformation(Structure):
                 ("file_name", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(FileIdBothDirectoryInformation, self).__init__()
+        super().__init__()
 
 
 class FileIdFullDirectoryInformation(Structure):
@@ -725,7 +725,7 @@ class FileIdFullDirectoryInformation(Structure):
                 ("file_name", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(FileIdFullDirectoryInformation, self).__init__()
+        super().__init__()
 
 
 class FileInternalInformation(Structure):
@@ -743,7 +743,7 @@ class FileInternalInformation(Structure):
                 ("index_number", IntField(size=8)),
             ]
         )
-        super(FileInternalInformation, self).__init__()
+        super().__init__()
 
 
 class FileLinkInformation(Structure):
@@ -783,7 +783,7 @@ class FileLinkInformation(Structure):
                 ),
             ]
         )
-        super(FileLinkInformation, self).__init__()
+        super().__init__()
 
 
 class FileModeInformation(Structure):
@@ -807,7 +807,7 @@ class FileModeInformation(Structure):
                 ),
             ]
         )
-        super(FileModeInformation, self).__init__()
+        super().__init__()
 
 
 class FileNamesInformation(Structure):
@@ -828,7 +828,7 @@ class FileNamesInformation(Structure):
                 ("file_name", BytesField(size=lambda s: s["file_name_length"].get_value())),
             ]
         )
-        super(FileNamesInformation, self).__init__()
+        super().__init__()
 
 
 class FilePositionInformation(Structure):
@@ -852,7 +852,7 @@ class FilePositionInformation(Structure):
                 ),
             ]
         )
-        super(FilePositionInformation, self).__init__()
+        super().__init__()
 
 
 class FileRenameInformation(Structure):
@@ -891,7 +891,7 @@ class FileRenameInformation(Structure):
                 ),
             ]
         )
-        super(FileRenameInformation, self).__init__()
+        super().__init__()
 
 
 class FileStandardInformation(Structure):
@@ -926,7 +926,7 @@ class FileStandardInformation(Structure):
                 ("reserved", IntField(size=2)),
             ]
         )
-        super(FileStandardInformation, self).__init__()
+        super().__init__()
 
 
 class FileStreamInformation(Structure):
@@ -972,7 +972,7 @@ class FileStreamInformation(Structure):
                 ),
             ]
         )
-        super(FileStreamInformation, self).__init__()
+        super().__init__()
 
 
 class FileFsFullSizeInformation(Structure):
@@ -994,7 +994,7 @@ class FileFsFullSizeInformation(Structure):
                 ("bytes_per_sector", IntField(size=4)),
             ]
         )
-        super(FileFsFullSizeInformation, self).__init__()
+        super().__init__()
 
 
 class FileFsObjectIdInformation(Structure):
@@ -1019,7 +1019,7 @@ class FileFsObjectIdInformation(Structure):
                 ),
             ]
         )
-        super(FileFsObjectIdInformation, self).__init__()
+        super().__init__()
 
 
 class FileFsVolumeInformation(Structure):
@@ -1054,4 +1054,4 @@ class FileFsVolumeInformation(Structure):
                 ),
             ]
         )
-        super(FileFsVolumeInformation, self).__init__()
+        super().__init__()
