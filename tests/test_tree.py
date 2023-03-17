@@ -219,7 +219,7 @@ class TestTreeConnect:
             session.connect()
             with pytest.raises(SMBException) as exc:
                 tree.connect()
-            assert "Secure negotiate failed to verify server dialect, " "Actual: 770, Expected: 768" in str(exc.value)
+            assert "Secure negotiate failed to verify server dialect, Actual: 770, Expected: 768" in str(exc.value)
         finally:
             connection.disconnect(True)
 

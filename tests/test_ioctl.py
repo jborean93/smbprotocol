@@ -657,7 +657,7 @@ class TestSockAddrIn6:
         message = SockAddrIn6()
         with pytest.raises(ValueError) as exc:
             message.set_ipaddress("fe80::894a:2dbc:1d9c:2da1")
-        assert str(exc.value) == "When setting an IPv6 address, it must be " "in the full form without concatenation"
+        assert str(exc.value) == "When setting an IPv6 address, it must be in the full form without concatenation"
 
     def test_parse_message(self):
         actual = SockAddrIn6()

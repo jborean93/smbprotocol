@@ -150,9 +150,7 @@ class Field(metaclass=ABCMeta):
         self.little_endian = little_endian
 
         if not (size is None or isinstance(size, int) or isinstance(size, types.LambdaType)):
-            raise InvalidFieldDefinition(
-                "%s size for field must be an int or " "None for a variable length" % field_type
-            )
+            raise InvalidFieldDefinition("%s size for field must be an int or None for a variable length" % field_type)
         self.size = size
         self.default = default
         self.value = None
@@ -331,7 +329,7 @@ class IntField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if size not in [1, 2, 4, 8]:
-            raise InvalidFieldDefinition("IntField size must have a value of " "1, 2, 4, or 8 not %s" % str(size))
+            raise InvalidFieldDefinition("IntField size must have a value of 1, 2, 4, or 8 not %s" % str(size))
         self.unsigned = unsigned
         super().__init__(size=size, **kwargs)
 
@@ -353,9 +351,7 @@ class IntField(Field):
         elif isinstance(value, int):
             int_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to " "an int" % (self.name, type(value).__name__)
-            )
+            raise TypeError("Cannot parse value for field %s of type %s to an int" % (self.name, type(value).__name__))
         return int_value
 
     def _get_packed_size(self):
@@ -390,7 +386,7 @@ class BytesField(Field):
             bytes_value = value
         else:
             raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "byte string" % (self.name, type(value).__name__)
+                "Cannot parse value for field %s of type %s to a byte string" % (self.name, type(value).__name__)
             )
         return bytes_value
 
@@ -432,16 +428,16 @@ class ListField(Field):
         """
         if list_count is not None and not (isinstance(list_count, int) or isinstance(list_count, types.LambdaType)):
             raise InvalidFieldDefinition(
-                "ListField list_count must be an " "int, lambda, or None for a variable " "list length"
+                "ListField list_count must be an int, lambda, or None for a variable list length"
             )
         self.list_count = list_count
 
         if not isinstance(list_type, Field):
-            raise InvalidFieldDefinition("ListField list_type must be a " "Field definition")
+            raise InvalidFieldDefinition("ListField list_type must be a Field definition")
         self.list_type = list_type
 
         if unpack_func is not None and not isinstance(unpack_func, types.LambdaType):
-            raise InvalidFieldDefinition("ListField unpack_func must be a " "lambda function or None")
+            raise InvalidFieldDefinition("ListField unpack_func must be a lambda function or None")
         elif unpack_func is None and (list_count is None or list_type.size is None):
             raise InvalidFieldDefinition(
                 "ListField must either define "
@@ -491,9 +487,7 @@ class ListField(Field):
             # manually parse each list entry to the field type specified
             list_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "list" % (self.name, type(value).__name__)
-            )
+            raise TypeError("Cannot parse value for field %s of type %s to a list" % (self.name, type(value).__name__))
         list_value = [self._parse_sub_value(v) for v in list_value]
         return list_value
 
@@ -590,7 +584,7 @@ class StructureField(Field):
             structure_value = value
         else:
             raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "structure" % (self.name, type(value).__name__)
+                "Cannot parse value for field %s of type %s to a structure" % (self.name, type(value).__name__)
             )
 
         if isinstance(structure_value, bytes) and self.structure_type and structure_value != b"":
@@ -614,7 +608,7 @@ class StructureField(Field):
     def _get_field(self, key):
         structure_value = self._get_calculated_value(self.value)
         if isinstance(structure_value, bytes):
-            raise ValueError("Cannot get field %s when structure is defined " "as a byte string" % key)
+            raise ValueError("Cannot get field %s when structure is defined as a byte string" % key)
         field = structure_value._get_field(key)
         return field
 
@@ -640,7 +634,7 @@ class DateTimeField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if not (size is None or size == 8):
-            raise InvalidFieldDefinition("DateTimeField type must have a size " "of 8 not %d" % size)
+            raise InvalidFieldDefinition("DateTimeField type must have a size of 8 not %d" % size)
         super().__init__(size=8, **kwargs)
 
     def _pack_value(self, value):
@@ -678,7 +672,7 @@ class DateTimeField(Field):
             datetime_value = value
         else:
             raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "datetime" % (self.name, type(value).__name__)
+                "Cannot parse value for field %s of type %s to a datetime" % (self.name, type(value).__name__)
             )
         return datetime_value
 
@@ -700,7 +694,7 @@ class UuidField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if not (size is None or size == 16):
-            raise InvalidFieldDefinition("UuidField type must have a size of " "16 not %d" % size)
+            raise InvalidFieldDefinition("UuidField type must have a size of 16 not %d" % size)
         super().__init__(size=16, **kwargs)
 
     def _pack_value(self, value):
@@ -723,9 +717,7 @@ class UuidField(Field):
         elif isinstance(value, types.LambdaType):
             uuid_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "uuid" % (self.name, type(value).__name__)
-            )
+            raise TypeError("Cannot parse value for field %s of type %s to a uuid" % (self.name, type(value).__name__))
         return uuid_value
 
     def _get_packed_size(self):
@@ -819,7 +811,7 @@ class BoolField(Field):
         :param kwargs: Any other kwargs to be sent to Field()
         """
         if size != 1:
-            raise InvalidFieldDefinition("BoolField size must have a value of " "1, not %d" % size)
+            raise InvalidFieldDefinition("BoolField size must have a value of 1, not %d" % size)
         super().__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
@@ -835,9 +827,7 @@ class BoolField(Field):
         elif isinstance(value, types.LambdaType):
             bool_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "bool" % (self.name, type(value).__name__)
-            )
+            raise TypeError("Cannot parse value for field %s of type %s to a bool" % (self.name, type(value).__name__))
         return bool_value
 
     def _get_packed_size(self):
@@ -869,7 +859,7 @@ class TextField(BytesField):
             text_value = value
         else:
             raise TypeError(
-                "Cannot parse value for field %s of type %s to a " "text string" % (self.name, type(value).__name__)
+                "Cannot parse value for field %s of type %s to a text string" % (self.name, type(value).__name__)
             )
 
         return text_value

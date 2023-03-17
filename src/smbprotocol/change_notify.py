@@ -254,7 +254,7 @@ class FileSystemWatcher:
 
     @property
     def cancelled(self):
-        """ States whether the change notify request was cancelled or not. """ ""
+        """States whether the change notify request was cancelled or not."""
         return self._request is not None and self._request.cancelled is True
 
     def start(self, completion_filter, flags=0, output_buffer_length=65536, send=True):

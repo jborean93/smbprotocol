@@ -1103,7 +1103,7 @@ class TestConnection:
             header["flags"].set_flag(Smb2Flags.SMB2_FLAGS_SIGNED)
             with pytest.raises(SMBException) as exc:
                 connection.verify_signature(header, 100)
-            assert str(exc.value) == "Failed to find session 100 for " "message verification"
+            assert str(exc.value) == "Failed to find session 100 for message verification"
         finally:
             connection.disconnect()
 
@@ -1140,7 +1140,7 @@ class TestConnection:
             enc_header["flags"] = 5
             with pytest.raises(SMBException) as exc:
                 connection._decrypt(enc_header)
-            assert str(exc.value) == "Expecting flag of 0x0001 but got 5 in " "the SMB Transform Header Response"
+            assert str(exc.value) == "Expecting flag of 0x0001 but got 5 in the SMB Transform Header Response"
         finally:
             connection.disconnect(True)
 
@@ -1159,7 +1159,7 @@ class TestConnection:
             enc_header["session_id"] = 100
             with pytest.raises(SMBException) as exc:
                 connection._decrypt(enc_header)
-            assert str(exc.value) == "Failed to find valid session 100 for " "message decryption"
+            assert str(exc.value) == "Failed to find valid session 100 for message decryption"
         finally:
             connection.disconnect(True)
 
@@ -1171,7 +1171,7 @@ class TestConnection:
             msg["max_output_response"] = 65538  # results in 2 credits required
             with pytest.raises(SMBException) as exc:
                 connection.send(msg, None, None, 0)
-            assert str(exc.value) == "Request requires 2 credits but only 1 " "credits are available"
+            assert str(exc.value) == "Request requires 2 credits but only 1 credits are available"
         finally:
             connection.disconnect()
 
@@ -1185,7 +1185,7 @@ class TestConnection:
             msg["file_id"] = b"\xff" * 16
             with pytest.raises(SMBException) as exc:
                 connection.send(msg, session.session_id, 10)
-            assert str(exc.value) == "Cannot find Tree with the ID 10 in " "the session tree table"
+            assert str(exc.value) == "Cannot find Tree with the ID 10 in the session tree table"
         finally:
             connection.disconnect()
 
