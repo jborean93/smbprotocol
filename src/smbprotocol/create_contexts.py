@@ -177,7 +177,7 @@ class SMB2CreateContextRequest(Structure):
                 ),
             ]
         )
-        super(SMB2CreateContextRequest, self).__init__()
+        super().__init__()
 
     def _buffer_data_offset(self, structure):
         if structure["data_length"].get_value() == 0:
@@ -283,7 +283,7 @@ class SMB2CreateEABuffer(Structure):
                 ),
             ]
         )
-        super(SMB2CreateEABuffer, self).__init__()
+        super().__init__()
 
     def _padding_size(self, structure):
         if structure["next_entry_offset"].get_value() == 0:
@@ -331,7 +331,7 @@ class SMB2CreateDurableHandleRequest(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("durable_request", BytesField(size=16, default=b"\x00" * 16))])
-        super(SMB2CreateDurableHandleRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateDurableHandleResponse(Structure):
@@ -343,7 +343,7 @@ class SMB2CreateDurableHandleResponse(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("reserved", IntField(size=8))])
-        super(SMB2CreateDurableHandleResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateDurableHandleReconnect(Structure):
@@ -357,7 +357,7 @@ class SMB2CreateDurableHandleReconnect(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("data", BytesField(size=16))])
-        super(SMB2CreateDurableHandleReconnect, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateQueryMaximalAccessRequest(Structure):
@@ -372,7 +372,7 @@ class SMB2CreateQueryMaximalAccessRequest(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("timestamp", DateTimeField())])
-        super(SMB2CreateQueryMaximalAccessRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateQueryMaximalAccessResponse(Structure):
@@ -391,7 +391,7 @@ class SMB2CreateQueryMaximalAccessResponse(Structure):
                 ("maximal_access", IntField(size=4)),
             ]
         )
-        super(SMB2CreateQueryMaximalAccessResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateAllocationSize(Structure):
@@ -406,7 +406,7 @@ class SMB2CreateAllocationSize(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("allocation_size", IntField(size=8))])
-        super(SMB2CreateAllocationSize, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateTimewarpToken(Structure):
@@ -421,7 +421,7 @@ class SMB2CreateTimewarpToken(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("timestamp", DateTimeField())])
-        super(SMB2CreateTimewarpToken, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateRequestLease(Structure):
@@ -442,7 +442,7 @@ class SMB2CreateRequestLease(Structure):
                 ("lease_duration", IntField(size=8)),
             ]
         )
-        super(SMB2CreateRequestLease, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateResponseLease(Structure):
@@ -461,7 +461,7 @@ class SMB2CreateResponseLease(Structure):
                 ("lease_duration", IntField(size=8)),
             ]
         )
-        super(SMB2CreateResponseLease, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateQueryOnDiskIDResponse(Structure):
@@ -481,7 +481,7 @@ class SMB2CreateQueryOnDiskIDResponse(Structure):
                 ("reserved", BytesField(size=16, default=b"\x00" * 16)),
             ]
         )
-        super(SMB2CreateQueryOnDiskIDResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateRequestLeaseV2(Structure):
@@ -507,7 +507,7 @@ class SMB2CreateRequestLeaseV2(Structure):
                 ("reserved", IntField(size=2)),
             ]
         )
-        super(SMB2CreateRequestLeaseV2, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateResponseLeaseV2(Structure):
@@ -529,7 +529,7 @@ class SMB2CreateResponseLeaseV2(Structure):
                 ("reserved", IntField(size=2)),
             ]
         )
-        super(SMB2CreateResponseLeaseV2, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateDurableHandleRequestV2(Structure):
@@ -553,7 +553,7 @@ class SMB2CreateDurableHandleRequestV2(Structure):
                 ("create_guid", UuidField(size=16)),
             ]
         )
-        super(SMB2CreateDurableHandleRequestV2, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateDurableHandleReconnectV2(Structure):
@@ -574,7 +574,7 @@ class SMB2CreateDurableHandleReconnectV2(Structure):
                 ("flags", FlagField(size=4, flag_type=DurableHandleFlags)),
             ]
         )
-        super(SMB2CreateDurableHandleReconnectV2, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateDurableHandleResponseV2(Structure):
@@ -589,7 +589,7 @@ class SMB2CreateDurableHandleResponseV2(Structure):
         self.fields = OrderedDict(
             [("timeout", IntField(size=4)), ("flags", FlagField(size=4, flag_type=DurableHandleFlags))]
         )
-        super(SMB2CreateDurableHandleResponseV2, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateAppInstanceId(Structure):
@@ -611,7 +611,7 @@ class SMB2CreateAppInstanceId(Structure):
                 ("app_instance_id", BytesField(size=16)),
             ]
         )
-        super(SMB2CreateAppInstanceId, self).__init__()
+        super().__init__()
 
 
 class SMB2SVHDXOpenDeviceContextRequest(Structure):
@@ -638,7 +638,7 @@ class SMB2SVHDXOpenDeviceContextRequest(Structure):
                 ("initiator_host_name", BytesField(size=lambda s: s["initiator_host_name_length"].get_value())),
             ]
         )
-        super(SMB2SVHDXOpenDeviceContextRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2SVHDXOpenDeviceContextResponse(Structure):
@@ -665,7 +665,7 @@ class SMB2SVHDXOpenDeviceContextResponse(Structure):
                 ("initiator_host_name", BytesField(size=lambda s: s["initiator_host_name_length"].get_value())),
             ]
         )
-        super(SMB2SVHDXOpenDeviceContextResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2SVHDXOpenDeviceContextV2Request(Structure):
@@ -697,7 +697,7 @@ class SMB2SVHDXOpenDeviceContextV2Request(Structure):
                 ("virtual_size", IntField(size=8)),
             ]
         )
-        super(SMB2SVHDXOpenDeviceContextV2Request, self).__init__()
+        super().__init__()
 
 
 class SMB2SVHDXOpenDeviceContextV2Response(Structure):
@@ -729,7 +729,7 @@ class SMB2SVHDXOpenDeviceContextV2Response(Structure):
                 ("virtual_size", IntField(size=8)),
             ]
         )
-        super(SMB2SVHDXOpenDeviceContextV2Response, self).__init__()
+        super().__init__()
 
 
 class SMB2CreateAppInstanceVersion(Structure):
@@ -753,4 +753,4 @@ class SMB2CreateAppInstanceVersion(Structure):
                 ("app_instance_version_low", IntField(size=8)),
             ]
         )
-        super(SMB2CreateAppInstanceVersion, self).__init__()
+        super().__init__()

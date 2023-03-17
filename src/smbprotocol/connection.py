@@ -189,7 +189,7 @@ class SMB2NegotiateRequest(Structure):
             ]
         )
 
-        super(SMB2NegotiateRequest, self).__init__()
+        super().__init__()
 
 
 class SMB3NegotiateRequest(Structure):
@@ -276,7 +276,7 @@ class SMB3NegotiateRequest(Structure):
                 ),
             ]
         )
-        super(SMB3NegotiateRequest, self).__init__()
+        super().__init__()
 
     def _negotiate_context_offset_value(self, structure):
         # The offset from the beginning of the SMB2 header to the first, 8-byte
@@ -359,7 +359,7 @@ class SMB2NegotiateContextRequest(Structure):
                 ),
             ]
         )
-        super(SMB2NegotiateContextRequest, self).__init__()
+        super().__init__()
 
     def _data_structure_type(self, structure):
         con_type = structure["context_type"].get_value()
@@ -421,7 +421,7 @@ class SMB2PreauthIntegrityCapabilities(Structure):
                 ),
             ]
         )
-        super(SMB2PreauthIntegrityCapabilities, self).__init__()
+        super().__init__()
 
 
 class SMB2EncryptionCapabilities(Structure):
@@ -454,7 +454,7 @@ class SMB2EncryptionCapabilities(Structure):
                 ),
             ]
         )
-        super(SMB2EncryptionCapabilities, self).__init__()
+        super().__init__()
 
 
 class SMB2NetnameNegotiateContextId(Structure):
@@ -601,7 +601,7 @@ class SMB2NegotiateResponse(Structure):
                 ),
             ]
         )
-        super(SMB2NegotiateResponse, self).__init__()
+        super().__init__()
 
     def _negotiate_context_count_value(self, structure):
         # If the dialect_revision is SMBv3.1.1, this field specifies the
@@ -667,7 +667,7 @@ class SMB2Echo(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("structure_size", IntField(size=2, default=4)), ("reserved", IntField(size=2))])
-        super(SMB2Echo, self).__init__()
+        super().__init__()
 
 
 class SMB2CancelRequest(Structure):
@@ -694,7 +694,7 @@ class SMB2CancelRequest(Structure):
                 ("reserved", IntField(size=2)),
             ]
         )
-        super(SMB2CancelRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2TransformHeader(Structure):
@@ -719,7 +719,7 @@ class SMB2TransformHeader(Structure):
                 ("data", BytesField()),  # not in spec
             ]
         )
-        super(SMB2TransformHeader, self).__init__()
+        super().__init__()
 
 
 class Connection:

@@ -185,7 +185,7 @@ class SMB2HeaderAsync(Structure):
                 ("data", BytesField()),
             ]
         )
-        super(SMB2HeaderAsync, self).__init__()
+        super().__init__()
 
 
 class SMB2HeaderRequest(Structure):
@@ -241,7 +241,7 @@ class SMB2HeaderRequest(Structure):
                 ("data", BytesField()),
             ]
         )
-        super(SMB2HeaderRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2HeaderResponse(Structure):
@@ -303,4 +303,4 @@ class SMB2HeaderResponse(Structure):
                 ("data", BytesField()),
             ]
         )
-        super(SMB2HeaderResponse, self).__init__()
+        super().__init__()

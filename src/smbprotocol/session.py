@@ -98,7 +98,7 @@ class SMB2SessionSetupRequest(Structure):
                 ),
             ]
         )
-        super(SMB2SessionSetupRequest, self).__init__()
+        super().__init__()
 
 
 class SMB2SessionSetupResponse(Structure):
@@ -151,7 +151,7 @@ class SMB2SessionSetupResponse(Structure):
                 ),
             ]
         )
-        super(SMB2SessionSetupResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2Logoff(Structure):
@@ -167,7 +167,7 @@ class SMB2Logoff(Structure):
 
     def __init__(self):
         self.fields = OrderedDict([("structure_size", IntField(size=2, default=4)), ("reserved", IntField(size=2))])
-        super(SMB2Logoff, self).__init__()
+        super().__init__()
 
 
 class Session:

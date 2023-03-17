@@ -75,7 +75,7 @@ class SMBOSError(OSError, SMBException):
         if not isinstance(error_details, tuple):
             error_details = (error_details, os.strerror(error_details))
 
-        super(SMBOSError, self).__init__(error_details[0], error_details[1], str(filename))
+        super().__init__(error_details[0], error_details[1], str(filename))
 
     def __str__(self):
         msg = "[Error {0}] [NtStatus 0x{1}] {2}: '{3}'".format(
@@ -162,7 +162,7 @@ class _SMBErrorRegistry(type):
     __registry = {}
 
     def __init__(cls, name, bases, attributes):
-        super(_SMBErrorRegistry, cls).__init__(name, bases, attributes)
+        super().__init__(name, bases, attributes)
 
         # Special case for the base SMBResponseException doesn't need to have _STATUS_CODE
         if cls.__module__ == _SMBErrorRegistry.__module__ and cls.__name__ == "SMBResponseException":
@@ -176,6 +176,7 @@ class _SMBErrorRegistry(type):
         cls.__registry[cls._STATUS_CODE] = cls
 
     def __call__(cls, header=None):
+        # intercept construction of new SMBResponseException (and derived) instances
         if header:
             new_cls = cls.__registry.get(header["status"].get_value(), cls)
 
@@ -185,7 +186,8 @@ class _SMBErrorRegistry(type):
             header["data"] = SMB2ErrorResponse()
             new_cls = cls
 
-        return super(_SMBErrorRegistry, new_cls).__call__(header)
+        # now use type.__call__ directly to actually construct instance
+        return type.__call__(new_cls, header)
 
 
 class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
@@ -698,7 +700,7 @@ class SMB2ErrorResponse(Structure):
                 ),
             ]
         )
-        super(SMB2ErrorResponse, self).__init__()
+        super().__init__()
 
     def _error_data_value(self, structure, data):
         context_responses = []
@@ -756,7 +758,7 @@ class SMB2ErrorContextResponse(Structure):
                 ),
             ]
         )
-        super(SMB2ErrorContextResponse, self).__init__()
+        super().__init__()
 
 
 class SMB2SymbolicLinkErrorResponse(Structure):
@@ -801,7 +803,7 @@ class SMB2SymbolicLinkErrorResponse(Structure):
                 ("path_buffer", BytesField(size=lambda s: self._get_name_length(s, True))),
             ]
         )
-        super(SMB2SymbolicLinkErrorResponse, self).__init__()
+        super().__init__()
 
     def _get_name_length(self, structure, first):
         print_name_len = structure["print_name_length"].get_value()
@@ -911,7 +913,7 @@ class SMB2ShareRedirectErrorContext(Structure):
                 ("resource_name", BytesField(size=lambda s: s["resource_name_length"].get_value())),
             ]
         )
-        super(SMB2ShareRedirectErrorContext, self).__init__()
+        super().__init__()
 
     def _resource_name_offset(self, structure):
         min_structure_size = 24
@@ -941,7 +943,7 @@ class SMB2MoveDstIpAddrStructure(Structure):
                 ),
             ]
         )
-        super(SMB2MoveDstIpAddrStructure, self).__init__()
+        super().__init__()
 
     def _ip_address_size(self, structure):
         if structure["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V4:

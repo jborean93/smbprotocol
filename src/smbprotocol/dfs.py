@@ -221,7 +221,7 @@ class DFSReferralRequest(Structure):
                 ("request_file_name", TextField(null_terminated=True)),
             ]
         )
-        super(DFSReferralRequest, self).__init__()
+        super().__init__()
 
 
 class DFSReferralRequestEx(Structure):
@@ -275,7 +275,7 @@ class DFSReferralRequestEx(Structure):
                 ),
             ]
         )
-        super(DFSReferralRequestEx, self).__init__()
+        super().__init__()
 
 
 class DFSReferralResponse(Structure):
@@ -301,7 +301,7 @@ class DFSReferralResponse(Structure):
                 ("string_buffer", BytesField()),
             ]
         )
-        super(DFSReferralResponse, self).__init__()
+        super().__init__()
 
     def _create_dfs_referral_entry(self, data):
         results = []
@@ -346,7 +346,7 @@ class DFSReferralEntryV1(Structure):
                 ("share_name", TextField(null_terminated=True)),
             ]
         )
-        super(DFSReferralEntryV1, self).__init__()
+        super().__init__()
 
     @property
     def network_address(self):
@@ -381,7 +381,7 @@ class DFSReferralEntryV2(Structure):
         self.dfs_path = None
         self.dfs_alternate_path = None
         self.network_address = None
-        super(DFSReferralEntryV2, self).__init__()
+        super().__init__()
 
     def process_string_buffer(self, buffer, entry_offset):
         buffer_fields = ["dfs_path", "dfs_alternate_path", "network_address"]
@@ -424,7 +424,7 @@ class DFSReferralEntryV3(Structure):
         self.dfs_path = None
         self.dfs_alternate_path = None
         self.network_address = None
-        super(DFSReferralEntryV3, self).__init__()
+        super().__init__()
 
     def process_string_buffer(self, buffer, entry_offset):
         is_name_list = self["referral_entry_flags"].has_flag(DFSReferralEntryFlags.NAME_LIST_REFERRAL)

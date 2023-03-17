@@ -333,7 +333,7 @@ class IntField(Field):
         if size not in [1, 2, 4, 8]:
             raise InvalidFieldDefinition("IntField size must have a value of " "1, 2, 4, or 8 not %s" % str(size))
         self.unsigned = unsigned
-        super(IntField, self).__init__(size=size, **kwargs)
+        super().__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
         format = self._get_struct_format(self.size, self.unsigned)
@@ -451,7 +451,7 @@ class ListField(Field):
             )
         self.unpack_func = unpack_func
 
-        super(ListField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __getitem__(self, item):
         # TODO: Make this more efficient
@@ -557,7 +557,7 @@ class StructureField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         self.structure_type = structure_type
-        super(StructureField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __setitem__(self, key, value):
         field = self._get_field(key)
@@ -641,7 +641,7 @@ class DateTimeField(Field):
         """
         if not (size is None or size == 8):
             raise InvalidFieldDefinition("DateTimeField type must have a size " "of 8 not %d" % size)
-        super(DateTimeField, self).__init__(size=8, **kwargs)
+        super().__init__(size=8, **kwargs)
 
     def _pack_value(self, value):
         utc_tz = datetime.timezone.utc
@@ -701,7 +701,7 @@ class UuidField(Field):
         """
         if not (size is None or size == 16):
             raise InvalidFieldDefinition("UuidField type must have a size of " "16 not %d" % size)
-        super(UuidField, self).__init__(size=16, **kwargs)
+        super().__init__(size=16, **kwargs)
 
     def _pack_value(self, value):
         if self.little_endian:
@@ -740,10 +740,10 @@ class EnumField(IntField):
     def __init__(self, enum_type, enum_strict=True, **kwargs):
         self.enum_type = enum_type
         self.enum_strict = enum_strict
-        super(EnumField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def _parse_value(self, value):
-        int_value = super(EnumField, self)._parse_value(value)
+        int_value = super()._parse_value(value)
         valid = False
         for flag_value in vars(self.enum_type).values():
             if int_value == flag_value:
@@ -771,7 +771,7 @@ class FlagField(IntField):
     def __init__(self, flag_type, flag_strict=True, **kwargs):
         self.flag_type = flag_type
         self.flag_strict = flag_strict
-        super(FlagField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def set_flag(self, flag):
         valid = False
@@ -788,7 +788,7 @@ class FlagField(IntField):
         return self.value & flag == flag
 
     def _parse_value(self, value):
-        int_value = super(FlagField, self)._parse_value(value)
+        int_value = super()._parse_value(value)
         current_val = int_value
         for value in vars(self.flag_type).values():
             if isinstance(value, int):
@@ -820,7 +820,7 @@ class BoolField(Field):
         """
         if size != 1:
             raise InvalidFieldDefinition("BoolField size must have a value of " "1, not %d" % size)
-        super(BoolField, self).__init__(size=size, **kwargs)
+        super().__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
         return b"\x01" if value else b"\x00"
@@ -851,7 +851,7 @@ class TextField(BytesField):
     def __init__(self, encoding="utf-16-le", null_terminated=False, **kwargs):
         self.encoding = encoding
         self.null_terminated = null_terminated
-        super(TextField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def _pack_value(self, value):
         if self.null_terminated:

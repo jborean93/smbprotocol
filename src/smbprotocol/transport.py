@@ -44,7 +44,7 @@ class DirectTCPPacket(Structure):
                 ),
             ]
         )
-        super(DirectTCPPacket, self).__init__()
+        super().__init__()
 
 
 class Tcp:
