@@ -9,7 +9,7 @@ from smbprotocol._text import to_bytes, to_text
 from smbprotocol.structure import BytesField, EnumField, IntField, Structure
 
 
-class ReparseTags(object):
+class ReparseTags:
     """
     [MS-FSCC] 2.1.2.1 Reparse Tags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/c8e77b37-3909-4fe6-a4ea-2b9d423b1ee4
@@ -97,7 +97,7 @@ class ReparseTags(object):
         return tag & 0x10000000 == 0x10000000
 
 
-class SymbolicLinkFlags(object):
+class SymbolicLinkFlags:
     """
     [MS-FSCC] 2.1.2.4 Symbolic Link Reparse Data Buffer - Flags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/b41f1cbf-10df-4a47-98d4-1c52a833d913

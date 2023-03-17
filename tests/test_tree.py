@@ -18,7 +18,7 @@ from smbprotocol.tree import (
 )
 
 
-class TestSMB2TreeConnectRequest(object):
+class TestSMB2TreeConnectRequest:
     def test_create_message(self):
         message = SMB2TreeConnectRequest()
         message["flags"] = 2
@@ -58,7 +58,7 @@ class TestSMB2TreeConnectRequest(object):
         assert actual["buffer"].get_value() == "\\\\127.0.0.1\\c$".encode("utf-16-le")
 
 
-class TestSMB2TreeConnectResponse(object):
+class TestSMB2TreeConnectResponse:
     def test_create_message(self):
         message = SMB2TreeConnectResponse()
         message["share_type"] = 1
@@ -83,7 +83,7 @@ class TestSMB2TreeConnectResponse(object):
         assert actual["maximal_access"].get_value() == 10
 
 
-class TestSMB2TreeDisconnect(object):
+class TestSMB2TreeDisconnect:
     def test_create_message(self):
         message = SMB2TreeDisconnect()
         expected = b"\x04\x00" b"\x00\x00"
@@ -100,7 +100,7 @@ class TestSMB2TreeDisconnect(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestTreeConnect(object):
+class TestTreeConnect:
     def test_dialect_2_0_2(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect(Dialects.SMB_2_0_2)

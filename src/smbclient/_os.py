@@ -1172,7 +1172,7 @@ def _set_basic_information(
         set_info(transaction, basic_info)
 
 
-class SMBDirEntry(object):
+class SMBDirEntry:
     def __init__(self, raw, dir_info, connection_cache=None):
         self._smb_raw = raw
         self._dir_info = dir_info

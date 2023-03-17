@@ -36,7 +36,7 @@ def server_tcp(request):
         sock.close()
 
 
-class TestDirectTcpPacket(object):
+class TestDirectTcpPacket:
     def test_create_message(self):
         message = DirectTCPPacket()
         message["smb2_message"] = b"\xfe\x53\x4d\x42"
@@ -60,7 +60,7 @@ class TestDirectTcpPacket(object):
         assert actual_header.get_value() == b"\xfe\x53\x4d\x42"
 
 
-class TestTcp(object):
+class TestTcp:
     def test_normal_fail_message_too_big(self):
         tcp = Tcp("0.0.0.0", 0)
         tcp.connected = True

@@ -31,7 +31,7 @@ from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
 
 
-class TestFileNotifyInformation(object):
+class TestFileNotifyInformation:
     DATA = b"\x00\x00\x00\x00" b"\x01\x00\x00\x00" b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
 
     def test_create_message(self):
@@ -53,7 +53,7 @@ class TestFileNotifyInformation(object):
         assert actual["file_name"].get_value() == "café"
 
 
-class TestSMB2ChangeNotifyRequest(object):
+class TestSMB2ChangeNotifyRequest:
     DATA = (
         b"\x20\x00"
         b"\x00\x00"
@@ -85,7 +85,7 @@ class TestSMB2ChangeNotifyRequest(object):
         assert actual["reserved"].get_value() == 0
 
 
-class TestSMB2ChangeNotifyResponse(object):
+class TestSMB2ChangeNotifyResponse:
     DATA = b"\x09\x00" b"\x48\x00" b"\x04\x00\x00\x00" b"\x01\x02\x03\x04"
 
     def test_create_message(self):
@@ -105,7 +105,7 @@ class TestSMB2ChangeNotifyResponse(object):
         assert actual["buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestChangeNotify(object):
+class TestChangeNotify:
     def _remove_file(self, tree, name):
         file_open = Open(tree, name)
         file_open.create(

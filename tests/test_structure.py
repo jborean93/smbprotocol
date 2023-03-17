@@ -128,7 +128,7 @@ class Structure1(Structure):
         super(Structure1, self).__init__()
 
 
-class TestStructure(object):
+class TestStructure:
     def test_structure_defaults(self):
         actual = Structure1()
         assert len(actual.fields) == 7
@@ -290,7 +290,7 @@ class TestStructure(object):
         assert len(structure["end"]) == 6
 
 
-class TestIntField(object):
+class TestIntField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", IntField(size=4, default=1234))])
@@ -414,7 +414,7 @@ class TestIntField(object):
         assert actual == expected
 
 
-class TestBytesField(object):
+class TestBytesField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", BytesField(size=4, default=b"\x10\x11\x12\x13"))])
@@ -535,7 +535,7 @@ class TestBytesField(object):
         assert str(exc.value) == "BytesField size for field must be an int " "or None for a variable length"
 
 
-class TestListField(object):
+class TestListField:
     # unpack variable length list
 
     class StructureTest(Structure):
@@ -728,7 +728,7 @@ class TestListField(object):
         )
 
 
-class TestStructureField(object):
+class TestStructureField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict(
@@ -923,7 +923,7 @@ class TestStructureField(object):
         assert str(exc.value) == "Cannot parse value for field field of " "type list to a structure"
 
 
-class TestUuidField(object):
+class TestUuidField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", UuidField())])
@@ -1025,7 +1025,7 @@ class TestUuidField(object):
         assert actual == expected
 
 
-class TestDateTimeField(object):
+class TestDateTimeField:
     DATE = datetime(year=1993, month=6, day=11, hour=7, minute=52, second=34, microsecond=34)
 
     class StructureTest(Structure):
@@ -1155,7 +1155,7 @@ class TestDateTimeField(object):
         assert str(exc.value) == "DateTimeField type must have a size of 8 " "not 4"
 
 
-class TestEnumField(object):
+class TestEnumField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict(
@@ -1265,7 +1265,7 @@ class TestEnumField(object):
         assert str(exc.value) == "Enum value 19 does not exist in enum type " "<class 'smbprotocol.header.Commands'>"
 
 
-class TestFlagField(object):
+class TestFlagField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict(
@@ -1373,7 +1373,7 @@ class TestFlagField(object):
         assert str(exc.value) == "Invalid flag for field field value set 128"
 
 
-class TestBoolField(object):
+class TestBoolField:
     class StructureTest(Structure):
         def __init__(self):
             self.fields = OrderedDict([("field", BoolField(size=1))])
@@ -1487,7 +1487,7 @@ class TestBoolField(object):
         assert str(exc.value) == "Cannot parse value for field field of " "type list to a bool"
 
 
-class TestTextField(object):
+class TestTextField:
     STRING_VALUE = "Hello World - café"
 
     class StructureTest(Structure):

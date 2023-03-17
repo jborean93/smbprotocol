@@ -26,7 +26,7 @@ from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, St
 log = logging.getLogger(__name__)
 
 
-class TreeFlags(object):
+class TreeFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -39,7 +39,7 @@ class TreeFlags(object):
     SMB2_TREE_CONNECT_FLAG_EXTENSION_PRESENT = 0x0001
 
 
-class ShareType(object):
+class ShareType:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -52,7 +52,7 @@ class ShareType(object):
     SMB2_SHARE_TYPE_PRINT = 0x03
 
 
-class ShareFlags(object):
+class ShareFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -77,7 +77,7 @@ class ShareFlags(object):
     SMB2_SHAREFLAG_IDENTITY_REMOTING = 0x00040000
 
 
-class ShareCapabilities(object):
+class ShareCapabilities:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -204,7 +204,7 @@ class SMB2TreeDisconnect(Structure):
         super(SMB2TreeDisconnect, self).__init__()
 
 
-class TreeConnect(object):
+class TreeConnect:
     def __init__(self, session, share_name):
         """
         [MS-SMB2] v53.0 2017-09-15

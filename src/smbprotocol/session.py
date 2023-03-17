@@ -25,7 +25,7 @@ from smbprotocol.structure import BytesField, EnumField, FlagField, IntField, St
 log = logging.getLogger(__name__)
 
 
-class SessionFlags(object):
+class SessionFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -170,7 +170,7 @@ class SMB2Logoff(Structure):
         super(SMB2Logoff, self).__init__()
 
 
-class Session(object):
+class Session:
     def __init__(self, connection, username=None, password=None, require_encryption=True, auth_protocol="negotiate"):
         """
         [MS-SMB2] v53.0 2017-09-15

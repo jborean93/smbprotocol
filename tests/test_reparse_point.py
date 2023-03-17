@@ -11,7 +11,7 @@ from smbprotocol.reparse_point import (
 )
 
 
-class TestReparseTags(object):
+class TestReparseTags:
     def test_tag_is_microsoft(self):
         assert ReparseTags.is_reparse_tag_microsoft(ReparseTags.IO_REPARSE_TAG_SYMLINK)
         assert not ReparseTags.is_reparse_tag_microsoft(1)
@@ -25,7 +25,7 @@ class TestReparseTags(object):
         assert not ReparseTags.is_reparse_tag_directory(ReparseTags.IO_REPARSE_TAG_SYMLINK)
 
 
-class TestReparseDataBuffer(object):
+class TestReparseDataBuffer:
     DATA = b"\x0c\x00\x00\xa0" b"\x04\x00" b"\x00\x00" b"\x01\x02\x03\x04"
 
     def test_create_message(self):
@@ -48,7 +48,7 @@ class TestReparseDataBuffer(object):
         assert actual["data_buffer"].get_value() == b"\x01\x02\x03\x04"
 
 
-class TestSymbolicLinkReparseDataBuffer(object):
+class TestSymbolicLinkReparseDataBuffer:
     # Purposefully but the print name before sub name to test that the get_*_name() functions can handle any order.
     DATA = (
         b"\x08\x00"

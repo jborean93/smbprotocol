@@ -19,7 +19,7 @@ from smbprotocol.structure import (
 )
 
 
-class AlignmentRequirement(object):
+class AlignmentRequirement:
     """
     [MS-FSCC] 2.4.3 FileAlignmentInformation - AlignmentRequirement
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/9b0b9971-85aa-4651-8438-f1c4298bcb0d
@@ -37,7 +37,7 @@ class AlignmentRequirement(object):
     FILE_512_BYTE_ALIGNMENT = 0x000001FF
 
 
-class InfoType(object):
+class InfoType:
     """
     [MS-SMB2] 2.2.39 SMB2 SET_INFO Request - InfoType
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/ee9614c4-be54-4a3c-98f1-769a7032a0e4
@@ -51,7 +51,7 @@ class InfoType(object):
     SMB2_0_INFO_QUOTA = 0x04
 
 
-class ModeInformation(object):
+class ModeInformation:
     """
     [MS-FSCC] 2.4.24 FileModeInformation - Mode
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/52df7798-8330-474b-ac31-9afe8075640c
@@ -65,7 +65,7 @@ class ModeInformation(object):
     FILE_DELETE_ON_CLOSE = 0x00001000
 
 
-class FileAttributes(object):
+class FileAttributes:
     """
     [MS-FSCC]
 
@@ -94,7 +94,7 @@ class FileAttributes(object):
     FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000
 
 
-class FileInformationClass(object):
+class FileInformationClass:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -141,7 +141,7 @@ class FileInformationClass(object):
     FILE_NORMALIZED_NAME_INFORMATION = 48
 
 
-class FileSystemInformationClass(object):
+class FileSystemInformationClass:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -167,7 +167,7 @@ class FileSystemInformationClass(object):
     FILE_FS_SECTOR_SIZE_INFORMATION = 11
 
 
-class QueryInfoFlags(object):
+class QueryInfoFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 

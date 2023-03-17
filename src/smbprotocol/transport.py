@@ -47,7 +47,7 @@ class DirectTCPPacket(Structure):
         super(DirectTCPPacket, self).__init__()
 
 
-class Tcp(object):
+class Tcp:
     MAX_SIZE = 16777215
 
     def __init__(self, server, port, timeout=None):

@@ -20,7 +20,7 @@ from smbprotocol.structure import (
 log = logging.getLogger(__name__)
 
 
-class ChangeNotifyFlags(object):
+class ChangeNotifyFlags:
     """
     [MS-SMB2] 2.2.35 SMB2 CHANGE_NOTIFY Request - Flags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/598f395a-e7a2-4cc8-afb3-ccb30dd2df7c
@@ -30,7 +30,7 @@ class ChangeNotifyFlags(object):
     SMB2_WATCH_TREE = 0x0001
 
 
-class CompletionFilter(object):
+class CompletionFilter:
     """
     [MS-SMB2] 2.2.35 SMB2 CHANGE_NOTIFY Request - CompletionFilter
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/598f395a-e7a2-4cc8-afb3-ccb30dd2df7c
@@ -50,7 +50,7 @@ class CompletionFilter(object):
     FILE_NOTIFY_CHANGE_STREAM_WRITE = 0x00000800
 
 
-class FileAction(object):
+class FileAction:
     """
     [MS-FSCC] 2.7.1 FILE_NOTIFY_INFORMATION - Action
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/634043d7-7b39-47e9-9e26-bda64685e4c9
@@ -192,7 +192,7 @@ class SMB2ChangeNotifyResponse(Structure):
         super(SMB2ChangeNotifyResponse, self).__init__()
 
 
-class FileSystemWatcher(object):
+class FileSystemWatcher:
     def __init__(self, open):
         """
         A class that encapsulates a FileSystemWatcher over SMB. It is designed to make it easy to run the watcher in

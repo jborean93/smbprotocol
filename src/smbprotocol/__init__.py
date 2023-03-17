@@ -12,7 +12,7 @@ logger.addHandler(NullHandler())
 MAX_PAYLOAD_SIZE = 65536
 
 
-class Dialects(object):
+class Dialects:
     """
     [MS-SMB2] v53.0 2017-09-15
 

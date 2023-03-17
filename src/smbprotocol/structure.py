@@ -50,7 +50,7 @@ def _indent_lines(string, prefix):
     return "".join(lines)
 
 
-class Structure(object):
+class Structure:
     def __init__(self):
         # Now that self.fields is set, loop through it again and set the
         # metadata around the fields and set the value based on default.

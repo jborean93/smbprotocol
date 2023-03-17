@@ -614,7 +614,7 @@ class ServerUnavailable(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_SERVER_UNAVAILABLE
 
 
-class ErrorContextId(object):
+class ErrorContextId:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -627,7 +627,7 @@ class ErrorContextId(object):
     SMB2_ERROR_ID_SHARE_REDIRECT = 0x53526472
 
 
-class SymbolicLinkErrorFlags(object):
+class SymbolicLinkErrorFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -640,7 +640,7 @@ class SymbolicLinkErrorFlags(object):
     SYMLINK_FLAG_RELATIVE = 0x00000001
 
 
-class IpAddrType(object):
+class IpAddrType:
     """
     [MS-SM2] v53.0 2017-09-15
 

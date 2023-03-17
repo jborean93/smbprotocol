@@ -36,7 +36,7 @@ from smbprotocol.structure import (
 log = logging.getLogger(__name__)
 
 
-class RequestedOplockLevel(object):
+class RequestedOplockLevel:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -51,7 +51,7 @@ class RequestedOplockLevel(object):
     SMB2_OPLOCK_LEVEL_LEASE = 0xFF
 
 
-class ImpersonationLevel(object):
+class ImpersonationLevel:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -65,7 +65,7 @@ class ImpersonationLevel(object):
     Delegate = 0x3
 
 
-class ShareAccess(object):
+class ShareAccess:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -78,7 +78,7 @@ class ShareAccess(object):
     FILE_SHARE_DELETE = 0x4
 
 
-class CreateDisposition(object):
+class CreateDisposition:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -95,7 +95,7 @@ class CreateDisposition(object):
     FILE_OVERWRITE_IF = 0x5
 
 
-class CreateOptions(object):
+class CreateOptions:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -126,7 +126,7 @@ class CreateOptions(object):
     FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
 
 
-class FilePipePrinterAccessMask(object):
+class FilePipePrinterAccessMask:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -156,7 +156,7 @@ class FilePipePrinterAccessMask(object):
     GENERIC_READ = 0x80000000
 
 
-class DirectoryAccessMask(object):
+class DirectoryAccessMask:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -186,7 +186,7 @@ class DirectoryAccessMask(object):
     GENERIC_READ = 0x80000000
 
 
-class FileFlags(object):
+class FileFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -197,7 +197,7 @@ class FileFlags(object):
     SMB2_CREATE_FLAG_REPARSEPOINT = 0x1
 
 
-class CreateAction(object):
+class CreateAction:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -211,7 +211,7 @@ class CreateAction(object):
     FILE_OVERWRITTEN = 0x3
 
 
-class CloseFlags(object):
+class CloseFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -222,7 +222,7 @@ class CloseFlags(object):
     SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB = 0x01
 
 
-class ReadFlags(object):
+class ReadFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -233,7 +233,7 @@ class ReadFlags(object):
     SMB2_READFLAG_READ_UNBUFFERED = 0x01
 
 
-class ReadWriteChannel(object):
+class ReadWriteChannel:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -246,7 +246,7 @@ class ReadWriteChannel(object):
     SMB2_CHANNEL_RDMA_V1_INVALIDATE = 0x2
 
 
-class WriteFlags(object):
+class WriteFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -258,7 +258,7 @@ class WriteFlags(object):
     SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x00000002
 
 
-class QueryDirectoryFlags(object):
+class QueryDirectoryFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
 
@@ -272,7 +272,7 @@ class QueryDirectoryFlags(object):
     SMB2_REOPEN = 0x10
 
 
-class QueryInfoFlags(object):
+class QueryInfoFlags:
     """
     [MS-SMB2] 2.2.37 SMB2 QUERY_INFO Request - Flags
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/d623b2f7-a5cd-4639-8cc9-71fa7d9f9ba9
@@ -285,7 +285,7 @@ class QueryInfoFlags(object):
     SL_INDEX_SPECIFIED = 0x00000004
 
 
-class InfoAdditionalInformation(object):
+class InfoAdditionalInformation:
     """
     [MS-SMB2] 2.2.39 SMB2 SET_INFO Request - AdditionalInformation
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/ee9614c4-be54-4a3c-98f1-769a7032a0e4
@@ -1008,7 +1008,7 @@ class SMB2SetInfoResponse(Structure):
         super(SMB2SetInfoResponse, self).__init__()
 
 
-class Open(object):
+class Open:
     def __init__(self, tree, name):
         """
         [MS-SMB2] v53.0 2017-09-15
