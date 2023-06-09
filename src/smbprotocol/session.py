@@ -261,7 +261,7 @@ class Session:
         # SESSION_SETUP request and response for this session
         self.preauth_integrity_hash_value = []
 
-    def connect(self):
+    def connect(self, initial_token=None):
         log.debug("Decoding SPNEGO token containing supported auth mechanisms")
         try:
             context = spnego.client(
@@ -277,9 +277,13 @@ class Session:
 
         self.connection.preauth_session_table[self.session_id] = self
 
-        in_token = self.connection.gss_negotiate_token
-        if self.auth_protocol != "negotiate":
-            in_token = None  # The GSS Negotiate Token can only be used for Negotiate auth.
+        if self.auth_protocol == "negotiate":
+            # The GSS Negotiate Token can only be used for Negotiate auth.
+            in_token = self.connection.gss_negotiate_token
+        elif self.auth_protocol == "ntlm":
+            in_token = initial_token
+        else:
+            in_token = None
 
         while not context.complete or in_token:
             try:

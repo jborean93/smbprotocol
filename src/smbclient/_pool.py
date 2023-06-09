@@ -80,6 +80,8 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
             'kerberos'. Defaults to 'negotiate'.
         require_secure_negotiate (bool): Whether to verify the negotiated dialects and capabilities on the connection
             to a share to protect against MitM downgrade attacks..
+        initial_token (Optional[bytes]): The initial token to use when authenticating with the server. Only used when
+            auth_protocol is 'ntlm'.
     """
 
     def __init__(
@@ -91,6 +93,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         skip_dfs=False,
         auth_protocol="negotiate",
         require_secure_negotiate=True,
+        initial_token=None,
         **kwargs,
     ):
         self.client_guid = client_guid or uuid.uuid4()
@@ -99,6 +102,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         self.skip_dfs = skip_dfs
         self.auth_protocol = auth_protocol
         self.require_secure_negotiate = require_secure_negotiate
+        self.initial_token = initial_token
         self._domain_controller = domain_controller  # type: Optional[str]
         self._domain_cache = []  # type: List[DomainEntry]
         self._referral_cache = []  # type: List[ReferralEntry]
@@ -253,6 +257,7 @@ def get_smb_tree(
     username = username or client_config.username
     password = password or client_config.password
     auth_protocol = client_config.auth_protocol
+    initial_token = client_config.initial_token
 
     # In case we need to nest a call to get_smb_tree, preserve the kwargs here so it's easier to update them in case
     # new kwargs are added.
@@ -310,6 +315,7 @@ def get_smb_tree(
         connection_timeout=connection_timeout,
         connection_cache=connection_cache,
         auth_protocol=auth_protocol,
+        initial_token=initial_token,
     )
 
     share_path = "\\\\%s\\%s" % (server, path_split[1])
@@ -375,6 +381,7 @@ def register_session(
     connection_cache=None,
     auth_protocol="negotiate",
     require_signing=True,
+    initial_token=None,
 ):
     """
     Creates an active connection and session to the server specified. This can be manually called to register the
@@ -394,6 +401,7 @@ def register_session(
     :param auth_protocol: The protocol to use for authentication. Possible values are 'negotiate', 'ntlm' or
         'kerberos'. Defaults to 'negotiate'.
     :param require_signing: Whether signing is required on SMB messages sent over this session. Defaults to True.
+    :param initial_token: The initial token to use for authentication. Only used when auth_protocol is 'ntlm'.
     :return: The Session that was registered or already existed in the pool.
     """
     connection_key = "%s:%s" % (server.lower(), port)
@@ -419,7 +427,7 @@ def register_session(
             require_encryption=(encrypt is True),
             auth_protocol=auth_protocol,
         )
-        session.connect()
+        session.connect(initial_token)
     elif encrypt is not None:
         # We cannot go from encryption to no encryption on an existing session but we can do the opposite.
         if session.encrypt_data and not encrypt:
