@@ -222,7 +222,7 @@ To this module, you need to install some pre-requisites first. This can be done
 by running;
 
 ```bash
-pip install -r requirements-test.txt
+pip install -r requirements-dev.txt
 
 # you can also run tox by installing tox
 pip install tox
