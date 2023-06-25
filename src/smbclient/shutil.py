@@ -11,7 +11,7 @@ import stat
 import sys
 
 from smbclient._io import SMBFileTransaction, SMBRawIO, query_info, set_info
-from smbclient._os import SMBDirEntry
+from smbclient._os import LocalDirEntry, SMBDirEntry
 from smbclient._os import copyfile as smbclient_copyfile
 from smbclient._os import (
     is_remote_path,
@@ -281,8 +281,6 @@ def copytree(
     source path and the destination path as arguments. By default copy() is used, but any function that supports the
     same signature (like copy()) can be used.
 
-    In this current form, copytree() only supports remote to remote copies over SMB, or remote to local copies.
-
     :param src: The source directory to copy.
     :param dst: The destination directory to copy to.
     :param symlinks: Whether to attempt to copy a symlink from the source tree to the dest tree, if False the symlink
@@ -295,7 +293,10 @@ def copytree(
     :param kwargs: Common arguments used to build the SMB Session for any UNC paths.
     :return: The dst path.
     """
-    dir_entries = list(scandir(src, **kwargs))
+    if is_remote_path(src):
+        dir_entries = list(scandir(src, **kwargs))
+    else:
+        dir_entries = [LocalDirEntry(os.path.join(src, result)) for result in os.listdir(src)]
 
     if is_remote_path(dst):
         makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
@@ -316,6 +317,9 @@ def copytree(
 
         try:
             if dir_entry.is_symlink():
+                if not isinstance(dir_entry, SMBDirEntry):
+                    raise AssertionError("copytree doesn't yet support symlinks for local to remote operations")
+
                 link_target = readlink(src_path, **kwargs)
                 if symlinks:
                     symlink(link_target, dst_path, **kwargs)

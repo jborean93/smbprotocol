@@ -1172,6 +1172,24 @@ def _set_basic_information(
         set_info(transaction, basic_info)
 
 
+class LocalDirEntry:
+    """Mimics the structure of SMBDirEntry, but instead encapsulates a directory/file on a local filesystem"""
+
+    def __init__(self, path) -> None:
+        self.path = path
+
+    @property
+    def name(self):
+        """The entry's base filename, relative to the os.listdir() path argument."""
+        return os.path.basename(self.path)
+
+    def is_symlink(self):
+        return os.path.islink(self.path)
+
+    def is_dir(self):
+        return os.path.isdir(self.path)
+
+
 class SMBDirEntry:
     def __init__(self, raw, dir_info, connection_cache=None):
         self._smb_raw = raw
