@@ -1149,6 +1149,33 @@ def test_copytree_with_ignore(smb_share):
         assert fd.read() == "file3.txt"
 
 
+def test_copytree_with_local_dst(smb_share, tmp_path):
+    src_dirname = "%s\\source" % smb_share
+    dst_dirname = str(tmp_path / "target")
+
+    makedirs("%s\\dir1\\subdir1" % src_dirname)
+    with open_file("%s\\file1.txt" % src_dirname, mode="w") as fd:
+        fd.write("file1.txt")
+    with open_file("%s\\dir1\\file2.txt" % src_dirname, mode="w") as fd:
+        fd.write("file2.txt")
+    with open_file("%s\\dir1\\subdir1\\file3.txt" % src_dirname, mode="w") as fd:
+        fd.write("file3.txt")
+
+    actual = copytree(src_dirname, dst_dirname)
+    assert actual == dst_dirname
+
+    assert sorted(list(os.listdir(dst_dirname))) == ["dir1", "file1.txt"]
+    assert sorted(list(os.listdir(os.path.join(dst_dirname, "dir1")))) == ["file2.txt", "subdir1"]
+    assert sorted(list(os.listdir(os.path.join(dst_dirname, "dir1", "subdir1")))) == ["file3.txt"]
+
+    with open(os.path.join(dst_dirname, "file1.txt")) as fd:
+        assert fd.read() == "file1.txt"
+    with open(os.path.join(dst_dirname, "dir1", "file2.txt")) as fd:
+        assert fd.read() == "file2.txt"
+    with open(os.path.join(dst_dirname, "dir1", "subdir1", "file3.txt")) as fd:
+        assert fd.read() == "file3.txt"
+
+
 @pytest.mark.skipif(
     os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
 )
