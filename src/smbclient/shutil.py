@@ -118,7 +118,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
     the file src points to. This will fail if the symbolic link at src is a different root as dst.
 
     :param src: The src filepath to copy.
-    :param dst: The destinoation filepath to copy to.
+    :param dst: The destination filepath to copy to.
     :param follow_symlinks: Whether to copy the symlink target of source or the symlink itself.
     :param kwargs: Common arguments used to build the SMB Session for any UNC paths.
     :return: The dst path.
