@@ -35,7 +35,7 @@ lib::setup::smb_server() {
             --publish ${SMB_PORT}:445 \
             --volume $( pwd )/build_helpers:/app:z \
             --workdir /app \
-            fedora:36 \
+            debian:12 \
             /bin/bash \
             /app/samba-setup.sh \
             ${SMB_SHARE} \

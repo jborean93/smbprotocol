@@ -1,7 +1,7 @@
-black
+black == 23.3.0
 build
 cryptography >= 2.0
-isort
+isort == 5.11.5
 pre-commit
 pyspnego
 pytest
