@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smbprotocol"
-version = "1.10.1"
+version = "1.10.2"
 description = "Interact with a server using the SMB 2/3 Protocol"
 readme = "README.md"
 requires-python = ">=3.7"

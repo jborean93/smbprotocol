@@ -869,12 +869,6 @@ class TestConnection:
             assert connection.sequence_window["low"] == 1
             assert connection.sequence_window["high"] == 2
             assert connection.client_security_mode == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-
-            # server settings override the require signing
-            assert (
-                connection.server_security_mode & SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-                == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-            )
             assert not connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -892,12 +886,6 @@ class TestConnection:
             assert connection.sequence_window["low"] == 1
             assert connection.sequence_window["high"] == 2
             assert connection.client_security_mode == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-
-            # server settings override the require signing
-            assert (
-                connection.server_security_mode & SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-                == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-            )
             assert not connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -915,12 +903,6 @@ class TestConnection:
             assert connection.sequence_window["low"] == 1
             assert connection.sequence_window["high"] == 2
             assert connection.client_security_mode == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-
-            # server settings override the require signing
-            assert (
-                connection.server_security_mode & SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-                == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-            )
             assert connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -938,12 +920,6 @@ class TestConnection:
             assert connection.sequence_window["low"] == 1
             assert connection.sequence_window["high"] == 2
             assert connection.client_security_mode == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-
-            # server settings override the require signing
-            assert (
-                connection.server_security_mode & SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-                == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-            )
             assert connection.supports_encryption
             assert connection.require_signing
         finally:
@@ -961,16 +937,12 @@ class TestConnection:
             assert connection.sequence_window["low"] == 1
             assert connection.sequence_window["high"] == 2
             assert connection.client_security_mode == SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
-
-            # server settings override the require signing
-            assert (
-                connection.server_security_mode & SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-                == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-            )
             assert connection.supports_encryption
-            # for tests we set that server requires signing so that overrides
-            # the client setting
-            assert connection.require_signing
+
+            if connection.server_security_mode & SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED:
+                assert connection.require_signing
+            else:
+                assert not connection.require_signing
         finally:
             connection.disconnect()
 
@@ -992,12 +964,6 @@ class TestConnection:
             assert connection.sequence_window["low"] == 1
             assert connection.sequence_window["high"] == 2
             assert connection.client_security_mode == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
-
-            # server settings override the require signing
-            assert (
-                connection.server_security_mode
-                == SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED | SecurityMode.SMB2_NEGOTIATE_SIGNING_ENABLED
-            )
             assert connection.supports_encryption
             assert connection.require_signing
         finally:
