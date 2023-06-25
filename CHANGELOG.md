@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.2 - TBD
+
+* Fix up pre authenticated session id lookups that were failing with Linux ksmbd
+
 ## 1.10.1 - 2022-11-14
 
 * Raise the original `BadNetworkName` error if the server doesn't indicate it supports DFS or `FSDriverRequired` was raised trying to lookup the DFS information - https://github.com/jborean93/smbprotocol/issues/196
