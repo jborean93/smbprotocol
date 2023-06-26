@@ -10,6 +10,7 @@ import os
 import struct
 import threading
 import time
+import typing as t
 from collections import OrderedDict
 from datetime import datetime
 from threading import Lock
@@ -749,10 +750,6 @@ class Connection:
         # Table of Session entries, the order is important for smbclient.
         self.session_table = OrderedDict()
 
-        # Table of sessions that have not completed authentication, indexed by
-        # session_id
-        self.preauth_session_table = {}
-
         # Table of Requests that have yet to be picked up by the application,
         # it MAY contain a response from the server as well
         self.outstanding_requests = dict()
@@ -808,6 +805,9 @@ class Connection:
         # Preauth integrity hash value computed for the SMB2 NEGOTIATE request
         # contains the messages used to compute the hash
         self.preauth_integrity_hash_value = []
+        # Table of raw header bytes for unauthenticated session setup messages,
+        # indexed by message_id.
+        self.preauth_integrity_session_hash_value: t.Dict[int, t.List[bytes]] = {}
 
         # The cipher object that was negotiated
         self.cipher_id = None
@@ -1241,7 +1241,7 @@ class Connection:
             header["command"] = message.COMMAND
             header["credit_request"] = credit_request if credit_request else credit_charge
             header["message_id"] = current_id
-            header["session_id"] = session_id if session_id and session_id > 0 else 0
+            header["session_id"] = session_id
             header["data"] = message.pack()
             header["next_command"] = next_command
 
@@ -1278,7 +1278,7 @@ class Connection:
                 self.preauth_integrity_hash_value.append(b_header)
 
             elif message.COMMAND == Commands.SMB2_SESSION_SETUP:
-                self.preauth_session_table[session_id].preauth_integrity_hash_value.append(b_header)
+                self.preauth_integrity_session_hash_value[current_id] = [b_header]
 
             requests.append(request)
 
@@ -1376,7 +1376,7 @@ class Connection:
                         self.preauth_integrity_hash_value.append(b_header)
 
                     elif command == Commands.SMB2_SESSION_SETUP and status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
-                        self.preauth_session_table[message_id] = b_header
+                        self.preauth_integrity_session_hash_value[message_id].append(b_header)
 
                     with request.response_event_lock:
                         if header["flags"].has_flag(Smb2Flags.SMB2_FLAGS_ASYNC_COMMAND):
