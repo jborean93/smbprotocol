@@ -281,7 +281,7 @@ def copytree(
     source path and the destination path as arguments. By default copy() is used, but any function that supports the
     same signature (like copy()) can be used.
 
-    In this current form, copytree() only supports remote to remote copies over SMB.
+    In this current form, copytree() only supports remote to remote copies over SMB, or remote to local copies.
 
     :param src: The source directory to copy.
     :param dst: The destination directory to copy to.
@@ -296,7 +296,11 @@ def copytree(
     :return: The dst path.
     """
     dir_entries = list(scandir(src, **kwargs))
-    makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
+
+    if is_remote_path(dst):
+        makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
+    else:
+        os.makedirs(dst, exist_ok=dirs_exist_ok)
 
     ignored = []
     if ignore is not None:
