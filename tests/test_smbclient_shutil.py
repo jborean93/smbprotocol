@@ -1203,6 +1203,32 @@ def test_copytree_with_local_src(smb_share, tmp_path):
         assert fd.read() == "file3.txt"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Samba target doesn't support symlinks.")
+def test_copytree_with_local_src_and_symlinks(smb_share, tmp_path):
+    src_dirname = str(tmp_path / "source")
+    alt_src_dirname = str(tmp_path / "source2")
+    dst_dirname = "%s\\target" % smb_share
+    alt_dst_dirname = "%s\\target2" % smb_share
+
+    os.makedirs(os.path.join(src_dirname, "dir1", "subdir1"))
+    os.makedirs(alt_src_dirname)
+
+    path_to_symlink = os.path.join(src_dirname, "dir1", "subdir1", "symlink-to-resolve")
+    path_to_symlink_target = os.path.join(alt_src_dirname, "symlink-target.txt")
+
+    with open(path_to_symlink_target, mode="w") as fd:
+        fd.write("symlink-target.txt")
+    os.symlink(path_to_symlink_target, path_to_symlink)
+
+    actual = copytree(src_dirname, dst_dirname)
+    assert actual == dst_dirname
+
+    assert sorted(list(listdir(alt_dst_dirname))) == ["symlink-target.txt"]
+
+    with open_file("%s\\symlink-target.txt" % alt_dst_dirname) as fd:
+        assert fd.read() == "symlink-target.txt"
+
+
 @pytest.mark.skipif(
     os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
 )
