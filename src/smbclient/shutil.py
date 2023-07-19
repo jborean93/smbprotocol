@@ -11,7 +11,7 @@ import stat
 import sys
 
 from smbclient._io import SMBFileTransaction, SMBRawIO, query_info, set_info
-from smbclient._os import LocalDirEntry, SMBDirEntry
+from smbclient._os import SMBDirEntry
 from smbclient._os import copyfile as smbclient_copyfile
 from smbclient._os import (
     is_remote_path,
@@ -296,7 +296,7 @@ def copytree(
     if is_remote_path(src):
         dir_entries = list(scandir(src, **kwargs))
     else:
-        dir_entries = [LocalDirEntry(os.path.join(src, result)) for result in os.listdir(src)]
+        dir_entries = list(os.scandir(src))
 
     if is_remote_path(dst):
         makedirs(dst, exist_ok=dirs_exist_ok, **kwargs)
