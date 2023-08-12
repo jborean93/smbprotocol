@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -71,11 +70,10 @@ class Structure:
             # the field header is slightly different for a StructureField
             # remove the leading space and put the value on the next line
             if isinstance(field, StructureField):
-                field_header = "%s =\n%s"
+                field_string = f"{field.name} =\n{field}"
             else:
-                field_header = "%s = %s"
+                field_string = f"{field.name} = {field}"
 
-            field_string = field_header % (field.name, str(field))
             field_strings.append(_indent_lines(field_string, TAB))
 
         field_strings.append("")
@@ -87,8 +85,9 @@ class Structure:
         )
         field_strings.append(hex_wrapper.fill(raw_hex))
 
-        string = "%s:\n%s" % (to_text(struct_name), "\n".join([to_text(s) for s in field_strings]))
-
+        struct_name = to_text(struct_name)
+        field_names = "\n".join([to_text(s) for s in field_strings])
+        string = f"{struct_name}:\n{field_names}"
         return string
 
     def __setitem__(self, key, value):
@@ -125,7 +124,7 @@ class Structure:
     def _get_field(self, key):
         field = self.fields.get(key, None)
         if field is None:
-            raise ValueError("Structure does not contain field %s" % key)
+            raise ValueError(f"Structure does not contain field {key}")
         return field
 
 
@@ -150,7 +149,7 @@ class Field(metaclass=ABCMeta):
         self.little_endian = little_endian
 
         if not (size is None or isinstance(size, int) or isinstance(size, types.LambdaType)):
-            raise InvalidFieldDefinition("%s size for field must be an int or None for a variable length" % field_type)
+            raise InvalidFieldDefinition(f"{field_type} size for field must be an int or None for a variable length")
         self.size = size
         self.default = default
         self.value = None
@@ -160,6 +159,10 @@ class Field(metaclass=ABCMeta):
 
     def __len__(self):
         return self._get_packed_size()
+
+    @property
+    def _endian_prefix(self):
+        return "<" if self.little_endian else ">"
 
     def pack(self):
         """
@@ -172,10 +175,11 @@ class Field(metaclass=ABCMeta):
         value = self._get_calculated_value(self.value)
         packed_value = self._pack_value(value)
         size = self._get_calculated_size(self.size, packed_value)
-        if len(packed_value) != size:
+        packed_value_len = len(packed_value)
+        if packed_value_len != size:
             raise ValueError(
-                "Invalid packed data length for field %s of %d "
-                "does not fit field size of %d" % (self.name, len(packed_value), size)
+                f"Invalid packed data length for field {self.name} of {packed_value_len} "
+                f"does not fit field size of {size}"
             )
 
         return packed_value
@@ -310,7 +314,7 @@ class Field(metaclass=ABCMeta):
 
         struct_format = {1: "B", 2: "H", 4: "L", 8: "Q"}
         if size not in struct_format.keys():
-            raise InvalidFieldDefinition("Cannot struct format of size %s" % size)
+            raise InvalidFieldDefinition(f"Cannot struct format of size {size}")
         format_char = struct_format[size]
         if not unsigned:
             format_char = format_char.lower()
@@ -329,13 +333,12 @@ class IntField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if size not in [1, 2, 4, 8]:
-            raise InvalidFieldDefinition("IntField size must have a value of 1, 2, 4, or 8 not %s" % str(size))
+            raise InvalidFieldDefinition(f"IntField size must have a value of 1, 2, 4, or 8 not {size}")
         self.unsigned = unsigned
         super().__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
-        format = self._get_struct_format(self.size, self.unsigned)
-        struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
+        struct_string = self._endian_prefix + self._get_struct_format(self.size, self.unsigned)
         packed_int = struct.pack(struct_string, value)
         return packed_int
 
@@ -345,13 +348,12 @@ class IntField(Field):
         elif isinstance(value, types.LambdaType):
             int_value = value
         elif isinstance(value, bytes):
-            format = self._get_struct_format(self.size, self.unsigned)
-            struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
+            struct_string = self._endian_prefix + self._get_struct_format(self.size, self.unsigned)
             int_value = struct.unpack(struct_string, value)[0]
         elif isinstance(value, int):
             int_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to an int" % (self.name, type(value).__name__))
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to an int")
         return int_value
 
     def _get_packed_size(self):
@@ -377,17 +379,14 @@ class BytesField(Field):
         elif isinstance(value, types.LambdaType):
             bytes_value = value
         elif isinstance(value, int):
-            format = self._get_struct_format(self.size)
-            struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
+            struct_string = self._endian_prefix + self._get_struct_format(self.size)
             bytes_value = struct.pack(struct_string, value)
         elif isinstance(value, Structure):
             bytes_value = value.pack()
         elif isinstance(value, bytes):
             bytes_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a byte string" % (self.name, type(value).__name__)
-            )
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a byte string")
         return bytes_value
 
     def _get_packed_size(self):
@@ -487,7 +486,7 @@ class ListField(Field):
             # manually parse each list entry to the field type specified
             list_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a list" % (self.name, type(value).__name__))
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a list")
         list_value = [self._parse_sub_value(v) for v in list_value]
         return list_value
 
@@ -500,12 +499,12 @@ class ListField(Field):
                 structure_type=type(value),
                 default=value,
             )
-            new_field.name = "%s list entry" % self.name
+            new_field.name = f"{self.name} list entry"
             new_field.structure = value
             new_field.set_value(new_field.default)
         else:
             new_field = copy.deepcopy(self.list_type)
-            new_field.name = "%s list entry" % self.name
+            new_field.name = f"{self.name} list entry"
             new_field.set_value(value)
         return new_field
 
@@ -522,7 +521,8 @@ class ListField(Field):
         if len(list_string) == 0:
             string = "[]"
         else:
-            string = "[\n%s\n]" % ",\n".join(list_string)
+            list_str = ",\n".join(list_string)
+            string = f"[\n{list_str}\n]"
         return string
 
     def _create_list_from_bytes(self, list_count, list_type, value):
@@ -583,9 +583,7 @@ class StructureField(Field):
         elif isinstance(value, Structure):
             structure_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a structure" % (self.name, type(value).__name__)
-            )
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a structure")
 
         if isinstance(structure_value, bytes) and self.structure_type and structure_value != b"":
             if isinstance(self.structure_type, types.LambdaType):
@@ -608,7 +606,7 @@ class StructureField(Field):
     def _get_field(self, key):
         structure_value = self._get_calculated_value(self.value)
         if isinstance(structure_value, bytes):
-            raise ValueError("Cannot get field %s when structure is defined as a byte string" % key)
+            raise ValueError(f"Cannot get field {key} when structure is defined as a byte string")
         field = structure_value._get_field(key)
         return field
 
@@ -634,7 +632,7 @@ class DateTimeField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if not (size is None or size == 8):
-            raise InvalidFieldDefinition("DateTimeField type must have a size of 8 not %d" % size)
+            raise InvalidFieldDefinition(f"DateTimeField type must have a size of 8 not {size}")
         super().__init__(size=8, **kwargs)
 
     def _pack_value(self, value):
@@ -644,8 +642,7 @@ class DateTimeField(Field):
         epoch_time_ms = td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6
         ns100 = self.EPOCH_FILETIME + (epoch_time_ms * 10)
 
-        format = self._get_struct_format(8)
-        struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
+        struct_string = self._endian_prefix + self._get_struct_format(8)
         bytes_value = struct.pack(struct_string, ns100)
 
         return bytes_value
@@ -656,8 +653,7 @@ class DateTimeField(Field):
         elif isinstance(value, types.LambdaType):
             datetime_value = value
         elif isinstance(value, bytes):
-            format = self._get_struct_format(8)
-            struct_string = "%s%s" % ("<" if self.little_endian else ">", format)
+            struct_string = self._endian_prefix + self._get_struct_format(8)
             int_value = struct.unpack(struct_string, value)[0]
             return self._parse_value(int_value)  # just parse the value again
         elif isinstance(value, int):
@@ -671,9 +667,7 @@ class DateTimeField(Field):
         elif isinstance(value, datetime.datetime):
             datetime_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a datetime" % (self.name, type(value).__name__)
-            )
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a datetime")
         return datetime_value
 
     def _get_packed_size(self):
@@ -694,7 +688,7 @@ class UuidField(Field):
         :param kwargs: Any other kwarg to be sent to Field()
         """
         if not (size is None or size == 16):
-            raise InvalidFieldDefinition("UuidField type must have a size of 16 not %d" % size)
+            raise InvalidFieldDefinition(f"UuidField type must have a size of 16 not {size}")
         super().__init__(size=16, **kwargs)
 
     def _pack_value(self, value):
@@ -717,7 +711,7 @@ class UuidField(Field):
         elif isinstance(value, types.LambdaType):
             uuid_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a uuid" % (self.name, type(value).__name__))
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a uuid")
         return uuid_value
 
     def _get_packed_size(self):
@@ -743,7 +737,7 @@ class EnumField(IntField):
                 break
 
         if not valid and int_value != 0 and self.enum_strict:
-            raise ValueError("Enum value %d does not exist in enum type %s" % (int_value, self.enum_type))
+            raise ValueError(f"Enum value {int_value} does not exist in enum type {self.enum_type}")
         return int_value
 
     def _to_string(self):
@@ -754,9 +748,9 @@ class EnumField(IntField):
                 enum_name = enum
                 break
         if enum_name is None:
-            return "(%d) UNKNOWN_ENUM" % value
+            return f"({value}) UNKNOWN_ENUM"
         else:
-            return "(%d) %s" % (value, enum_name)
+            return f"({value}) {enum_name}"
 
 
 class FlagField(IntField):
@@ -773,7 +767,7 @@ class FlagField(IntField):
                 break
 
         if not valid and self.flag_strict:
-            raise ValueError("Flag value does not exist in flag type %s" % self.flag_type)
+            raise ValueError(f"Flag value does not exist in flag type {self.flag_type}")
         self.set_value(self.value | flag)
 
     def has_flag(self, flag):
@@ -786,7 +780,7 @@ class FlagField(IntField):
             if isinstance(value, int):
                 current_val &= ~value
         if current_val != 0 and self.flag_strict:
-            raise ValueError("Invalid flag for field %s value set %d" % (self.name, current_val))
+            raise ValueError(f"Invalid flag for field {self.name} value set {current_val}")
 
         return int_value
 
@@ -799,7 +793,7 @@ class FlagField(IntField):
             if isinstance(value, int) and self.has_flag(value):
                 flags.append(flag)
         flags.sort()
-        return "(%d) %s" % (field_value, ", ".join(flags))
+        return f"({field_value}) " + (", ".join(flags))
 
 
 class BoolField(Field):
@@ -811,7 +805,7 @@ class BoolField(Field):
         :param kwargs: Any other kwargs to be sent to Field()
         """
         if size != 1:
-            raise InvalidFieldDefinition("BoolField size must have a value of 1, not %d" % size)
+            raise InvalidFieldDefinition(f"BoolField size must have a value of 1, not {size}")
         super().__init__(size=size, **kwargs)
 
     def _pack_value(self, value):
@@ -827,7 +821,7 @@ class BoolField(Field):
         elif isinstance(value, types.LambdaType):
             bool_value = value
         else:
-            raise TypeError("Cannot parse value for field %s of type %s to a bool" % (self.name, type(value).__name__))
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a bool")
         return bool_value
 
     def _get_packed_size(self):
@@ -858,9 +852,7 @@ class TextField(BytesField):
         elif isinstance(value, types.LambdaType):
             text_value = value
         else:
-            raise TypeError(
-                "Cannot parse value for field %s of type %s to a text string" % (self.name, type(value).__name__)
-            )
+            raise TypeError(f"Cannot parse value for field {self.name} of type {type(value).__name__} to a text string")
 
         return text_value
 

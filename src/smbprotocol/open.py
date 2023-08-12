@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -1150,8 +1149,10 @@ class Open:
             return create, self._create_response
 
         log.info(
-            "Session: %s, Tree Connect: %s - sending SMB2 Create Request "
-            "for file %s" % (self.tree_connect.session.username, self.tree_connect.share_name, self.file_name)
+            "Session: %s, Tree Connect: %s - sending SMB2 Create Request for file %s",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
+            self.file_name,
         )
 
         log.debug(create)
@@ -1160,8 +1161,9 @@ class Open:
 
     def _create_response(self, request):
         log.info(
-            "Session: %s, Tree Connect: %s - receiving SMB2 Create "
-            "Response" % (self.tree_connect.session.username, self.tree_connect.share_name)
+            "Session: %s, Tree Connect: %s - receiving SMB2 Create Response",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
         )
         response = self.connection.receive(request)
         create_response = SMB2CreateResponse()
@@ -1222,8 +1224,8 @@ class Open:
         """
         if length > self.connection.max_read_size:
             raise SMBException(
-                "The requested read length %d is greater than "
-                "the maximum negotiated read size %d" % (length, self.connection.max_read_size)
+                f"The requested read length {length} is greater than "
+                f"the maximum negotiated read size {self.connection.max_read_size}"
             )
 
         read = SMB2ReadRequest()
@@ -1244,8 +1246,10 @@ class Open:
             return read, self._read_response
 
         log.info(
-            "Session: %s, Tree Connect ID: %s - sending SMB2 Read "
-            "Request for file %s" % (self.tree_connect.session.username, self.tree_connect.share_name, self.file_name)
+            "Session: %s, Tree Connect ID: %s - sending SMB2 Read Request for file %s",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
+            self.file_name,
         )
         log.debug(read)
         request = self.connection.send(read, self.tree_connect.session.session_id, self.tree_connect.tree_connect_id)
@@ -1253,8 +1257,9 @@ class Open:
 
     def _read_response(self, request, wait=True):
         log.info(
-            "Session: %s, Tree Connect ID: %s - receiving SMB2 Read "
-            "Response" % (self.tree_connect.session.username, self.tree_connect.share_name)
+            "Session: %s, Tree Connect ID: %s - receiving SMB2 Read Response",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
         )
         response = self.connection.receive(request, wait=wait)
         read_response = SMB2ReadResponse()
@@ -1288,8 +1293,8 @@ class Open:
         data_len = len(data)
         if data_len > self.connection.max_write_size:
             raise SMBException(
-                "The requested write length %d is greater than "
-                "the maximum negotiated write size %d" % (data_len, self.connection.max_write_size)
+                f"The requested write length {data_len} is greater than "
+                f"the maximum negotiated write size {self.connection.max_write_size}"
             )
 
         write = SMB2WriteRequest()
@@ -1316,8 +1321,10 @@ class Open:
             return write, self._write_response
 
         log.info(
-            "Session: %s, Tree Connect: %s - sending SMB2 Write Request "
-            "for file %s" % (self.tree_connect.session.username, self.tree_connect.share_name, self.file_name)
+            "Session: %s, Tree Connect: %s - sending SMB2 Write Request for file %s",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
+            self.file_name,
         )
         log.debug(write)
         request = self.connection.send(write, self.tree_connect.session.session_id, self.tree_connect.tree_connect_id)
@@ -1325,8 +1332,9 @@ class Open:
 
     def _write_response(self, request, wait=True):
         log.info(
-            "Session: %s, Tree Connect: %s - receiving SMB2 Write "
-            "Response" % (self.tree_connect.session.username, self.tree_connect.share_name)
+            "Session: %s, Tree Connect: %s - receiving SMB2 Write Response",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
         )
         response = self.connection.receive(request, wait=wait)
         write_response = SMB2WriteResponse()
@@ -1357,8 +1365,10 @@ class Open:
             return flush, self._flush_response
 
         log.info(
-            "Session: %s, Tree Connect: %s - sending SMB2 Flush Request "
-            "for file %s" % (self.tree_connect.session.username, self.tree_connect.share_name, self.file_name)
+            "Session: %s, Tree Connect: %s - sending SMB2 Flush Request for file %s",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
+            self.file_name,
         )
         log.debug(flush)
         request = self.connection.send(flush, self.tree_connect.session.session_id, self.tree_connect.tree_connect_id)
@@ -1366,8 +1376,9 @@ class Open:
 
     def _flush_response(self, request):
         log.info(
-            "Session: %s, Tree Connect: %s - receiving SMB2 Flush "
-            "Response" % (self.tree_connect.session.username, self.tree_connect.share_name)
+            "Session: %s, Tree Connect: %s - receiving SMB2 Flush Response",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
         )
         response = self.connection.receive(request)
         flush_response = SMB2FlushResponse()
@@ -1415,9 +1426,10 @@ class Open:
             return query, self._query_directory_response
 
         log.info(
-            "Session: %s, Tree Connect: %s - sending SMB2 Query "
-            "Directory Request for directory %s"
-            % (self.tree_connect.session.username, self.tree_connect.share_name, self.file_name)
+            "Session: %s, Tree Connect: %s - sending SMB2 Query Directory Request for directory %s",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
+            self.file_name,
         )
         log.debug(query)
         request = self.connection.send(query, self.tree_connect.session.session_id, self.tree_connect.tree_connect_id)
@@ -1425,8 +1437,9 @@ class Open:
 
     def _query_directory_response(self, request):
         log.info(
-            "Session: %s, Tree Connect: %s - receiving SMB2 Query "
-            "Response" % (self.tree_connect.session.username, self.tree_connect.share_name)
+            "Session: %s, Tree Connect: %s - receiving SMB2 Query Response",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
         )
         response = self.connection.receive(request)
         query_response = SMB2QueryDirectoryResponse()
@@ -1470,8 +1483,10 @@ class Open:
             return close, self._close_response
 
         log.info(
-            "Session: %s, Tree Connect: %s - sending SMB2 Close Request "
-            "for file %s" % (self.tree_connect.session.username, self.tree_connect.share_name, self.file_name)
+            "Session: %s, Tree Connect: %s - sending SMB2 Close Request for file %s",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
+            self.file_name,
         )
         log.debug(close)
         request = self.connection.send(close, self.tree_connect.session.session_id, self.tree_connect.tree_connect_id)
@@ -1479,8 +1494,9 @@ class Open:
 
     def _close_response(self, request):
         log.info(
-            "Session: %s, Tree Connect: %s - receiving SMB2 Close "
-            "Response" % (self.tree_connect.session.username, self.tree_connect.share_name)
+            "Session: %s, Tree Connect: %s - receiving SMB2 Close Response",
+            self.tree_connect.session.username,
+            self.tree_connect.share_name,
         )
         try:
             response = self.connection.receive(request)

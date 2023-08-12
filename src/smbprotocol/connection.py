@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -740,8 +739,11 @@ class Connection:
             sent over this connection
         """
         log.info(
-            "Initialising connection, guid: %s, require_signing: %s, "
-            "server_name: %s, port: %d" % (guid, require_signing, server_name, port)
+            "Initialising connection, guid: %s, require_signing: %s, server_name: %s, port: %d",
+            guid,
+            require_signing,
+            server_name,
+            port,
         )
         self.server_name = server_name
         self.port = port
@@ -860,7 +862,7 @@ class Connection:
         self.transport = Tcp(self.server_name, self.port, timeout)
         self.transport.connect()
         t_worker = threading.Thread(
-            target=self._process_message_thread, name="msg_worker-%s:%s" % (self.server_name, self.port)
+            target=self._process_message_thread, name=f"msg_worker-{self.server_name}:{self.port}"
         )
         t_worker.daemon = True
         t_worker.start()
@@ -878,7 +880,7 @@ class Connection:
             SigningAlgorithms.HMAC_SHA256,
         ]
         smb_response = self._send_smb2_negotiate(dialect, timeout, enc_algos, sign_algos)
-        log.info("Negotiated dialect: %s" % str(smb_response["dialect_revision"]))
+        log.info("Negotiated dialect: %s", smb_response["dialect_revision"])
         self.dialect = smb_response["dialect_revision"].get_value()
         self.max_transact_size = smb_response["max_transact_size"].get_value()
         self.max_read_size = smb_response["max_read_size"].get_value()
@@ -890,7 +892,7 @@ class Connection:
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
         ):
             self.require_signing = True
-        log.info("Connection require signing: %s" % self.require_signing)
+        log.info("Connection require signing: %s", self.require_signing)
 
         capabilities = smb_response["capabilities"]
         self.server_capabilities = capabilities
@@ -1006,9 +1008,10 @@ class Connection:
         while True:
             iter_timeout = int(max(timeout - (time.time() - start_time), 1)) if timeout is not None else None
             if not request.response_event.wait(timeout=iter_timeout):
+                value = request.message["message_id"].get_value()
                 raise SMBException(
-                    "Connection timeout of %d seconds exceeded while waiting for a message id %s "
-                    "response from the server" % (timeout, request.message["message_id"].get_value())
+                    f"Connection timeout of {timeout} seconds exceeded while waiting for a message id {value} "
+                    "response from the server"
                 )
 
             # Use a lock on the request so that in the case of a pending response we have exclusive lock on the event
@@ -1044,9 +1047,7 @@ class Connection:
                     )
 
                     exp = SMBResponseException(response)
-                    reparse_buffer = next(
-                        (e for e in exp.error_details if isinstance(e, SMB2SymbolicLinkErrorResponse))
-                    )
+                    reparse_buffer = next(e for e in exp.error_details if isinstance(e, SMB2SymbolicLinkErrorResponse))
                     new_path = reparse_buffer.resolve_path(original_path)[len(tree_share_name) :]
 
                     new_open = Open(tree, new_path)
@@ -1151,7 +1152,7 @@ class Connection:
 
         session = self.session_table.get(session_id, None)
         if session is None:
-            raise SMBException("Failed to find session %s for message verification" % session_id)
+            raise SMBException(f"Failed to find session {session_id} for message verification")
 
         expected = self._generate_signature(
             header.pack(),
@@ -1162,9 +1163,10 @@ class Connection:
         )
         actual = header["signature"].get_value()
         if actual != expected:
+            actual_signature = binascii.hexlify(actual).decode()
+            expected_signature = binascii.hexlify(expected).decode()
             raise SMBException(
-                "Server message signature could not be verified: %s != %s"
-                % (binascii.hexlify(actual).decode(), binascii.hexlify(expected).decode())
+                f"Server message signature could not be verified: {actual_signature} != {expected_signature}",
             )
 
     def _check_worker_running(self):
@@ -1221,8 +1223,8 @@ class Connection:
                 credits_available = sequence_window_high - sequence_window_low
                 if credit_charge > credits_available:
                     raise SMBException(
-                        "Request requires %d credits but only %d credits are available"
-                        % (credit_charge, credits_available)
+                        f"Request requires {credit_charge} credits but only {credits_available} "
+                        "credits are available"
                     )
 
                 current_id = message_id or sequence_window_low
@@ -1471,17 +1473,15 @@ class Connection:
         return header
 
     def _decrypt(self, message):
-        if message["flags"].get_value() != 0x0001:
-            error_msg = "Expecting flag of 0x0001 but got %s in the SMB Transform Header Response" % format(
-                message["flags"].get_value(), "x"
-            )
+        value = message["flags"].get_value()
+        if value != 0x0001:
+            error_msg = f"Expecting flag of 0x0001 but got {value:x} in the SMB Transform Header Response"
             raise SMBException(error_msg)
 
         session_id = message["session_id"].get_value()
         session = self.session_table.get(session_id, None)
         if session is None:
-            error_msg = "Failed to find valid session %s for message decryption" % session_id
-            raise SMBException(error_msg)
+            raise SMBException(f"Failed to find valid session {session_id} for message decryption")
 
         if self.dialect >= Dialects.SMB_3_1_1:
             cipher_id = self.cipher_id
@@ -1537,14 +1537,14 @@ class Connection:
         highest_dialect = sorted(negotiated_dialects)[-1]
         self.negotiated_dialects = neg_req["dialects"] = negotiated_dialects
         log.info(
-            "Negotiating with SMB2 protocol with highest client dialect "
-            "of: %s" % [dialect for dialect, v in vars(Dialects).items() if v == highest_dialect][0]
+            "Negotiating with SMB2 protocol with highest client dialect of: %s",
+            [dialect for dialect, v in vars(Dialects).items() if v == highest_dialect][0],
         )
 
         neg_req["security_mode"] = self.client_security_mode
 
         if highest_dialect >= Dialects.SMB_2_1_0:
-            log.debug("Adding client guid %s to negotiate request" % self.client_guid)
+            log.debug("Adding client guid %s to negotiate request", self.client_guid)
             neg_req["client_guid"] = self.client_guid
 
         else:
@@ -1552,7 +1552,7 @@ class Connection:
             self.client_guid = None
 
         if highest_dialect >= Dialects.SMB_3_0_0:
-            log.debug("Adding client capabilities %d to negotiate request" % self.client_capabilities)
+            log.debug("Adding client capabilities %d to negotiate request", self.client_capabilities)
             neg_req["capabilities"] = self.client_capabilities
 
         else:
@@ -1566,7 +1566,8 @@ class Connection:
             int_cap["data"]["hash_algorithms"] = [HashAlgorithms.SHA_512]
             int_cap["data"]["salt"] = self.salt
             log.debug(
-                "Adding preauth integrity capabilities of hash SHA512 and salt %s to negotiate request" % self.salt
+                "Adding preauth integrity capabilities of hash SHA512 and salt %s to negotiate request",
+                self.salt,
             )
 
             enc_cap = SMB2NegotiateContextRequest()
@@ -1699,7 +1700,7 @@ class Request:
             return
 
         message_id = self.message["message_id"].get_value()
-        log.info("Cancelling message %s" % message_id)
+        log.info("Cancelling message %s", message_id)
         self._connection.send(
             SMB2CancelRequest(), sid=self.session_id, credit_request=0, message_id=message_id, async_id=self.async_id
         )

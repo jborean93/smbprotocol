@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from smbprotocol.connection import Connection
@@ -27,11 +28,14 @@ from smbprotocol.session import Session
 from smbprotocol.structure import FlagField
 from smbprotocol.tree import TreeConnect
 
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 server = "127.0.0.1"
 port = 445
 username = "smbuser"
 password = "smbpassword"
-share = r"\\%s\share" % server
+share = rf"\\{server}\share"
 file_name = "file-test.txt"
 
 connection = Connection(uuid.uuid4(), server, port)
@@ -83,7 +87,7 @@ try:
     # flag field, set the value and get the human readble string
     max_access = FlagField(size=4, flag_type=FilePipePrinterAccessMask, flag_strict=False)
     max_access.set_value(open_info[0]["maximal_access"].get_value())
-    print("Maximum access mask for file %s\\%s: %s" % (share, file_name, str(max_access)))
+    log.info("Maximum access mask for file %s\\%s: %s", share, file_name, max_access)
 
     # write to a file
     text = "Hello World, what a nice day to play with SMB"
@@ -91,7 +95,7 @@ try:
 
     # read from a file
     file_text = file_open.read(0, 1024)
-    print("Text of file %s\\%s: %s" % (share, file_name, file_text.decode("utf-8")))
+    log.info("Text of file %s\\%s: %s", share, file_name, file_text.decode("utf-8"))
     file_open.close(False)
 
     # read and delete a file in a single SMB packet instead of 3
@@ -116,6 +120,6 @@ try:
     for i, request in enumerate(requests):
         response = delete_msgs[i][1](request)
         responses.append(response)
-    print("Text of file when reading/deleting in 1 request: %s" % responses[1].decode("utf-8"))
+    log.info("Text of file when reading/deleting in 1 request: %s", responses[1].decode("utf-8"))
 finally:
     connection.disconnect(True)

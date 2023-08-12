@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -283,7 +282,7 @@ def test_listdir(dirname, smb_share):
 
 def test_listdir_with_pattern(smb_share):
     for filename in ["file.txt", "file-test1.txt", "file-test1a.txt"]:
-        with smbclient.open_file("%s\\%s" % (smb_share, filename), mode="w") as fd:
+        with smbclient.open_file(rf"{smb_share}\{filename}", mode="w") as fd:
             fd.write("content")
 
     actual = smbclient.listdir(smb_share, search_pattern="file-test*.txt")
@@ -430,7 +429,7 @@ def test_makedirs_file_as_parent(smb_share):
 
 
 def test_read_text_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = "File Contents\nNewline"
 
     expected = "[NtStatus 0xc0000034] No such file or directory"
@@ -471,7 +470,7 @@ def test_read_text_file(smb_share):
 
 
 def test_read_byte_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = b"\x00\x01\x02\x03"
 
     expected = "[NtStatus 0xc0000034] No such file or directory"
@@ -502,7 +501,7 @@ def test_read_byte_file(smb_share):
 
 
 def test_write_text_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = "File Contents\nNewline"
 
     with smbclient.open_file(file_path, mode="w") as fd:
@@ -531,7 +530,7 @@ def test_write_text_file(smb_share):
 
 
 def test_write_byte_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = b"File Contents\nNewline"
 
     with smbclient.open_file(file_path, mode="wb") as fd:
@@ -562,7 +561,7 @@ def test_write_byte_file(smb_share):
 
 # https://github.com/jborean93/smbprotocol/issues/20
 def test_read_large_text_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = "a" * 131074
 
     with smbclient.open_file(file_path, mode="w") as fd:
@@ -574,7 +573,7 @@ def test_read_large_text_file(smb_share):
 
 
 def test_write_exclusive_text_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = "File Contents\nNewline"
 
     with smbclient.open_file(file_path, mode="x") as fd:
@@ -600,7 +599,7 @@ def test_write_exclusive_text_file(smb_share):
 
 
 def test_write_exclusive_byte_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
     file_contents = b"File Contents\nNewline"
 
     with smbclient.open_file(file_path, mode="xb") as fd:
@@ -626,7 +625,7 @@ def test_write_exclusive_byte_file(smb_share):
 
 
 def test_append_text_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="a") as fd:
         assert isinstance(fd, io.TextIOWrapper)
@@ -647,7 +646,7 @@ def test_append_text_file(smb_share):
 
 
 def test_append_byte_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="ab") as fd:
         assert isinstance(fd, io.BufferedWriter)
@@ -668,7 +667,7 @@ def test_append_byte_file(smb_share):
 
 
 def test_read_write_text_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="w+") as fd:
         fd.write("abc")
@@ -679,7 +678,7 @@ def test_read_write_text_file(smb_share):
 
 
 def test_read_write_byte_file(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="bw+") as fd:
         fd.write(b"abc")
@@ -690,7 +689,7 @@ def test_read_write_byte_file(smb_share):
 
 
 def test_open_directory_fail(smb_share):
-    dir_path = "%s\\%s" % (smb_share, "dir")
+    dir_path = rf"{smb_share}\dir"
     smbclient.mkdir(dir_path)
 
     with pytest.raises(OSError, match=re.escape("[NtStatus 0xc00000ba] Is a directory: ")):
@@ -709,14 +708,14 @@ def test_open_directory_with_correct_file_type(smb_share):
 
 
 def test_open_file_in_missing_dir(smb_share):
-    file_path = "%s\\dir\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\dir\file.txt"
 
     with pytest.raises(OSError, match=re.escape("[NtStatus 0xc000003a] No such file or directory: ")):
         smbclient.open_file(file_path)
 
 
 def test_open_file_with_read_share_access(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="w") as fd:
         fd.write("contents")
@@ -738,7 +737,7 @@ def test_open_file_with_read_share_access(smb_share):
 
 
 def test_open_file_with_write_share_access(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="w") as fd:
         expected = (
@@ -762,7 +761,7 @@ def test_open_file_with_write_share_access(smb_share):
 
 
 def test_open_file_with_read_write_access(smb_share):
-    file_path = "%s\\%s" % (smb_share, "file.txt")
+    file_path = rf"{smb_share}\file.txt"
 
     with smbclient.open_file(file_path, mode="w", share_access="rw") as fd:
         fd.write("content")
@@ -1262,7 +1261,7 @@ def test_scandir(smb_share):
 
 def test_scamdir_with_pattern(smb_share):
     for filename in ["file.txt", "file-test1.txt", "file-test1a.txt"]:
-        with smbclient.open_file("%s\\%s" % (smb_share, filename), mode="w") as fd:
+        with smbclient.open_file(rf"{smb_share}\{filename}", mode="w") as fd:
             fd.write("content")
 
     count = 0
@@ -1326,7 +1325,9 @@ def test_scandir_with_broken_symlink(smb_share):
 
 
 def test_scandir_with_cache(smb_real):
-    share_path = "%s\\%s" % (smb_real[4], "Pýtæs†-[%s] 💩" % time.time())
+    share = smb_real[4]
+    test_folder = f"Pýtæs†-[{time.time()}] 💩"
+    share_path = rf"{share}\{test_folder}"
     cache = {}
     smbclient.mkdir(share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3], connection_cache=cache)
 
@@ -1840,7 +1841,7 @@ def test_walk_topdown(smb_share):
     smbclient.makedirs("%s\\dir1\\dir2\\dir3" % smb_share)
 
     for name in ["file1.txt", "dir1\\file2.txt", "dir1\\dir2\\file3.txt", "dir1\\dir2\\dir3\\file4.txt"]:
-        with smbclient.open_file("%s\\%s" % (smb_share, name), mode="w") as fd:
+        with smbclient.open_file(rf"{smb_share}\{name}", mode="w") as fd:
             fd.write("content")
 
     scanned_files = []
@@ -1861,7 +1862,7 @@ def test_walk_bottomup(smb_share):
     smbclient.makedirs("%s\\dir1\\dir2\\dir3" % smb_share)
 
     for name in ["file1.txt", "dir1\\file2.txt", "dir1\\dir2\\file3.txt", "dir1\\dir2\\dir3\\file4.txt"]:
-        with smbclient.open_file("%s\\%s" % (smb_share, name), mode="w") as fd:
+        with smbclient.open_file(rf"{smb_share}\{name}", mode="w") as fd:
             fd.write("content")
 
     scanned_files = []

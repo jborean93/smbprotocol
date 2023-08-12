@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -102,7 +101,7 @@ SMBStatVolumeResult = collections.namedtuple(
 )
 
 
-def is_remote_path(path):  # type: (str) -> bool
+def is_remote_path(path: str) -> bool:
     """
     Returns True iff the given path is a remote SMB path (rather than a local path).
 
@@ -182,9 +181,8 @@ def copyfile(src, dst, **kwargs):
                     copychunk_response = SMB2SrvCopyChunkResponse()
                     copychunk_response.unpack(result)
                     if copychunk_response["chunks_written"].get_value() != len(batch):
-                        raise IOError(
-                            "Failed to copy all the chunks in a server side copyfile: '%s' -> '%s'"
-                            % (norm_src, norm_dst)
+                        raise OSError(
+                            f"Failed to copy all the chunks in a server side copyfile: '{norm_src}' -> '{norm_dst}'"
                         )
 
 
@@ -433,7 +431,7 @@ def readlink(path, **kwargs):
     reparse_buffer = _get_reparse_point(norm_path, **kwargs)
     reparse_tag = reparse_buffer["reparse_tag"]
     if reparse_tag.get_value() != ReparseTags.IO_REPARSE_TAG_SYMLINK:
-        raise ValueError("Cannot read link of reparse point with tag %s at '%s'" % (str(reparse_tag), norm_path))
+        raise ValueError(f"Cannot read link of reparse point with tag {reparse_tag} at '{norm_path}'")
 
     symlink_buffer = SymbolicLinkReparseDataBuffer()
     symlink_buffer.unpack(reparse_buffer["data_buffer"].get_value())
@@ -549,7 +547,7 @@ def scandir(path, search_pattern="*", **kwargs):
                 continue
 
             dir_entry = SMBDirEntry(
-                SMBRawIO("%s\\%s" % (path, filename), **kwargs), dir_info, connection_cache=connection_cache
+                SMBRawIO(rf"{path}\{filename}", **kwargs), dir_info, connection_cache=connection_cache
             )
             yield dir_entry
 
@@ -696,12 +694,12 @@ def symlink(src, dst, target_is_directory=False, **kwargs):
         norm_src = ntpath.abspath(ntpath.join(dst_dir, norm_src))
     else:
         flags = SymbolicLinkFlags.SYMLINK_FLAG_ABSOLUTE
-        substitute_name = "\\??\\UNC\\%s" % norm_src[2:]
+        substitute_name = "\\??\\UNC\\" + norm_src[2:]
 
     src_drive = ntpath.splitdrive(norm_src)[0]
     dst_drive = ntpath.splitdrive(norm_dst)[0]
     if src_drive.lower() != dst_drive.lower():
-        raise ValueError("Resolved link src root '%s' must be the same as the dst root '%s'" % (src_drive, dst_drive))
+        raise ValueError(f"Resolved link src root '{src_drive}' must be the same as the dst root '{dst_drive}'")
 
     try:
         src_stat = stat(norm_src, **kwargs)
@@ -901,13 +899,11 @@ def walk(top, topdown=True, onerror=None, follow_symlinks=False, **kwargs):
             if not follow_symlinks and py_stat.S_ISLNK(lstat(dirpath, **kwargs).st_mode):
                 continue
 
-            for dir_top, dir_dirs, dir_files in walk(dirpath, **walk_kwargs):
-                yield dir_top, dir_dirs, dir_files
+            yield from walk(dirpath, **walk_kwargs)
     else:
         # On a bottom up approach we yield the sub directories before the top path.
         for dirpath in bottom_up_dirs:
-            for dir_top, dir_dirs, dir_files in walk(dirpath, **walk_kwargs):
-                yield dir_top, dir_dirs, dir_files
+            yield from walk(dirpath, **walk_kwargs)
 
         yield top, dirs, files
 
@@ -1095,7 +1091,7 @@ def _get_reparse_point(path, **kwargs):
 def _rename_information(src, dst, replace_if_exists=False, **kwargs):
     verb = "replace" if replace_if_exists else "rename"
     if not is_remote_path(ntpath.normpath(dst)):
-        raise ValueError("dst must be an absolute path to where the file or directory should be %sd." % verb)
+        raise ValueError(f"dst must be an absolute path to where the file or directory should be {verb}d.")
 
     raw_args = dict(kwargs)
     raw_args.update(
@@ -1126,7 +1122,7 @@ def _rename_information(src, dst, replace_if_exists=False, **kwargs):
         dst_share = ntpath.normpath(dst_raw.fd.tree_connect.share_name).split("\\")[-1]
 
         if src_guid != dst_guid or src_share.lower() != dst_share.lower():
-            raise ValueError("Cannot %s a file to a different root than the src." % verb)
+            raise ValueError(f"Cannot {verb} a file to a different root than the src.")
 
         dst_tree = dst_raw.fd.tree_connect
         dst_path = dst_raw.fd.file_name
@@ -1181,7 +1177,7 @@ class SMBDirEntry:
         self._connection_cache = connection_cache
 
     def __str__(self):
-        return "<{0}: {1!r}>".format(self.__class__.__name__, self.name)
+        return f"<{self.__class__.__name__}: {self.name!r}>"
 
     @property
     def name(self):

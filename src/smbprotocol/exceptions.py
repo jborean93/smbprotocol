@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
+from __future__ import annotations
 
 import binascii
 import errno
@@ -8,6 +9,7 @@ import ntpath
 import os
 import socket
 from collections import OrderedDict
+from typing import Any
 
 from smbprotocol import Dialects
 from smbprotocol._text import to_bytes, to_text
@@ -47,7 +49,7 @@ class SMBOSError(OSError, SMBException):
 
     def __init__(self, ntstatus, filename, filename2=None):
         self.ntstatus = ntstatus
-        self.filename2 = str(filename2) if filename2 else None
+        self.filename2 = os.fspath(filename2) if filename2 else None
 
         ntstatus_name = "STATUS_UNKNOWN"
         for name, val in vars(NtStatus).items():
@@ -70,19 +72,18 @@ class SMBOSError(OSError, SMBException):
             NtStatus.STATUS_NOT_A_DIRECTORY: errno.ENOTDIR,
             NtStatus.STATUS_DIRECTORY_NOT_EMPTY: errno.ENOTEMPTY,
             NtStatus.STATUS_END_OF_FILE: getattr(errno, "ENODATA", 120),  # Not present on py2 for Windows.
-        }.get(ntstatus, (0, "Unknown NtStatus error returned '%s'" % ntstatus_name))
+        }.get(ntstatus, (0, f"Unknown NtStatus error returned '{ntstatus_name}'"))
 
         if not isinstance(error_details, tuple):
             error_details = (error_details, os.strerror(error_details))
 
-        super().__init__(error_details[0], error_details[1], str(filename))
+        super().__init__(error_details[0], error_details[1], os.fspath(filename))
 
     def __str__(self):
-        msg = "[Error {0}] [NtStatus 0x{1}] {2}: '{3}'".format(
-            self.errno, format(self.ntstatus, "x").zfill(8), self.strerror, self.filename
-        )
+        status = format(self.ntstatus, "x").zfill(8)
+        msg = f"[Error {self.errno}] [NtStatus 0x{status}] {self.strerror}: '{self.filename}'"
         if self.filename2:
-            msg += " -> '%s'" % self.filename2
+            msg += f" -> '{self.filename2}'"
 
         return msg
 
@@ -90,10 +91,9 @@ class SMBOSError(OSError, SMBException):
 class SMBLinkRedirectionError(SMBException):
     @property
     def message(self):
-        msg = "Encountered symlink at '%s' that points to '%s' which cannot be redirected: %s" % (
-            str(self.path),
-            str(self.target),
-            str(self.args[0]),
+        msg = (
+            f"Encountered symlink at '{self.path}' that points to "
+            f"'{self.target}' which cannot be redirected: {self.args[0]}"
         )
         return msg
 
@@ -141,11 +141,9 @@ class SMBUnsupportedFeature(SMBException):
         required_dialect = self._get_dialect_name(self.required_dialect)
         negotiated_dialect = self._get_dialect_name(self.negotiated_dialect)
 
-        msg = "%s is not available on the negotiated dialect %s, requires dialect %s%s" % (
-            self.feature_name,
-            negotiated_dialect,
-            required_dialect,
-            msg_suffix,
+        msg = (
+            f"{self.feature_name} is not available on the negotiated dialect {negotiated_dialect}, "
+            f"requires dialect {required_dialect}{msg_suffix}"
         )
         return msg
 
@@ -169,9 +167,7 @@ class _SMBErrorRegistry(type):
             return
 
         if not hasattr(cls, "_STATUS_CODE"):
-            raise ValueError(
-                "%s.%s does not have the _STATUS_CODE class attribute set" % (cls.__module__, cls.__name__)
-            )
+            raise ValueError(f"{cls.__module__}.{cls.__name__} does not have the _STATUS_CODE class attribute set")
 
         cls.__registry[cls._STATUS_CODE] = cls
 
@@ -201,11 +197,11 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
 
     _BASE_MESSAGE = "Unknown error."
 
-    def __init__(self, header):  # type: (SMB2HeaderResponse) -> None
+    def __init__(self, header: SMB2HeaderResponse):
         self.header = header
 
     @property
-    def error_details(self):  # type: () -> List[any]
+    def error_details(self) -> list[Any]:
         # list of error_details returned by the server, currently used in
         # the SMB 3.1.1 error response for certain situations
         error = SMB2ErrorResponse()
@@ -235,7 +231,7 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
         return error_details
 
     @property
-    def message(self):  # type: () -> str
+    def message(self) -> str:
         error_details = []
 
         for detail in self.error_details:
@@ -243,7 +239,7 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
                 flag = str(detail["flags"])
                 print_name = detail.get_print_name()
                 sub_name = detail.get_substitute_name()
-                error_details.append("Flag: %s, Print Name: %s, Substitute Name: %s" % (flag, print_name, sub_name))
+                error_details.append(f"Flag: {flag}, Print Name: {print_name}, Substitute Name: {sub_name}")
 
             elif isinstance(detail, SMB2ShareRedirectErrorContext):
                 ip_addresses = []
@@ -251,19 +247,19 @@ class SMBResponseException(SMBException, metaclass=_SMBErrorRegistry):
                     ip_addresses.append(ip_addr.get_ipaddress())
 
                 resource_name = to_text(detail["resource_name"].get_value(), encoding="utf-16-le")
-                error_details.append(
-                    "IP Addresses: '%s', Resource Name: %s" % ("', '".join(ip_addresses), resource_name)
-                )
+                addresses = "', '".join(ip_addresses)
+                error_details.append(f"IP Addresses: '{addresses}', Resource Name: {resource_name}")
 
             else:
                 # unknown error details in response, output raw bytes
-                error_details.append("Raw: %s" % to_text(binascii.hexlify(detail)))
+                error_details.append("Raw: " + to_text(binascii.hexlify(detail)))
 
-        error_msg = "%s %s: 0x%s" % (self._BASE_MESSAGE, str(self.header["status"]), format(self.status, "x").zfill(8))
+        status = format(self.status, "x").zfill(8)
+        error_msg = f"{self._BASE_MESSAGE} {self.header['status']}: 0x{status}"
         if error_details:
-            error_msg += " - %s" % ", ".join(error_details)
+            error_msg += " - " + (", ".join(error_details))
 
-        return "Received unexpected status from the server: %s" % error_msg
+        return f"Received unexpected status from the server: {error_msg}"
 
     @property
     def status(self):

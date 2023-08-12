@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -59,11 +58,11 @@ class TestSMB2CreateContextName:
     def test_create_message(self):
         ea_buffer1 = SMB2CreateEABuffer()
         ea_buffer1["ea_name"] = "Authors\x00".encode("ascii")
-        ea_buffer1["ea_value"] = "Jordan Borean".encode("utf-8")
+        ea_buffer1["ea_value"] = b"Jordan Borean"
 
         ea_buffer2 = SMB2CreateEABuffer()
         ea_buffer2["ea_name"] = "Title\x00".encode("ascii")
-        ea_buffer2["ea_value"] = "Jordan Borean Title".encode("utf-8")
+        ea_buffer2["ea_value"] = b"Jordan Borean Title"
 
         ea_buffers = SMB2CreateContextRequest()
         ea_buffers["buffer_name"] = CreateContextName.SMB2_CREATE_EA_BUFFER

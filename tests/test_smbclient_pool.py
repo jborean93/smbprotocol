@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2020, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
+import logging
 
 import pytest
 
@@ -89,16 +90,14 @@ def test_reset_connection_error_fail(mocker):
         pool.reset_connection_cache(connection_cache={"conn": connection_mock})
 
 
-def test_reset_connection_error_warning(monkeypatch, mocker):
+def test_reset_connection_error_warning(mocker, caplog):
     connection_mock = mocker.MagicMock()
     connection_mock.disconnect.side_effect = Exception("exception")
-    warning_mock = mocker.MagicMock()
-    monkeypatch.setattr(pool.warnings, "warn", warning_mock)
 
-    pool.reset_connection_cache(fail_on_error=False, connection_cache={"conn": connection_mock})
+    with caplog.at_level(logging.WARNING):
+        pool.reset_connection_cache(fail_on_error=False, connection_cache={"conn": connection_mock})
 
-    assert warning_mock.call_count == 1
-    assert warning_mock.call_args[0][0] == "Failed to close connection conn: exception"
+        assert "Failed to close connection conn" in caplog.text
 
 
 def test_dfs_referral_no_links_no_domain(reset_config, monkeypatch, mocker):
@@ -134,7 +133,7 @@ def test_dfs_referral_no_links_from_domain(reset_config, monkeypatch, mocker):
     config.domain_controller = DOMAIN_NAME
 
     with pytest.raises(ObjectPathNotFound):
-        actual_get_smb_tree(f"\\\\{DOMAIN_NAME}\\dfs")
+        actual_get_smb_tree(rf"\\{DOMAIN_NAME}\dfs")
 
 
 def test_resolve_dfs_referral_no_links(reset_config, monkeypatch, mocker):

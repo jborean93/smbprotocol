@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com> and other contributors
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -173,7 +172,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
                 raise
 
         if is_same:
-            raise shutil.Error("'%s' and '%s' are the same file, cannot copy" % (src, dst))
+            raise shutil.Error(f"'{src}' and '{dst}' are the same file, cannot copy")
 
         smbclient_copyfile(src, dst, **kwargs)
         return dst

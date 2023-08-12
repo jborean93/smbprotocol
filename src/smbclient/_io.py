@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -52,9 +51,8 @@ def _parse_share_access(raw, mode):
         for c in raw:
             access_val = share_access_map.get(c)
             if access_val is None:
-                raise ValueError(
-                    "Invalid share_access char %s, can only be %s" % (c, ", ".join(sorted(share_access_map.keys())))
-                )
+                chars = ", ".join(sorted(share_access_map.keys()))
+                raise ValueError(f"Invalid share_access char {c}, can only be {chars}")
             share_access |= access_val
 
         if "r" in mode:
@@ -82,12 +80,15 @@ def _parse_mode(raw, invalid=""):
     for c in raw:
         dispo_val = disposition_map.get(c)
         if dispo_val is None:
-            raise ValueError("Invalid mode char %s, can only be %s" % (c, ", ".join(sorted(disposition_map.keys()))))
+            chars = ", ".join(sorted(disposition_map.keys()))
+            raise ValueError(
+                f"Invalid mode char {c}, can only be {chars}",
+            )
 
         create_disposition |= dispo_val
 
     if create_disposition == 0:
-        raise ValueError("Invalid mode value %s, must contain at least r, w, x, or a" % raw)
+        raise ValueError(f"Invalid mode value {raw}, must contain at least r, w, x, or a")
 
     return create_disposition
 
@@ -102,7 +103,7 @@ def _chunk_size(connection, length, operation):
     :param operation: The operation the chunk is for: 'read', 'write', 'transact'
     :return: The size of the chunk we can use and the number of credits to request for the next operation.
     """
-    max_size = getattr(connection, "max_%s_size" % operation)
+    max_size = getattr(connection, f"max_{operation}_size")
 
     # Determine the maximum data length we can send for the operation. We do this by checking the available credits and
     # calculating whatever is the smallest; length, negotiated operation size, available credit size).
@@ -141,7 +142,7 @@ def _resolve_dfs(raw_io):
     if not info:
         raise ObjectPathNotFound()
 
-    connection_kwargs = getattr(raw_io, "_%s__kwargs" % SMBRawIO.__name__, {})
+    connection_kwargs = getattr(raw_io, f"_{SMBRawIO.__name__}__kwargs", {})
 
     for target in info:
         new_path = raw_path.replace(info.dfs_path, target.target_path, 1)
@@ -150,7 +151,7 @@ def _resolve_dfs(raw_io):
             tree, fd_path = get_smb_tree(new_path, **connection_kwargs)
 
         except SMBResponseException as link_exc:
-            log.warning("Failed to connect to DFS link target %s: %s", str(target), link_exc)
+            log.warning("Failed to connect to DFS link target %s", target, exc_info=link_exc)
             continue
 
         # Record the target that worked for future reference.
@@ -612,8 +613,7 @@ class SMBDirectoryIO(SMBRawIO):
                 break
 
             query_flags = 0  # Only the first request should have set SMB2_RESTART_SCANS
-            for entry in entries:
-                yield entry
+            yield from entries
 
     def readable(self):
         return False

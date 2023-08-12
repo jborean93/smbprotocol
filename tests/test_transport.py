@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -74,7 +73,7 @@ class TestTcp:
 
     def test_invalid_host(self):
         tcp = Tcp("fake-host", 445)
-        with pytest.raises(ValueError, match=re.escape("Failed to connect to 'fake-host:445': ")):
+        with pytest.raises(ValueError, match=re.escape("Failed to connect to 'fake-host:445'")):
             tcp.connect()
 
 

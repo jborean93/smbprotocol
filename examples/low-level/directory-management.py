@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from smbprotocol.connection import Connection
@@ -15,11 +16,14 @@ from smbprotocol.open import (
 from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
 
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 server = "127.0.0.1"
 port = 445
 username = "smbuser"
 password = "smbpassword"
-share = r"\\%s\share" % server
+share = rf"\\{server}\share"
 dir_name = "directory"
 
 connection = Connection(uuid.uuid4(), server, port)
@@ -55,7 +59,7 @@ try:
     )
 
     compound_messages = [
-        directory_file.write("Hello World".encode("utf-8"), 0, send=False),
+        directory_file.write(b"Hello World", 0, send=False),
         dir_open.query_directory("*", FileInformationClass.FILE_NAMES_INFORMATION, send=False),
         directory_file.close(False, send=False),
         dir_open.close(False, send=False),
@@ -70,7 +74,7 @@ try:
     for dir_file in responses[1]:
         dir_files.append(dir_file["file_name"].get_value().decode("utf-16-le"))
 
-    print("Directory '%s\\%s' contains the files: '%s'" % (share, dir_name, "', '".join(dir_files)))
+    log.info("Directory '%s\\%s' contains the files: %s", share, dir_name, ", ".join(repr(file) for file in dir_files))
 
     # delete a directory (note the dir needs to be empty to delete on close)
     dir_open = Open(tree, dir_name)
