@@ -2,8 +2,6 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import logging
-
 import smbclient.path
 from smbclient._io import SEEK_CUR, SEEK_END, SEEK_SET
 from smbclient._os import (
@@ -45,6 +43,3 @@ from smbclient._pool import (
     register_session,
     reset_connection_cache,
 )
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
