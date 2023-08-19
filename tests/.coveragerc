@@ -1,0 +1,9 @@
+[run]
+branch = True
+omit = tests/*
+parallel = true
+relative_files = true
+data_file = reports/coverage/.coverage
+source =
+  smbprotocol
+  smbclient

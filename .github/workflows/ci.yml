@@ -37,6 +37,10 @@ jobs:
         python -m pip install build
         python -m build
 
+    - name: Install smbprotocol
+      run: |
+        pip install ./dist/*.whl
+
     - name: Upload built smbprotocol
       uses: actions/upload-artifact@v3
       with:
@@ -91,11 +95,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
         architecture: ${{ matrix.python-arch }}
 
-    - uses: actions/download-artifact@v3
-      with:
-        name: artifact
-        path: ./dist
-
     - name: Extract OS name
       shell: bash
       run: |
@@ -107,9 +106,21 @@ jobs:
       shell: bash
       run: |
         if [ "$(expr substr $(uname -s) 1 5)" == "MINGW" ]; then
-            build_helpers/run-ci.sh
+            build_helpers/run-ci.sh requirements lint start-server tests
         else
-            sudo -E build_helpers/run-ci.sh
+            sudo -E build_helpers/run-ci.sh requirements lint start-server tests
+        fi
+      env:
+        PYTEST_ADDOPTS: --color=yes
+
+    - name: Stop SMV Server
+      if: always()
+      shell: bash
+      run: |
+        if [ "$(expr substr $(uname -s) 1 5)" == "MINGW" ]; then
+            build_helpers/run-ci.sh stop-server
+        else
+            sudo -E build_helpers/run-ci.sh stop-server
         fi
       env:
         PYTEST_ADDOPTS: --color=yes
@@ -119,26 +130,60 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: Unit Test Results (${{ matrix.os }} ${{ matrix.python-version }} ${{ matrix.python-arch }})
-        path: ./junit/test-results.xml
+        path: ./reports/junit/*
 
     - name: Upload Coverage Results
       if: always()
       uses: actions/upload-artifact@v3
       with:
         name: Coverage Results (${{ matrix.os }} ${{ matrix.python-version }} ${{ matrix.python-arch }})
-        path: ./coverage.xml
+        path: ./reports/coverage/*
+
+  tests_done:
+    name: Tests done
+    runs-on: ubuntu-latest
+    needs:
+    - test
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Select python
+      uses: actions/setup-python@v4
+
+    - name: Download all coverage reports
+      uses: actions/download-artifact@v3
+      with:
+        path: reports/coverage
+
+    - name: Move coverage data to the root folder
+      run: find reports/coverage -type f -exec mv '{}' reports/coverage/ \;
+
+    - name: Combine coverage
+      shell: bash
+      run: |
+        if [ "$(expr substr $(uname -s) 1 5)" == "MINGW" ]; then
+            build_helpers/run-ci.sh requirements coverage
+        else
+            sudo -E build_helpers/run-ci.sh requirements combine-coverage
+        fi
 
     - name: Upload Coverage to codecov
-      if: always()
       uses: codecov/codecov-action@v3
       with:
-        files: ./coverage.xml
-        flags: ${{ steps.os.outputs.name }},py${{ matrix.python-version }},${{ matrix.python-arch }}
+        files: ./reports/coverage/coverage.xml
+
+    - name: Upload Coverage Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: Coverage Results Total
+        path: ./reports/coverage/coverage.xml
 
   publish:
     name: publish
     needs:
-    - test
+    - tests_done
     runs-on: ubuntu-latest
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
