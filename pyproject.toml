@@ -49,6 +49,7 @@ exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+  | venv
   | _build
   | buck-out
   | build
@@ -75,7 +76,9 @@ deps =
     -r{toxinidir}/requirements-dev.txt
 
 commands =
-    python -m pytest -v --cov smbclient --cov smbprotocol --cov-report term-missing
+    python -m coverage run --rcfile=tests/.coveragerc -m pytest -v
+    python -m coverage combine --rcfile=tests/.coveragerc
+    python -m coverage report --rcfile=tests/.coveragerc -m
 
 passenv =
     SMB_*

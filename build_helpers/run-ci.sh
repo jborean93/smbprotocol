@@ -7,7 +7,27 @@ fi
 
 source ./build_helpers/lib.sh
 
-lib::setup::smb_server
-lib::setup::python_requirements
-lib::sanity::run
-lib::tests::run
+if [[ "$#" == 0 ]]; then
+    set "$@" requirements lint tests coverage
+fi
+
+while [[ "$#" > 0 ]]; do
+    case "$1" in
+    "requirements")
+        lib::requirements::install
+        ;;
+    "lint")
+        lib::sanity::run
+        ;;
+    "tests")
+        lib::coverage::erase
+        lib::server::start
+        lib::tests::run
+        lib::server::stop
+        ;;
+    "coverage")
+        lib::coverage::combine
+        ;;
+    esac
+    shift
+done
