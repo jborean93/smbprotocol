@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -158,7 +157,8 @@ class SIDPacket(Structure):
         revision = self["revision"].get_value()
         id_authority = self["identifier_authority"].get_value()
         sub_authorities = self["sub_authorities"].get_value()
-        sid_string = "S-%d-%d-%s" % (revision, id_authority, "-".join(str(x) for x in sub_authorities))
+        authorities_string = "-".join(str(x) for x in sub_authorities)
+        sid_string = f"S-{revision}-{id_authority}-{authorities_string}"
         return sid_string
 
     def from_string(self, sid_string):
@@ -389,7 +389,7 @@ class SMB2CreateSDBuffer(Structure):
         for field, value in self._buffer.items():
             if not value:
                 continue
-            offset_field = "offset_%s" % field
+            offset_field = f"offset_{field}"
             field_bytes = value.pack()
             buffer += field_bytes
             self[offset_field].set_value(offset_count)

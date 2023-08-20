@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -201,7 +200,7 @@ class SymbolicLinkReparseDataBuffer(Structure):
         return ntpath.abspath(link_target)
 
     def _get_name(self, prefix):
-        offset = self["%s_name_offset" % prefix].get_value()
-        length = self["%s_name_length" % prefix].get_value()
+        offset = self[f"{prefix}_name_offset"].get_value()
+        length = self[f"{prefix}_name_length"].get_value()
         b_name = self["buffer"].get_value()[offset : offset + length]
         return to_text(b_name, encoding="utf-16-le")

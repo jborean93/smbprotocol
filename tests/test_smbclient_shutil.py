@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -109,7 +108,7 @@ def test_copy_from_local(smb_share, tmp_path):
         ctypes.windll.kernel32.SetFileTime(handle, ref_time, ref_time, ref_time)
         ctypes.windll.kernel32.CloseHandle(handle)
 
-    dst_filename = "{}\\target.txt".format(smb_share)
+    dst_filename = f"{smb_share}\\target.txt"
 
     copy_from_to(str(src_filename), dst_filename)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -216,7 +215,7 @@ class Session:
             values are 'negotiate', 'ntlm' or 'kerberos'. Defaults to
             'negotiate'.
         """
-        log.info("Initialising session with username: %s" % username)
+        log.info("Initialising session with username: %s", username)
         self._connected = False
         self.session_id = 0
         self.require_encryption = require_encryption
@@ -272,7 +271,7 @@ class Session:
                 protocol=self.auth_protocol,
             )
         except spnego.exceptions.SpnegoError as err:
-            raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
+            raise SMBAuthenticationError(f"Failed to authenticate with server: {err}") from err
 
         in_token = self.connection.gss_negotiate_token
         if self.auth_protocol != "negotiate":
@@ -282,7 +281,7 @@ class Session:
             try:
                 out_token = context.step(in_token)
             except spnego.exceptions.SpnegoError as err:
-                raise SMBAuthenticationError("Failed to authenticate with server: %s" % str(err.message))
+                raise SMBAuthenticationError(f"Failed to authenticate with server: {err}") from err
 
             if not out_token:
                 break
@@ -320,7 +319,7 @@ class Session:
             if status == NtStatus.STATUS_MORE_PROCESSING_REQUIRED:
                 log.info("More processing is required for SMB2_SESSION_SETUP")
 
-        log.info("Setting session id to %s" % self.session_id)
+        log.info("Setting session id to %s", self.session_id)
         self._connected = True
 
         # Move the session from the preauth table to the actual session table.
@@ -412,13 +411,13 @@ class Session:
             for tree in list(self.tree_connect_table.values()):
                 tree.disconnect()
 
-        log.info("Session: %s - Logging off of SMB Session" % self.username)
+        log.info("Session: %s - Logging off of SMB Session", self.username)
         logoff = SMB2Logoff()
-        log.info("Session: %s - Sending Logoff message" % self.username)
+        log.info("Session: %s - Sending Logoff message", self.username)
         log.debug(logoff)
         request = self.connection.send(logoff, sid=self.session_id)
 
-        log.info("Session: %s - Receiving Logoff response" % self.username)
+        log.info("Session: %s - Receiving Logoff response", self.username)
         res = self.connection.receive(request)
         res_logoff = SMB2Logoff()
         res_logoff.unpack(res["data"].get_value())

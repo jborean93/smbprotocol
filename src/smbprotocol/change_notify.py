@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -280,8 +279,10 @@ class FileSystemWatcher:
         change_notify["completion_filter"] = completion_filter
 
         log.info(
-            "Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request"
-            % (self.open.tree_connect.session.username, self.open.tree_connect.share_name, self.open.file_name)
+            "Session: %s, Tree Connect: %s , Open: %s - sending SMB2 Change Notify request",
+            self.open.tree_connect.session.username,
+            self.open.tree_connect.share_name,
+            self.open.file_name,
         )
         log.debug(change_notify)
         if send:
@@ -326,5 +327,5 @@ class FileSystemWatcher:
             self._t_exc = exc
 
         finally:
-            log.debug("Firing response event for %s change notify" % self.open.file_name)
+            log.debug("Firing response event for %s change notify", self.open.file_name)
             self.response_event.set()

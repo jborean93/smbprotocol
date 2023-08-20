@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -167,8 +166,8 @@ def smb_real():
     share = os.environ.get("SMB_SHARE", "share")
 
     if server:
-        share = r"\\%s\%s" % (server, share)
-        encrypted_share = "%s-encrypted" % share
+        share = rf"\\{server}\{share}"
+        encrypted_share = f"{share}-encrypted"
         return username, password, server, int(port), share, encrypted_share
     else:
         pytest.skip("The SMB_SHARE env var was not set, integration tests will be skipped")
@@ -183,7 +182,8 @@ def smb_real():
 )
 def smb_share(request, smb_real):
     # Use some non ASCII chars to test out edge cases by default.
-    share_path = "%s\\%s" % (smb_real[request.param[1]], "Pýtæs†-[%s] 💩" % time.time())
+    test_folder = f"Pýtæs†-[{time.time()}] 💩"
+    share_path = rf"{smb_real[request.param[1]]}\{test_folder}"
     delete_session(smb_real[2])
 
     # Test out forward slashes also work with the share-encrypted test
@@ -206,14 +206,14 @@ def smb_share(request, smb_real):
     ids=["dfs-root", "dfs-single-target", "dfs-broken-target"],
 )
 def smb_dfs_share(request, smb_real):
-    test_folder = "Pýtæs†-[%s] 💩" % time.time()
+    test_folder = f"Pýtæs†-[{time.time()}] 💩"
 
     if request.param[1]:
-        target_share_path = "%s\\%s" % (smb_real[request.param[1]], test_folder)
-        dfs_path = "\\\\%s\\dfs\\%s\\%s" % (smb_real[2], request.param[0], test_folder)
+        target_share_path = rf"{smb_real[request.param[1]]}\{test_folder}"
+        dfs_path = rf"\\{smb_real[2]}\dfs\{request.param[0]}\{test_folder}"
 
     else:
-        target_share_path = "\\\\%s\\dfs\\%s" % (smb_real[2], test_folder)
+        target_share_path = rf"\\{smb_real[2]}\dfs\{test_folder}"
         dfs_path = target_share_path
 
     mkdir(target_share_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])

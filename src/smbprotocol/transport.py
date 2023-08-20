@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
@@ -66,7 +65,7 @@ class Tcp:
                 try:
                     self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
                 except (OSError, socket.gaierror) as err:
-                    raise ValueError("Failed to connect to '%s:%s': %s" % (self.server, self.port, str(err))) from err
+                    raise ValueError(f"Failed to connect to '{self.server}:{self.port}'") from err
                 self._sock.settimeout(None)  # Make sure the socket is in blocking mode.
                 self.connected = True
 
@@ -79,7 +78,7 @@ class Tcp:
                 # which returns b'' meaning it was closed.
                 try:
                     self._sock.shutdown(socket.SHUT_RDWR)
-                except socket.error as e:  # pragma: no cover
+                except OSError as e:  # pragma: no cover
                     # Avoid collecting coverage here to avoid CI failing due to race condition differences
                     if e.errno != errno.ENOTCONN:
                         raise
@@ -98,8 +97,7 @@ class Tcp:
         data_length = len(b_msg)
         if data_length > self.MAX_SIZE:
             raise ValueError(
-                "Data to be sent over Direct TCP size %d exceeds the max length allowed %d"
-                % (data_length, self.MAX_SIZE)
+                f"Data to be sent over Direct TCP size {data_length} exceeds the max length allowed {self.MAX_SIZE}"
             )
 
         tcp_packet = DirectTCPPacket()
@@ -127,7 +125,7 @@ class Tcp:
         offset = 0
         while offset < length:
             read_len = length - offset
-            log.debug("Socket recv(%s) (total %s)" % (read_len, length))
+            log.debug(f"Socket recv({read_len}) (total {length})")
 
             start_time = timeit.default_timer()
 
@@ -144,7 +142,7 @@ class Tcp:
 
                 try:
                     b_data = self._sock.recv(read_len)
-                except socket.error as e:
+                except OSError as e:
                     # Windows will raise this error if the socket has been shutdown, Linux return returns an empty byte
                     # string so we just replicate that.
                     if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET]:
@@ -153,7 +151,7 @@ class Tcp:
                     b_data = b""
 
             read_len = len(b_data)
-            log.debug("Socket recv() returned %s bytes (total %s)" % (read_len, length))
+            log.debug(f"Socket recv() returned {read_len} bytes (total {length})")
 
             if read_len == 0:
                 self.close()

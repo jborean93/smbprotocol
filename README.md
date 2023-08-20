@@ -59,7 +59,7 @@ try:
     from gssapi.raw import inquire_sec_context_by_oid
     print("python-gssapi extension is available")
 except ImportError as exc:
-    print("python-gssapi extension is not available: %s" % str(exc))
+    print(f"python-gssapi extension is not available: {exc}")
 ```
 
 If it isn't available, then either a newer version of the system's gssapi implementation needs to be setup and

@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
+
+from __future__ import annotations
 
 import atexit
 import logging
 import ntpath
-import typing
 import uuid
-import warnings
 
 from smbprotocol._text import to_text
 from smbprotocol.connection import Capabilities, Connection
@@ -59,7 +58,7 @@ class _ConfigSingleton(type):
         return config
 
 
-class ClientConfig(object, metaclass=_ConfigSingleton):
+class ClientConfig(metaclass=_ConfigSingleton):
     """SMB Client global settings
 
     This class defines global settings for the client that affects all connections that the client makes. When setting
@@ -99,9 +98,9 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         self.skip_dfs = skip_dfs
         self.auth_protocol = auth_protocol
         self.require_secure_negotiate = require_secure_negotiate
-        self._domain_controller = domain_controller  # type: Optional[str]
-        self._domain_cache = []  # type: List[DomainEntry]
-        self._referral_cache = []  # type: List[ReferralEntry]
+        self._domain_controller: str | None = domain_controller
+        self._domain_cache: list[DomainEntry] = []
+        self._referral_cache: list[ReferralEntry] = []
 
     @property
     def domain_controller(self):
@@ -119,13 +118,14 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         if not value or self.skip_dfs:
             return
 
-        ipc_tree = get_smb_tree("\\\\%s\\IPC$" % value)[0]
+        ipc_tree = get_smb_tree(rf"\\{value}\IPC$")[0]
         try:
             domain_referral_response = dfs_request(ipc_tree, "")
         except InvalidParameter:
             log.warning(
                 "Specified domain controller %s return STATUS_INVALID_PARAMETER, cannot use as DFS domain "
-                "cache source" % value
+                "cache source",
+                value,
             )
             return
 
@@ -139,13 +139,13 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         if referral["number_of_referrals"].get_value() > 0:
             self._referral_cache.append(ReferralEntry(referral))
 
-    def lookup_domain(self, domain_name):  # type: (str) -> Optional[DomainEntry]
+    def lookup_domain(self, domain_name: str) -> DomainEntry | None:
         # TODO: Check domain referral expiry and resend request if expired
         for domain in self._domain_cache:
             if domain.domain_name.lower() == ("\\" + domain_name.lower()):
                 return domain
 
-    def lookup_referral(self, path_components: typing.List[str]) -> typing.Optional[ReferralEntry]:
+    def lookup_referral(self, path_components: list[str]) -> ReferralEntry | None:
         """Checks if the path exists in the DFS referral cache."""
         # A lookup in ReferralCache involves searching for an entry with DFSPathPrefix that is a complete prefix of the
         # path being looked up.
@@ -169,7 +169,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         domain_controller = False
         for key, value in config.items():
             if key.startswith("_"):
-                raise ValueError("Cannot set private attribute %s" % key)
+                raise ValueError(f"Cannot set private attribute {key}")
 
             elif key == "domain_controller":
                 # This must be set last in case we are setting any username/password used for a domain referral lookup.
@@ -186,7 +186,7 @@ class ClientConfig(object, metaclass=_ConfigSingleton):
         self._referral_cache = [refferal for refferal in self._referral_cache if not refferal.is_expired]
 
 
-def dfs_request(tree, path):  # type: (TreeConnect, str) -> DFSReferralResponse
+def dfs_request(tree: TreeConnect, path: str) -> DFSReferralResponse:
     """Send a DFS Referral request to the IPC tree and return the referrals."""
     dfs_referral = DFSReferralRequest()
     dfs_referral["request_file_name"] = to_text(path)
@@ -219,7 +219,7 @@ def delete_session(server, port=445, connection_cache=None):
     :param port: The port used for the server.
     :param connection_cache: Connection cache to be used with
     """
-    connection_key = "%s:%s" % (server.lower(), port)
+    connection_key = f"{server.lower()}:{port}"
 
     if connection_cache is None:
         connection_cache = _SMB_CONNECTIONS
@@ -284,14 +284,14 @@ def get_smb_tree(
         if domain_referral and not domain_referral.is_valid:
             # If the path is a valid domain name but our domain referral is not currently valid, issue a DC referral
             # to our known domain controller.
-            ipc_tree = get_smb_tree("\\\\%s\\IPC$" % client_config.domain_controller, **get_kwargs)[0]
+            ipc_tree = get_smb_tree(rf"\\{client_config.domain_controller}\IPC$", **get_kwargs)[0]
             referral_response = dfs_request(ipc_tree, domain_referral.domain_name)
             domain_referral.process_dc_referral(referral_response)
 
         if domain_referral:
             # Use the dc hint as the source for the root referral request
-            ipc_tree = get_smb_tree("\\%s\\IPC$" % domain_referral.dc_hint, **get_kwargs)[0]
-            referral_response = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
+            ipc_tree = get_smb_tree(rf"\{domain_referral.dc_hint}\IPC$", **get_kwargs)[0]
+            referral_response = dfs_request(ipc_tree, rf"\{path_split[0]}\{path_split[1]}")
             client_config.cache_referral(referral_response)
             referral = client_config.lookup_referral(path_split)
             if not referral:
@@ -312,7 +312,7 @@ def get_smb_tree(
         auth_protocol=auth_protocol,
     )
 
-    share_path = "\\\\%s\\%s" % (server, path_split[1])
+    share_path = rf"\\{server}\{path_split[1]}"
     tree = next((t for t in session.tree_connect_table.values() if t.share_name == share_path), None)
     if not tree:
         tree = TreeConnect(session, share_path)
@@ -324,14 +324,14 @@ def get_smb_tree(
             if not session.connection.server_capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_DFS):
                 raise
 
-            ipc_path = "\\\\%s\\IPC$" % server
+            ipc_path = rf"\\{server}\IPC$"
             if path == ipc_path:  # In case we already tried connecting to IPC$ but that failed.
                 raise
 
             # The share could be a DFS root, issue a root referral request to the hostname and cache the result.
             ipc_tree = get_smb_tree(ipc_path, **get_kwargs)[0]
             try:
-                referral = dfs_request(ipc_tree, "\\%s\\%s" % (path_split[0], path_split[1]))
+                referral = dfs_request(ipc_tree, rf"\{path_split[0]}\{path_split[1]}")
             except FSDriverRequired:
                 # If the DFS Request fails with STATUS_FS_DRIVER_REQUIRED then
                 # the server doesn't support DFS requests and the original
@@ -396,7 +396,7 @@ def register_session(
     :param require_signing: Whether signing is required on SMB messages sent over this session. Defaults to True.
     :return: The Session that was registered or already existed in the pool.
     """
-    connection_key = "%s:%s" % (server.lower(), port)
+    connection_key = f"{server.lower()}:{port}"
 
     if connection_cache is None:
         connection_cache = _SMB_CONNECTIONS
@@ -448,7 +448,7 @@ def reset_connection_cache(fail_on_error=True, connection_cache=None):
             if fail_on_error:
                 raise
             else:
-                warnings.warn("Failed to close connection %s: %s" % (name, str(e)))
+                log.warning("Failed to close connection %s", name, exc_info=e)
 
 
 atexit.register(reset_connection_cache, fail_on_error=False)

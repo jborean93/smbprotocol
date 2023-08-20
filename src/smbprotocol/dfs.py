@@ -1,8 +1,11 @@
 # Copyright: (c) 2020, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from __future__ import annotations
+
 import time
 from collections import OrderedDict, namedtuple
+from typing import Iterator
 
 from smbprotocol.structure import (
     BytesField,
@@ -41,24 +44,24 @@ class DomainEntry:
         domain_list (List[str]): A list of known domain controller hostnames for the domain.
     """
 
-    def __init__(self, referral):  # type: (DFSReferralEntryV3) -> None
+    def __init__(self, referral: DFSReferralEntryV3):
         self.domain_list = []
-        self._referral = referral  # type: DFSReferralEntryV3
-        self._start_time = time.time()  # type: float
-        self._domain_hint_idx = None  # type: Optional[int]
+        self._referral = referral
+        self._start_time: float = time.time()
+        self._domain_hint_idx: int | None = None
 
     @property
-    def domain_name(self):  # type: () -> str
+    def domain_name(self) -> str:
         """The domain DFS path."""
         return self._referral.dfs_path
 
     @property
-    def dc_hint(self):  # type: () -> str
+    def dc_hint(self) -> str:
         """The last known good domain hostname in domain_list."""
         return self.domain_list[self._domain_hint_idx]
 
     @dc_hint.setter
-    def dc_hint(self, value):  # type: (str) -> None
+    def dc_hint(self, value: str) -> None:
         for idx, target in enumerate(self.domain_list):
             if target == value:
                 self._domain_hint_idx = idx
@@ -68,16 +71,16 @@ class DomainEntry:
             raise ValueError("The specific domain hint does not exist in this domain cache entry")
 
     @property
-    def is_expired(self):  # type: () -> bool
+    def is_expired(self) -> bool:
         """Whether the hint has expired or not."""
         return ((time.time() - self._start_time) - self._referral["time_to_live"].get_value()) >= 0
 
     @property
-    def is_valid(self):  # type: () -> bool
+    def is_valid(self) -> bool:
         """Whether the domain entry has had a DC referral response or not."""
         return self._domain_hint_idx is not None and not self.is_expired
 
-    def process_dc_referral(self, referral):  # type: (DFSReferralResponse) -> None
+    def process_dc_referral(self, referral: DFSReferralResponse) -> None:
         if self._domain_hint_idx is None:
             self._domain_hint_idx = 0
 
@@ -96,54 +99,53 @@ class ReferralEntry:
         referral: The DFSReferralResponse to cache.
     """
 
-    def __init__(self, referral):  # type: (DFSReferralResponse) -> None
+    def __init__(self, referral: DFSReferralResponse):
         referrals = referral["referral_entries"].get_value()
         self._referral_header_flags = referral["referral_header_flags"]
-        self._referrals = referrals  # type: List[Union[DFSReferralEntryV1, DFSReferralEntryV2, DFSReferralEntryV3]]
-        self._start_time = time.time()  # type: float
-        self._target_hint_idx = 0  # type: int
+        self._referrals: list[DFSReferralEntryV1 | DFSReferralEntryV2 | DFSReferralEntryV3] = referrals
+        self._start_time: float = time.time()
+        self._target_hint_idx: int = 0
 
     @property
-    def dfs_path(self):  # type: () -> str
+    def dfs_path(self) -> str:
         return self._referrals[self._target_hint_idx].dfs_path
 
     @property
-    def is_root(self):  # type: () -> bool
+    def is_root(self) -> bool:
         return self._referrals[self._target_hint_idx]["server_type"].has_flag(DFSServerTypes.ROOT_TARGETS)
 
     @property
-    def is_link(self):  # type: () -> bool
+    def is_link(self) -> bool:
         return not self.is_root
 
     # @property
-    # def is_interlink(self):  # type: () -> bool
+    # def is_interlink(self) -> bool:
     #     return False
 
     @property
-    def is_expired(self):  # type: () -> bool
+    def is_expired(self) -> bool:
         referral = self._referrals[self._target_hint_idx]
         return ((time.time() - self._start_time) - referral["time_to_live"].get_value()) >= 0
 
     @property
-    def target_failback(self):  # type: () -> bool
+    def target_failback(self) -> bool:
         return self._referral_header_flags.has_flag(DFSReferralHeaderFlags.TARGET_FAIL_BACK)
 
     @property
-    def target_hint(self):  # type: () -> DFSTarget
+    def target_hint(self) -> DFSTarget:
         return self.target_list[self._target_hint_idx]
 
     @target_hint.setter
-    def target_hint(self, value):  # type: (DFSTarget) -> None
+    def target_hint(self, value: DFSTarget) -> None:
         for idx, target in enumerate(self.target_list):
             if target == value:
                 self._target_hint_idx = idx
                 break
-
         else:
             raise ValueError("The specific target hint does not exist in this referral entry")
 
     @property
-    def target_list(self):  # type: () -> List[DFSTarget]
+    def target_list(self) -> list[DFSTarget]:
         return [
             DFSTarget(
                 target_path=e.network_address,
@@ -152,7 +154,7 @@ class ReferralEntry:
             for e in self._referrals
         ]
 
-    def __iter__(self):  # type: () -> Iterator[DFSTarget]
+    def __iter__(self) -> Iterator[DFSTarget]:
         """Iterates through the target_list with a priority being the hinted value."""
         yield self.target_list[self._target_hint_idx]
 
@@ -387,7 +389,7 @@ class DFSReferralEntryV2(Structure):
         buffer_fields = ["dfs_path", "dfs_alternate_path", "network_address"]
 
         for field_name in buffer_fields:
-            field_offset = self["%s_offset" % field_name].get_value()
+            field_offset = self[f"{field_name}_offset"].get_value()
             if field_offset == 0:
                 continue
 
@@ -433,7 +435,7 @@ class DFSReferralEntryV3(Structure):
             buffer_fields.insert(1, "dfs_alternate_path")
 
         for field_name in buffer_fields:
-            field_offset = self["%s_offset" % field_name].get_value()
+            field_offset = self[f"{field_name}_offset"].get_value()
             if field_offset == 0:
                 continue
 
