@@ -244,6 +244,7 @@ class SMBFileTransaction:
         self.raw = raw
         self.results = None
         self._actions = []
+        self._attempted_dfs_paths = set()
 
     def __add__(self, other):
         send_msg = other[0]
@@ -305,6 +306,14 @@ class SMBFileTransaction:
                     for smb_open in _resolve_dfs(self.raw):
                         if smb_open.tree_connect.share_name == self.raw.fd.tree_connect.share_name:
                             continue
+
+                        # Ensure we don't continuously try the same DFS referral targets if it's already been attempted.
+                        # https://github.com/jborean93/smbprotocol/issues/228
+                        tested_path = f"{smb_open.tree_connect.share_name}{smb_open.file_name}".lower()
+                        if tested_path in self._attempted_dfs_paths:
+                            continue
+
+                        self._attempted_dfs_paths.add(tested_path)
 
                         self.raw.fd = smb_open
 
