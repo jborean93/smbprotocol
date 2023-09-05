@@ -29,9 +29,6 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v3
 
-    - name: Select python
-      uses: actions/setup-python@v4
-
     - name: Build smbprotocol
       run: |
         python -m pip install build
