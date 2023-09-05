@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.11.0 - TBD
+## 1.11.0 - 2023-09-06
 
 * Fix up pre authenticated session id lookups that were failing with Linux ksmbd
 * Removes `logging.NullHandler()` being set in the root `smbprotocol` namespace
