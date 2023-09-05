@@ -1,8 +1,10 @@
 # Changelog
 
-## 1.10.2 - TBD
+## 1.11.0 - TBD
 
 * Fix up pre authenticated session id lookups that were failing with Linux ksmbd
+* Removes `logging.NullHandler()` being set in the root `smbprotocol` namespace
+* Adds basic support for remote to local and vice versa file operations with `smbclient.shutil.copytree`
 
 ## 1.10.1 - 2022-11-14
 

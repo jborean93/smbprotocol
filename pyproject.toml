@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smbprotocol"
-version = "1.10.2"
+version = "1.11.0"
 description = "Interact with a server using the SMB 2/3 Protocol"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -23,7 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11"
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
 ]
 dependencies = [
     "cryptography >= 2.0",
