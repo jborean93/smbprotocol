@@ -5,6 +5,7 @@
 * Fix up pre authenticated session id lookups that were failing with Linux ksmbd
 * Removes `logging.NullHandler()` being set in the root `smbprotocol` namespace
 * Adds basic support for remote to local and vice versa file operations with `smbclient.shutil.copytree`
+* Fixes DFS infinite recursion error when dealing with a file that does not exist on a DFS namespace
 
 ## 1.10.1 - 2022-11-14
 

@@ -2131,3 +2131,10 @@ def test_broken_dfs_path(smb_real):
     # error and that it doesn't continuously loop.
     with pytest.raises(SMBOSError):
         smbclient.listdir(dfs_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+
+
+def test_dfs_nonexisting_path(smb_dfs_share):
+    fake_file = ntpath.join(smb_dfs_share, "missing file.txt")
+
+    with pytest.raises(SMBOSError):
+        smbclient.lstat(fake_file)
