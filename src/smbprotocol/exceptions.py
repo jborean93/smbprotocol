@@ -614,7 +614,7 @@ class ServerUnavailable(SMBResponseException):
 
 class NotEnoughSpaceOnTheDisk(SMBResponseException):
     _BASE_MESSAGE = "There is not enough space on the disk."
-    _STATUS_CODE = NtStatus.STATUS_LOW_DISK_SPACE
+    _STATUS_CODE = NtStatus.STATUS_DISK_FULL
 
 
 class ErrorContextId:
