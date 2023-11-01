@@ -1,4 +1,4 @@
-# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
+ot# Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 from __future__ import annotations
@@ -612,7 +612,7 @@ class ServerUnavailable(SMBResponseException):
     _STATUS_CODE = NtStatus.STATUS_SERVER_UNAVAILABLE
 
 
-class NotEnoughSpaceOnTheDisk(SMBResponseException):
+class DiskFull(SMBResponseException):
     _BASE_MESSAGE = "There is not enough space on the disk."
     _STATUS_CODE = NtStatus.STATUS_DISK_FULL
 
