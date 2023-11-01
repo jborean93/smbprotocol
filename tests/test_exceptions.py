@@ -126,6 +126,21 @@ class TestSMBResponseException:
             assert str(exc) == exp_resp
             assert exc.status == NtStatus.STATUS_INVALID_PARAMETER
 
+    def test_throw_low_disk(self):
+        error_resp = SMB2ErrorResponse()
+        header = self._get_header(error_resp, NtStatus.STATUS_DISK_FULL)
+        try:
+            raise SMBResponseException(header)
+        except SMBResponseException as exc:
+            assert exc.error_details == []
+            exp_resp = (
+                "Received unexpected status from the server: There is not enough space on the disk. "
+                "(3221225599) STATUS_DISK_FULL: 0xc000007f"
+            )
+            assert exc.message == exp_resp
+            assert str(exc) == exp_resp
+            assert exc.status == NtStatus.STATUS_DISK_FULL
+
     def test_throw_exception_without_header(self):
         actual = NetworkNameDelegated()
         assert isinstance(actual, NetworkNameDelegated)
