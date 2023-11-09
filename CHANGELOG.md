@@ -1,7 +1,8 @@
 # Changelog
 
-## 1.11.1 - TBD
+## 1.12.0 - 2023-11-09
 
+* Added the `DiskFull` error and message for the NTSTATUS code `0xC000007F` - https://github.com/jborean93/smbprotocol/pull/245
 
 ## 1.11.0 - 2023-09-06
 
