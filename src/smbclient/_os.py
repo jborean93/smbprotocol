@@ -2,6 +2,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import collections
+import datetime
 import errno
 import io
 import ntpath
@@ -9,6 +10,7 @@ import operator
 import os
 import stat as py_stat
 import time
+import typing as t
 
 from smbclient._io import (
     SMBDirectoryIO,
@@ -30,7 +32,6 @@ from smbprotocol.file_info import (
     FileFsFullSizeInformation,
     FileFsVolumeInformation,
     FileFullEaInformation,
-    FileIdFullDirectoryInformation,
     FileInformationClass,
     FileInternalInformation,
     FileLinkInformation,
@@ -541,13 +542,28 @@ def scandir(path, search_pattern="*", **kwargs):
     """
     connection_cache = kwargs.get("connection_cache", None)
     with SMBDirectoryIO(path, share_access="rwd", **kwargs) as fd:
-        for dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
-            filename = dir_info["file_name"].get_value().decode("utf-16-le")
+        for raw_dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
+            filename = raw_dir_info["file_name"].get_value().decode("utf-16-le")
             if filename in [".", ".."]:
                 continue
 
+            dir_info = SMBDirEntryInformation(
+                creation_time=raw_dir_info["creation_time"].get_value(),
+                last_access_time=raw_dir_info["last_access_time"].get_value(),
+                last_write_time=raw_dir_info["last_write_time"].get_value(),
+                change_time=raw_dir_info["change_time"].get_value(),
+                end_of_file=raw_dir_info["end_of_file"].get_value(),
+                allocation_size=raw_dir_info["allocation_size"].get_value(),
+                file_attributes=raw_dir_info["file_attributes"].get_value(),
+                ea_size=raw_dir_info["ea_size"].get_value(),
+                file_id=raw_dir_info["file_id"].get_value(),
+                file_name=filename,
+            )
+
             dir_entry = SMBDirEntry(
-                SMBRawIO(rf"{path}\{filename}", **kwargs), dir_info, connection_cache=connection_cache
+                SMBRawIO(rf"{path}\{filename}", **kwargs),
+                dir_info,
+                connection_cache=connection_cache,
             )
             yield dir_entry
 
@@ -1168,8 +1184,26 @@ def _set_basic_information(
         set_info(transaction, basic_info)
 
 
+class SMBDirEntryInformation(t.NamedTuple):
+    creation_time: datetime.datetime
+    last_access_time: datetime.datetime
+    last_write_time: datetime.date
+    change_time: datetime.datetime
+    end_of_file: int
+    allocation_size: int
+    file_attributes: int
+    ea_size: int
+    file_id: int
+    file_name: str
+
+
 class SMBDirEntry:
-    def __init__(self, raw, dir_info, connection_cache=None):
+    def __init__(
+        self,
+        raw,
+        dir_info: SMBDirEntryInformation,
+        connection_cache=None,
+    ):
         self._smb_raw = raw
         self._dir_info = dir_info
         self._stat = None
@@ -1180,23 +1214,28 @@ class SMBDirEntry:
         return f"<{self.__class__.__name__}: {self.name!r}>"
 
     @property
-    def name(self):
+    def name(self) -> str:
         """The entry's base filename, relative to the scandir() path argument."""
         return self._smb_raw.name.split("\\")[-1]
 
     @property
-    def path(self):
+    def path(self) -> str:
         """The entry's full path name."""
         return self._smb_raw.name
 
-    def inode(self):
+    @property
+    def smb_info(self) -> SMBDirEntryInformation:
+        """Extra SMB specific information that is already present on the result."""
+        return self._dir_info
+
+    def inode(self) -> int:
         """
         Return the inode number of the entry.
 
         The result is cached on the 'smcblient.DirEntry' object. Use
         'smbclient.stat(entry.path, follow_symlinks=False).st_ino' to fetch up-to-date information.
         """
-        return self._dir_info["file_id"].get_value()
+        return self._dir_info.file_id
 
     def is_dir(self, follow_symlinks=True):
         """
@@ -1220,7 +1259,7 @@ class SMBDirEntry:
             return self._link_target_type_check(py_stat.S_ISDIR)
         else:
             # Python behaviour is to consider a symlink not a directory even if it has the DIRECTORY attribute.
-            return not is_lnk and self._dir_info["file_attributes"].has_flag(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
+            return not is_lnk and bool(self._dir_info.file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
 
     def is_file(self, follow_symlinks=True):
         """
@@ -1244,9 +1283,7 @@ class SMBDirEntry:
             return self._link_target_type_check(py_stat.S_ISREG)
         else:
             # Python behaviour is to consider a symlink not a file even if it does not have the DIRECTORY attribute.
-            return not is_lnk and not self._dir_info["file_attributes"].has_flag(
-                FileAttributes.FILE_ATTRIBUTE_DIRECTORY
-            )
+            return not is_lnk and self._dir_info.file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY == 0
 
     def is_symlink(self):
         """
@@ -1261,7 +1298,7 @@ class SMBDirEntry:
 
         :return: Whether the path is a symbolic link.
         """
-        if self._dir_info["file_attributes"].has_flag(FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT):
+        if self._dir_info.file_attributes & FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT:
             # While a symlink is a reparse point, all reparse points aren't symlinks. We need to get the reparse tag
             # to use as our check. Unlike WIN32_FILE_DATA scanned locally, we don't get the reparse tag in the original
             # query result. We need to do a separate stat call to get this information.
@@ -1302,10 +1339,20 @@ class SMBDirEntry:
     def from_path(cls, path, follow_symlinks=True, **kwargs):
         file_stat = stat(path, follow_symlinks=follow_symlinks, **kwargs)
 
-        # A DirEntry only needs these 2 properties to be set
-        dir_info = FileIdFullDirectoryInformation()
-        dir_info["file_attributes"] = file_stat.st_file_attributes
-        dir_info["file_id"] = file_stat.st_ino
+        # This is only used in shutil copytree so just recreate the dir info
+        # from the stat result as best as we can.
+        dir_info = SMBDirEntryInformation(
+            creation_time=datetime.datetime.fromtimestamp(file_stat.st_ctime),
+            last_access_time=datetime.datetime.fromtimestamp(file_stat.st_atime),
+            last_write_time=datetime.datetime.fromtimestamp(file_stat.st_mtime),
+            change_time=datetime.datetime.fromtimestamp(file_stat.st_chgtime),
+            end_of_file=file_stat.st_size,
+            allocation_size=file_stat.st_size,  # Not part of the normal stat data
+            file_attributes=file_stat.st_file_attributes,
+            ea_size=0,  # Not part of the standard stat data
+            file_id=file_stat.st_ino,
+            file_name=path.split("\\")[-1],
+        )
 
         dir_entry = cls(SMBRawIO(path, **kwargs), dir_info, connection_cache=kwargs.get("connection_cache", None))
         dir_entry._stat = file_stat

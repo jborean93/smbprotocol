@@ -7,6 +7,7 @@ from smbclient._os import (
     XATTR_CREATE,
     XATTR_REPLACE,
     SMBDirEntry,
+    SMBDirEntryInformation,
     SMBStatResult,
     SMBStatVolumeResult,
     copyfile,
