@@ -3,7 +3,7 @@
 
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -450,7 +450,7 @@ class TestSMB2CreateDurableHandleReconnect:
 class TestSMB2CreateQueryMaximalAccessRequest:
     def test_create_message(self):
         message = SMB2CreateQueryMaximalAccessRequest()
-        message["timestamp"] = datetime.utcfromtimestamp(0)
+        message["timestamp"] = datetime.fromtimestamp(0, timezone.utc)
         expected = b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         actual = message.pack()
         assert len(message) == 8
@@ -462,7 +462,7 @@ class TestSMB2CreateQueryMaximalAccessRequest:
         data = actual.unpack(data)
         assert len(actual) == 8
         assert data == b""
-        assert actual["timestamp"].get_value() == datetime.utcfromtimestamp(0)
+        assert actual["timestamp"].get_value() == datetime.fromtimestamp(0, timezone.utc)
 
 
 class TestSMB2CreateQueryMaximalAccessResponse:
@@ -505,7 +505,7 @@ class TestSMB2CreateAllocationSize:
 class TestSMB2CreateTimewarpToken:
     def test_create_message(self):
         message = SMB2CreateTimewarpToken()
-        message["timestamp"] = datetime.utcfromtimestamp(0)
+        message["timestamp"] = datetime.fromtimestamp(0, timezone.utc)
         expected = b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
         actual = message.pack()
         assert len(message) == 8
@@ -517,7 +517,7 @@ class TestSMB2CreateTimewarpToken:
         data = actual.unpack(data)
         assert len(actual) == 8
         assert data == b""
-        assert actual["timestamp"].get_value() == datetime.utcfromtimestamp(0)
+        assert actual["timestamp"].get_value() == datetime.fromtimestamp(0, timezone.utc)
 
 
 class TestSMB2CreateRequestLease:

@@ -4,7 +4,7 @@
 import types
 import uuid
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -1044,7 +1044,11 @@ class TestDateTimeField:
     @pytest.mark.parametrize(
         "raw, expected_dt, expected_bytes",
         [
-            (b"\x00\x00\x00\x00\x00\x00\x00\x00", datetime(1601, 1, 1, 0, 0, 0), b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+            (
+                b"\x00\x00\x00\x00\x00\x00\x00\x00",
+                datetime(1601, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                b"\x00\x00\x00\x00\x00\x00\x00\x00",
+            ),
             (
                 b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF",
                 datetime(9999, 12, 31, 23, 59, 59, 999999),
@@ -1091,7 +1095,16 @@ class TestDateTimeField:
     def test_unpack(self):
         field = self.StructureTest()["field"]
         field.unpack(b"\x5e\x70\x27\x4a\x6e\x23\x93\x01")
-        expected = datetime(year=1960, month=8, day=1, hour=22, minute=7, second=1, microsecond=186774)
+        expected = datetime(
+            year=1960,
+            month=8,
+            day=1,
+            hour=22,
+            minute=7,
+            second=1,
+            microsecond=186774,
+            tzinfo=timezone.utc,
+        )
         actual = field.get_value()
         assert actual == expected
 
@@ -1110,8 +1123,28 @@ class TestDateTimeField:
         field = structure["field"]
         field.name = "field"
         field.structure = self.StructureTest
-        field.set_value(lambda s: datetime(year=1960, month=8, day=2, hour=8, minute=7, second=1, microsecond=186774))
-        expected = datetime(year=1960, month=8, day=2, hour=8, minute=7, second=1, microsecond=186774)
+        field.set_value(
+            lambda s: datetime(
+                year=1960,
+                month=8,
+                day=2,
+                hour=8,
+                minute=7,
+                second=1,
+                microsecond=186774,
+                tzinfo=timezone.utc,
+            )
+        )
+        expected = datetime(
+            year=1960,
+            month=8,
+            day=2,
+            hour=8,
+            minute=7,
+            second=1,
+            microsecond=186774,
+            tzinfo=timezone.utc,
+        )
         actual = field.get_value()
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
@@ -1120,7 +1153,15 @@ class TestDateTimeField:
     def test_set_bytes(self):
         field = self.StructureTest()["field"]
         field.set_value(b"\x00\x67\x7b\x21\x3d\x5d\xd3\x01")
-        expected = datetime(year=2017, month=11, day=14, hour=11, minute=38, second=46)
+        expected = datetime(
+            year=2017,
+            month=11,
+            day=14,
+            hour=11,
+            minute=38,
+            second=46,
+            tzinfo=timezone.utc,
+        )
         actual = field.get_value()
         assert isinstance(field.value, datetime)
         assert actual == expected
@@ -1128,7 +1169,15 @@ class TestDateTimeField:
     def test_set_int(self):
         field = self.StructureTest()["field"]
         field.set_value(131551331260000000)
-        expected = datetime(year=2017, month=11, day=14, hour=11, minute=38, second=46)
+        expected = datetime(
+            year=2017,
+            month=11,
+            day=14,
+            hour=11,
+            minute=38,
+            second=46,
+            tzinfo=timezone.utc,
+        )
         actual = field.get_value()
         assert isinstance(field.value, datetime)
         assert actual == expected

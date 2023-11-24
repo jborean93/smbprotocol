@@ -659,7 +659,12 @@ class DateTimeField(Field):
         elif isinstance(value, int):
             time_microseconds = (value - self.EPOCH_FILETIME) // 10
             try:
-                datetime_value = datetime.datetime(1970, 1, 1) + datetime.timedelta(microseconds=time_microseconds)
+                datetime_value = datetime.datetime(
+                    year=1970,
+                    month=1,
+                    day=1,
+                    tzinfo=datetime.timezone.utc,
+                ) + datetime.timedelta(microseconds=time_microseconds)
             except OverflowError:
                 # This is unfortunately but 9999 is the max value a datetime can be so we just default to that
                 datetime_value = datetime.datetime.max

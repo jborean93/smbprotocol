@@ -4,7 +4,7 @@
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -70,7 +70,7 @@ from smbprotocol.tree import TreeConnect
 class TestSMB2CreateRequest:
     def test_create_message(self):
         timewarp_token = SMB2CreateTimewarpToken()
-        timewarp_token["timestamp"] = datetime.utcfromtimestamp(0)
+        timewarp_token["timestamp"] = datetime.fromtimestamp(0, timezone.utc)
         timewarp_context = SMB2CreateContextRequest()
         timewarp_context["buffer_name"] = CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
         timewarp_context["buffer_data"] = timewarp_token
@@ -272,17 +272,17 @@ class TestSMB2CreateResponse:
         message = SMB2CreateResponse()
         message["flag"] = FileFlags.SMB2_CREATE_FLAG_REPARSEPOINT
         message["create_action"] = CreateAction.FILE_CREATED
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(2048)
-        message["last_write_time"] = datetime.utcfromtimestamp(3072)
-        message["change_time"] = datetime.utcfromtimestamp(4096)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(2048, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(3072, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(4096, timezone.utc)
         message["allocation_size"] = 10
         message["end_of_file"] = 20
         message["file_attributes"] = FileAttributes.FILE_ATTRIBUTE_ARCHIVE
         message["file_id"] = b"\xff" * 16
 
         timewarp_token = SMB2CreateTimewarpToken()
-        timewarp_token["timestamp"] = datetime.utcfromtimestamp(0)
+        timewarp_token["timestamp"] = datetime.fromtimestamp(0, timezone.utc)
         timewarp_context = SMB2CreateContextRequest()
         timewarp_context["buffer_name"] = CreateContextName.SMB2_CREATE_TIMEWARP_TOKEN
         timewarp_context["buffer_data"] = timewarp_token
@@ -322,10 +322,10 @@ class TestSMB2CreateResponse:
         message = SMB2CreateResponse()
         message["flag"] = FileFlags.SMB2_CREATE_FLAG_REPARSEPOINT
         message["create_action"] = CreateAction.FILE_CREATED
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(2048)
-        message["last_write_time"] = datetime.utcfromtimestamp(3072)
-        message["change_time"] = datetime.utcfromtimestamp(4096)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(2048, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(3072, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(4096, timezone.utc)
         message["allocation_size"] = 10
         message["end_of_file"] = 20
         message["file_attributes"] = FileAttributes.FILE_ATTRIBUTE_ARCHIVE
@@ -388,10 +388,10 @@ class TestSMB2CreateResponse:
         assert actual["oplock_level"].get_value() == 0
         assert actual["flag"].get_value() == FileFlags.SMB2_CREATE_FLAG_REPARSEPOINT
         assert actual["create_action"].get_value() == CreateAction.FILE_CREATED
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(2048)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(3072)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(4096)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(2048, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(3072, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(4096, timezone.utc)
         assert actual["allocation_size"].get_value() == 10
         assert actual["end_of_file"].get_value() == 20
         assert actual["file_attributes"].get_value() == FileAttributes.FILE_ATTRIBUTE_ARCHIVE
@@ -441,10 +441,10 @@ class TestSMB2CreateResponse:
         assert actual["oplock_level"].get_value() == 0
         assert actual["flag"].get_value() == FileFlags.SMB2_CREATE_FLAG_REPARSEPOINT
         assert actual["create_action"].get_value() == CreateAction.FILE_CREATED
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(2048)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(3072)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(4096)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(2048, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(3072, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(4096, timezone.utc)
         assert actual["allocation_size"].get_value() == 10
         assert actual["end_of_file"].get_value() == 20
         assert actual["file_attributes"].get_value() == FileAttributes.FILE_ATTRIBUTE_ARCHIVE
@@ -491,10 +491,10 @@ class TestSMB2CloseRequest:
 class TestSMB2CloseResponse:
     def test_create_message(self):
         message = SMB2CloseResponse()
-        message["creation_time"] = datetime.utcfromtimestamp(0)
-        message["last_access_time"] = datetime.utcfromtimestamp(0)
-        message["last_write_time"] = datetime.utcfromtimestamp(0)
-        message["change_time"] = datetime.utcfromtimestamp(0)
+        message["creation_time"] = datetime.fromtimestamp(0, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(0, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(0, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(0, timezone.utc)
         expected = (
             b"\x3c\x00"
             b"\x00\x00"
@@ -530,10 +530,10 @@ class TestSMB2CloseResponse:
         assert actual["structure_size"].get_value() == 60
         assert actual["flags"].get_value() == 0
         assert actual["reserved"].get_value() == 0
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(0)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(0)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(0)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(0)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(0, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(0, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(0, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(0, timezone.utc)
         assert actual["allocation_size"].get_value() == 0
         assert actual["end_of_file"].get_value() == 0
         assert actual["file_attributes"].get_value() == 0
