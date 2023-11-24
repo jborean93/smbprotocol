@@ -2,7 +2,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from smbprotocol.file_info import (
     FileAllInformation,
@@ -135,10 +135,10 @@ class TestFileAllInformation:
 class TestFileBothDirectoryInformation:
     def test_create_message(self):
         message = FileBothDirectoryInformation()
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(1024)
-        message["last_write_time"] = datetime.utcfromtimestamp(1024)
-        message["change_time"] = datetime.utcfromtimestamp(1024)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(1024, timezone.utc)
         message["end_of_file"] = 4
         message["allocation_size"] = 1048576
         message["file_attributes"] = 32
@@ -197,10 +197,10 @@ class TestFileBothDirectoryInformation:
         assert data == b""
         assert actual["next_entry_offset"].get_value() == 0
         assert actual["file_index"].get_value() == 0
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(1024)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
         assert actual["end_of_file"].get_value() == 4
         assert actual["allocation_size"].get_value() == 1048576
         assert actual["file_attributes"].get_value() == 32
@@ -216,10 +216,10 @@ class TestFileBothDirectoryInformation:
 class TestFileDirectoryInformation:
     def test_create_message(self):
         message = FileDirectoryInformation()
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(1024)
-        message["last_write_time"] = datetime.utcfromtimestamp(1024)
-        message["change_time"] = datetime.utcfromtimestamp(1024)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(1024, timezone.utc)
         message["end_of_file"] = 4
         message["allocation_size"] = 1048576
         message["file_attributes"] = 32
@@ -266,10 +266,10 @@ class TestFileDirectoryInformation:
         assert data == b""
         assert actual["next_entry_offset"].get_value() == 0
         assert actual["file_index"].get_value() == 0
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(1024)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
         assert actual["end_of_file"].get_value() == 4
         assert actual["allocation_size"].get_value() == 1048576
         assert actual["file_attributes"].get_value() == 32
@@ -321,10 +321,10 @@ class TestFileEndOfFileInformation:
 class TestFileFullDirectoryInformation:
     def test_create_message(self):
         message = FileFullDirectoryInformation()
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(1024)
-        message["last_write_time"] = datetime.utcfromtimestamp(1024)
-        message["change_time"] = datetime.utcfromtimestamp(1024)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(1024, timezone.utc)
         message["end_of_file"] = 4
         message["allocation_size"] = 1048576
         message["file_attributes"] = 32
@@ -373,10 +373,10 @@ class TestFileFullDirectoryInformation:
         assert data == b""
         assert actual["next_entry_offset"].get_value() == 0
         assert actual["file_index"].get_value() == 0
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(1024)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
         assert actual["end_of_file"].get_value() == 4
         assert actual["allocation_size"].get_value() == 1048576
         assert actual["file_attributes"].get_value() == 32
@@ -442,10 +442,10 @@ class TestFileGetEaInformation:
 class TestFileIdBothDirectoryInformation:
     def test_create_message(self):
         message = FileIdBothDirectoryInformation()
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(1024)
-        message["last_write_time"] = datetime.utcfromtimestamp(1024)
-        message["change_time"] = datetime.utcfromtimestamp(1024)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(1024, timezone.utc)
         message["end_of_file"] = 4
         message["allocation_size"] = 1048576
         message["file_attributes"] = 32
@@ -509,10 +509,10 @@ class TestFileIdBothDirectoryInformation:
         assert data == b""
         assert actual["next_entry_offset"].get_value() == 0
         assert actual["file_index"].get_value() == 0
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(1024)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
         assert actual["end_of_file"].get_value() == 4
         assert actual["allocation_size"].get_value() == 1048576
         assert actual["file_attributes"].get_value() == 32
@@ -530,10 +530,10 @@ class TestFileIdBothDirectoryInformation:
 class TestFileIdFullDirectoryInformation:
     def test_create_message(self):
         message = FileIdFullDirectoryInformation()
-        message["creation_time"] = datetime.utcfromtimestamp(1024)
-        message["last_access_time"] = datetime.utcfromtimestamp(1024)
-        message["last_write_time"] = datetime.utcfromtimestamp(1024)
-        message["change_time"] = datetime.utcfromtimestamp(1024)
+        message["creation_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_access_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["last_write_time"] = datetime.fromtimestamp(1024, timezone.utc)
+        message["change_time"] = datetime.fromtimestamp(1024, timezone.utc)
         message["end_of_file"] = 4
         message["allocation_size"] = 1048576
         message["file_attributes"] = 32
@@ -587,10 +587,10 @@ class TestFileIdFullDirectoryInformation:
         assert data == b""
         assert actual["next_entry_offset"].get_value() == 0
         assert actual["file_index"].get_value() == 0
-        assert actual["creation_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_access_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["last_write_time"].get_value() == datetime.utcfromtimestamp(1024)
-        assert actual["change_time"].get_value() == datetime.utcfromtimestamp(1024)
+        assert actual["creation_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_access_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["last_write_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
+        assert actual["change_time"].get_value() == datetime.fromtimestamp(1024, timezone.utc)
         assert actual["end_of_file"].get_value() == 4
         assert actual["allocation_size"].get_value() == 1048576
         assert actual["file_attributes"].get_value() == 32
@@ -782,7 +782,7 @@ class TestFileFsVolumeInformation:
 
     def test_create_message(self):
         message = FileFsVolumeInformation()
-        message["volume_creation_time"] = datetime.utcfromtimestamp(0)
+        message["volume_creation_time"] = datetime.fromtimestamp(0, timezone.utc)
         message["volume_serial_number"] = 10
         message["volume_label"] = "café"
 
@@ -797,7 +797,7 @@ class TestFileFsVolumeInformation:
         assert len(actual) == 26
         assert data == b""
 
-        assert actual["volume_creation_time"].get_value() == datetime.utcfromtimestamp(0)
+        assert actual["volume_creation_time"].get_value() == datetime.fromtimestamp(0, timezone.utc)
         assert actual["volume_serial_number"].get_value() == 10
         assert actual["volume_label_length"].get_value() == 8
         assert actual["supports_objects"].get_value() is False

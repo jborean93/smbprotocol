@@ -3,7 +3,7 @@
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -675,10 +675,24 @@ class TestSMB2NegotiateResponse:
         assert actual["max_read_size"].get_value() == 8388608
         assert actual["max_write_size"].get_value() == 8388608
         assert actual["system_time"].get_value() == datetime(
-            year=2017, month=11, day=16, hour=10, minute=6, second=17, microsecond=378946
+            year=2017,
+            month=11,
+            day=16,
+            hour=10,
+            minute=6,
+            second=17,
+            microsecond=378946,
+            tzinfo=timezone.utc,
         )
         assert actual["server_start_time"].get_value() == datetime(
-            year=2017, month=11, day=16, hour=10, minute=3, second=19, microsecond=927194
+            year=2017,
+            month=11,
+            day=16,
+            hour=10,
+            minute=3,
+            second=19,
+            microsecond=927194,
+            tzinfo=timezone.utc,
         )
         assert actual["security_buffer_offset"].get_value() == 128
         assert actual["security_buffer_length"].get_value() == 120
@@ -743,10 +757,24 @@ class TestSMB2NegotiateResponse:
         assert actual["max_read_size"].get_value() == 8388608
         assert actual["max_write_size"].get_value() == 8388608
         assert actual["system_time"].get_value() == datetime(
-            year=2017, month=11, day=15, hour=11, minute=32, second=12, microsecond=1616
+            year=2017,
+            month=11,
+            day=15,
+            hour=11,
+            minute=32,
+            second=12,
+            microsecond=1616,
+            tzinfo=timezone.utc,
         )
         assert actual["server_start_time"].get_value() == datetime(
-            year=2017, month=11, day=15, hour=11, minute=27, second=26, microsecond=349606
+            year=2017,
+            month=11,
+            day=15,
+            hour=11,
+            minute=27,
+            second=26,
+            microsecond=349606,
+            tzinfo=timezone.utc,
         )
         assert actual["security_buffer_offset"].get_value() == 128
         assert actual["security_buffer_length"].get_value() == 120
