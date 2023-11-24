@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.12.1 - TBD
+## 1.13.0 - TBD
+
+* Added the property `smb_info` on `SMBDirEntry` which returns a named tuple `SMBDirEntryInformation` containing metadata already retrieved in the `scandir` operation.
+  * This avoid having to call `stat()` to retrieve data like the file attributes or datetime fields that is already available
 
 ## 1.12.0 - 2023-11-09
 

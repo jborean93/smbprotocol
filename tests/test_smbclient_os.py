@@ -1,6 +1,7 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+import datetime
 import io
 import locale
 import ntpath
@@ -1231,6 +1232,19 @@ def test_scandir(smb_share):
         assert isinstance(dir_entry, SMBDirEntry)
         names.append(dir_entry.name)
 
+        entry_info = dir_entry.smb_info
+        assert isinstance(entry_info, smbclient.SMBDirEntryInformation)
+        assert isinstance(entry_info.creation_time, datetime.datetime)
+        assert isinstance(entry_info.last_access_time, datetime.datetime)
+        assert isinstance(entry_info.last_write_time, datetime.datetime)
+        assert isinstance(entry_info.change_time, datetime.datetime)
+        assert isinstance(entry_info.end_of_file, int)
+        assert isinstance(entry_info.allocation_size, int)
+        assert isinstance(entry_info.file_attributes, int)
+        assert isinstance(entry_info.ea_size, int)
+        assert isinstance(entry_info.file_id, int)
+        assert isinstance(entry_info.file_name, str)
+
         # Test out dir_entry for specific file and dir examples
         if dir_entry.name == "subdir1":
             assert str(dir_entry) == "<SMBDirEntry: 'subdir1'>"
@@ -1259,7 +1273,7 @@ def test_scandir(smb_share):
     assert "file.txt" in names
 
 
-def test_scamdir_with_pattern(smb_share):
+def test_scandir_with_pattern(smb_share):
     for filename in ["file.txt", "file-test1.txt", "file-test1a.txt"]:
         with smbclient.open_file(rf"{smb_share}\{filename}", mode="w") as fd:
             fd.write("content")
