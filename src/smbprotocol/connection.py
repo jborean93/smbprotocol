@@ -1198,7 +1198,7 @@ class Connection:
             if tree_id not in session.tree_connect_table:
                 raise SMBException("Cannot find Tree with the ID %d in the session tree table" % tree_id)
             tree = session.tree_connect_table[tree_id]
-            is_dfs = tree.is_dfs_share
+            is_dfs = self.server_capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_DFS) and tree.is_dfs_share
 
         total_requests = len(messages)
         for i, message in enumerate(messages):

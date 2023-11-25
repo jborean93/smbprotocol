@@ -6,6 +6,7 @@
   * This avoid having to call `stat()` to retrieve data like the file attributes or datetime fields that is already available
 * Ensure `DateTimeField` values are set to `UTC` timezones as FILETIME values are in UTC
 * Stop using `datetime.datetime.utcfromtimestamp()` as it has been deprecated
+* Avoid setting DFS request when the server does not report it is capable of DFS operations.
 
 ## 1.12.0 - 2023-11-09
 
