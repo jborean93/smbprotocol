@@ -989,7 +989,7 @@ class Connection:
         """
         return self._send(messages, session_id=sid, tree_id=tid, related=related)
 
-    def receive(self, request, wait=True, timeout=None, resolve_symlinks=True):
+    def receive(self, request, wait=True, timeout=60, resolve_symlinks=True):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
