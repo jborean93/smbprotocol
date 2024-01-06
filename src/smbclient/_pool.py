@@ -210,7 +210,7 @@ def dfs_request(tree: TreeConnect, path: str) -> DFSReferralResponse:
     return dfs_response
 
 
-def delete_session(server, port=445, connection_cache=None):
+def delete_session(server, port=445, connection_cache=None, timeout=60):
     """
     Deletes the connection in the connection pool for the server specified. This will also close all sessions
     associated with the connection.
@@ -226,7 +226,7 @@ def delete_session(server, port=445, connection_cache=None):
     connection = connection_cache.get(connection_key, None)
     if connection:
         del connection_cache[connection_key]
-        connection.disconnect(close=True)
+        connection.disconnect(close=True, timeout=timeout)
 
 
 def get_smb_tree(
