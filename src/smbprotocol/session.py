@@ -394,7 +394,7 @@ class Session:
             log.info("Verifying the SMB Setup Session signature as auth is successful")
             self.connection.verify_signature(response, self.session_id, force=True)
 
-    def disconnect(self, close=True):
+    def disconnect(self, close=True, timeout=None):
         """
         Logs off the session
 
@@ -418,7 +418,7 @@ class Session:
         request = self.connection.send(logoff, sid=self.session_id)
 
         log.info("Session: %s - Receiving Logoff response", self.username)
-        res = self.connection.receive(request)
+        res = self.connection.receive(request, timeout=timeout)
         res_logoff = SMB2Logoff()
         res_logoff.unpack(res["data"].get_value())
         log.debug(res_logoff)

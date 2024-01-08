@@ -931,7 +931,7 @@ class Connection:
                 elif context_type == NegotiateContextType.SMB2_SIGNING_CAPABILITIES:
                     self.signing_algorithm_id = context["data"]["signing_algorithms"][0]
 
-    def disconnect(self, close=True):
+    def disconnect(self, close=True, timeout=None):
         """
         Closes the connection as well as logs off any of the
         Disconnects the TCP connection and shuts down the socket listener
@@ -943,7 +943,7 @@ class Connection:
         # We cannot close the session or tree if the socket has been closed.
         if close and self.transport.connected:
             for session in list(self.session_table.values()):
-                session.disconnect(True)
+                session.disconnect(True, timeout=timeout)
 
         log.info("Disconnecting transport connection")
         self.transport.close()
