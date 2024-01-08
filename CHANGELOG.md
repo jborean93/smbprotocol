@@ -6,6 +6,7 @@
   * This avoid having to call `stat()` to retrieve data like the file attributes or datetime fields that is already available
 * Ensure `DateTimeField` values are set to `UTC` timezones as FILETIME values are in UTC
 * Stop using `datetime.datetime.utcfromtimestamp()` as it has been deprecated
+* Added default timeout for disconnect operations for 60 seconds to ensure the process doesn't hang forever when closing a broken connection
 
 ## 1.12.0 - 2023-11-09
 
