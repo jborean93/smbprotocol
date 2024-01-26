@@ -820,6 +820,9 @@ class Connection:
         # Keep track of the message processing thread's potential traceback that it may raise.
         self._t_exc = None
 
+        # The thread that will handle message processing.
+        self._t_worker = None
+
     def connect(self, dialect=None, timeout=60, preferred_encryption_algos=None, preferred_signing_algos=None):
         """
         Will connect to the target server and negotiate the capabilities
