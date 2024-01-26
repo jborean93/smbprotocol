@@ -947,7 +947,8 @@ class Connection:
 
         log.info("Disconnecting transport connection")
         self.transport.close()
-        self._t_worker.join(timeout=2)
+        if self._t_worker:
+            self._t_worker.join(timeout=2)
 
     def send(
         self, message, sid=None, tid=None, credit_request=None, message_id=None, async_id=None, force_signature=False
