@@ -222,7 +222,9 @@ To this module, you need to install some pre-requisites first. This can be done
 by running;
 
 ```bash
+# Install in current virtual environment.
 pip install -r requirements-dev.txt
+pip install -e .
 
 # you can also run tox by installing tox
 pip install tox
@@ -231,9 +233,9 @@ pip install tox
 From there to run the basic tests run;
 
 ```bash
-py.test -v --pep8 --cov smbprotocol --cov-report term-missing
+py.test -v --cov smbprotocol --cov-report term-missing
 
-# or with tox 2.7, 2.7, 3.4, 3.5, and 3.6
+# or with tox for dedicated virtual environments and multiple Python versions.
 tox
 ```
 
