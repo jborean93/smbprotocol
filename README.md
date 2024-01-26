@@ -222,7 +222,8 @@ To this module, you need to install some pre-requisites first. This can be done
 by running;
 
 ```bash
-# Install in current virtual environment.
+# Install in current environment.
+# Recommend to have virtual environment installed at .venv path.
 pip install -r requirements-dev.txt
 pip install -e .
 
@@ -237,6 +238,15 @@ py.test -v --cov smbprotocol --cov-report term-missing
 
 # or with tox for dedicated virtual environments and multiple Python versions.
 tox
+```
+
+Before sending the code for review, besides making sure all the test pass,
+check that the code complies with the coding standards:
+
+```bash
+source ./build_helpers/lib.sh
+
+lib::sanity::run
 ```
 
 There are extra tests that only run when certain environment variables are set.
