@@ -65,7 +65,7 @@ class Tcp:
                 try:
                     self._sock = socket.create_connection((self.server, self.port), timeout=self.timeout)
                 except (OSError, socket.gaierror) as err:
-                    raise ValueError(f"Failed to connect to '{self.server}:{self.port}'") from err
+                    raise ValueError(f"Failed to connect to '{self.server}:{self.port}': {err}") from err
                 self._sock.settimeout(None)  # Make sure the socket is in blocking mode.
                 self.connected = True
 
