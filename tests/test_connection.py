@@ -1306,8 +1306,7 @@ class TestConnection:
         """
         connection, session = connected_session
 
-        actual = connection.echo(
-            sid=session.session_id, credit_request=65535)
+        actual = connection.echo(sid=session.session_id, credit_request=65535)
 
         assert actual == 8129
 
@@ -1317,7 +1316,7 @@ class TestConnection:
         allocated credits.
         """
         connection, _ = connected_session
-        msg_thread = f'msg_worker-{connection.server_name}:{connection.port}'
+        msg_thread = f"msg_worker-{connection.server_name}:{connection.port}"
 
         current_threads = [t.name for t in threading.enumerate()]
         assert msg_thread in current_threads
