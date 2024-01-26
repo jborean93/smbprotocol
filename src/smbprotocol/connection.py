@@ -861,11 +861,11 @@ class Connection:
         log.info("Setting up transport connection")
         self.transport = Tcp(self.server_name, self.port, timeout)
         self.transport.connect()
-        t_worker = threading.Thread(
+        self._t_worker = threading.Thread(
             target=self._process_message_thread, name=f"msg_worker-{self.server_name}:{self.port}"
         )
-        t_worker.daemon = True
-        t_worker.start()
+        self._t_worker.daemon = True
+        self._t_worker.start()
 
         log.info("Starting negotiation with SMB server")
         enc_algos = preferred_encryption_algos or [
@@ -947,6 +947,7 @@ class Connection:
 
         log.info("Disconnecting transport connection")
         self.transport.close()
+        self._t_worker.join(timeout=2)
 
     def send(
         self, message, sid=None, tid=None, credit_request=None, message_id=None, async_id=None, force_signature=False
