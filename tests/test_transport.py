@@ -72,8 +72,15 @@ class TestTcp:
         )
 
     def test_invalid_host(self):
+        """
+        Raises ValueError when failing to connect to the remote server.
+
+        The error message contains the low-level OS error details.
+        """
         tcp = Tcp("fake-host", 445)
-        with pytest.raises(ValueError, match=re.escape("Failed to connect to 'fake-host:445'")):
+        # We just check for OSError marker, as the actual error message
+        # might be different based on current OS.
+        with pytest.raises(ValueError, match=r"Failed to connect to 'fake-host:445': \[Errno .*"):
             tcp.connect()
 
 
