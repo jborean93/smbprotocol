@@ -1312,8 +1312,7 @@ class TestConnection:
 
     def test_disconnect_wait_for_thread(self, connected_session):
         """
-        When requesting more credit from the server, it will return the
-        allocated credits.
+        Disconnect will continue after the message thread is stopped.
         """
         connection, _ = connected_session
         msg_thread = f"msg_worker-{connection.server_name}:{connection.port}"
