@@ -7,6 +7,7 @@
 * Ensure `DateTimeField` values are set to `UTC` timezones as FILETIME values are in UTC
 * Stop using `datetime.datetime.utcfromtimestamp()` as it has been deprecated
 * Added default timeout for disconnect operations for 60 seconds to ensure the process doesn't hang forever when closing a broken connection
+* `smbprotocol.connection.Connection.disconnect()` now waits (with a timeout) for the message processing threads to be stopped before returning.
 
 ## 1.12.0 - 2023-11-09
 

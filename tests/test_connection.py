@@ -2,6 +2,7 @@
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
 import os
+import threading
 import uuid
 from datetime import datetime, timezone
 
@@ -32,6 +33,22 @@ from smbprotocol.exceptions import SMBConnectionClosed, SMBException
 from smbprotocol.header import Smb2Flags, SMB2HeaderResponse
 from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.session import Session
+
+
+@pytest.fixture
+def connected_session(smb_real):
+    """
+    Return a (connection, session) tuple that is already connected to the
+    SMB server and that will disconnect at the end.
+    """
+    connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
+    connection.connect()
+    session = Session(connection, smb_real[0], smb_real[1])
+    session.connect()
+
+    yield connection, session
+
+    connection.disconnect(True)
 
 
 class TestSMB2NegotiateRequest:
@@ -1183,6 +1200,9 @@ class TestConnection:
             connection.disconnect()
 
     def test_connection_echo(self, smb_real):
+        """
+        SMB2 Echo can be used to request extra credits from the server.
+        """
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3])
         connection.connect()
         session = Session(connection, smb_real[0], smb_real[1])
@@ -1278,3 +1298,39 @@ class TestConnection:
         actual = connection._encrypt(b"\x01\x02\x03\x04", session)
         assert isinstance(actual, SMB2TransformHeader)
         assert actual.pack() == expected.pack()
+
+    def test_connection_echo_more(self, connected_session):
+        """
+        When requesting more credit from the server, it will return the
+        allocated credits.
+        """
+        connection, session = connected_session
+
+        actual = connection.echo(sid=session.session_id, credit_request=65535)
+
+        assert actual == 8129
+
+    def test_disconnect_wait_for_thread(self, connected_session):
+        """
+        Disconnect will continue after the message thread is stopped.
+        """
+        connection, _ = connected_session
+        msg_thread = f"msg_worker-{connection.server_name}:{connection.port}"
+
+        current_threads = [t.name for t in threading.enumerate()]
+        assert msg_thread in current_threads
+
+        connection.disconnect()
+
+        current_threads = [t.name for t in threading.enumerate()]
+        assert msg_thread not in current_threads
+
+    def test_disconnect_already_disconnected(self, connected_session):
+        """
+        Disconnect can be called multiple times, and is a noop if
+        already disconnected.
+        """
+        connection, _ = connected_session
+
+        connection.disconnect()
+        connection.disconnect()

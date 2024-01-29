@@ -820,6 +820,9 @@ class Connection:
         # Keep track of the message processing thread's potential traceback that it may raise.
         self._t_exc = None
 
+        # The thread that will handle message processing.
+        self._t_worker = None
+
     def connect(self, dialect=None, timeout=60, preferred_encryption_algos=None, preferred_signing_algos=None):
         """
         Will connect to the target server and negotiate the capabilities
@@ -861,11 +864,11 @@ class Connection:
         log.info("Setting up transport connection")
         self.transport = Tcp(self.server_name, self.port, timeout)
         self.transport.connect()
-        t_worker = threading.Thread(
+        self._t_worker = threading.Thread(
             target=self._process_message_thread, name=f"msg_worker-{self.server_name}:{self.port}"
         )
-        t_worker.daemon = True
-        t_worker.start()
+        self._t_worker.daemon = True
+        self._t_worker.start()
 
         log.info("Starting negotiation with SMB server")
         enc_algos = preferred_encryption_algos or [
@@ -947,6 +950,8 @@ class Connection:
 
         log.info("Disconnecting transport connection")
         self.transport.close()
+        if self._t_worker:
+            self._t_worker.join(timeout=2)
 
     def send(
         self, message, sid=None, tid=None, credit_request=None, message_id=None, async_id=None, force_signature=False
