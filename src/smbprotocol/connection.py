@@ -1256,8 +1256,6 @@ class Connection:
                 header["flags"].set_flag(Smb2Flags.SMB2_FLAGS_DFS_OPERATIONS)
 
             if i != 0 and related:
-                header["session_id"] = b"\xff" * 8
-                header["tree_id"] = b"\xff" * 4
                 header["flags"].set_flag(Smb2Flags.SMB2_FLAGS_RELATED_OPERATIONS)
 
             if force_signature or (session and session.signing_required and session.signing_key):
