@@ -277,7 +277,7 @@ class Session:
         if self.auth_protocol != "negotiate":
             in_token = None  # The GSS Negotiate Token can only be used for Negotiate auth.
 
-        while not context.complete or in_token:
+        while not context.complete:
             try:
                 out_token = context.step(in_token)
             except spnego.exceptions.SpnegoError as err:

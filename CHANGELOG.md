@@ -10,6 +10,7 @@
 * `smbprotocol.connection.Connection.disconnect()` now waits (with a timeout) for the message processing threads to be stopped before returning.
 * Do not set the SMB SessionId and TreeId in the headers to `0xFFFFFFFF` for related compound requests
 + Ensures the source file for `shutil.copyfile` is opened with `share_access="r"` for better compatibility with files already opened by something else
++ Remove endless authentication loop when the context is complete and no more input messages are needed
 
 ## 1.12.0 - 2023-11-09
 
