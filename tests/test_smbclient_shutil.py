@@ -4,6 +4,7 @@
 import ctypes
 import ntpath
 import os
+import os.path
 import re
 import shutil
 import stat
@@ -299,6 +300,23 @@ def test_copyfile_remote_to_local(smb_share, tmpdir):
         fd.write("content")
 
     actual = copyfile(src_filename, dst_filename)
+    assert actual == dst_filename
+
+    with open(dst_filename) as fd:
+        assert fd.read() == "content"
+
+
+def test_copyfile_remote_to_local_read_share(smb_share, tmpdir):
+    test_dir = tmpdir.mkdir("test")
+    src_filename = "%s\\source.txt" % smb_share
+    dst_filename = os.path.join(test_dir, "target.txt")
+
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
+
+    with open_file(src_filename, mode="r", share_access="r") as fd:
+        actual = copyfile(src_filename, dst_filename)
+
     assert actual == dst_filename
 
     with open(dst_filename) as fd:

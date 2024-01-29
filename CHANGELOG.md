@@ -9,6 +9,7 @@
 * Added default timeout for disconnect operations for 60 seconds to ensure the process doesn't hang forever when closing a broken connection
 * `smbprotocol.connection.Connection.disconnect()` now waits (with a timeout) for the message processing threads to be stopped before returning.
 * Do not set the SMB SessionId and TreeId in the headers to `0xFFFFFFFF` for related compound requests
++ Ensures the source file for `shutil.copyfile` is opened with `share_access="r"` for better compatibility with files already opened by something else
 
 ## 1.12.0 - 2023-11-09
 

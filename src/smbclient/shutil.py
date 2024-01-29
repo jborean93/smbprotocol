@@ -130,13 +130,19 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
         symlink_func = symlink
         src_open = open_file
         src_kwargs = kwargs
+
+        # Open the soruce with read file sharing to allow copying
+        # files already opened.
+        # https://github.com/jborean93/smbprotocol/issues/258
+        src_open_kwargs = kwargs.copy()
+        src_open_kwargs["share_access"] = "r"
     else:
         src_root = None
         islink_func = os.path.islink
         readlink_func = os.readlink
         symlink_func = os.symlink
         src_open = open
-        src_kwargs = {}
+        src_kwargs = src_open_kwargs = {}
 
     norm_dst = ntpath.normpath(dst)
     if is_remote_path(norm_dst):
@@ -178,7 +184,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
         return dst
 
     # Finally we are copying across different roots so we just chunk the data using copyfileobj
-    with src_open(src, mode="rb", **src_kwargs) as src_fd, dst_open(dst, mode="wb", **dst_kwargs) as dst_fd:
+    with src_open(src, mode="rb", **src_open_kwargs) as src_fd, dst_open(dst, mode="wb", **dst_kwargs) as dst_fd:
         copyfileobj(src_fd, dst_fd, MAX_PAYLOAD_SIZE)
 
     return dst
