@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.14.0 - TBD
+
+* Dropped support for Python 3.7
+
 ## 1.13.0 - 2024-03-21
 
 * Added the property `smb_info` on `SMBDirEntry` which returns a named tuple `SMBDirEntryInformation` containing metadata already retrieved in the `scandir` operation.
