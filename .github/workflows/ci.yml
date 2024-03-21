@@ -96,8 +96,9 @@ jobs:
     - name: Extract OS name
       shell: bash
       run: |
-        echo NAME=$( echo '${{ matrix.os }}' | tr '-' ' ' | awk '{print $1}' )
-        echo "name=${NAME}" >> $GITHUB_OUTPUT
+        NAME=$( echo '${{ matrix.os }}' | tr '-' ' ' | awk '{print $1}' )
+        echo "${NAME}"
+        echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
       id: os
 
     - name: Test
