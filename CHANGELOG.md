@@ -3,6 +3,7 @@
 ## 1.14.0 - TBD
 
 * Dropped support for Python 3.7
+* `SMBDirEntryInformation.last_write_time` is now annotated as `datetime.datetime`. Previously, it was `datetime.date`.  https://github.com/jborean93/smbprotocol/issues/279
 
 ## 1.13.0 - 2024-03-21
 
