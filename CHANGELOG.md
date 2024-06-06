@@ -3,6 +3,7 @@
 ## 1.14.0 - TBD
 
 * Dropped support for Python 3.7
+* fixed type annotation of `SMBDirEntryInformation.last_write_time` (`datetime.datetime`) (issue #279)
 
 ## 1.13.0 - 2024-03-21
 
