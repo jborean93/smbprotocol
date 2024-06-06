@@ -1187,7 +1187,7 @@ def _set_basic_information(
 class SMBDirEntryInformation(t.NamedTuple):
     creation_time: datetime.datetime
     last_access_time: datetime.datetime
-    last_write_time: datetime.date
+    last_write_time: datetime.datetime
     change_time: datetime.datetime
     end_of_file: int
     allocation_size: int
