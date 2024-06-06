@@ -298,6 +298,16 @@ def copytree(
     :param kwargs: Common arguments used to build the SMB Session for any UNC paths.
     :return: The dst path.
     """
+
+    class LocalDirEntry:
+        """Mimics the structure of os.DirEntry which is not exposed https://github.com/python/cpython/issues/71225"""
+
+        def __init__(self, path) -> None:
+            self.path = path
+
+        def is_dir(self):
+            return os.path.isdir(self.path)
+
     if is_remote_path(src):
         dir_entries = list(scandir(src, **kwargs))
     else:
@@ -320,20 +330,29 @@ def copytree(
         src_path = _join_local_or_remote_path(src, dir_entry.name)
         dst_path = _join_local_or_remote_path(dst, dir_entry.name)
 
+        is_smb_dir_entry = isinstance(dir_entry, SMBDirEntry)
+
         try:
             if dir_entry.is_symlink():
-                if not isinstance(dir_entry, SMBDirEntry):
-                    raise AssertionError("copytree doesn't yet support symlinks for local to remote operations")
-
-                link_target = readlink(src_path, **kwargs)
+                if is_smb_dir_entry:
+                    link_target = readlink(src_path, **kwargs)
+                else:
+                    link_target = os.path.realpath(src_path)
                 if symlinks:
+                    if not is_smb_dir_entry:
+                        raise AssertionError(
+                            "copytree doesn't yet support unresolved symlinks for local to remote operations"
+                        )
                     symlink(link_target, dst_path, **kwargs)
                     copystat(src_path, dst_path, follow_symlinks=False)
                     continue
                 else:
                     # Manually override the dir_entry with a new one that is the link target and copy that below.
                     try:
-                        dir_entry = SMBDirEntry.from_path(link_target, **kwargs)
+                        if not is_remote_path(link_target):
+                            dir_entry = LocalDirEntry(link_target)
+                        else:
+                            dir_entry = SMBDirEntry.from_path(link_target, **kwargs)
                     except OSError as err:
                         if err.errno == errno.ENOENT and ignore_dangling_symlinks:
                             continue
