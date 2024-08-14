@@ -230,7 +230,7 @@ def delete_session(server, port=445, connection_cache=None, timeout=60):
 
 
 def get_smb_tree(
-    path, username=None, password=None, port=445, encrypt=None, connection_timeout=60, connection_cache=None
+    path, username=None, password=None, port=445, encrypt=None, receive_timeout=600, connection_timeout=60, connection_cache=None,
 ):
     """
     Returns an active Tree connection and file path including the tree based on the UNC path passed in and other
@@ -244,6 +244,7 @@ def get_smb_tree(
     :param port: The port to connect with.
     :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
         back to False.
+    :param receive_timeout: Override the timeout used for receiving a response from the server
     :param connection_timeout: Override the timeout used for the initial connection.
     :param connection_cache: Connection cache to be used with
     :return: The TreeConnect and file path including the tree based on the UNC path passed in.
@@ -261,6 +262,7 @@ def get_smb_tree(
         "password": password,
         "port": port,
         "encrypt": encrypt,
+        "receive_timeout": receive_timeout,
         "connection_timeout": connection_timeout,
         "connection_cache": connection_cache,
     }
@@ -307,6 +309,7 @@ def get_smb_tree(
         password=password,
         port=port,
         encrypt=encrypt,
+        receive_timeout=receive_timeout,
         connection_timeout=connection_timeout,
         connection_cache=connection_cache,
         auth_protocol=auth_protocol,
@@ -371,6 +374,7 @@ def register_session(
     password=None,
     port=445,
     encrypt=None,
+    receive_timeout=600,
     connection_timeout=60,
     connection_cache=None,
     auth_protocol="negotiate",
@@ -389,6 +393,7 @@ def register_session(
     :param port: The port to connect with. Defaults to 445.
     :param encrypt: Whether to force encryption or not, once this has been set to True the session cannot be changed
         back to False.
+    :param receive_timeout: Override the timeout used for receiving a response from the server
     :param connection_timeout: Override the timeout used for the initial connection.
     :param connection_cache: Connection cache to be used with
     :param auth_protocol: The protocol to use for authentication. Possible values are 'negotiate', 'ntlm' or
@@ -405,6 +410,7 @@ def register_session(
     # Make sure we ignore any connections that may have had a closed connection
     if not connection or not connection.transport.connected:
         connection = Connection(ClientConfig().client_guid, server, port, require_signing=require_signing)
+        connection.receive_timeout = receive_timeout
         connection.connect(timeout=connection_timeout)
         connection_cache[connection_key] = connection
 
