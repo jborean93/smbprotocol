@@ -749,7 +749,8 @@ class Connection:
         self.port = port
         self.transport = None  # Instanciated in .connect()
 
-        self.receive_timeout = 600
+        # Experimental customizable value. Might be removed in the future
+        self._receive_timeout = int(os.environ.get("SMB_EXPERIMENTAL_TRANSPORT_RECEIVE_TIMEOUT", 600))
 
         # Table of Session entries, the order is important for smbclient.
         self.session_table = OrderedDict()
@@ -1308,7 +1309,7 @@ class Connection:
                 # safe choice.
                 # https://github.com/jborean93/smbprotocol/issues/31
                 try:
-                    b_msg = self.transport.recv(self.receive_timeout)
+                    b_msg = self.transport.recv(self._receive_timeout)
                 except TimeoutError as ex:
                     # Check if the connection has unanswered keepalive echo requests with the reserved field set.
                     # When unanswered keep alive echo exists, the server did not respond withing two times the timeout.
