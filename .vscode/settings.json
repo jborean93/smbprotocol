@@ -1,4 +1,5 @@
 {
+    "black-formatter.importStrategy": "fromEnvironment",
     "editor.formatOnSave": true,
     "editor.rulers": [
         80,
@@ -6,7 +7,7 @@
     ],
     "files.trimTrailingWhitespace": true,
     "editor.trimAutoWhitespace": true,
-    "python.formatting.provider": "black",
+    "isort.importStrategy": "fromEnvironment",
     "python.testing.pytestArgs": [
         "tests",
         "-vv"
@@ -14,12 +15,10 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "[python]": {
+        "editor.defaultFoldingRangeProvider": "ms-python.black-formatter",
         "editor.codeActionsOnSave": {
-            "source.organizeImports": true
+            "source.organizeImports": "explicit"
         },
     },
-    "python.linting.ignorePatterns": [
-        "tests/**"
-    ],
     "python.envFile": "${workspaceFolder}/.vscode/.env",
 }
