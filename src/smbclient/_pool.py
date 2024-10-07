@@ -440,10 +440,10 @@ def reset_connection_cache(fail_on_error=True, connection_cache=None):
     if connection_cache is None:
         connection_cache = _SMB_CONNECTIONS
 
-    for name, connection in list(connection_cache.items()):
+    for name in list(connection_cache.keys()):
+        connection = connection_cache.pop(name)
         try:
             connection.disconnect()
-            del connection_cache[name]
         except Exception as e:
             if fail_on_error:
                 raise
