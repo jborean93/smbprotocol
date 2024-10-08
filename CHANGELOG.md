@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.14.1 - TBD
+
+* Add workaround for Impackets logoff response not setting the session id for message verification
+* Remove connection from global connection cache even if failing to close it
+
 ## 1.14.0 - 2024-08-26
 
 * Dropped support for Python 3.7

@@ -1360,8 +1360,12 @@ class Connection:
                     # unreliable for async responses. Instead get the Session Id from the original request object if
                     # the Session Id is 0xFFFFFFFFFFFFFFFF.
                     # https://social.msdn.microsoft.com/Forums/en-US/a580f7bc-6746-4876-83db-6ac209b202c4/mssmb2-change-notify-response-sessionid?forum=os_fileservices
+                    # Impacket also sets session id to 0 on the logoff response
+                    # so fallback to the request for that one
+                    # https://github.com/jborean93/smbprotocol/issues/289#issuecomment-2396040117.
+                    command = header["command"].get_value()
                     session_id = header["session_id"].get_value()
-                    if session_id == 0xFFFFFFFFFFFFFFFF:
+                    if session_id == 0xFFFFFFFFFFFFFFFF or (session_id == 0 and command == Commands.SMB2_LOGOFF):
                         session_id = request.session_id
 
                     # No need to waste CPU cycles to verify the signature if we already decrypted the header.
@@ -1378,7 +1382,6 @@ class Connection:
                     with self.sequence_lock:
                         self.sequence_window["high"] += credit_response
 
-                    command = header["command"].get_value()
                     status = header["status"].get_value()
                     if command == Commands.SMB2_NEGOTIATE:
                         self.preauth_integrity_hash_value.append(b_header)
