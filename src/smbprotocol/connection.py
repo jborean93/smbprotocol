@@ -1356,16 +1356,14 @@ class Connection:
                     message_id = header["message_id"].get_value()
                     request = self.outstanding_requests[message_id]
 
-                    # Typically you want to get the Session Id from the first message in a compound request but that is
-                    # unreliable for async responses. Instead get the Session Id from the original request object if
-                    # the Session Id is 0xFFFFFFFFFFFFFFFF.
-                    # https://social.msdn.microsoft.com/Forums/en-US/a580f7bc-6746-4876-83db-6ac209b202c4/mssmb2-change-notify-response-sessionid?forum=os_fileservices
-                    # Impacket also sets session id to 0 on the logoff response
-                    # so fallback to the request for that one
-                    # https://github.com/jborean93/smbprotocol/issues/289#issuecomment-2396040117.
+                    # For SMB2 SESSION_SETUP, the client MUST retrieve SessionId
+                    # from SMB2 header of the response. For all other messages,
+                    # the client MUST retrieve SessionId from the corresponding
+                    # Request.Message.
                     command = header["command"].get_value()
-                    session_id = header["session_id"].get_value()
-                    if session_id == 0xFFFFFFFFFFFFFFFF or (session_id == 0 and command == Commands.SMB2_LOGOFF):
+                    if command == Commands.SMB2_SESSION_SETUP:
+                        session_id = header["session_id"].get_value()
+                    else:
                         session_id = request.session_id
 
                     # No need to waste CPU cycles to verify the signature if we already decrypted the header.
