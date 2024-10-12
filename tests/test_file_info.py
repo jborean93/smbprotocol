@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from smbprotocol.file_info import (
     FileAllInformation,
+    FileBasicInformation,
     FileBothDirectoryInformation,
     FileDirectoryInformation,
     FileDispositionInformation,
@@ -25,6 +26,31 @@ from smbprotocol.file_info import (
     FileStandardInformation,
 )
 from smbprotocol.structure import DateTimeField
+
+
+class TestFileBasicInformation:
+
+    def test_parse_message(self):
+        data = (
+            b"\x00\xf2\xc4\x22\x2d\x1c\xdb\x01"
+            b"\x00\xf2\xc4\x22\x2d\x1c\xdb\x01"
+            b"\x00\xf2\xc4\x22\x2d\x1c\xdb\x01"
+            b"\x00\xf2\xc4\x22\x2d\x1c\xdb\x01"
+            b"\x10\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+        )
+
+        actual = FileBasicInformation()
+        data = actual.unpack(data)
+        assert data == b""
+        assert len(actual) == 40
+
+        assert actual["creation_time"].get_value() == 133731594120000000
+        assert actual["last_access_time"].get_value() == 133731594120000000
+        assert actual["last_write_time"].get_value() == 133731594120000000
+        assert actual["change_time"].get_value() == 133731594120000000
+        assert actual["file_attributes"].get_value() == 0x10
+        assert actual["reserved"].get_value() == 0
 
 
 class TestFileNameInformation:

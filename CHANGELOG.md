@@ -2,7 +2,7 @@
 
 ## 1.14.1 - TBD
 
-* Add workaround for Impackets logoff response not setting the session id for message verification
+* Update session id lookup logic to comply with MS-SMB2 spec
 * Remove connection from global connection cache even if failing to close it
 
 ## 1.14.0 - 2024-08-26
