@@ -14,6 +14,7 @@ from smbclient._os import (
     getxattr,
     link,
     listdir,
+    liststreams,
     listxattr,
     lstat,
     makedirs,

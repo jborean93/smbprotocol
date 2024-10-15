@@ -834,10 +834,7 @@ def test_open_file_with_ads(smb_share):
 
     assert smbclient.listdir(smb_share) == ["file.txt"]
 
-    with smbclient.open_file(filename, buffering=0, mode="rb") as fd, SMBFileTransaction(fd) as trans:
-        query_info(trans, FileStreamInformation, output_buffer_length=1024)
-
-    actual = sorted([s["stream_name"].get_value() for s in trans.results[0]])
+    actual = sorted([s.name for s in smbclient.liststreams(filename)])
     assert actual == ["::$DATA", ":ads:$DATA"]
 
 

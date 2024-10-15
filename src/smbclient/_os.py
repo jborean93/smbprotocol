@@ -1,6 +1,8 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
+from __future__ import annotations
+
 import collections
 import datetime
 import errno
@@ -37,6 +39,7 @@ from smbprotocol.file_info import (
     FileLinkInformation,
     FileRenameInformation,
     FileStandardInformation,
+    FileStreamInformation,
 )
 from smbprotocol.header import NtStatus
 from smbprotocol.ioctl import (
@@ -100,6 +103,12 @@ SMBStatVolumeResult = collections.namedtuple(
         "actual_available_size",
     ],
 )
+
+
+class SMBFileStreamInformation(t.NamedTuple):
+    name: str
+    size: int
+    allocation_size: int
 
 
 def is_remote_path(path: str) -> bool:
@@ -1017,6 +1026,43 @@ def setxattr(path, attribute, value, flags=0, follow_symlinks=True, **kwargs):
         ea_info["ea_name"] = b_attribute
         ea_info["ea_value"] = b_value
         set_info(transaction, ea_info)
+
+
+def liststreams(path: str, follow_symlinks=True, **kwargs: t.Any) -> list[SMBFileStreamInformation]:
+    """
+    Return a list of the alternative data streams on a path. Listed streams can
+    be opened by appending their name to the original path. An example call for
+    a file with a single extra stream may return:
+
+    ```
+    [
+        SMBFileStreamInformation(name=':extra_stream:$DATA', size=8, allocation_size=8),
+        SMBFileStreamInformation(name='::$DATA', size=103472, allocation_size=131072),
+    ]
+    ```
+
+    :param path: The full UNC path to the file to get the list of streams for.
+    :param follow_symlinks: Whether to follow the symlink at path if encountered.
+    :param kwargs: Common SMB Session arguments for smbclient.
+    :return: List of streams on the file with each entry being a string.
+    """
+
+    raw = SMBRawIO(
+        path,
+        desired_access=FilePipePrinterAccessMask.FILE_READ_ATTRIBUTES,
+        create_options=0 if follow_symlinks else CreateOptions.FILE_OPEN_REPARSE_POINT,
+        **kwargs,
+    )
+
+    with SMBFileTransaction(raw) as transaction:
+        query_info(transaction, FileStreamInformation, output_buffer_length=MAX_PAYLOAD_SIZE)
+
+    return [
+        SMBFileStreamInformation(
+            s["stream_name"].get_value(), s["stream_size"].get_value(), s["stream_allocation_size"].get_value()
+        )
+        for s in transaction.results[0]
+    ]
 
 
 def _delete(raw_type, path, **kwargs):
