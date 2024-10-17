@@ -5,6 +5,7 @@ import hashlib
 import logging
 import random
 from collections import OrderedDict
+from typing import Literal, Optional
 
 import spnego
 from cryptography.hazmat.backends import default_backend
@@ -170,7 +171,14 @@ class SMB2Logoff(Structure):
 
 
 class Session:
-    def __init__(self, connection, username=None, password=None, require_encryption=True, auth_protocol="negotiate"):
+    def __init__(
+        self,
+        connection,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        require_encryption=True,
+        auth_protocol: Literal["negotiate", "ntlm", "kerberos"] = "negotiate",
+    ):
         """
         [MS-SMB2] v53.0 2017-09-15
 
