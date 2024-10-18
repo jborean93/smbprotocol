@@ -315,6 +315,140 @@ def makedirs(path, exist_ok=False, **kwargs):
             create_queue.pop(-1)
 
 
+# Taken from stdlib typeshed but removed the unused 'U' flag
+OpenTextModeUpdating: t.TypeAlias = t.Literal[
+    "r+",
+    "+r",
+    "rt+",
+    "r+t",
+    "+rt",
+    "tr+",
+    "t+r",
+    "+tr",
+    "w+",
+    "+w",
+    "wt+",
+    "w+t",
+    "+wt",
+    "tw+",
+    "t+w",
+    "+tw",
+    "a+",
+    "+a",
+    "at+",
+    "a+t",
+    "+at",
+    "ta+",
+    "t+a",
+    "+ta",
+    "x+",
+    "+x",
+    "xt+",
+    "x+t",
+    "+xt",
+    "tx+",
+    "t+x",
+    "+tx",
+]
+OpenTextModeWriting: t.TypeAlias = t.Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"]
+OpenTextModeReading: t.TypeAlias = t.Literal["r", "rt", "tr"]
+OpenTextMode: t.TypeAlias = t.Literal[OpenTextModeUpdating, OpenTextModeWriting, OpenTextModeReading]
+OpenBinaryModeUpdating: t.TypeAlias = t.Literal[
+    "rb+",
+    "r+b",
+    "+rb",
+    "br+",
+    "b+r",
+    "+br",
+    "wb+",
+    "w+b",
+    "+wb",
+    "bw+",
+    "b+w",
+    "+bw",
+    "ab+",
+    "a+b",
+    "+ab",
+    "ba+",
+    "b+a",
+    "+ba",
+    "xb+",
+    "x+b",
+    "+xb",
+    "bx+",
+    "b+x",
+    "+bx",
+]
+OpenBinaryModeWriting: t.TypeAlias = t.Literal["wb", "bw", "ab", "ba", "xb", "bx"]
+OpenBinaryModeReading: t.TypeAlias = t.Literal["rb", "br"]
+OpenBinaryMode: t.TypeAlias = t.Literal[OpenBinaryModeUpdating, OpenBinaryModeReading, OpenBinaryModeWriting]
+FileType: t.TypeAlias = t.Literal["file", "dir", "pipe"]
+
+
+# Text mode: always returns a TextIOWrapper
+@t.overload
+def open_file(
+    path,
+    mode: OpenTextMode = "r",
+    buffering=-1,
+    file_type: FileType = "file",
+    encoding=None,
+    errors=None,
+    newline=None,
+    share_access=None,
+    desired_access=None,
+    file_attributes=None,
+    **kwargs,
+) -> io.TextIOWrapper[io.BufferedRandom | io.BufferedReader | io.BufferedWriter]: ...
+
+
+# Otherwise return BufferedRandom, BufferedReader, or BufferedWriter
+# NOTE: This incorrectly returns unbuffered opens as Buffered types, due to difficulties
+# in annotating that case
+@t.overload
+def open_file(
+    path,
+    mode: OpenBinaryModeUpdating,
+    buffering=-1,
+    encoding=None,
+    errors=None,
+    newline=None,
+    share_access=None,
+    desired_access=None,
+    file_attributes=None,
+    file_type: FileType = "file",
+    **kwargs,
+) -> io.BufferedRandom: ...
+@t.overload
+def open_file(
+    path,
+    mode: OpenBinaryModeReading,
+    buffering=-1,
+    encoding=None,
+    errors=None,
+    newline=None,
+    share_access=None,
+    desired_access=None,
+    file_attributes=None,
+    file_type: FileType = "file",
+    **kwargs,
+) -> io.BufferedReader: ...
+@t.overload
+def open_file(
+    path,
+    mode: OpenBinaryModeWriting,
+    buffering=-1,
+    encoding=None,
+    errors=None,
+    newline=None,
+    share_access=None,
+    desired_access=None,
+    file_attributes=None,
+    file_type: FileType = "file",
+    **kwargs,
+) -> io.BufferedWriter: ...
+
+
 def open_file(
     path,
     mode="r",
@@ -325,7 +459,7 @@ def open_file(
     share_access=None,
     desired_access=None,
     file_attributes=None,
-    file_type="file",
+    file_type: t.Literal["file", "dir", "pipe"] = "file",
     **kwargs,
 ):
     """
