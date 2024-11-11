@@ -1,9 +1,10 @@
 # Changelog
 
-## 1.14.1 - TBD
+## 1.14.1 - 2024-11-12
 
 * Update session id lookup logic to comply with MS-SMB2 spec
 * Remove connection from global connection cache even if failing to close it
+* Added official support for Python 3.13
 
 ## 1.14.0 - 2024-08-26
 

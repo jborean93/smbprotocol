@@ -7,4 +7,3 @@ pyspnego
 pytest
 pytest-cov
 pytest-mock
-tox

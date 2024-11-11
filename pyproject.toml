@@ -23,7 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12"
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13"
 ]
 dependencies = [
     "cryptography >= 2.0",
@@ -62,26 +63,3 @@ profile = "black"
 [tool.pytest.ini_options]
 testpaths = "tests"
 addopts = "--import-mode=importlib"
-
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = sanity,py38,py39,py310,py311,py312
-skip_missing_interpreters = true
-isolated_build = true
-
-[testenv]
-deps =
-    -r{toxinidir}/requirements-dev.txt
-
-commands =
-    python -m pytest -v --cov smbclient --cov smbprotocol --cov-report term-missing
-
-passenv =
-    SMB_*
-
-[testenv:sanity]
-commands =
-    python -m black . --check
-    python -m isort . --check-only
-"""
