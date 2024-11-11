@@ -226,18 +226,12 @@ by running;
 # Recommend to have virtual environment installed at .venv path.
 pip install -r requirements-dev.txt
 pip install -e .
-
-# you can also run tox by installing tox
-pip install tox
 ```
 
 From there to run the basic tests run;
 
 ```bash
-py.test -v --cov smbprotocol --cov-report term-missing
-
-# or with tox for dedicated virtual environments and multiple Python versions.
-tox
+python -m pytest -v --cov smbprotocol --cov-report term-missing
 ```
 
 Before sending the code for review, besides making sure all the test pass,
@@ -258,7 +252,7 @@ To run these tests set the following variables;
 * `SMB_PORT`: The port the SMB server is listening on, default is `445`
 * `SMB_SHARE`: The name of the share to connect to, a share with this name must exist as well as a share with the name`$SMB_SHARE-encrypted` must also exist that forces encryption
 
-From here running `tox` or `py.test` with these environment variables set will
+From here running `pytest` with these environment variables set will
 activate the integration tests.
 
 This requires either Windows 10 or Server 2016 as they support Dialect 3.1.1

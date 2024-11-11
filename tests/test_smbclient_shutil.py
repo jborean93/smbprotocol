@@ -640,9 +640,12 @@ def test_copymode_local_to_local_symlink_dont_follow(tmpdir):
     os.symlink(src_filename, src_link)
     os.symlink(dst_filename, dst_link)
 
-    expected = "chmod: follow_symlinks unavailable on this platform"
-    with pytest.raises(NotImplementedError, match=re.escape(expected)):
+    if os.name == "nt" and sys.version_info >= (3, 13):
         copymode(src_link, dst_link, follow_symlinks=False)
+    else:
+        expected = "chmod: follow_symlinks unavailable on this platform"
+        with pytest.raises(NotImplementedError, match=re.escape(expected)):
+            copymode(src_link, dst_link, follow_symlinks=False)
 
 
 def test_copymode_missing_src(smb_share):
