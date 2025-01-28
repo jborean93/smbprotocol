@@ -257,6 +257,19 @@ class WriteFlags:
     SMB2_WRITEFLAG_WRITE_UNBUFFERED = 0x00000002
 
 
+class LockFlags:
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.26.1 SMB2 LOCK Request Flags
+    """
+
+    SMB2_LOCKFLAG_SHARED_LOCK = 0x1
+    SMB2_LOCKFLAG_EXCLUSIVE_LOCK = 0x2
+    SMB2_LOCKFLAG_UNLOCK = 0x4
+    SMB2_LOCKFLAG_FAIL_IMMEDIATELY = 0x10
+
+
 class QueryDirectoryFlags:
     """
     [MS-SMB2] v53.0 2017-09-15
@@ -764,6 +777,72 @@ class SMB2QueryDirectoryRequest(Structure):
             is_next = result["next_entry_offset"].get_value() != 0
 
         return query_results
+
+
+class SMB2LockElement(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.26.1 SMB2 LOCK_ELEMENT Structure
+    """
+
+    def __init__(self):
+        self.fields = OrderedDict(
+            [
+                ("offset", IntField(size=8)),
+                ("length", IntField(size=8, unsigned=False)),
+                ("flags", FlagField(size=4, flag_type=LockFlags)),
+                ("reserved", IntField(size=4, default=0)),
+            ]
+        )
+        super(SMB2LockElement, self).__init__()
+
+
+class SMB2LockRequest(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.26 SMB2 LOCK Request
+    """
+
+    COMMAND = Commands.SMB2_LOCK
+
+    def __init__(self):
+        self.fields = OrderedDict(
+            [
+                ("structure_size", IntField(size=2, default=48)),
+                ("lock_count", IntField(size=2, default=lambda s: len(s["locks"].get_value()))),
+                ("lock_sequence", IntField(size=4, default=0)),
+                ("file_id", BytesField(size=16)),
+                (
+                    "locks",
+                    ListField(
+                        list_type=StructureField(size=24, structure_type=SMB2LockElement),
+                        list_count=lambda s: s["lock_count"].get_value(),
+                    ),
+                ),
+            ]
+        )
+        super(SMB2LockRequest, self).__init__()
+
+
+class SMB2LockResponse(Structure):
+    """
+    [MS-SMB2] v53.0 2017-09-15
+
+    2.2.27 SMB2 LOCK Response
+    """
+
+    COMMAND = Commands.SMB2_LOCK
+
+    def __init__(self):
+        self.fields = OrderedDict(
+            [
+                ("structure_size", IntField(size=2, default=4)),
+                ("reserved", IntField(size=2, default=0)),
+            ]
+        )
+        super(SMB2LockResponse, self).__init__()
 
 
 class SMB2QueryDirectoryResponse(Structure):
@@ -1523,3 +1602,50 @@ class Open:
             self.end_of_file = c_resp["end_of_file"].get_value()
             self.file_attributes = c_resp["file_attributes"].get_value()
         return c_resp
+
+    def lock(self, locks, lsn=0, lsi=0, wait=True, send=True):
+        """
+        Locks or unlocks byte regions of a file.
+
+        Supports out of band send function, call this function with send=False
+        to return a tuple of (SMB2LockRequest, receive_func) instead of
+        sending the the request and waiting for the response. The receive_func
+        can be used to get the response from the server by passing in the
+        Request that was used to sent it out of band.
+
+        :param locks: (List<SMB2LockElement>) byte ranges to lock or unlock
+        :param lsn: LockSequenceNumber. Only used for SMB dialects > 2.0.2
+        :param lsi: LockSequenceIndex. Only used for SMB dialects > 2.0.2
+        :param wait: If send=True, whether to wait for a response if
+            STATUS_PENDING was received from the server or fail.
+        :param send: Whether to send the request in the same call or return the
+            message to the caller and the unpack function
+        :return: SMB2LockResponse message received from the server
+        """
+
+        lock = SMB2LockRequest()
+        lock["file_id"] = self.file_id
+        lock["locks"] = locks
+
+        if self.connection.dialect > Dialects.SMB_2_0_2:
+            if (lsn < 0) or (lsn > 15):
+                raise ValueError("lsn (LockSequenceNumber) must be between 0 and 15")
+
+            # MS-SMB2 2.2.26 requires that 0 <= lsi <= 64
+            if (lsi < 0) or (lsi > 64):
+                raise ValueError("lsi (LockSequenceIndex) must be between 0 and 64")
+
+            lock["lock_sequence"] = (lsn << 28) + lsi
+
+        if not send:
+            return lock, self._lock_response
+
+        request = self.connection.send(lock, self.tree_connect.session.session_id, self.tree_connect.tree_connect_id)
+        return self._lock_response(request, wait)
+
+    def _lock_response(self, request, wait=True):
+        response = self.connection.receive(request, wait=wait)
+        lock_response = SMB2LockResponse()
+        lock_response.unpack(response["data"].get_value())
+
+        return lock_response
