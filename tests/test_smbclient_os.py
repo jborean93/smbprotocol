@@ -1709,6 +1709,27 @@ def test_set_utime_file(smb_share):
 @pytest.mark.skipif(
     os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
 )
+def test_set_utime_float(smb_share):
+    filename = "%s\\file.txt" % smb_share
+
+    with smbclient.open_file(filename, mode="w") as fd:
+        fd.write("abc")
+
+    before_stat = smbclient.stat(filename)
+    smbclient.utime(filename, times=(1.0, 1.0))
+    actual = smbclient.stat(filename)
+
+    assert actual.st_atime == 1.0
+    assert actual.st_atime_ns == 1000000000
+    assert actual.st_ctime == before_stat.st_ctime
+    assert actual.st_ctime_ns == before_stat.st_ctime_ns
+    assert actual.st_mtime == 1.0
+    assert actual.st_mtime_ns == 1000000000
+
+
+@pytest.mark.skipif(
+    os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="Samba does not update timestamps"
+)
 def test_set_utime_file_negative(smb_share):
     filename = "%s\\file.txt" % smb_share
 
