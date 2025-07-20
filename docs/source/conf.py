@@ -8,7 +8,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../../src/"))
+sys.path.insert(0, os.path.abspath("../../src/"))
 
 project = "smbprotocol"
 copyright = "2025, Jordan Borean"
@@ -37,4 +37,4 @@ autosummary_generate_overwrite = True  # Overwrite existing files
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"
-html_static_path = ["_static"]
+# html_static_path = ["_static"]
