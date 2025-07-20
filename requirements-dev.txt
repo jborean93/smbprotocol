@@ -7,3 +7,6 @@ pyspnego
 pytest
 pytest-cov
 pytest-mock
+myst-parser
+pydata-sphinx-theme
+sphinx
