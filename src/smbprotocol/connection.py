@@ -953,7 +953,7 @@ class Connection:
 
         log.info("Disconnecting transport connection")
         self.transport.close()
-        if self._t_worker:
+        if self._t_worker and self._t_worker.ident != threading.get_ident():
             self._t_worker.join(timeout=2)
 
     def send(
