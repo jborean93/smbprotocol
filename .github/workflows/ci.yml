@@ -52,7 +52,6 @@ jobs:
         os:
         - ubuntu-latest
         - macOS-latest
-        - windows-2019
         - windows-2022
         python-version:
         - 3.8
@@ -72,10 +71,6 @@ jobs:
           python-arch: x86
         - os: ubuntu-latest
           python-arch: arm64
-        - os: windows-2019
-          python-arch: x86
-        - os: windows-2019
-          python-arch: arm64
         - os: windows-2022
           python-arch: arm64
         - os: macOS-latest
@@ -86,16 +81,6 @@ jobs:
         # macOS arm64 is supported from 3.9
         - os: macOS-latest
           python-version: 3.8
-        - os: windows-2019
-          python-version: 3.8
-        - os: windows-2019
-          python-version: 3.9
-        - os: windows-2019
-          python-version: '3.10'
-        - os: windows-2019
-          python-version: '3.11'
-        - os: windows-2019
-          python-version: '3.12'
 
     steps:
     - uses: actions/checkout@v4
