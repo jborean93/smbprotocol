@@ -435,10 +435,12 @@ class TestIntField:
     def test_builtin_default(self):
         class LengthStructure(Structure):
             def __init__(self):
-                self.fields = OrderedDict([
-                    ("field1", IntField(size=4, default=b"\x01\x03\x05\x07")),
-                    ("field2", IntField(size=2, default=len)),
-                ])
+                self.fields = OrderedDict(
+                    [
+                        ("field1", IntField(size=4, default=b"\x01\x03\x05\x07")),
+                        ("field2", IntField(size=2, default=len)),
+                    ]
+                )
                 super().__init__()
 
         structure = LengthStructure()
@@ -570,9 +572,11 @@ class TestBytesField:
 
         class TestStructure(Structure):
             def __init__(self):
-                self.fields = OrderedDict([
-                    ("field", BytesField(size=2, default=field_resolver)),
-                ])
+                self.fields = OrderedDict(
+                    [
+                        ("field", BytesField(size=2, default=field_resolver)),
+                    ]
+                )
                 super().__init__()
 
         structure = TestStructure()
@@ -711,9 +715,7 @@ class TestListField:
 
         class UnpackListStructure(Structure):
             def __init__(self):
-                self.fields = OrderedDict(
-                    [("field", ListField(size=7, unpack_func=Unpacker))]
-                )
+                self.fields = OrderedDict([("field", ListField(size=7, unpack_func=Unpacker))])
                 super().__init__()
 
         field = UnpackListStructure()["field"]
