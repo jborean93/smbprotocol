@@ -59,14 +59,8 @@ lib::setup::python_requirements() {
     python -m pip install build
     PACKAGE_VERSION="$( python -c "import build.util; print(build.util.project_wheel_metadata('.').get('Version'))" )"
 
-    if [ "$(expr substr $(uname -s) 1 5)" == "MINGW" ]; then
-        DIST_LINK_PATH="$( echo "${PWD}/dist" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/' )"
-    else
-        DIST_LINK_PATH="${PWD}/dist"
-    fi
-
     python -m pip install smbprotocol=="${PACKAGE_VERSION}" \
-        --find-links "file://${DIST_LINK_PATH}" \
+        --find-links ./dist \
         --verbose
 
     echo "Installing dev dependencies"

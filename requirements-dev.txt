@@ -1,7 +1,7 @@
-black == 24.8.0
+black == 25.9.0
 build
 cryptography >= 2.0
-isort == 5.13.2
+isort == 6.1.0
 pre-commit
 pyspnego
 pytest

@@ -455,7 +455,7 @@ class TestSMB2NegotiateContextRequest:
 
     def test_parse_message_invalid_context_type(self):
         actual = SMB2NegotiateContextRequest()
-        data = b"\xFF\xFF" b"\x04\x00" b"\x00\x00\x00\x00" b"\x01\x00" b"\x02\x00"
+        data = b"\xff\xff" b"\x04\x00" b"\x00\x00\x00\x00" b"\x01\x00" b"\x02\x00"
         with pytest.raises(Exception) as exc:
             actual.unpack(data)
         assert (
@@ -512,14 +512,14 @@ class TestSMB2NetnameNegotiateContextId:
     def test_create_message(self):
         message = SMB2NetnameNegotiateContextId()
         message["net_name"] = "hostname"
-        expected = b"\x68\x00\x6F\x00\x73\x00\x74\x00" b"\x6E\x00\x61\x00\x6D\x00\x65\x00"
+        expected = b"\x68\x00\x6f\x00\x73\x00\x74\x00" b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
         actual = message.pack()
         assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2NetnameNegotiateContextId()
-        data = b"\x68\x00\x6F\x00\x73\x00\x74\x00" b"\x6E\x00\x61\x00\x6D\x00\x65\x00"
+        data = b"\x68\x00\x6f\x00\x73\x00\x74\x00" b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
         actual.unpack(data)
         assert len(actual) == 16
         assert actual["net_name"].get_value() == "hostname"
@@ -1225,8 +1225,8 @@ class TestConnection:
             (
                 b"\xff" * 32,
                 Ciphers.AES_256_CCM,
-                b"\x3E\xFB\x47\x97\x51\x8A\xAB\x05\xC5\x48\xA7\xFC\x20\x74\xF5\x93",
-                b"\x2F\x58\x41\xD7",
+                b"\x3e\xfb\x47\x97\x51\x8a\xab\x05\xc5\x48\xa7\xfc\x20\x74\xf5\x93",
+                b"\x2f\x58\x41\xd7",
             ),
         ],
         ids=["AES128_CCM", "AES256_CCM"],
@@ -1268,8 +1268,8 @@ class TestConnection:
             (
                 b"\xff" * 32,
                 Ciphers.AES_256_GCM,
-                b"\x45\xE5\xB7\x23\x05\x2E\xCA\xD0\x1E\xEF\xAD\x6F\x04\x87\xE3\x2D",
-                b"\xBC\x39\xBD\x81",
+                b"\x45\xe5\xb7\x23\x05\x2e\xca\xd0\x1e\xef\xad\x6f\x04\x87\xe3\x2d",
+                b"\xbc\x39\xbd\x81",
             ),
         ],
         ids=["AES128_CCM", "AES256_CCM"],
