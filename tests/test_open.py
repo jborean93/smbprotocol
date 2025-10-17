@@ -106,7 +106,7 @@ class TestSMB2CreateRequest:
             b"\x20\x00\x00\x00"
             b"\x5c\x00\x5c\x00\x73\x00\x65\x00"
             b"\x72\x00\x76\x00\x65\x00\x72\x00"
-            b"\x5C\x00\x73\x00\x68\x00\x61\x00"
+            b"\x5c\x00\x73\x00\x68\x00\x61\x00"
             b"\x72\x00\x65\x00"
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
@@ -150,7 +150,7 @@ class TestSMB2CreateRequest:
             b"\x00\x00\x00\x00"
             b"\x5c\x00\x5c\x00\x73\x00\x65\x00"
             b"\x72\x00\x76\x00\x65\x00\x72\x00"
-            b"\x5C\x00\x73\x00\x68\x00\x61\x00"
+            b"\x5c\x00\x73\x00\x68\x00\x61\x00"
             b"\x72\x00\x65\x00"
         )
         actual = message.pack()
@@ -177,7 +177,7 @@ class TestSMB2CreateRequest:
             b"\x20\x00\x00\x00"
             b"\x5c\x00\x5c\x00\x73\x00\x65\x00"
             b"\x72\x00\x76\x00\x65\x00\x72\x00"
-            b"\x5C\x00\x73\x00\x68\x00\x61\x00"
+            b"\x5c\x00\x73\x00\x68\x00\x61\x00"
             b"\x72\x00\x65\x00"
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
@@ -245,7 +245,7 @@ class TestSMB2CreateRequest:
             b"\x00\x00\x00\x00"
             b"\x5c\x00\x5c\x00\x73\x00\x65\x00"
             b"\x72\x00\x76\x00\x65\x00\x72\x00"
-            b"\x5C\x00\x73\x00\x68\x00\x61\x00"
+            b"\x5c\x00\x73\x00\x68\x00\x61\x00"
             b"\x72\x00\x65\x00"
         )
         data = actual.unpack(data)
@@ -503,10 +503,10 @@ class TestSMB2CloseResponse:
             b"\x3c\x00"
             b"\x00\x00"
             b"\x00\x00\x00\x00"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
@@ -521,10 +521,10 @@ class TestSMB2CloseResponse:
             b"\x3c\x00"
             b"\x00\x00"
             b"\x00\x00\x00\x00"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
-            b"\x00\x80\x3E\xD5\xDE\xB1\x9D\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
+            b"\x00\x80\x3e\xd5\xde\xb1\x9d\x01"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
@@ -892,20 +892,20 @@ class TestSMB2QueryDirectoryRequest:
     def test_create_message(self):
         message = SMB2QueryDirectoryRequest()
         message["file_information_class"] = FileInformationClass.FILE_NAMES_INFORMATION
-        message["file_id"] = b"\xB6\x73\xE4\x65\x00\x00\x00\x00" b"\x68\xBD\xA1\xCE\x00\x00\x00\x00"
+        message["file_id"] = b"\xb6\x73\xe4\x65\x00\x00\x00\x00" b"\x68\xbd\xa1\xce\x00\x00\x00\x00"
         message["output_buffer_length"] = 65536
         message["buffer"] = "*".encode("utf-16-le")
         expected = (
             b"\x21\x00"
-            b"\x0C"
+            b"\x0c"
             b"\x00"
             b"\x00\x00\x00\x00"
-            b"\xB6\x73\xE4\x65\x00\x00\x00\x00"
-            b"\x68\xBD\xA1\xCE\x00\x00\x00\x00"
+            b"\xb6\x73\xe4\x65\x00\x00\x00\x00"
+            b"\x68\xbd\xa1\xce\x00\x00\x00\x00"
             b"\x60\x00"
             b"\x02\x00"
             b"\x00\x00\x01\x00"
-            b"\x2A\x00"
+            b"\x2a\x00"
         )
         actual = message.pack()
         assert len(message) == 34
@@ -915,15 +915,15 @@ class TestSMB2QueryDirectoryRequest:
         actual = SMB2QueryDirectoryRequest()
         data = (
             b"\x21\x00"
-            b"\x0C"
+            b"\x0c"
             b"\x00"
             b"\x00\x00\x00\x00"
-            b"\xB6\x73\xE4\x65\x00\x00\x00\x00"
-            b"\x68\xBD\xA1\xCE\x00\x00\x00\x00"
+            b"\xb6\x73\xe4\x65\x00\x00\x00\x00"
+            b"\x68\xbd\xa1\xce\x00\x00\x00\x00"
             b"\x60\x00"
             b"\x02\x00"
             b"\x00\x00\x01\x00"
-            b"\x2A\x00"
+            b"\x2a\x00"
         )
         data = actual.unpack(data)
         assert len(actual) == 34
@@ -932,7 +932,7 @@ class TestSMB2QueryDirectoryRequest:
         assert actual["file_information_class"].get_value() == FileInformationClass.FILE_NAMES_INFORMATION
         assert actual["flags"].get_value() == 0
         assert actual["file_index"].get_value() == 0
-        assert actual["file_id"].get_value() == b"\xB6\x73\xE4\x65\x00\x00\x00\x00" b"\x68\xBD\xA1\xCE\x00\x00\x00\x00"
+        assert actual["file_id"].get_value() == b"\xb6\x73\xe4\x65\x00\x00\x00\x00" b"\x68\xbd\xa1\xce\x00\x00\x00\x00"
         assert actual["file_name_offset"].get_value() == 96
         assert actual["file_name_length"].get_value() == 2
         assert actual["output_buffer_length"].get_value() == 65536
@@ -942,13 +942,13 @@ class TestSMB2QueryDirectoryRequest:
 class TestSMB2QueryDirectoryResponse:
     def test_create_message(self):
         message = SMB2QueryDirectoryResponse()
-        message["buffer"] = b"\x10\x00\x00\x00\x00\x00\x00\x00" b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+        message["buffer"] = b"\x10\x00\x00\x00\x00\x00\x00\x00" b"\x02\x00\x00\x00\x2e\x00\x00\x00"
         expected = (
             b"\x09\x00"
             b"\x48\x00"
             b"\x10\x00\x00\x00"
             b"\x10\x00\x00\x00\x00\x00\x00\x00"
-            b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+            b"\x02\x00\x00\x00\x2e\x00\x00\x00"
         )
         actual = message.pack()
         assert len(message) == 24
@@ -961,7 +961,7 @@ class TestSMB2QueryDirectoryResponse:
             b"\x48\x00"
             b"\x10\x00\x00\x00"
             b"\x10\x00\x00\x00\x00\x00\x00\x00"
-            b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+            b"\x02\x00\x00\x00\x2e\x00\x00\x00"
         )
         data = actual.unpack(data)
         assert len(actual) == 24
@@ -969,7 +969,7 @@ class TestSMB2QueryDirectoryResponse:
         assert actual["structure_size"].get_value() == 9
         assert actual["output_buffer_offset"].get_value() == 72
         assert actual["output_buffer_length"].get_value() == 16
-        assert actual["buffer"].get_value() == b"\x10\x00\x00\x00\x00\x00\x00\x00" b"\x02\x00\x00\x00\x2E\x00\x00\x00"
+        assert actual["buffer"].get_value() == b"\x10\x00\x00\x00\x00\x00\x00\x00" b"\x02\x00\x00\x00\x2e\x00\x00\x00"
 
 
 class TestSMB2QueryInfoRequest:

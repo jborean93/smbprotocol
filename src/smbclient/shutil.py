@@ -10,7 +10,9 @@ import stat
 import sys
 
 from smbclient._io import SMBFileTransaction, SMBRawIO, query_info, set_info
-from smbclient._os import SMBDirEntry
+from smbclient._os import (
+    SMBDirEntry,
+)
 from smbclient._os import copyfile as smbclient_copyfile
 from smbclient._os import (
     is_remote_path,
@@ -22,7 +24,9 @@ from smbclient._os import (
     scandir,
 )
 from smbclient._os import stat as smbclient_stat
-from smbclient._os import symlink
+from smbclient._os import (
+    symlink,
+)
 from smbclient.path import isdir, islink, samefile
 from smbprotocol import MAX_PAYLOAD_SIZE
 from smbprotocol.file_info import FileAttributes, FileBasicInformation
