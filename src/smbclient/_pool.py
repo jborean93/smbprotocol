@@ -194,7 +194,7 @@ def dfs_request(tree: TreeConnect, path: str) -> DFSReferralResponse:
 
     ioctl_req = SMB2IOCTLRequest()
     ioctl_req["ctl_code"] = CtlCode.FSCTL_DFS_GET_REFERRALS
-    ioctl_req["file_id"] = b"\xFF" * 16
+    ioctl_req["file_id"] = b"\xff" * 16
     ioctl_req["max_output_response"] = 56 * 1024
     ioctl_req["flags"] = IOCTLFlags.SMB2_0_IOCTL_IS_FSCTL
     ioctl_req["buffer"] = dfs_referral

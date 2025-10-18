@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.0 - TBD
+
+* Drop support for Python 3.8, minimum version is now 3.9
+
 ## 1.15.0 - 2024-11-12
 
 * Update session id lookup logic to comply with MS-SMB2 spec

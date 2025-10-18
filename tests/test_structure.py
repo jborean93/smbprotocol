@@ -1245,9 +1245,9 @@ class TestDateTimeField:
                 b"\x00\x00\x00\x00\x00\x00\x00\x00",
             ),
             (
-                b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF",
+                b"\xff\xff\xff\xff\xff\xff\xff\xff",
                 datetime(9999, 12, 31, 23, 59, 59, 999999),
-                b"\xF6\x3F\xC0\xD1\x5E\x5A\xC8\x24",
+                b"\xf6\x3f\xc0\xd1\x5e\x5a\xc8\x24",
             ),
         ],
         ids=["origin", "end"],

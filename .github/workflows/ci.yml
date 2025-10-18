@@ -27,7 +27,7 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Build smbprotocol
       run: |
@@ -52,45 +52,23 @@ jobs:
         os:
         - ubuntu-latest
         - macOS-latest
-        - windows-2022
+        - windows-latest
         python-version:
-        - 3.8
         - 3.9
         - '3.10'
         - '3.11'
         - '3.12'
         - '3.13'
-        python-arch:
-        - x86
-        - x64
-        - arm64
-
-        exclude:
-        # Exclude OS and arch combinations that are not supported
-        - os: ubuntu-latest
-          python-arch: x86
-        - os: ubuntu-latest
-          python-arch: arm64
-        - os: windows-2022
-          python-arch: arm64
-        - os: macOS-latest
-          python-arch: x86
-        - os: macOS-latest
-          python-arch: x64
-
-        # macOS arm64 is supported from 3.9
-        - os: macOS-latest
-          python-version: 3.8
+        - '3.14'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-        architecture: ${{ matrix.python-arch }}
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: artifact
         path: ./dist
@@ -130,7 +108,7 @@ jobs:
 
     - name: Upload Coverage to codecov
       if: always()
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         files: ./coverage.xml
         flags: ${{ steps.os.outputs.name }},py${{ matrix.python-version }},${{ matrix.python-arch }}
@@ -146,7 +124,7 @@ jobs:
       id-token: write
 
     steps:
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: artifact
         path: ./dist
