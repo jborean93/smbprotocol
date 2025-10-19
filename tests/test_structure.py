@@ -378,6 +378,37 @@ class TestIntField:
         assert actual == expected
         assert len(field) == 4
 
+    def test_set_function(self):
+        def field_resolver(s):
+            return 8765
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(field_resolver)
+        expected = 8765
+        actual = field.get_value()
+        assert isinstance(field.value, types.FunctionType)
+        assert actual == expected
+        assert len(field) == 4
+
+    def test_set_class(self):
+        class FieldResolver:
+            def __new__(cls, s):
+                return 5678
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(FieldResolver)
+        expected = 5678
+        actual = field.get_value()
+        assert isinstance(field.value, type)
+        assert actual == expected
+        assert len(field) == 4
+
     def test_set_bytes(self):
         field = self.StructureTest()["field"]
         field.set_value(b"\x12\x34\x00\x00")
@@ -400,6 +431,24 @@ class TestIntField:
         with pytest.raises(TypeError) as exc:
             field.set_value([])
         assert str(exc.value) == "Cannot parse value for field field of type list to an int"
+
+    def test_builtin_default(self):
+        class LengthStructure(Structure):
+            def __init__(self):
+                self.fields = OrderedDict(
+                    [
+                        ("field1", IntField(size=4, default=b"\x01\x03\x05\x07")),
+                        ("field2", IntField(size=2, default=len)),
+                    ]
+                )
+                super().__init__()
+
+        structure = LengthStructure()
+        field = structure["field2"]
+        expected = b"\x06\x00"
+        actual = field.pack()
+        assert actual == expected
+        assert structure.pack() == b"\x01\x03\x05\x07\x06\x00"
 
     def test_byte_order(self):
         class ByteOrderStructure(Structure):
@@ -470,6 +519,37 @@ class TestBytesField:
         assert actual == expected
         assert len(field) == 4
 
+    def test_set_function(self):
+        def field_resolver(s):
+            return b"\x11\x12\x13\x14"
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(field_resolver)
+        expected = b"\x11\x12\x13\x14"
+        actual = field.get_value()
+        assert isinstance(field.value, types.FunctionType)
+        assert actual == expected
+        assert len(field) == 4
+
+    def test_set_class(self):
+        class FieldResolver:
+            def __new__(cls, s):
+                return b"\x16\x17\x18\x19"
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(FieldResolver)
+        expected = b"\x16\x17\x18\x19"
+        actual = field.get_value()
+        assert isinstance(field.value, type)
+        assert actual == expected
+        assert len(field) == 4
+
     def test_set_bytes(self):
         field = self.StructureTest()["field"]
         field.set_value(b"\x78\x00\x77\x00")
@@ -484,6 +564,25 @@ class TestBytesField:
         expected = b"\x0b\x00\x00\x00"
         actual = field.get_value()
         assert isinstance(field.value, bytes)
+        assert actual == expected
+
+    def test_function_default(self):
+        def field_resolver(s):
+            return b"\x0d\x0e"
+
+        class TestStructure(Structure):
+            def __init__(self):
+                self.fields = OrderedDict(
+                    [
+                        ("field", BytesField(size=2, default=field_resolver)),
+                    ]
+                )
+                super().__init__()
+
+        structure = TestStructure()
+        field = structure["field"]
+        expected = b"\x0d\x0e"
+        actual = field.pack()
         assert actual == expected
 
     def test_set_structure(self):
@@ -609,6 +708,23 @@ class TestListField:
         assert len(field) == 7
         assert actual == expected
 
+    def test_class_func(self):
+        class Unpacker:
+            def __new__(cls, s, d):
+                return [b"\x01\x02", b"\x03\x04\x05\x06", b"\07"]
+
+        class UnpackListStructure(Structure):
+            def __init__(self):
+                self.fields = OrderedDict([("field", ListField(size=7, unpack_func=Unpacker))])
+                super().__init__()
+
+        field = UnpackListStructure()["field"]
+        field.unpack(b"\x00")
+        expected = [b"\x01\x02", b"\x03\x04\x05\x06", b"\07"]
+        actual = field.get_value()
+        assert len(field) == 7
+        assert actual == expected
+
     def test_set_none(self):
         field = self.StructureTest()["field"]
         field.set_value(None)
@@ -631,6 +747,21 @@ class TestListField:
         assert actual == expected
         assert len(field) == 4
 
+    def test_set_function_as_bytes(self):
+        def field_resolver(s):
+            return b"\x10\x11\x12\x13"
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(field_resolver)
+        expected = [b"\x10\x11", b"\x12\x13"]
+        actual = field.get_value()
+        assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert len(field) == 4
+
     def test_set_lambda_as_list(self):
         structure = self.StructureTest()
         field = structure["field"]
@@ -638,6 +769,21 @@ class TestListField:
         field.structure = self.StructureTest
         field.set_value(lambda s: [b"\x10\x11", b"\x12\x13"])
         expected = [b"\x10\x11", b"\x12\x13"]
+        actual = field.get_value()
+        assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert len(field) == 4
+
+    def test_set_function_as_list(self):
+        def field_resolver(s):
+            return [b"\x11\x12", b"\x13\x14"]
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(field_resolver)
+        expected = [b"\x11\x12", b"\x13\x14"]
         actual = field.get_value()
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
@@ -823,6 +969,22 @@ class TestStructureField:
         assert isinstance(actual, Structure2)
         assert len(field) == 8
 
+    def test_set_function(self):
+        def field_resolver(s):
+            return b"\x10\x07\x04\x01\x03\x05\x07\x09"
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(field_resolver)
+        expected = b"\x10\x07\x04\x01\x03\x05\x07\x09"
+        actual = field.get_value()
+        assert isinstance(field.value, types.FunctionType)
+        assert actual.pack() == expected
+        assert isinstance(actual, Structure2)
+        assert len(field) == 8
+
     def test_set_lambda_without_type(self):
         structure = self.StructureTest()
         field = structure["field"]
@@ -831,6 +993,23 @@ class TestStructureField:
         field.structure_type = None
         field.set_value(lambda s: b"\x7d\x00\x00\x00\x14\x15\x16\x17")
         expected = b"\x7d\x00\x00\x00\x14\x15\x16\x17"
+        actual = field.get_value()
+        assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert isinstance(actual, bytes)
+        assert len(field) == 8
+
+    def test_set_function_without_type(self):
+        def field_resolver(s):
+            return b"\x10\x07\x04\x01\x03\x05\x07\x09"
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.structure_type = None
+        field.set_value(field_resolver)
+        expected = b"\x10\x07\x04\x01\x03\x05\x07\x09"
         actual = field.get_value()
         assert isinstance(field.value, types.LambdaType)
         assert actual == expected
@@ -976,6 +1155,22 @@ class TestUuidField:
         expected = uuid.UUID(bytes=b"\x11" * 16)
         actual = field.get_value()
         assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert len(field) == 16
+
+    def test_set_class(self):
+        class FieldResolver:
+            def __new__(cls, s):
+                return uuid.UUID(bytes=b"\x10" * 16)
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(FieldResolver)
+        expected = uuid.UUID(bytes=b"\x10" * 16)
+        actual = field.get_value()
+        assert isinstance(field.value, type)
         assert actual == expected
         assert len(field) == 16
 
@@ -1147,6 +1342,40 @@ class TestDateTimeField:
         )
         actual = field.get_value()
         assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert len(field) == 8
+
+    def test_set_class(self):
+        class FieldResolver:
+            def __new__(cls, s):
+                return datetime(
+                    year=2022,
+                    month=5,
+                    day=27,
+                    hour=12,
+                    minute=36,
+                    second=14,
+                    microsecond=313481,
+                    tzinfo=timezone.utc,
+                )
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(FieldResolver)
+        expected = datetime(
+            year=2022,
+            month=5,
+            day=27,
+            hour=12,
+            minute=36,
+            second=14,
+            microsecond=313481,
+            tzinfo=timezone.utc,
+        )
+        actual = field.get_value()
+        assert isinstance(field.value, type)
         assert actual == expected
         assert len(field) == 8
 
@@ -1525,6 +1754,22 @@ class TestBoolField:
         assert actual == expected
         assert len(field) == 1
 
+    def test_set_class(self):
+        class FieldResolver:
+            def __new__(cls, s):
+                return True
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(FieldResolver)
+        expected = True
+        actual = field.get_value()
+        assert isinstance(field.value, type)
+        assert actual == expected
+        assert len(field) == 1
+
     def test_set_invalid(self):
         field = self.StructureTest()["field"]
         field.name = "field"
@@ -1589,6 +1834,25 @@ class TestTextField:
         if field.null_terminated:
             actual_length += len("\x00".encode(field.encoding))
         assert isinstance(field.value, types.LambdaType)
+        assert actual == expected
+        assert len(field) == actual_length
+
+    def test_set_class(self):
+        class FieldResolver:
+            def __new__(cls, s):
+                return self.STRING_VALUE
+
+        structure = self.StructureTest()
+        field = structure["field"]
+        field.name = "field"
+        field.structure = self.StructureTest
+        field.set_value(FieldResolver)
+        expected = self.STRING_VALUE
+        actual = field.get_value()
+        actual_length = 19
+        if field.null_terminated:
+            actual_length += len("\x00".encode(field.encoding))
+        assert isinstance(field.value, type)
         assert actual == expected
         assert len(field) == actual_length
 
