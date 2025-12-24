@@ -3,6 +3,7 @@
 ## 1.16.0 - TBD
 
 * Drop support for Python 3.8, minimum version is now 3.9
+* Fix up `smbclient.shutil.copy` and `smbclient.shutil.copy2` to properly pass along the connection `kwargs` to the internal copy call
 
 ## 1.15.0 - 2024-11-12
 
