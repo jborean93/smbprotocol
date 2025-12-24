@@ -452,8 +452,8 @@ def _copy(src, dst, follow_symlinks, copy_meta_func, **kwargs):
     if (is_remote_path(ntpath.normpath(dst)) and isdir(dst, **kwargs)) or os.path.isdir(dst):
         dst = _join_local_or_remote_path(dst, _basename(src))
 
-    copyfile(src, dst, follow_symlinks=follow_symlinks)
-    copy_meta_func(src, dst, follow_symlinks=follow_symlinks)
+    copyfile(src, dst, follow_symlinks=follow_symlinks, **kwargs)
+    copy_meta_func(src, dst, follow_symlinks=follow_symlinks, **kwargs)
     return dst
 
 
