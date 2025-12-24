@@ -7,6 +7,7 @@
 * Optimize `SMBDirEntry.is_symlink()`, returned by `smbclient.scandir()` to no longer require any extra SMB calls, this object is returned by APIs such as `
 * Raise exception when receiving an SMB `STATUS_STOPPED_ON_SYMLINK` response that contains no reparse buffer data
   * Some SMB servers like macOS do not return this information
+* Fix up `smbclient.shutil.copy` and `smbclient.shutil.copy2` to properly pass along the connection `kwargs` to the internal copy call
 
 ## 1.15.0 - 2024-11-12
 
