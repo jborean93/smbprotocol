@@ -231,7 +231,15 @@ def delete_session(server, port=445, connection_cache=None, timeout=60):
 
 
 def get_smb_tree(
-    path, username=None, password=None, port=445, encrypt=None, connection_timeout=60, connection_cache=None
+    path,
+    username=None,
+    password=None,
+    port=445,
+    encrypt=None,
+    connection_timeout=60,
+    connection_cache=None,
+    auth_protocol=None,
+    require_signing=True,
 ):
     """
     Returns an active Tree connection and file path including the tree based on the UNC path passed in and other
@@ -253,7 +261,7 @@ def get_smb_tree(
     client_config = ClientConfig()
     username = username or client_config.username
     password = password or client_config.password
-    auth_protocol = client_config.auth_protocol
+    auth_protocol = auth_protocol or client_config.auth_protocol
 
     # In case we need to nest a call to get_smb_tree, preserve the kwargs here so it's easier to update them in case
     # new kwargs are added.
@@ -264,6 +272,8 @@ def get_smb_tree(
         "encrypt": encrypt,
         "connection_timeout": connection_timeout,
         "connection_cache": connection_cache,
+        "auth_protocol": auth_protocol,
+        "require_signing": require_signing,
     }
 
     # Normalise and check that the path contains at least 2 components, \\server\share
@@ -311,6 +321,7 @@ def get_smb_tree(
         connection_timeout=connection_timeout,
         connection_cache=connection_cache,
         auth_protocol=auth_protocol,
+        require_signing=require_signing,
     )
 
     share_path = rf"\\{server}\{path_split[1]}"
