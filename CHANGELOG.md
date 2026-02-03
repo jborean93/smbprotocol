@@ -3,6 +3,7 @@
 ## 1.16.0 - TBD
 
 * Drop support for Python 3.8, minimum version is now 3.9
+* Exposed `auth_protocol` and `require_signing` to the various `smbclient` kwargs. This aligns the kwargs with the ones that can be provided to `register_session` directly
 
 ## 1.15.0 - 2024-11-12
 
