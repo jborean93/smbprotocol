@@ -1044,6 +1044,18 @@ class Connection:
                     related_requests = [self.outstanding_requests[i] for i in request.related_ids]
                     [r.response_event.wait() for r in related_requests]
 
+                    # Check if the response has the reparse buffer present.
+                    exp = SMBResponseException(response)
+                    reparse_buffer = next(
+                        iter(e for e in exp.error_details if isinstance(e, SMB2SymbolicLinkErrorResponse)), None
+                    )
+                    if reparse_buffer is None:
+                        # Some SMB server don't return a buffer, only thing we
+                        # can do is raise the exception.
+                        message_id = request.message["message_id"].get_value()
+                        self.outstanding_requests.pop(message_id, None)
+                        raise exp
+
                     # Now create a new request with the new path the symlink points to.
                     session = self.session_table[request.session_id]
                     tree = session.tree_connect_table[request.message["tree_id"].get_value()]
@@ -1053,9 +1065,6 @@ class Connection:
                     original_path = tree_share_name + to_text(
                         old_create["buffer_path"].get_value(), encoding="utf-16-le"
                     )
-
-                    exp = SMBResponseException(response)
-                    reparse_buffer = next(e for e in exp.error_details if isinstance(e, SMB2SymbolicLinkErrorResponse))
                     new_path = reparse_buffer.resolve_path(original_path)[len(tree_share_name) :]
 
                     new_open = Open(tree, new_path)
