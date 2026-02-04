@@ -4,6 +4,9 @@
 
 * Drop support for Python 3.8, minimum version is now 3.9
 * Exposed `auth_protocol` and `require_signing` to the various `smbclient` kwargs. This aligns the kwargs with the ones that can be provided to `register_session` directly
+* Optimize `SMBDirEntry.is_symlink()`, returned by `smbclient.scandir()` to no longer require any extra SMB calls, this object is returned by APIs such as `
+* Raise exception when receiving an SMB `STATUS_STOPPED_ON_SYMLINK` response that contains no reparse buffer data
+  * Some SMB servers like macOS do not return this information
 
 ## 1.15.0 - 2024-11-12
 
