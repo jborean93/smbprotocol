@@ -1473,17 +1473,14 @@ class SMBDirEntry:
         The result is cached on the 'smcblient.DirEntry' object. Call 'smcblient.path.islink()' to fetch up-to-date
         information.
 
-        On the first, uncached call, only files or directories that are reparse points requires another SMB call. The
-        result is cached for subsequent calls.
-
         :return: Whether the path is a symbolic link.
         """
         if self._dir_info.file_attributes & FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT:
-            # While a symlink is a reparse point, all reparse points aren't symlinks. We need to get the reparse tag
-            # to use as our check. Unlike WIN32_FILE_DATA scanned locally, we don't get the reparse tag in the original
-            # query result. We need to do a separate stat call to get this information.
-            lstat = self.stat(follow_symlinks=False)
-            return lstat.st_reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK
+            # While a symlink is a reparse point, all reparse points aren't symlinks. Th
+            # FileIdFullDirectoryInformation uses the ea_size field to store the reparse tag
+            # if the file is a reparse point.
+            reparse_tag = self._dir_info.ea_size
+            return reparse_tag == ReparseTags.IO_REPARSE_TAG_SYMLINK
         else:
             return False
 
@@ -1519,6 +1516,12 @@ class SMBDirEntry:
     def from_path(cls, path, follow_symlinks=True, **kwargs):
         file_stat = stat(path, follow_symlinks=follow_symlinks, **kwargs)
 
+        ea_size = 0
+        if file_stat.st_file_attributes & FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT:
+            # The dir entry info expects the ea_size field to contain the
+            # reparse tag for reparse points.
+            ea_size = file_stat.st_reparse_tag
+
         # This is only used in shutil copytree so just recreate the dir info
         # from the stat result as best as we can.
         dir_info = SMBDirEntryInformation(
@@ -1529,7 +1532,7 @@ class SMBDirEntry:
             end_of_file=file_stat.st_size,
             allocation_size=file_stat.st_size,  # Not part of the normal stat data
             file_attributes=file_stat.st_file_attributes,
-            ea_size=0,  # Not part of the standard stat data
+            ea_size=ea_size,
             file_id=file_stat.st_ino,
             file_name=path.split("\\")[-1],
         )
@@ -1542,6 +1545,9 @@ class SMBDirEntry:
         try:
             return check(self.stat(follow_symlinks=True).st_mode)
         except OSError as err:
-            if err.errno == errno.ENOENT:  # Missing target, broken symlink just return False
+            # ENOENT == Missing target, broken symlink
+            # STATUS_STOPPED_ON_SYMLINK == Server does not return symlink target info
+            # In both cases we just treat the link as not being of the target type.
+            if err.errno == errno.ENOENT or err.ntstatus == NtStatus.STATUS_STOPPED_ON_SYMLINK:
                 return False
             raise

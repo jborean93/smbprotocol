@@ -29,10 +29,17 @@ from smbprotocol.connection import (
     SMB2TransformHeader,
     SMB3NegotiateRequest,
 )
-from smbprotocol.exceptions import SMBConnectionClosed, SMBException
+from smbprotocol.exceptions import (
+    NtStatus,
+    SMB2ErrorResponse,
+    SMBConnectionClosed,
+    SMBException,
+    StoppedOnSymlink,
+)
 from smbprotocol.header import Smb2Flags, SMB2HeaderResponse
 from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.session import Session
+from smbprotocol.tree import TreeConnect
 
 
 @pytest.fixture
@@ -1334,3 +1341,28 @@ class TestConnection:
 
         connection.disconnect()
         connection.disconnect()
+
+    def test_stopped_on_symlink_no_buffer(self, connected_session, monkeypatch):
+        connection, session = connected_session
+
+        with monkeypatch.context() as m:
+            m.setattr(connection.transport, "send", lambda d: None)
+            request = connection.send(SMB2Echo(), sid=session.session_id)
+
+        assert len(connection.outstanding_requests) == 1
+
+        error_resp = SMB2ErrorResponse()
+        error_resp["error_data"] = []
+
+        response_header = SMB2HeaderResponse()
+        response_header["message_id"] = request.message["message_id"].get_value()
+        response_header["status"] = NtStatus.STATUS_STOPPED_ON_SYMLINK
+        response_header["data"] = error_resp.pack()
+
+        request.response = response_header
+        request.response_event.set()
+
+        with pytest.raises(StoppedOnSymlink):
+            connection.receive(request)
+
+        assert len(connection.outstanding_requests) == 0
