@@ -684,7 +684,8 @@ def scandir(path, search_pattern="*", **kwargs):
     :return: An iterator of DirEntry objects in the directory.
     """
     connection_cache = kwargs.get("connection_cache", None)
-    with SMBDirectoryIO(path, share_access="rwd", **kwargs) as fd:
+    with SMBDirectoryIO(path, **kwargs) as fd:
+        kwargs.setdefault("share_access", "rwd")
         for raw_dir_info in fd.query_directory(search_pattern, FileInformationClass.FILE_ID_FULL_DIRECTORY_INFORMATION):
             filename = raw_dir_info["file_name"].get_value().decode("utf-16-le")
             if filename in [".", ".."]:
