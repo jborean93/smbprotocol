@@ -32,7 +32,8 @@ from smbprotocol import MAX_PAYLOAD_SIZE
 from smbprotocol.file_info import FileAttributes, FileBasicInformation
 from smbprotocol.open import CreateOptions, FilePipePrinterAccessMask
 from smbprotocol.structure import DateTimeField
-
+from smbprotocol.exceptions import SMBOSError
+from smbprotocol.header import NtStatus
 
 def _basename(path):
     """
@@ -184,8 +185,13 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
         if is_same:
             raise shutil.Error(f"'{src}' and '{dst}' are the same file, cannot copy")
 
-        smbclient_copyfile(src, dst, **kwargs)
-        return dst
+        # Attempt server side copy, if it fails fall back to copying the file in chunks using copyfileobj
+        try:
+            smbclient_copyfile(src, dst, **kwargs)
+            return dst
+        except SMBOSError as err:
+            if getattr(err, "ntstatus", None) != NtStatus.STATUS_NOT_SUPPORTED:
+                raise
 
     # Finally we are copying across different roots so we just chunk the data using copyfileobj
     with src_open(src, mode="rb", **src_open_kwargs) as src_fd, dst_open(dst, mode="wb", **dst_kwargs) as dst_fd:
