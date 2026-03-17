@@ -615,11 +615,32 @@ class SMBDirectoryIO(SMBRawIO):
 
     def query_directory(self, pattern, info_class):
         query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
+        attempted_dfs_paths = set()
         while True:
             try:
                 entries = self.fd.query_directory(pattern, info_class, flags=query_flags)
             except NoMoreFiles:
                 break
+            except (PathNotCovered, ObjectNameNotFound, ObjectPathNotFound):
+                # The MS-DFSC docs state that STATUS_PATH_NOT_COVERED is used when encountering a DFS link to a
+                # different server during directory enumeration. Samba may return the generic name or path not found.
+                for smb_open in _resolve_dfs(self):
+                    if smb_open.tree_connect.share_name == self.fd.tree_connect.share_name:
+                        continue
+
+                    tested_path = f"{smb_open.tree_connect.share_name}{smb_open.file_name}".lower()
+                    if tested_path in attempted_dfs_paths:
+                        continue
+
+                    attempted_dfs_paths.add(tested_path)
+                    self.fd = smb_open
+                    self.open()
+                    query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
+                    break
+                else:
+                    # No DFS referral resolved; propagate the error.
+                    raise
+                continue
 
             query_flags = 0  # Only the first request should have set SMB2_RESTART_SCANS
             yield from entries
