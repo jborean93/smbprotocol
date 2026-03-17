@@ -31,8 +31,8 @@ from smbclient.shutil import (
 )
 from smbprotocol.exceptions import SMBOSError
 from smbprotocol.file_info import FileBasicInformation
-from smbprotocol.open import CreateOptions, FileAttributes, FilePipePrinterAccessMask
 from smbprotocol.header import NtStatus
+from smbprotocol.open import CreateOptions, FileAttributes, FilePipePrinterAccessMask
 
 if os.name == "nt":
     from ctypes.wintypes import FILETIME
@@ -420,6 +420,7 @@ def test_copyfile_symlink_across_boundary_fail(smb_share):
     with pytest.raises(ValueError, match=re.escape(expected)):
         copyfile(src_filename, "/tmp", follow_symlinks=False)
 
+
 def test_copyfile_falls_back_to_copyfile_obj_when_server_side_copy_not_supported(smb_share):
     src_filename = "%s\\source.txt" % smb_share
     dst_filename = "%s\\target.txt" % smb_share
@@ -428,18 +429,21 @@ def test_copyfile_falls_back_to_copyfile_obj_when_server_side_copy_not_supported
         fd.write("content")
 
     with patch("smbclient.shutil.smbclient_copyfile") as mock_copy:
-        err = SMBOSError(NtStatus.STATUS_NOT_SUPPORTED, f"Unknown NtStatus error returned 'STATUS_NOT_SUPPORTED': '{src_filename}'")
+        err = SMBOSError(
+            NtStatus.STATUS_NOT_SUPPORTED, f"Unknown NtStatus error returned 'STATUS_NOT_SUPPORTED': '{src_filename}'"
+        )
         err.ntstatus = NtStatus.STATUS_NOT_SUPPORTED
         mock_copy.side_effect = err
 
-        actual = copyfile(src=src_filename,dst=dst_filename)
+        actual = copyfile(src=src_filename, dst=dst_filename)
 
-        #Check that initially the copyfile was attempted and then the fallback was used.
+        # Check that initially the copyfile was attempted and then the fallback was used.
         assert mock_copy.call_count == 1
         assert actual == dst_filename
 
         with open_file(dst_filename) as fd:
             assert fd.read() == "content"
+
 
 def test_copymode_of_file(smb_share):
     src_filename = "%s\\source.txt" % smb_share

@@ -29,11 +29,12 @@ from smbclient._os import (
 )
 from smbclient.path import isdir, islink, samefile
 from smbprotocol import MAX_PAYLOAD_SIZE
+from smbprotocol.exceptions import SMBOSError
 from smbprotocol.file_info import FileAttributes, FileBasicInformation
+from smbprotocol.header import NtStatus
 from smbprotocol.open import CreateOptions, FilePipePrinterAccessMask
 from smbprotocol.structure import DateTimeField
-from smbprotocol.exceptions import SMBOSError
-from smbprotocol.header import NtStatus
+
 
 def _basename(path):
     """
