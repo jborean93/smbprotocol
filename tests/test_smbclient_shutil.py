@@ -9,6 +9,7 @@ import re
 import shutil
 import stat
 import sys
+from unittest.mock import patch
 
 import pytest
 
@@ -30,6 +31,7 @@ from smbclient.shutil import (
 )
 from smbprotocol.exceptions import SMBOSError
 from smbprotocol.file_info import FileBasicInformation
+from smbprotocol.header import NtStatus
 from smbprotocol.open import CreateOptions, FileAttributes, FilePipePrinterAccessMask
 
 if os.name == "nt":
@@ -417,6 +419,32 @@ def test_copyfile_symlink_across_boundary_fail(smb_share):
     expected = "Cannot copy a symlink on different roots."
     with pytest.raises(ValueError, match=re.escape(expected)):
         copyfile(src_filename, "/tmp", follow_symlinks=False)
+
+
+def test_copyfile_falls_back_to_copyfile_obj_when_server_side_copy_not_supported(smb_share):
+    src_filename = "%s\\source.txt" % smb_share
+    dst_filename = "%s\\target.txt" % smb_share
+
+    with open_file(src_filename, mode="w") as fd:
+        fd.write("content")
+
+    with patch("smbclient.shutil.smbclient_copyfile") as mock_copy:
+
+        def raise_not_supported(*args, **kwargs):
+            raise SMBOSError(
+                NtStatus.STATUS_NOT_SUPPORTED,
+                src_filename,
+            )
+
+        mock_copy.side_effect = raise_not_supported
+        actual = copyfile(src=src_filename, dst=dst_filename)
+
+        # Check that initially the copyfile was attempted and then the fallback was used.
+        assert mock_copy.call_count == 1
+        assert actual == dst_filename
+
+        with open_file(dst_filename) as fd:
+            assert fd.read() == "content"
 
 
 def test_copymode_of_file(smb_share):
