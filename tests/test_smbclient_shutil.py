@@ -429,6 +429,7 @@ def test_copyfile_falls_back_to_copyfile_obj_when_server_side_copy_not_supported
         fd.write("content")
 
     with patch("smbclient.shutil.smbclient_copyfile") as mock_copy:
+
         def raise_not_supported(*args, **kwargs):
             raise SMBOSError(
                 NtStatus.STATUS_NOT_SUPPORTED,
