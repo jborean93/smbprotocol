@@ -429,12 +429,13 @@ def test_copyfile_falls_back_to_copyfile_obj_when_server_side_copy_not_supported
         fd.write("content")
 
     with patch("smbclient.shutil.smbclient_copyfile") as mock_copy:
-        err = SMBOSError(
-            NtStatus.STATUS_NOT_SUPPORTED, f"Unknown NtStatus error returned 'STATUS_NOT_SUPPORTED': '{src_filename}'"
-        )
-        err.ntstatus = NtStatus.STATUS_NOT_SUPPORTED
-        mock_copy.side_effect = err
+        def raise_not_supported(*args, **kwargs):
+            raise SMBOSError(
+                NtStatus.STATUS_NOT_SUPPORTED,
+                src_filename,
+            )
 
+        mock_copy.side_effect = raise_not_supported
         actual = copyfile(src=src_filename, dst=dst_filename)
 
         # Check that initially the copyfile was attempted and then the fallback was used.
