@@ -145,7 +145,7 @@ class Tcp:
                 except OSError as e:
                     # Windows will raise this error if the socket has been shutdown, Linux return returns an empty byte
                     # string so we just replicate that.
-                    if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET]:
+                    if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET, errno.ECONNABORTED]:
                         # Avoid collecting coverage here to avoid CI failing due to race condition differences
                         raise  # pragma: no cover
                     b_data = b""
