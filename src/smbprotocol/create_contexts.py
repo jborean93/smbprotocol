@@ -289,14 +289,14 @@ class SMB2CreateEABuffer(Structure):
                 # alignment
                 (
                     "padding",
-                    BytesField(size=SMB2CreateEABuffer._padding_size, default=SMB2CreateEABuffer._default_padding_size(s)),
+                    BytesField(size=SMB2CreateEABuffer._padding_size, default=SMB2CreateEABuffer._default_padding_size),
                 ),
             ]
         )
         super().__init__()
 
     @staticmethod
-    def _padding_size(self, structure):
+    def _padding_size(structure):
         if structure["next_entry_offset"].get_value() == 0:
             return 0
 
@@ -305,7 +305,7 @@ class SMB2CreateEABuffer(Structure):
         return mod if mod == 0 else 4 - mod
 
     @staticmethod
-    def _default_padding_size(self, structure):
+    def _default_padding_size(structure):
         return b'\x00' * SMB2CreateEABuffer._padding_size(structure)
 
     @staticmethod
