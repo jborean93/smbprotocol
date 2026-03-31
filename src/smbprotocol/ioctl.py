@@ -136,7 +136,7 @@ class SMB2IOCTLRequest(Structure):
                     ),
                 ),
                 ("file_id", BytesField(size=16)),
-                ("input_offset", IntField(size=4, default=lambda s: self._buffer_offset_value(s))),
+                ("input_offset", IntField(size=4, default=SMB2IOCTLRequest._buffer_offset_value)),
                 (
                     "input_count",
                     IntField(
@@ -145,7 +145,7 @@ class SMB2IOCTLRequest(Structure):
                     ),
                 ),
                 ("max_input_response", IntField(size=4)),
-                ("output_offset", IntField(size=4, default=lambda s: self._buffer_offset_value(s))),
+                ("output_offset", IntField(size=4, default=SMB2IOCTLRequest._buffer_offset_value)),
                 ("output_count", IntField(size=4, default=0)),
                 ("max_output_response", IntField(size=4)),
                 (
@@ -161,7 +161,8 @@ class SMB2IOCTLRequest(Structure):
         )
         super().__init__()
 
-    def _buffer_offset_value(self, structure):
+    @staticmethod
+    def _buffer_offset_value(structure):
         # The offset from the beginning of the SMB2 header to the value of the
         # buffer, 0 if no buffer is set
         if len(structure["buffer"]) > 0:
@@ -497,38 +498,45 @@ class SockAddrStorage(Structure):
                 (
                     "buffer",
                     StructureField(
-                        size=lambda s: self._get_buffer_size(s),
-                        structure_type=lambda s: self._get_buffer_structure_type(s),
+                        size=SockAddrStorage._get_buffer_size,
+                        structure_type=SockAddrStorage._get_buffer_structure_type,
                     ),
                 ),
                 (
                     "reserved",
                     BytesField(
-                        size=lambda s: self._get_reserved_size(s),
-                        default=lambda s: b"\x00" * self._get_reserved_size(s),
+                        size=SockAddrStorage._get_reserved_size,
+                        default=SockAddrStorage._default_get_reserved_size,
                     ),
                 ),
             ]
         )
         super().__init__()
 
-    def _get_buffer_size(self, structure):
+    @staticmethod
+    def _get_buffer_size(structure):
         if structure["family"].get_value() == SockAddrFamily.INTER_NETWORK:
             return 14
         else:
             return 26
 
-    def _get_buffer_structure_type(self, structure):
+    @staticmethod
+    def _get_buffer_structure_type(structure):
         if structure["family"].get_value() == SockAddrFamily.INTER_NETWORK:
             return SockAddrIn
         else:
             return SockAddrIn6
 
-    def _get_reserved_size(self, structure):
+    @staticmethod
+    def _get_reserved_size(structure):
         if structure["family"].get_value() == SockAddrFamily.INTER_NETWORK:
             return 112
         else:
             return 100
+
+    @staticmethod
+    def _default_get_reserved_size(structure):
+        return b'\x00' * SockAddrStorage._get_reserved_size(structure)
 
 
 class SockAddrIn(Structure):

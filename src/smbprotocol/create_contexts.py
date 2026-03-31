@@ -158,12 +158,12 @@ class SMB2CreateContextRequest(Structure):
                 ("name_offset", IntField(size=2, default=16)),
                 ("name_length", IntField(size=2, default=lambda s: len(s["buffer_name"]))),
                 ("reserved", IntField(size=2)),
-                ("data_offset", IntField(size=2, default=lambda s: self._buffer_data_offset(s))),
+                ("data_offset", IntField(size=2, default=SMB2CreateContextRequest._buffer_data_offset)),
                 ("data_length", IntField(size=4, default=lambda s: len(s["buffer_data"]))),
                 ("buffer_name", BytesField(size=lambda s: s["name_length"].get_value())),
                 (
                     "padding",
-                    BytesField(size=lambda s: self._padding_size(s), default=lambda s: b"\x00" * self._padding_size(s)),
+                    BytesField(size=SMB2CreateContextRequest._padding_size, default=SMB2CreateContextRequest._default_padding_size),
                 ),
                 ("buffer_data", BytesField(size=lambda s: s["data_length"].get_value())),
                 # not actually a field but each list entry must start at the 8 byte
@@ -171,20 +171,22 @@ class SMB2CreateContextRequest(Structure):
                 (
                     "padding2",
                     BytesField(
-                        size=lambda s: self._padding2_size(s), default=lambda s: b"\x00" * self._padding2_size(s)
+                        size=lambda s: SMB2CreateContextRequest._padding2_size, default=SMB2CreateContextRequest._default_padding2_size
                     ),
                 ),
             ]
         )
         super().__init__()
 
-    def _buffer_data_offset(self, structure):
+    @staticmethod
+    def _buffer_data_offset(structure):
         if structure["data_length"].get_value() == 0:
             return 0
         else:
             return structure["name_offset"].get_value() + len(structure["buffer_name"]) + len(structure["padding"])
 
-    def _padding_size(self, structure):
+    @staticmethod
+    def _padding_size(structure):
         if structure["data_length"].get_value() == 0:
             return 0
 
@@ -192,10 +194,19 @@ class SMB2CreateContextRequest(Structure):
         mod = buffer_name_len % 8
         return mod if mod == 0 else 8 - mod
 
-    def _padding2_size(self, structure):
+    @staticmethod
+    def _default_padding_size(structure):
+        return b'\x00' * SMB2CreateContextRequest._padding_size(structure)
+
+    @staticmethod
+    def _padding2_size(structure):
         data_length = len(structure["buffer_name"]) + len(structure["padding"]) + len(structure["buffer_data"])
         mod = data_length % 8
         return mod if mod == 0 else 8 - mod
+
+    @staticmethod
+    def _default_padding2_size(structure):
+        return b'\x00' * SMB2CreateContextRequest._padding2_size(structure)
 
     def get_context_data(self):
         """
@@ -278,12 +289,13 @@ class SMB2CreateEABuffer(Structure):
                 # alignment
                 (
                     "padding",
-                    BytesField(size=lambda s: self._padding_size(s), default=lambda s: b"\x00" * self._padding_size(s)),
+                    BytesField(size=SMB2CreateEABuffer._padding_size, default=SMB2CreateEABuffer._default_padding_size(s)),
                 ),
             ]
         )
         super().__init__()
 
+    @staticmethod
     def _padding_size(self, structure):
         if structure["next_entry_offset"].get_value() == 0:
             return 0
@@ -291,6 +303,10 @@ class SMB2CreateEABuffer(Structure):
         data_length = len(structure["ea_name"]) + len(structure["ea_value"])
         mod = data_length % 4
         return mod if mod == 0 else 4 - mod
+
+    @staticmethod
+    def _default_padding_size(self, structure):
+        return b'\x00' * SMB2CreateEABuffer._padding_size(structure)
 
     @staticmethod
     def pack_multiple(messages):

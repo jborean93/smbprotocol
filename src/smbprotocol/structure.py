@@ -9,6 +9,7 @@ import struct
 import textwrap
 import types
 import uuid
+import weakref
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
@@ -58,7 +59,7 @@ class Structure:
         # relies on the full structure (self) being available and error
         # messages use the field name to be helpful
         for name, field in self.fields.items():
-            field.structure = self
+            field.structure = weakref.proxy(self)
             field.name = name
             field.set_value(field.default)
 
