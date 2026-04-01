@@ -942,7 +942,8 @@ class SMB2MoveDstIpAddrStructure(Structure):
                 (
                     "reserved2",
                     BytesField(
-                        size=SMB2MoveDstIpAddrStructure._reserved2_size, default=SMB2MoveDstIpAddrStructure._default_reserved2_size
+                        size=SMB2MoveDstIpAddrStructure._reserved2_size,
+                        default=SMB2MoveDstIpAddrStructure._default_reserved2_size,
                     ),
                 ),
             ]
@@ -965,7 +966,7 @@ class SMB2MoveDstIpAddrStructure(Structure):
 
     @staticmethod
     def _default_reserved2_size(structure):
-        return b'\x00' * SMB2MoveDstIpAddrStructure._reserved2_size(structure)
+        return b"\x00" * SMB2MoveDstIpAddrStructure._reserved2_size(structure)
 
     def get_ipaddress(self):
         # get's the IP address in a human readable format

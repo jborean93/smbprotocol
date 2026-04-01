@@ -404,7 +404,7 @@ class SMB2CreateRequest(Structure):
 
     @staticmethod
     def _default_padding_size(structure):
-        return b'\x00' * SMB2CreateRequest._padding_size(structure)
+        return b"\x00" * SMB2CreateRequest._padding_size(structure)
 
     @staticmethod
     def _buffer_context_list(structure, data):

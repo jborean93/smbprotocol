@@ -536,7 +536,7 @@ class SockAddrStorage(Structure):
 
     @staticmethod
     def _default_get_reserved_size(structure):
-        return b'\x00' * SockAddrStorage._get_reserved_size(structure)
+        return b"\x00" * SockAddrStorage._get_reserved_size(structure)
 
 
 class SockAddrIn(Structure):

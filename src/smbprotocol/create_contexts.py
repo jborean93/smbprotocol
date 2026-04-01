@@ -163,7 +163,10 @@ class SMB2CreateContextRequest(Structure):
                 ("buffer_name", BytesField(size=lambda s: s["name_length"].get_value())),
                 (
                     "padding",
-                    BytesField(size=SMB2CreateContextRequest._padding_size, default=SMB2CreateContextRequest._default_padding_size),
+                    BytesField(
+                        size=SMB2CreateContextRequest._padding_size,
+                        default=SMB2CreateContextRequest._default_padding_size,
+                    ),
                 ),
                 ("buffer_data", BytesField(size=lambda s: s["data_length"].get_value())),
                 # not actually a field but each list entry must start at the 8 byte
@@ -171,7 +174,8 @@ class SMB2CreateContextRequest(Structure):
                 (
                     "padding2",
                     BytesField(
-                        size=lambda s: SMB2CreateContextRequest._padding2_size, default=SMB2CreateContextRequest._default_padding2_size
+                        size=lambda s: SMB2CreateContextRequest._padding2_size,
+                        default=SMB2CreateContextRequest._default_padding2_size,
                     ),
                 ),
             ]
@@ -196,7 +200,7 @@ class SMB2CreateContextRequest(Structure):
 
     @staticmethod
     def _default_padding_size(structure):
-        return b'\x00' * SMB2CreateContextRequest._padding_size(structure)
+        return b"\x00" * SMB2CreateContextRequest._padding_size(structure)
 
     @staticmethod
     def _padding2_size(structure):
@@ -206,7 +210,7 @@ class SMB2CreateContextRequest(Structure):
 
     @staticmethod
     def _default_padding2_size(structure):
-        return b'\x00' * SMB2CreateContextRequest._padding2_size(structure)
+        return b"\x00" * SMB2CreateContextRequest._padding2_size(structure)
 
     def get_context_data(self):
         """
@@ -306,7 +310,7 @@ class SMB2CreateEABuffer(Structure):
 
     @staticmethod
     def _default_padding_size(structure):
-        return b'\x00' * SMB2CreateEABuffer._padding_size(structure)
+        return b"\x00" * SMB2CreateEABuffer._padding_size(structure)
 
     @staticmethod
     def pack_multiple(messages):

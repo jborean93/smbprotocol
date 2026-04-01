@@ -298,7 +298,7 @@ class SMB3NegotiateRequest(Structure):
 
     @staticmethod
     def _default_padding_size(structure):
-        return b'\x00' * SMB3NegotiateRequest._padding_size(structure)
+        return b"\x00" * SMB3NegotiateRequest._padding_size(structure)
 
     @staticmethod
     def _negotiate_context_list(structure, data):
@@ -388,7 +388,7 @@ class SMB2NegotiateContextRequest(Structure):
 
     @staticmethod
     def _default_padding_size(structure):
-        return b'\x00' * SMB2NegotiateContextRequest._padding_size(structure)
+        return b"\x00" * SMB2NegotiateContextRequest._padding_size(structure)
 
 
 class SMB2PreauthIntegrityCapabilities(Structure):
@@ -654,7 +654,7 @@ class SMB2NegotiateResponse(Structure):
 
     @staticmethod
     def _default_padding_size(structure):
-        return b'\x00' * SMB2NegotiateResponse._padding_size(structure)
+        return b"\x00" * SMB2NegotiateResponse._padding_size(structure)
 
     @staticmethod
     def _negotiate_context_list(structure, data):
