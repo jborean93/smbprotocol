@@ -399,7 +399,7 @@ class SMB2CreateRequest(Structure):
         if structure["create_contexts_length"].get_value() == 0:
             return 0
 
-        mod = structure["name_length"].get_value() % 8
+        mod = len(structure["buffer_path"]) % 8
         return 0 if mod == 0 else 8 - mod
 
     @staticmethod
