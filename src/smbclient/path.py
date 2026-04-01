@@ -10,12 +10,6 @@ from smbclient._os import stat
 from smbprotocol.exceptions import SMBLinkRedirectionError, SMBOSError
 
 
-def __getattr__(name):
-    if attr := getattr(ntpath, name, None):
-        return attr
-    raise AttributeError(f"module 'smbclient.path' has no attribute {name!r}")
-
-
 def exists(path, **kwargs):
     """
     Return True if path refers to an existing path. Returns False for broken symbolic links or links pointing to
