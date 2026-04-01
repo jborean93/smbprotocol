@@ -34,12 +34,6 @@ from smbprotocol.open import CreateOptions, FilePipePrinterAccessMask
 from smbprotocol.structure import DateTimeField
 
 
-def __getattr__(name):
-    if attr := getattr(shutil, name, None):
-        return attr
-    raise AttributeError(f"module 'smbclient.shutil' has no attribute {name!r}")
-
-
 def _basename(path):
     """
     Return the base name of pathname path.

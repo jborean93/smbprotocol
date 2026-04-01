@@ -105,12 +105,6 @@ SMBStatVolumeResult = collections.namedtuple(
 )
 
 
-def __getattr__(name):
-    if attr := getattr(os, name, None):
-        return attr
-    raise AttributeError(f"module 'smbclient' has no attribute {name!r}")
-
-
 class SMBFileStreamInformation(t.NamedTuple):
     name: str
     size: int
