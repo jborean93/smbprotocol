@@ -174,7 +174,7 @@ class SMB2CreateContextRequest(Structure):
                 (
                     "padding2",
                     BytesField(
-                        size=lambda s: SMB2CreateContextRequest._padding2_size,
+                        size=SMB2CreateContextRequest._padding2_size,
                         default=SMB2CreateContextRequest._default_padding2_size,
                     ),
                 ),
