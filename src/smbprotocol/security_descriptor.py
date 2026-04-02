@@ -271,14 +271,15 @@ class AclPacket(Structure):
                     "aces",
                     ListField(
                         list_count=lambda s: s["ace_count"].get_value(),
-                        unpack_func=lambda s, d: self._unpack_aces(s, d),
+                        unpack_func=AclPacket._unpack_aces,
                     ),
                 ),
             ]
         )
         super().__init__()
 
-    def _unpack_aces(self, structure, data):
+    @staticmethod
+    def _unpack_aces(structure, data):
         aces = []
         while data != b"" and len(aces) < structure["ace_count"].value:
             ace_type = struct.unpack("<B", data[:1])[0]

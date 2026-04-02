@@ -349,48 +349,52 @@ class SMB2CreateRequest(Structure):
                 ("create_disposition", EnumField(size=4, enum_type=CreateDisposition)),
                 ("create_options", FlagField(size=4, flag_type=CreateOptions)),
                 ("name_offset", IntField(size=2, default=120)),  # (header size 64) + (structure size 56)
-                ("name_length", IntField(size=2, default=lambda s: self._name_length(s))),
-                ("create_contexts_offset", IntField(size=4, default=lambda s: self._create_contexts_offset(s))),
+                ("name_length", IntField(size=2, default=SMB2CreateRequest._name_length)),
+                ("create_contexts_offset", IntField(size=4, default=SMB2CreateRequest._create_contexts_offset)),
                 ("create_contexts_length", IntField(size=4, default=lambda s: len(s["buffer_contexts"]))),
                 # Technically these are all under buffer but we split it to make
                 # things easier
                 (
                     "buffer_path",
                     BytesField(
-                        size=lambda s: self._buffer_path_size(s),
+                        size=SMB2CreateRequest._buffer_path_size,
                     ),
                 ),
                 (
                     "padding",
-                    BytesField(size=lambda s: self._padding_size(s), default=lambda s: b"\x00" * self._padding_size(s)),
+                    BytesField(size=SMB2CreateRequest._padding_size, default=SMB2CreateRequest._default_padding_size),
                 ),
                 (
                     "buffer_contexts",
                     ListField(
                         size=lambda s: s["create_contexts_length"].get_value(),
                         list_type=StructureField(structure_type=create_con_req),
-                        unpack_func=lambda s, d: self._buffer_context_list(s, d),
+                        unpack_func=SMB2CreateRequest._buffer_context_list,
                     ),
                 ),
             ]
         )
         super().__init__()
 
-    def _name_length(self, structure):
+    @staticmethod
+    def _name_length(structure):
         buffer_path = structure["buffer_path"].get_value()
         return len(buffer_path) if buffer_path != b"\x00\x00" else 0
 
-    def _create_contexts_offset(self, structure):
+    @staticmethod
+    def _create_contexts_offset(structure):
         if len(structure["buffer_contexts"]) == 0:
             return 0
         else:
             return structure["name_offset"].get_value() + len(structure["padding"]) + len(structure["buffer_path"])
 
-    def _buffer_path_size(self, structure):
+    @staticmethod
+    def _buffer_path_size(structure):
         name_length = structure["name_length"].get_value()
         return name_length if name_length != 0 else 2
 
-    def _padding_size(self, structure):
+    @staticmethod
+    def _padding_size(structure):
         # no padding is needed if there are no contexts
         if structure["create_contexts_length"].get_value() == 0:
             return 0
@@ -398,7 +402,12 @@ class SMB2CreateRequest(Structure):
         mod = len(structure["buffer_path"]) % 8
         return 0 if mod == 0 else 8 - mod
 
-    def _buffer_context_list(self, structure, data):
+    @staticmethod
+    def _default_padding_size(structure):
+        return b"\x00" * SMB2CreateRequest._padding_size(structure)
+
+    @staticmethod
+    def _buffer_context_list(structure, data):
         context_list = []
         last_context = data == b""
         while not last_context:
@@ -445,27 +454,29 @@ class SMB2CreateResponse(Structure):
                 ),
                 ("reserved2", IntField(size=4)),
                 ("file_id", BytesField(size=16)),
-                ("create_contexts_offset", IntField(size=4, default=lambda s: self._create_contexts_offset(s))),
+                ("create_contexts_offset", IntField(size=4, default=SMB2CreateResponse._create_contexts_offset)),
                 ("create_contexts_length", IntField(size=4, default=lambda s: len(s["buffer"]))),
                 (
                     "buffer",
                     ListField(
                         size=lambda s: s["create_contexts_length"].get_value(),
                         list_type=StructureField(structure_type=create_con_req),
-                        unpack_func=lambda s, d: self._buffer_context_list(s, d),
+                        unpack_func=SMB2CreateResponse._buffer_context_list,
                     ),
                 ),
             ]
         )
         super().__init__()
 
-    def _create_contexts_offset(self, structure):
+    @staticmethod
+    def _create_contexts_offset(structure):
         if len(structure["buffer"]) == 0:
             return 0
         else:
             return 152
 
-    def _buffer_context_list(self, structure, data):
+    @staticmethod
+    def _buffer_context_list(structure, data):
         context_list = []
         last_context = data == b""
         while not last_context:
@@ -596,26 +607,29 @@ class SMB2ReadRequest(Structure):
                 ("minimum_count", IntField(size=4)),
                 ("channel", FlagField(size=4, flag_type=ReadWriteChannel)),
                 ("remaining_bytes", IntField(size=4)),
-                ("read_channel_info_offset", IntField(size=2, default=lambda s: self._get_read_channel_info_offset(s))),
-                ("read_channel_info_length", IntField(size=2, default=lambda s: self._get_read_channel_info_length(s))),
-                ("buffer", BytesField(size=lambda s: self._get_buffer_length(s), default=b"\x00")),
+                ("read_channel_info_offset", IntField(size=2, default=SMB2ReadRequest._get_read_channel_info_offset)),
+                ("read_channel_info_length", IntField(size=2, default=SMB2ReadRequest._get_read_channel_info_length)),
+                ("buffer", BytesField(size=SMB2ReadRequest._get_buffer_length, default=b"\x00")),
             ]
         )
         super().__init__()
 
-    def _get_read_channel_info_offset(self, structure):
+    @staticmethod
+    def _get_read_channel_info_offset(structure):
         if structure["channel"].get_value() == 0:
             return 0
         else:
             return 64 + structure["structure_size"].get_value() - 1
 
-    def _get_read_channel_info_length(self, structure):
+    @staticmethod
+    def _get_read_channel_info_length(structure):
         if structure["channel"].get_value() == 0:
             return 0
         else:
             return len(structure["buffer"].get_value())
 
-    def _get_buffer_length(self, structure):
+    @staticmethod
+    def _get_buffer_length(structure):
         # buffer should contain 1 byte of \x00 and not be empty
         if structure["channel"].get_value() == 0:
             return 1
@@ -673,7 +687,7 @@ class SMB2WriteRequest(Structure):
                 ("remaining_bytes", IntField(size=4)),
                 (
                     "write_channel_info_offset",
-                    IntField(size=2, default=lambda s: self._get_write_channel_info_offset(s)),
+                    IntField(size=2, default=SMB2WriteRequest._get_write_channel_info_offset),
                 ),
                 ("write_channel_info_length", IntField(size=2, default=lambda s: len(s["buffer_channel_info"]))),
                 ("flags", FlagField(size=4, flag_type=WriteFlags)),
@@ -683,7 +697,8 @@ class SMB2WriteRequest(Structure):
         )
         super().__init__()
 
-    def _get_write_channel_info_offset(self, structure):
+    @staticmethod
+    def _get_write_channel_info_offset(structure):
         if len(structure["buffer_channel_info"]) == 0:
             return 0
         else:
