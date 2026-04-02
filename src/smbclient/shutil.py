@@ -191,7 +191,7 @@ def copyfile(src, dst, follow_symlinks=True, **kwargs):
             smbclient_copyfile(src, dst, **kwargs)
             return dst
         except SMBOSError as err:
-            if err.ntstatus == NtStatus.STATUS_NOT_SUPPORTED:
+            if err.ntstatus != NtStatus.STATUS_NOT_SUPPORTED:
                 raise
 
     # Finally we are copying across different roots so we just chunk the data using copyfileobj
