@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.16.1 - 2026-04-02
+
+* Fix memory leaks in `Structure` and subclasses by converting lambda default values to static methods and using `weakref.proxy` to prevent circular references
+* Fix `smbclient.shutil.copyfile` to fallback to client-side copy when server-side SMB copy is not supported (`STATUS_NOT_SUPPORTED`)
+* Fix create context offset calculation when opening a file or directory
+* Fix potential deadlock when worker thread attempts to disconnect and join itself
+* Handle `ECONNABORTED` socket error during connection teardown
+
 ## 1.16.0 - 2026-02-09
 
 * Drop support for Python 3.8, minimum version is now 3.9
