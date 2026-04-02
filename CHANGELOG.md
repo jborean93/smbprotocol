@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.17.0 - TBD
+
+* Drop support for Python 3.9, minimum verison if now 3.10
+
 ## 1.16.1 - 2026-04-02
 
 * Fix memory leaks in `Structure` and subclasses by converting lambda default values to static methods and using `weakref.proxy` to prevent circular references

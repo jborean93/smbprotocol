@@ -27,7 +27,7 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Build smbprotocol
       run: |
@@ -35,7 +35,7 @@ jobs:
         python -m build
 
     - name: Upload built smbprotocol
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: artifact
         path: ./dist/*
@@ -54,7 +54,6 @@ jobs:
         - macOS-latest
         - windows-latest
         python-version:
-        - 3.9
         - '3.10'
         - '3.11'
         - '3.12'
@@ -62,13 +61,13 @@ jobs:
         - '3.14'
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v8
       with:
         name: artifact
         path: ./dist
@@ -94,21 +93,21 @@ jobs:
 
     - name: Upload Test Results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Unit Test Results (${{ matrix.os }} ${{ matrix.python-version }} ${{ matrix.python-arch }})
         path: ./junit/test-results.xml
 
     - name: Upload Coverage Results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Coverage Results (${{ matrix.os }} ${{ matrix.python-version }} ${{ matrix.python-arch }})
         path: ./coverage.xml
 
     - name: Upload Coverage to codecov
       if: always()
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         files: ./coverage.xml
         flags: ${{ steps.os.outputs.name }},py${{ matrix.python-version }},${{ matrix.python-arch }}
@@ -124,7 +123,7 @@ jobs:
       id-token: write
 
     steps:
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v8
       with:
         name: artifact
         path: ./dist
