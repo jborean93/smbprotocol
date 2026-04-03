@@ -633,6 +633,10 @@ class SMBDirectoryIO(SMBRawIO):
                         continue
 
                     attempted_dfs_paths.add(tested_path)
+                    try:
+                        self.fd.close()
+                    except SMBResponseException:
+                        pass
                     self.fd = smb_open
                     self.open()
                     query_flags = QueryDirectoryFlags.SMB2_RESTART_SCANS
