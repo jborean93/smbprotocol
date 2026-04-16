@@ -849,7 +849,9 @@ class Connection:
         # The thread that will handle message processing.
         self._t_worker = None
 
-    def connect(self, dialect=None, timeout=60, preferred_encryption_algos=None, preferred_signing_algos=None):
+    def connect(
+        self, dialect=None, timeout=60, preferred_encryption_algos=None, preferred_signing_algos=None, target_ip=None
+    ):
         """
         Will connect to the target server and negotiate the capabilities
         with the client. Once setup, the client MUST call the disconnect()
@@ -886,9 +888,14 @@ class Connection:
         :param preferred_signing_algos: A list of signing algorithm ids in
             priority order from highest to lowest.
             See :class:`SigningAlgorithms` for a list of known identifiers.
+        :param target_ip: The IP address of the target, specially useful to not
+            rely on internal DNS resolution when using Kerberos.
         """
         log.info("Setting up transport connection")
-        self.transport = Tcp(self.server_name, self.port, timeout)
+        if target_ip:
+            self.transport = Tcp(target_ip, self.port, timeout)
+        else:
+            self.transport = Tcp(self.server_name, self.port, timeout)
         self.transport.connect()
         self._t_worker = threading.Thread(
             target=self._process_message_thread, name=f"msg_worker-{self.server_name}:{self.port}"
