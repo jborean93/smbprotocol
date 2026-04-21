@@ -219,7 +219,7 @@ class Session:
         :param require_encryption: Whether any messages sent over the session
             require encryption regardless of the server settings (Dialects 3+),
             needs to be set to False for older dialects.
-        "param hostname_override: Specifies hostname context for Kerberos
+        :param hostname_override: Specifies hostname context for Kerberos
             authentication when given IP address to the connection context.
         :param auth_protocol: The protocol to use for authentication. Possible
             values are 'negotiate', 'ntlm' or 'kerberos'. Defaults to
