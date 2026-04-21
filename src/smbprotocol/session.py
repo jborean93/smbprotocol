@@ -3,7 +3,6 @@
 
 import hashlib
 import logging
-import random
 from collections import OrderedDict
 from typing import Literal, Optional
 
@@ -177,6 +176,7 @@ class Session:
         username: Optional[str] = None,
         password: Optional[str] = None,
         require_encryption=True,
+        hostname_override=None,
         auth_protocol: Literal["negotiate", "ntlm", "kerberos"] = "negotiate",
     ):
         """
@@ -219,6 +219,8 @@ class Session:
         :param require_encryption: Whether any messages sent over the session
             require encryption regardless of the server settings (Dialects 3+),
             needs to be set to False for older dialects.
+        :param hostname_override: Specifies hostname context for Kerberos
+            authentication when given IP address to the connection context.
         :param auth_protocol: The protocol to use for authentication. Possible
             values are 'negotiate', 'ntlm' or 'kerberos'. Defaults to
             'negotiate'.
@@ -240,6 +242,7 @@ class Session:
         self.connection = connection
         self.username = username
         self.password = password
+        self._hostname_override = hostname_override
 
         # No need to validate this as the spnego library will raise a ValueError
         self.auth_protocol = auth_protocol
@@ -274,7 +277,7 @@ class Session:
                 self.username,
                 self.password,
                 service="cifs",
-                hostname=self.connection.server_name,
+                hostname=self._hostname_override or self.connection.server_name,
                 options=spnego.NegotiateOptions.session_key,
                 protocol=self.auth_protocol,
             )
