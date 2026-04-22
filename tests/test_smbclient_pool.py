@@ -8,7 +8,13 @@ import pytest
 import smbclient._io as io
 import smbclient._pool as pool
 from smbprotocol.dfs import DFSReferralResponse
-from smbprotocol.exceptions import BadNetworkName, InvalidParameter, ObjectPathNotFound
+from smbprotocol.exceptions import (
+    BadNetworkName,
+    InvalidParameter,
+    ObjectPathNotFound,
+    SMBOSError,
+)
+from smbprotocol.header import NtStatus
 
 from .conftest import DC_REFERRAL, DOMAIN_NAME, DOMAIN_REFERRAL
 
@@ -150,3 +156,16 @@ def test_resolve_dfs_referral_no_links(reset_config, monkeypatch, mocker):
 
     with pytest.raises(ObjectPathNotFound):
         list(io._resolve_dfs(raw_io))
+
+
+def test_raw_io_translates_smb_response_to_os_error(mocker):
+    # Anything escaping get_smb_tree here must surface as OSError so the
+    # rmtree, remove, rmdir, and scandir error paths route it correctly.
+    mocker.patch.object(io, "get_smb_tree", side_effect=BadNetworkName())
+
+    path = r"\\server\share\missing"
+    with pytest.raises(SMBOSError) as exc_info:
+        io.SMBRawIO(path)
+
+    assert exc_info.value.ntstatus == NtStatus.STATUS_BAD_NETWORK_NAME
+    assert exc_info.value.filename == path
