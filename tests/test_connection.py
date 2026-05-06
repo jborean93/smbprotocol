@@ -1115,6 +1115,16 @@ class TestConnection:
         with pytest.raises(SMBConnectionClosed):
             connection.receive(None)
 
+    def test_receive_from_worker_thread_raises(self, mocker):
+        # receive() on the worker thread would wait for an event only the worker can set.
+        connection = Connection(uuid.uuid4(), "server", 445, True)
+        fake_worker = mocker.MagicMock()
+        fake_worker.ident = threading.get_ident()
+        connection._t_worker = fake_worker
+
+        with pytest.raises(SMBException, match="self-deadlock"):
+            connection.receive(None)
+
     def test_verify_fail_no_session(self, smb_real):
         connection = Connection(uuid.uuid4(), smb_real[2], smb_real[3], True)
         connection.connect()
