@@ -1583,3 +1583,27 @@ def test_rmtree_symlink_as_dir(smb_share):
     assert callback_args[0][0].__name__ == "islink"
     assert callback_args[0][1] == dst_dirname
     assert isinstance(callback_args[0][2][1], OSError)
+
+
+def test_rmtree_islink_failure_invokes_onerror(mocker):
+    # islink issues SMB requests and can fail. Verify rmtree routes that failure
+    # through onerror so ignore_errors=True still suppresses it.
+    fake_path = r"\\server\share\dst"
+
+    def _failing_islink(*args, **kwargs):
+        raise SMBOSError(NtStatus.STATUS_DELETE_PENDING, fake_path)
+
+    _failing_islink.__name__ = "islink"
+    mocker.patch("smbclient.shutil.islink", new=_failing_islink)
+
+    # ignore_errors=True path: must not raise, must return cleanly.
+    rmtree(fake_path, ignore_errors=True)
+
+    # onerror path: callback receives (islink, path, exc_info).
+    callback_args = []
+    rmtree(fake_path, onerror=lambda *args: callback_args.append(args))
+
+    assert len(callback_args) == 1
+    assert callback_args[0][0].__name__ == "islink"
+    assert callback_args[0][1] == fake_path
+    assert isinstance(callback_args[0][2][1], SMBOSError)

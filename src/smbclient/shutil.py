@@ -411,12 +411,13 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
         def onerror(*args):
             raise
 
-    if islink(path, **kwargs):
-        try:
+    # islink issues SMB requests, so route failures through onerror.
+    try:
+        if islink(path, **kwargs):
             raise OSError("Cannot call rmtree on a symbolic link")
-        except OSError:
-            onerror(islink, path, sys.exc_info())
-            return
+    except OSError:
+        onerror(islink, path, sys.exc_info())
+        return
 
     scandir_gen = scandir(path, **kwargs)
     while True:
