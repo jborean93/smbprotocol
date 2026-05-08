@@ -1431,7 +1431,9 @@ class Connection:
                         if request.message["reserved"].get_value() == 1:
                             self.outstanding_requests.pop(message_id, None)
         except Exception as exc:
-            # The exception is raised in _check_worker_running by the main thread when send/receive is called next.
+            log.exception("SMB receive worker died (outstanding=%d)", len(self.outstanding_requests))
+
+            # The exception is raised in _check_worker_running by the caller thread when send/receive is called next.
             self._t_exc = exc
 
             # While a caller of send/receive could theoretically catch this exception, we consider any failures
