@@ -3,6 +3,9 @@
 ## 1.17.0 - TBD
 
 * Drop support for Python 3.9, minimum verison if now 3.10
+* Added the `hostname_override` kwarg to `smbprotocol.Session` that can override the hostname used in the SPN for authentication
+* Correctly perform a DFS referral lookup in the `query_directory` on a directory
+* Fix the `FlagField` str representation when the `flag_type` contains a dunder attribute with an `int` value
 
 ## 1.16.1 - 2026-04-02
 

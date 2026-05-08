@@ -797,7 +797,8 @@ class FlagField(IntField):
             return "0"
         flags = []
         for flag, value in vars(self.flag_type).items():
-            if isinstance(value, int) and self.has_flag(value):
+            # ignore and dunder __foo__ attributes.
+            if not flag.startswith("__") and isinstance(value, int) and self.has_flag(value):
                 flags.append(flag)
         flags.sort()
         return f"({field_value}) " + (", ".join(flags))

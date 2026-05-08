@@ -1647,6 +1647,21 @@ class TestFlagField:
             field.set_value(0x00000082)
         assert str(exc.value) == "Invalid flag for field field value set 128"
 
+    def test_flag_str_ignores_dunder_attributes(self):
+        class MyClass:
+            __test__ = 3
+
+            FLAG1 = 1
+            FLAG2 = 2
+
+        expected = "(3) FLAG1, FLAG2"
+
+        field = FlagField(size=4, flag_type=MyClass)
+        field.set_value(3)
+        actual = str(field)
+
+        assert actual == expected
+
 
 class TestBoolField:
     class StructureTest(Structure):
