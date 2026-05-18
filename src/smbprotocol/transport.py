@@ -135,10 +135,10 @@ class Tcp:
                     return None, timeout  # pragma: no cover
 
                 read = select.select([self._sock], [], [], max(timeout, 1))[0]
-                timeout = timeout - (timeit.default_timer() - start_time)
+                elapsed = timeit.default_timer() - start_time
+                timeout = timeout - elapsed
                 if not read:
-                    log.debug("Socket recv(%s) timed out")
-                    raise TimeoutError()
+                    raise TimeoutError(f"recv idle for {elapsed:.1f}s ({offset}/{length} bytes)")
 
                 try:
                     b_data = self._sock.recv(read_len)
@@ -148,6 +148,10 @@ class Tcp:
                     if e.errno not in [errno.ESHUTDOWN, errno.ECONNRESET, errno.ECONNABORTED]:
                         # Avoid collecting coverage here to avoid CI failing due to race condition differences
                         raise  # pragma: no cover
+                    log.warning(
+                        "socket aborted by peer (%s), treating as EOF",
+                        errno.errorcode.get(e.errno, e.errno),
+                    )
                     b_data = b""
 
             read_len = len(b_data)
