@@ -1308,6 +1308,36 @@ def test_scandir_with_non_matching_pattern(smb_share):
     assert list(smbclient.scandir(smb_share, search_pattern="nomatch_*")) == []
 
 
+def test_scandir_as_context_manager(smb_share):
+    for filename in ["file1.txt", "file2.txt"]:
+        with smbclient.open_file(rf"{smb_share}\{filename}", mode="w") as fd:
+            fd.write("content")
+
+    # Full iteration inside the context manager yields every entry.
+    with smbclient.scandir(smb_share) as scandir_gen:
+        assert isinstance(scandir_gen, smbclient.SMBScandirIterator)
+        assert sorted(entry.name for entry in scandir_gen) == ["file1.txt", "file2.txt"]
+
+    # Abandoning iteration early still releases the handle on block exit: the
+    # iterator is finalised, so resuming it stops instead of yielding the rest.
+    it = smbclient.scandir(smb_share)
+    with it:
+        assert next(it).name in ("file1.txt", "file2.txt")
+    with pytest.raises(StopIteration):
+        next(it)
+
+
+def test_scandir_iterator_contract():
+    it = smbclient.SMBScandirIterator(x for x in ["a", "b"])
+    with it as entered:
+        assert entered is it
+        assert next(it) == "a"
+
+    # __exit__ closed the underlying generator, so iteration is exhausted.
+    with pytest.raises(StopIteration):
+        next(it)
+
+
 @pytest.mark.skipif(
     os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
 )
@@ -1995,6 +2025,19 @@ def test_walk_with_symlink_dont_follow(smb_share):
 
     assert scanned_roots[src_dirname]["dirs"] == []
     assert scanned_roots[src_dirname]["files"] == ["file.txt"]
+
+
+def test_walk_closes_scandir_iterator_on_unhandled_exception(monkeypatch, stub_scandir_gen):
+    closes = []
+    monkeypatch.setattr(
+        "smbclient._os._scandir",
+        lambda *a, **kw: stub_scandir_gen(closes, RuntimeError("simulated mid-iter failure")),
+    )
+
+    with pytest.raises(RuntimeError, match="simulated mid-iter failure"):
+        list(smbclient.walk(r"\\server\share\dir"))
+
+    assert closes == [True]
 
 
 def test_xattr_file(smb_share):

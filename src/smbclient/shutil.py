@@ -310,7 +310,8 @@ def copytree(
     :return: The dst path.
     """
     if is_remote_path(src):
-        dir_entries = list(scandir(src, **kwargs))
+        with scandir(src, **kwargs) as scandir_gen:
+            dir_entries = list(scandir_gen)
     else:
         dir_entries = list(os.scandir(src))
 
@@ -419,34 +420,34 @@ def rmtree(path, ignore_errors=False, onerror=None, **kwargs):
         onerror(islink, path, sys.exc_info())
         return
 
-    scandir_gen = scandir(path, **kwargs)
-    while True:
-        try:
-            dir_entry = next(scandir_gen)
-        except StopIteration:
-            break
-        except OSError:
-            onerror(scandir, path, sys.exc_info())
-            continue
+    with scandir(path, **kwargs) as scandir_gen:
+        while True:
+            try:
+                dir_entry = next(scandir_gen)
+            except StopIteration:
+                break
+            except OSError:
+                onerror(scandir, path, sys.exc_info())
+                continue
 
-        # In case the entry is a directory symbolic link we need to remove the dir itself and not recurse down into
-        # it with rmtree. Doing that would result in a symbolic link target having it's contents removed even if it's
-        # outside the rmtree scope.
-        if (
-            dir_entry.is_symlink()
-            and dir_entry.stat(follow_symlinks=False).st_file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY
-        ):
-            try:
-                rmdir(dir_entry.path, **kwargs)
-            except OSError:
-                onerror(rmdir, dir_entry.path, sys.exc_info())
-        elif dir_entry.is_dir():
-            rmtree(dir_entry.path, ignore_errors, onerror, **kwargs)
-        else:
-            try:
-                remove(dir_entry.path, **kwargs)
-            except OSError:
-                onerror(remove, dir_entry.path, sys.exc_info())
+            # In case the entry is a directory symbolic link we need to remove the dir itself and not recurse down into
+            # it with rmtree. Doing that would result in a symbolic link target having it's contents removed even if
+            # it's outside the rmtree scope.
+            if (
+                dir_entry.is_symlink()
+                and dir_entry.stat(follow_symlinks=False).st_file_attributes & FileAttributes.FILE_ATTRIBUTE_DIRECTORY
+            ):
+                try:
+                    rmdir(dir_entry.path, **kwargs)
+                except OSError:
+                    onerror(rmdir, dir_entry.path, sys.exc_info())
+            elif dir_entry.is_dir():
+                rmtree(dir_entry.path, ignore_errors, onerror, **kwargs)
+            else:
+                try:
+                    remove(dir_entry.path, **kwargs)
+                except OSError:
+                    onerror(remove, dir_entry.path, sys.exc_info())
 
     try:
         rmdir(path, **kwargs)

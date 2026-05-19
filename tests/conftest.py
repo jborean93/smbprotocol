@@ -154,6 +154,32 @@ TARGET_REFERRAL.unpack(
 )
 
 
+class StubScandirGen:
+    """Server-free stand-in for the _scandir() generator: injects a
+    mid-iteration failure and records close() calls, so the caller
+    close-on-exception tests need no SMB server."""
+
+    def __init__(self, closes, next_exc=None):
+        self._closes = closes
+        self._next_exc = next_exc
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._next_exc is not None:
+            raise self._next_exc
+        raise StopIteration
+
+    def close(self):
+        self._closes.append(True)
+
+
+@pytest.fixture
+def stub_scandir_gen():
+    return StubScandirGen
+
+
 @pytest.fixture(scope="module")
 def smb_real():
     # for these tests to work the server at SMB_SERVER must support dialect
