@@ -7,7 +7,6 @@ import inspect
 import math
 import struct
 import textwrap
-import types
 import uuid
 import weakref
 from abc import ABCMeta, abstractmethod

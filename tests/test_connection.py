@@ -39,7 +39,6 @@ from smbprotocol.exceptions import (
 from smbprotocol.header import Smb2Flags, SMB2HeaderResponse
 from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.session import Session
-from smbprotocol.tree import TreeConnect
 
 
 @pytest.fixture

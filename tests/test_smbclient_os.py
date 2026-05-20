@@ -13,11 +13,10 @@ import time
 import pytest
 
 import smbclient  # Tests that we expose this in smbclient/__init__.py
-from smbclient._io import SMBFileTransaction, query_info
 from smbclient._os import SMBDirectoryIO, SMBDirEntry, SMBFileIO
 from smbclient.shutil import rmtree
 from smbprotocol.exceptions import SMBAuthenticationError, SMBOSError
-from smbprotocol.file_info import FileAttributes, FileStreamInformation
+from smbprotocol.file_info import FileAttributes
 from smbprotocol.reparse_point import ReparseDataBuffer, ReparseTags
 
 

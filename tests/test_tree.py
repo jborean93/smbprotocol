@@ -201,7 +201,7 @@ class TestTreeConnect:
         tree = TreeConnect(session, smb_real[5])
         try:
             session.connect()
-            with pytest.raises(AccessDenied) as exc:
+            with pytest.raises(AccessDenied):
                 tree.connect()
         finally:
             connection.disconnect(True)

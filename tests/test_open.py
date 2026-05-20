@@ -2461,7 +2461,7 @@ class TestOpen:
             read_msg = open.read(10, 0, min_length=1024, send=False)[0]
             req = connection.send(read_msg, sid=session.session_id, tid=tree.tree_connect_id)
 
-            with pytest.raises(EndOfFile) as exc:
+            with pytest.raises(EndOfFile):
                 open._close_response(req)
         finally:
             connection.disconnect(True)

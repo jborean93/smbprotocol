@@ -158,7 +158,7 @@ class TestStructure:
         del structure["int_field"]
         assert len(structure.fields) == 6
         with pytest.raises(ValueError) as exc:
-            value = structure["int_field"]
+            structure["int_field"]
         assert str(exc.value) == "Structure does not contain field int_field"
 
     def test_pack_structure(self):
@@ -688,7 +688,7 @@ class TestListField:
 
     def test_unpack(self):
         field = self.StructureTest()["field"]
-        data = field.unpack(b"\x7a\x00\x79\x00")
+        field.unpack(b"\x7a\x00\x79\x00")
         expected = [b"\x7a\x00", b"\x79\x00"]
         actual = field.get_value()
         assert actual == expected
