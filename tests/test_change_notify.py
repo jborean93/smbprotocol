@@ -31,7 +31,12 @@ from smbprotocol.tree import TreeConnect
 
 
 class TestFileNotifyInformation:
-    DATA = b"\x00\x00\x00\x00" b"\x01\x00\x00\x00" b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
+    DATA = (
+        b"\x00\x00\x00\x00"
+        b"\x01\x00\x00\x00"
+        b"\x08\x00\x00\x00"
+        b"\x63\x00\x61\x00\x66\x00\xe9\x00"
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileNotifyInformation()
@@ -61,7 +66,7 @@ class TestSMB2ChangeNotifyRequest:
         b"\xff\xff\xff\xff\xff\xff\xff\xff"
         b"\x01\x00\x00\x00"
         b"\x00\x00\x00\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = SMB2ChangeNotifyRequest()
@@ -85,7 +90,12 @@ class TestSMB2ChangeNotifyRequest:
 
 
 class TestSMB2ChangeNotifyResponse:
-    DATA = b"\x09\x00" b"\x48\x00" b"\x04\x00\x00\x00" b"\x01\x02\x03\x04"
+    DATA = (
+        b"\x09\x00"
+        b"\x48\x00"
+        b"\x04\x00\x00\x00"
+        b"\x01\x02\x03\x04"
+    )  # fmt: skip
 
     def test_create_message(self):
         message = SMB2ChangeNotifyResponse()
@@ -107,14 +117,16 @@ class TestSMB2ChangeNotifyResponse:
 class TestChangeNotify:
     def _remove_file(self, tree, name):
         file_open = Open(tree, name)
-        file_open.create(
-            ImpersonationLevel.Impersonation,
-            FilePipePrinterAccessMask.DELETE,
-            FileAttributes.FILE_ATTRIBUTE_NORMAL,
-            ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
-            CreateDisposition.FILE_OPEN_IF,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_DELETE_ON_CLOSE,
-        ),
+        (
+            file_open.create(
+                ImpersonationLevel.Impersonation,
+                FilePipePrinterAccessMask.DELETE,
+                FileAttributes.FILE_ATTRIBUTE_NORMAL,
+                ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_DELETE_ON_CLOSE,
+            ),
+        )
         file_open.close()
 
     def test_change_notify_on_dir(self, smb_real):

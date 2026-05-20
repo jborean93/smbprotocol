@@ -55,7 +55,7 @@ class TestSMB2IOCTLRequest:
             b"\x01\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x12\x13\x14\x15"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 60
         assert actual == expected
@@ -79,7 +79,7 @@ class TestSMB2IOCTLRequest:
             b"\x00\x00\x00\x00"
             b"\x01\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 56
         assert actual == expected
@@ -101,7 +101,7 @@ class TestSMB2IOCTLRequest:
             b"\x01\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x12\x13\x14\x15"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 60
         assert actual["structure_size"].get_value() == 57
@@ -149,7 +149,7 @@ class TestSMB2SrvCopyChunkCopy:
             b"\x14\x00\x00\x00\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 80
         assert actual == expected
@@ -170,7 +170,7 @@ class TestSMB2SrvCopyChunkCopy:
             b"\x14\x00\x00\x00\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 80
         assert actual["source_key"].get_value() == b"\x11" * 24
@@ -200,7 +200,7 @@ class TestSMB2SrvCopyChunk:
             b"\x2e\x16\x00\x00\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 24
         assert actual == expected
@@ -212,7 +212,7 @@ class TestSMB2SrvCopyChunk:
             b"\x2e\x16\x00\x00\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 24
         assert actual["source_offset"].get_value() == 1234
@@ -234,7 +234,7 @@ class TestSMB2SrcReadHashRequest:
             b"\x02\x00\x00\x00"
             b"\x0a\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 24
         assert actual == expected
@@ -247,7 +247,7 @@ class TestSMB2SrcReadHashRequest:
             b"\x02\x00\x00\x00"
             b"\x0a\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 24
         assert actual["hash_type"].get_value() == 1
@@ -261,14 +261,14 @@ class TestSMB2SrvNetworkResiliencyRequest:
     def test_create_message(self):
         message = SMB2SrvNetworkResiliencyRequest()
         message["timeout"] = 100
-        expected = b"\x64\x00\x00\x00" b"\x00\x00\x00\x00"
+        expected = b"\x64\x00\x00\x00" b"\x00\x00\x00\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 8
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2SrvNetworkResiliencyRequest()
-        data = b"\x64\x00\x00\x00" b"\x00\x00\x00\x00"
+        data = b"\x64\x00\x00\x00" b"\x00\x00\x00\x00"  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 8
         assert actual["timeout"].get_value() == 100
@@ -290,7 +290,7 @@ class TestSMB2ValidateNegotiateInfoRequest:
             b"\x01\x00"
             b"\x02\x00"
             b"\x02\x02\x10\x02"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 28
         assert actual == expected
@@ -304,7 +304,7 @@ class TestSMB2ValidateNegotiateInfoRequest:
             b"\x01\x00"
             b"\x02\x00"
             b"\x02\x02\x10\x02"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 28
         assert actual["capabilities"].get_value() == 8
@@ -339,7 +339,7 @@ class TestSMB2IOCTLResponse:
             b"\x01\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x20\x21\x22\x23"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 52
         assert actual == expected
@@ -358,7 +358,7 @@ class TestSMB2IOCTLResponse:
             b"\x01\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x20\x21\x22\x23"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 52
         assert actual["structure_size"].get_value() == 49
@@ -380,14 +380,22 @@ class TestSMB2SrvCopyChunkResponse:
         message["chunks_written"] = 2
         message["chunk_bytes_written"] = 10
         message["total_bytes_written"] = 10
-        expected = b"\x02\x00\x00\x00" b"\x0a\x00\x00\x00" b"\x0a\x00\x00\x00"
+        expected = (
+            b"\x02\x00\x00\x00"
+            b"\x0a\x00\x00\x00"
+            b"\x0a\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 12
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2SrvCopyChunkResponse()
-        data = b"\x02\x00\x00\x00" b"\x0a\x00\x00\x00" b"\x0a\x00\x00\x00"
+        data = (
+            b"\x02\x00\x00\x00"
+            b"\x0a\x00\x00\x00"
+            b"\x0a\x00\x00\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 12
         assert actual["chunks_written"].get_value() == 2
@@ -400,14 +408,24 @@ class TestSMB2SrvSnapshotArray:
         message = SMB2SrvSnapshotArray()
         message["snapshot_array_size"] = 2
         message["snapshots"] = b"\x00\x00\x00\x00"
-        expected = b"\x00\x00\x00\x00" b"\x00\x00\x00\x00" b"\x02\x00\x00\x00" b"\x00\x00\x00\x00"
+        expected = (
+            b"\x00\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+            b"\x02\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2SrvSnapshotArray()
-        data = b"\x00\x00\x00\x00" b"\x00\x00\x00\x00" b"\x02\x00\x00\x00" b"\x00\x00\x00\x00"
+        data = (
+            b"\x00\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+            b"\x02\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 16
         assert actual["number_of_snapshots"].get_value() == 0
@@ -425,7 +443,7 @@ class TestSMB2SrvRequestResumeKey:
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 28
         assert actual == expected
@@ -437,7 +455,7 @@ class TestSMB2SrvRequestResumeKey:
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 28
         assert actual["resume_key"].get_value() == b"\xff" * 24
@@ -477,7 +495,7 @@ class TestSMB2NetworkInterfaceInfo:
             b"\x00\x00"
             b"\x0a\x00\x02\x0f"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         expected += b"\x00" * 112
         expected += (
             b"\x00\x00\x00\x00"
@@ -491,7 +509,7 @@ class TestSMB2NetworkInterfaceInfo:
             b"\xfe\x80\x00\x00\x00\x00\x00\x00"
             b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         expected += b"\x00" * 100
         actual = SMB2NetworkInterfaceInfo.pack_multiple([msg1, msg2])
         assert len(msg1) == 152
@@ -509,7 +527,7 @@ class TestSMB2NetworkInterfaceInfo:
             b"\x00\x00"
             b"\x0a\x00\x02\x0f"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data += b"\x00" * 112
         data += (
             b"\x00\x00\x00\x00"
@@ -523,7 +541,7 @@ class TestSMB2NetworkInterfaceInfo:
             b"\xfe\x80\x00\x00\x00\x00\x00\x00"
             b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data += b"\x00" * 100
         actual = SMB2NetworkInterfaceInfo.unpack_multiple(data)
         assert len(actual) == 2
@@ -554,7 +572,12 @@ class TestSockAddrStorage:
         sock_addr = SockAddrIn()
         sock_addr.set_ipaddress("10.0.2.15")
         message["buffer"] = sock_addr
-        expected = b"\x02\x00" b"\x00\x00" b"\x0a\x00\x02\x0f" b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        expected = (
+            b"\x02\x00"
+            b"\x00\x00"
+            b"\x0a\x00\x02\x0f"
+            b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        )  # fmt: skip
         expected += b"\x00" * 112
         actual = message.pack()
         assert len(message) == 128
@@ -573,7 +596,7 @@ class TestSockAddrStorage:
             b"\xfe\x80\x00\x00\x00\x00\x00\x00"
             b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         expected += b"\x00" * 100
         actual = message.pack()
         assert len(message) == 128
@@ -581,7 +604,12 @@ class TestSockAddrStorage:
 
     def test_parse_message_ipv4(self):
         actual = SockAddrStorage()
-        data = b"\x02\x00" b"\x00\x00" b"\x0a\x00\x02\x0f" b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        data = (
+            b"\x02\x00"
+            b"\x00\x00"
+            b"\x0a\x00\x02\x0f"
+            b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        )  # fmt: skip
         data += b"\x00" * 112
         actual.unpack(data)
         assert len(actual) == 128
@@ -599,7 +627,7 @@ class TestSockAddrStorage:
             b"\xfe\x80\x00\x00\x00\x00\x00\x00"
             b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data += b"\x00" * 100
         actual.unpack(data)
         assert len(actual) == 128
@@ -613,7 +641,11 @@ class TestSockAddrIn:
     def test_create_message(self):
         message = SockAddrIn()
         message.set_ipaddress("10.0.2.15")
-        expected = b"\x00\x00" b"\x0a\x00\x02\x0f" b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        expected = (
+            b"\x00\x00"
+            b"\x0a\x00\x02\x0f"
+            b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 14
         assert actual == expected
@@ -621,14 +653,22 @@ class TestSockAddrIn:
     def test_create_message_subnet(self):
         message = SockAddrIn()
         message.set_ipaddress("255.255.255.255")
-        expected = b"\x00\x00" b"\xff\xff\xff\xff" b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        expected = (
+            b"\x00\x00"
+            b"\xff\xff\xff\xff"
+            b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 14
         assert actual == expected
 
     def test_parse_message(self):
         actual = SockAddrIn()
-        data = b"\x00\x00" b"\x0a\x00\x02\x0f" b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        data = (
+            b"\x00\x00"
+            b"\x0a\x00\x02\x0f"
+            b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 14
         assert actual["port"].get_value() == 0
@@ -647,7 +687,7 @@ class TestSockAddrIn6:
             b"\xfe\x80\x00\x00\x00\x00\x00\x00"
             b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 26
         assert actual == expected
@@ -666,15 +706,12 @@ class TestSockAddrIn6:
             b"\xfe\x80\x00\x00\x00\x00\x00\x00"
             b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 26
         assert actual["port"].get_value() == 0
         assert actual["flow_info"].get_value() == 0
-        assert (
-            actual["ipv6_address"].get_value() == b"\xfe\x80\x00\x00\x00\x00\x00\x00"
-            b"\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
-        )
+        assert actual["ipv6_address"].get_value() == b"\xfe\x80\x00\x00\x00\x00\x00\x00\x89\x4a\x2d\xbc\x1d\x9c\x2d\xa1"
         assert actual["scope_id"].get_value() == 0
         assert actual.get_ipaddress() == "fe80:0000:0000:0000:894a:2dbc:1d9c:2da1"
 
@@ -692,7 +729,7 @@ class TestSMB2ValidateNegotiateInfoResponse:
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\x00\x00"
             b"\x02\x03"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 24
         assert actual == expected
@@ -705,7 +742,7 @@ class TestSMB2ValidateNegotiateInfoResponse:
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\x00\x00"
             b"\x02\x03"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 24
         assert actual["capabilities"].get_value() == 8

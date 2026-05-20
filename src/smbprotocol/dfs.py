@@ -242,9 +242,9 @@ class DFSReferralRequestEx(Structure):
                     "request_data_length",
                     IntField(
                         size=4,
-                        default=lambda s: 4
-                        + s["request_file_name_length"].get_value()
-                        + s["site_name_length"].get_value(),
+                        default=lambda s: (
+                            4 + s["request_file_name_length"].get_value() + s["site_name_length"].get_value()
+                        ),
                     ),
                 ),
                 (

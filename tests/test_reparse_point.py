@@ -25,7 +25,12 @@ class TestReparseTags:
 
 
 class TestReparseDataBuffer:
-    DATA = b"\x0c\x00\x00\xa0" b"\x04\x00" b"\x00\x00" b"\x01\x02\x03\x04"
+    DATA = (
+        b"\x0c\x00\x00\xa0"
+        b"\x04\x00"
+        b"\x00\x00"
+        b"\x01\x02\x03\x04"
+    )  # fmt: skip
 
     def test_create_message(self):
         message = ReparseDataBuffer()
@@ -58,7 +63,7 @@ class TestSymbolicLinkReparseDataBuffer:
         b"\x63\x00\x61\x00\x66\x00\xe9\x00"
         b"\x5c\x00\x3f\x00\x3f\x00\x5c\x00"
         b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = SymbolicLinkReparseDataBuffer()
@@ -87,7 +92,7 @@ class TestSymbolicLinkReparseDataBuffer:
             b"\x5c\x00\x3f\x00\x3f\x00\x5c\x00"
             b"\x63\x00\x61\x00\x66\x00\xe9\x00"
             b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-        )
+        )  # fmt: skip
 
         actual = message.pack()
         assert len(message) == 36

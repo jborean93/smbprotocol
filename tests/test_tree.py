@@ -31,7 +31,7 @@ class TestSMB2TreeConnectRequest:
             b"\x37\x00\x2e\x00\x30\x00\x2e\x00"
             b"\x30\x00\x2e\x00\x31\x00\x5c\x00"
             b"\x63\x00\x24\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 36
         assert actual == expected
@@ -47,7 +47,7 @@ class TestSMB2TreeConnectRequest:
             b"\x37\x00\x2e\x00\x30\x00\x2e\x00"
             b"\x30\x00\x2e\x00\x31\x00\x5c\x00"
             b"\x63\x00\x24\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 36
         assert actual["structure_size"].get_value() == 9
@@ -64,14 +64,28 @@ class TestSMB2TreeConnectResponse:
         message["share_flags"] = 2
         message["capabilities"] = 8
         message["maximal_access"] = 10
-        expected = b"\x10\x00" b"\x01" b"\x00" b"\x02\x00\x00\x00" b"\x08\x00\x00\x00" b"\x0a\x00\x00\x00"
+        expected = (
+            b"\x10\x00"
+            b"\x01"
+            b"\x00"
+            b"\x02\x00\x00\x00"
+            b"\x08\x00\x00\x00"
+            b"\x0a\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2TreeConnectResponse()
-        data = b"\x10\x00" b"\x01" b"\x00" b"\x02\x00\x00\x00" b"\x08\x00\x00\x00" b"\x0a\x00\x00\x00"
+        data = (
+            b"\x10\x00"
+            b"\x01"
+            b"\x00"
+            b"\x02\x00\x00\x00"
+            b"\x08\x00\x00\x00"
+            b"\x0a\x00\x00\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 16
         assert actual["structure_size"].get_value() == 16
@@ -85,14 +99,14 @@ class TestSMB2TreeConnectResponse:
 class TestSMB2TreeDisconnect:
     def test_create_message(self):
         message = SMB2TreeDisconnect()
-        expected = b"\x04\x00" b"\x00\x00"
+        expected = b"\x04\x00" b"\x00\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 4
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2TreeDisconnect()
-        data = b"\x04\x00" b"\x00\x00"
+        data = b"\x04\x00" b"\x00\x00"  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 4
         assert actual["structure_size"].get_value() == 4
