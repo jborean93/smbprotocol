@@ -230,6 +230,7 @@ class ReadFlags:
     """
 
     SMB2_READFLAG_READ_UNBUFFERED = 0x01
+    SMB2_READFLAG_REQUEST_COMPRESSED = 0x02
 
 
 class ReadWriteChannel:
