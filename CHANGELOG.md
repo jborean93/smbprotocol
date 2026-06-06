@@ -6,6 +6,7 @@
 * Added the `hostname_override` kwarg to `smbprotocol.Session` that can override the hostname used in the SPN for authentication
 * Correctly perform a DFS referral lookup in the `query_directory` on a directory
 * Fix the `FlagField` str representation when the `flag_type` contains a dunder attribute with an `int` value
+* Added some extra flags from MS-SMB2 that have been added recently
 
 ## 1.16.1 - 2026-04-02
 
