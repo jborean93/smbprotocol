@@ -1103,6 +1103,10 @@ class SMB2SetInfoResponse(Structure):
 
 
 class Open:
+    # MS-SMB2 3.2.4.1.4 ChainedFileId: 0xFF * 16 signals "use the Open
+    # from the most recent CREATE in this related-compound chain".
+    _RELATED_COMPOUND_FILE_ID = b"\xff" * 16
+
     def __init__(self, tree, name):
         """
         [MS-SMB2] v53.0 2017-09-15
@@ -1126,10 +1130,7 @@ class Open:
         self.file_attributes = None
 
         # properties used privately
-        # set to { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF } to allow message
-        # compounding with the open as the first message, once opened this
-        # will be overwritten by the open response
-        self.file_id = b"\xff" * 16
+        self.file_id = self._RELATED_COMPOUND_FILE_ID
         self.tree_connect = tree
         self.connection = tree.session.connection
         self.oplock_level = None
