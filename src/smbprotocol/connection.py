@@ -1033,6 +1033,12 @@ class Connection:
         :param resolve_symlinks: Set to automatically resolve symlinks in the path when opening a file or directory.
         :return: SMB2HeaderResponse of the received message
         """
+        # Only the worker thread delivers responses, so calling receive() from it would wait
+        # on an event only it can set.
+        worker = self._t_worker
+        if worker is not None and threading.get_ident() == worker.ident:
+            raise SMBException("Connection.receive() called from the SMB worker thread, would self-deadlock")
+
         # Make sure the receiver is still active, if not this raises an exception.
         self._check_worker_running()
 

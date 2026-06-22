@@ -3,6 +3,7 @@
 
 import io
 import logging
+import warnings
 
 from smbclient._pool import ClientConfig, dfs_request, get_smb_tree
 from smbprotocol import MAX_PAYLOAD_SIZE
@@ -423,6 +424,17 @@ class SMBRawIO(io.RawIOBase):
         }.get(self.FILE_TYPE, 0)
 
         super().__init__()
+
+    def __del__(self):
+        # io.IOBase.__del__ would call self.close(), which self-deadlocks if GC
+        # runs it on the SMB worker thread.
+        try:
+            closed = self.closed
+        except AttributeError:
+            return
+        if closed:
+            return
+        warnings.warn(f"unclosed SMB handle {self._name!r}", ResourceWarning, source=self)
 
     def __enter__(self):
         self.open()
