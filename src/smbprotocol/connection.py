@@ -921,6 +921,7 @@ class Connection:
             SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
         ):
             self.require_signing = True
+            self.client_security_mode = SecurityMode.SMB2_NEGOTIATE_SIGNING_REQUIRED
         log.info("Connection require signing: %s", self.require_signing)
 
         capabilities = smb_response["capabilities"]
