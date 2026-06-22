@@ -1597,28 +1597,29 @@ class Open:
         try:
             response = self.connection.receive(request)
         except FileClosed:
+            # already closed server-side
+            return
+        else:
+            c_resp = SMB2CloseResponse()
+            c_resp.unpack(response["data"].get_value())
+            log.debug(c_resp)
+
+            # update the attributes if requested
+            close_request = SMB2CloseRequest()
+            close_request.unpack(request.message["data"].get_value())
+            if close_request["flags"].has_flag(CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB):
+                self.creation_time = c_resp["creation_time"].get_value()
+                self.last_access_time = c_resp["last_access_time"].get_value()
+                self.last_write_time = c_resp["last_write_time"].get_value()
+                self.change_time = c_resp["change_time"].get_value()
+                self.allocation_size = c_resp["allocation_size"].get_value()
+                self.end_of_file = c_resp["end_of_file"].get_value()
+                self.file_attributes = c_resp["file_attributes"].get_value()
+            return c_resp
+        finally:
+            # file_id may be unregistered (unsent compound) or already removed by a prior close
             self._connected = False
             self.tree_connect.session.open_table.pop(self.file_id, None)
-            return
-
-        c_resp = SMB2CloseResponse()
-        c_resp.unpack(response["data"].get_value())
-        log.debug(c_resp)
-        self._connected = False
-        del self.tree_connect.session.open_table[self.file_id]
-
-        # update the attributes if requested
-        close_request = SMB2CloseRequest()
-        close_request.unpack(request.message["data"].get_value())
-        if close_request["flags"].has_flag(CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB):
-            self.creation_time = c_resp["creation_time"].get_value()
-            self.last_access_time = c_resp["last_access_time"].get_value()
-            self.last_write_time = c_resp["last_write_time"].get_value()
-            self.change_time = c_resp["change_time"].get_value()
-            self.allocation_size = c_resp["allocation_size"].get_value()
-            self.end_of_file = c_resp["end_of_file"].get_value()
-            self.file_attributes = c_resp["file_attributes"].get_value()
-        return c_resp
 
     def lock(self, locks, lsn=0, lsi=0, wait=True, send=True):
         """
