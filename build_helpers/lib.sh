@@ -64,7 +64,9 @@ lib::setup::python_requirements() {
         --verbose
 
     echo "Installing dev dependencies"
-    python -m pip install -r requirements-dev.txt
+    # --group needs pip 25.1+ (PEP 735)
+    python -m pip install "pip>=25.1"
+    python -m pip install --group dev
 
     if [ x"${GITHUB_ACTIONS}" = "xtrue" ]; then
         echo "::endgroup::"
