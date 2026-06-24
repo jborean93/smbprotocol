@@ -1103,6 +1103,10 @@ class SMB2SetInfoResponse(Structure):
 
 
 class Open:
+    # MS-SMB2 3.2.4.1.4 ChainedFileId: 0xFF * 16 signals "use the Open
+    # from the most recent CREATE in this related-compound chain".
+    _RELATED_COMPOUND_FILE_ID = b"\xff" * 16
+
     def __init__(self, tree, name):
         """
         [MS-SMB2] v53.0 2017-09-15
@@ -1126,10 +1130,7 @@ class Open:
         self.file_attributes = None
 
         # properties used privately
-        # set to { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF } to allow message
-        # compounding with the open as the first message, once opened this
-        # will be overwritten by the open response
-        self.file_id = b"\xff" * 16
+        self.file_id = self._RELATED_COMPOUND_FILE_ID
         self.tree_connect = tree
         self.connection = tree.session.connection
         self.oplock_level = None
@@ -1596,28 +1597,29 @@ class Open:
         try:
             response = self.connection.receive(request)
         except FileClosed:
+            # already closed server-side
+            return
+        else:
+            c_resp = SMB2CloseResponse()
+            c_resp.unpack(response["data"].get_value())
+            log.debug(c_resp)
+
+            # update the attributes if requested
+            close_request = SMB2CloseRequest()
+            close_request.unpack(request.message["data"].get_value())
+            if close_request["flags"].has_flag(CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB):
+                self.creation_time = c_resp["creation_time"].get_value()
+                self.last_access_time = c_resp["last_access_time"].get_value()
+                self.last_write_time = c_resp["last_write_time"].get_value()
+                self.change_time = c_resp["change_time"].get_value()
+                self.allocation_size = c_resp["allocation_size"].get_value()
+                self.end_of_file = c_resp["end_of_file"].get_value()
+                self.file_attributes = c_resp["file_attributes"].get_value()
+            return c_resp
+        finally:
+            # file_id may be unregistered (unsent compound) or already removed by a prior close
             self._connected = False
             self.tree_connect.session.open_table.pop(self.file_id, None)
-            return
-
-        c_resp = SMB2CloseResponse()
-        c_resp.unpack(response["data"].get_value())
-        log.debug(c_resp)
-        self._connected = False
-        del self.tree_connect.session.open_table[self.file_id]
-
-        # update the attributes if requested
-        close_request = SMB2CloseRequest()
-        close_request.unpack(request.message["data"].get_value())
-        if close_request["flags"].has_flag(CloseFlags.SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB):
-            self.creation_time = c_resp["creation_time"].get_value()
-            self.last_access_time = c_resp["last_access_time"].get_value()
-            self.last_write_time = c_resp["last_write_time"].get_value()
-            self.change_time = c_resp["change_time"].get_value()
-            self.allocation_size = c_resp["allocation_size"].get_value()
-            self.end_of_file = c_resp["end_of_file"].get_value()
-            self.file_attributes = c_resp["file_attributes"].get_value()
-        return c_resp
 
     def lock(self, locks, lsn=0, lsi=0, wait=True, send=True):
         """
