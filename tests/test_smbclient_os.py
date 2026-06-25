@@ -1292,6 +1292,22 @@ def test_scandir_with_pattern(smb_share):
     assert names == ["file-test1.txt"]
 
 
+def test_scandir_empty_directory(smb_share):
+    # Some servers return STATUS_NO_SUCH_FILE here instead of STATUS_NO_MORE_FILES.
+    empty_dir = rf"{smb_share}\empty"
+    smbclient.mkdir(empty_dir)
+
+    assert list(smbclient.scandir(empty_dir)) == []
+
+
+def test_scandir_with_non_matching_pattern(smb_share):
+    # Samba returns STATUS_NO_SUCH_FILE here instead of STATUS_NO_MORE_FILES.
+    with smbclient.open_file(rf"{smb_share}\file.txt", mode="w") as fd:
+        fd.write("x")
+
+    assert list(smbclient.scandir(smb_share, search_pattern="nomatch_*")) == []
+
+
 @pytest.mark.skipif(
     os.name != "nt" and not os.environ.get("SMB_FORCE", False), reason="cannot create symlinks on Samba"
 )
