@@ -2229,3 +2229,14 @@ def test_dfs_nonexisting_path(smb_dfs_share):
 
     with pytest.raises(SMBOSError):
         smbclient.lstat(fake_file)
+
+
+def test_open_file_missing_share_raises_os_error(smb_real):
+    # A missing share fails tree connect with STATUS_BAD_NETWORK_NAME, a non-OSError
+    # that must surface as SMBOSError so except OSError / ignore_errors callers catch it.
+    bad_path = rf"\\{smb_real[2]}\does_not_exist\file.txt"
+
+    with pytest.raises(SMBOSError) as exc_info:
+        smbclient.open_file(bad_path, username=smb_real[0], password=smb_real[1], port=smb_real[3])
+
+    assert exc_info.value.filename == bad_path

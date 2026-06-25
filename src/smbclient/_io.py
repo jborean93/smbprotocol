@@ -381,7 +381,11 @@ class SMBRawIO(io.RawIOBase):
     def __init__(
         self, path, mode="r", share_access=None, desired_access=None, file_attributes=None, create_options=0, **kwargs
     ):
-        tree, fd_path = get_smb_tree(path, **kwargs)
+        # get_smb_tree runs outside the SMBFileTransaction layer that normally translates these.
+        try:
+            tree, fd_path = get_smb_tree(path, **kwargs)
+        except SMBResponseException as exc:
+            raise SMBOSError(exc.status, path) from exc
 
         self.share_access = share_access
         self.fd = Open(tree, fd_path)
