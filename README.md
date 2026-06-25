@@ -224,8 +224,9 @@ by running;
 ```bash
 # Install in current environment.
 # Recommend to have virtual environment installed at .venv path.
-pip install -r requirements-dev.txt
-pip install -e .
+# Dependency groups need pip 25.1+.
+python -m pip install "pip>=25.1"
+pip install -e . --group dev
 ```
 
 From there to run the basic tests run;

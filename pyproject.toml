@@ -35,6 +35,22 @@ kerberos = ["pyspnego[kerberos]"]
 [project.urls]
 homepage = "https://github.com/jborean93/smbprotocol"
 
+[dependency-groups]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+]
+lint = [
+    "black == 26.3.1",
+    "isort == 8.0.1",
+    "pre-commit",
+]
+dev = [
+    {include-group = "test"},
+    {include-group = "lint"},
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
