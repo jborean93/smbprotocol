@@ -32,7 +32,7 @@ class TestSMB2SessionSetupRequest:
             b"\x04\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x01\x02\x03\x04"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 28
         assert actual == expected
@@ -49,7 +49,7 @@ class TestSMB2SessionSetupRequest:
             b"\x04\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x01\x02\x03\x04"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 28
         assert actual["structure_size"].get_value() == 25
@@ -67,14 +67,26 @@ class TestSMB2SessionSetupResponse:
         message = SMB2SessionSetupResponse()
         message["session_flags"] = 1
         message["buffer"] = b"\x04\x03\x02\x01"
-        expected = b"\x09\x00" b"\x01\x00" b"\x48\x00" b"\x04\x00" b"\x04\x03\x02\x01"
+        expected = (
+            b"\x09\x00"
+            b"\x01\x00"
+            b"\x48\x00"
+            b"\x04\x00"
+            b"\x04\x03\x02\x01"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 12
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2SessionSetupResponse()
-        data = b"\x09\x00" b"\x01\x00" b"\x48\x00" b"\x04\x00" b"\x04\x03\x02\x01"
+        data = (
+            b"\x09\x00"
+            b"\x01\x00"
+            b"\x48\x00"
+            b"\x04\x00"
+            b"\x04\x03\x02\x01"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 12
         assert actual["structure_size"].get_value() == 9
@@ -87,14 +99,14 @@ class TestSMB2SessionSetupResponse:
 class TestSMB2Logoff:
     def test_create_message(self):
         message = SMB2Logoff()
-        expected = b"\x04\x00" b"\x00\x00"
+        expected = b"\x04\x00" b"\x00\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 4
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2Logoff()
-        data = b"\x04\x00" b"\x00\x00"
+        data = b"\x04\x00" b"\x00\x00"  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 4
         assert actual["structure_size"].get_value() == 4
@@ -285,7 +297,7 @@ class TestSession:
             b"\x69\x6e\x5f\x52\x46\x43\x34\x31"
             b"\x37\x38\x40\x70\x6c\x65\x61\x73"
             b"\x65\x5f\x69\x67\x6e\x6f\x72\x65"
-        )
+        )  # fmt: skip
         session = Session(connection, smb_real[0], smb_real[1], False)
         try:
             session.connect()

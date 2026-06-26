@@ -1270,8 +1270,7 @@ class Connection:
                 credits_available = sequence_window_high - sequence_window_low
                 if credit_charge > credits_available:
                     raise SMBException(
-                        f"Request requires {credit_charge} credits but only {credits_available} "
-                        "credits are available"
+                        f"Request requires {credit_charge} credits but only {credits_available} credits are available"
                     )
 
                 current_id = message_id or sequence_window_low
