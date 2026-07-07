@@ -1,12 +1,25 @@
 # Changelog
 
-## 1.17.0 - TBD
+## 1.17.0 - 2026-07-07
 
 * Drop support for Python 3.9, minimum verison if now 3.10
 * Added the `hostname_override` kwarg to `smbprotocol.Session` that can override the hostname used in the SPN for authentication
 * Correctly perform a DFS referral lookup in the `query_directory` on a directory
 * Fix the `FlagField` str representation when the `flag_type` contains a dunder attribute with an `int` value
 * Added some extra flags from MS-SMB2 that have been added recently
+* Fix `Connection.client_security_mode` to be `SMB2_NEGOTIATE_SIGNING_REQUIRED` when server reports signing is required
+* Solve numerous issues with `smbclient.rmtree` and `ignore_errors` not working with various exceptions
+* Make `smbclient.scandir` return a context manager that can close SMB resources. This method should now be called like
+  * The return value is still an iterable and will continue to work as it did before but code should still be updated to use the context manager to ensure resources are released
+
+```python
+with smbclient.scandir(...) as scan_gen:
+    for entry in scan_gen:
+        ...
+```
+
+* Handle `STATUS_NO_SUCH_FILE` during `smbclient.scandir` when using a pattern that matches no file in the specified path
+* Improve various threading race conditions and deadlocks in the underlying client handler
 
 ## 1.16.1 - 2026-04-02
 
