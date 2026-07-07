@@ -1,5 +1,7 @@
 # Changelog
 
+## 1.18.0 - TBD
+
 ## 1.17.0 - 2026-07-07
 
 * Drop support for Python 3.9, minimum verison if now 3.10
