@@ -6,7 +6,7 @@ import pytest
 
 def test_query_info_deprecation():
     with pytest.warns(DeprecationWarning) as record:
-        from smbprotocol import query_info
+        from smbprotocol import query_info  # noqa: F401  the import triggers the deprecation warning
 
     assert len(record) == 1
     assert (

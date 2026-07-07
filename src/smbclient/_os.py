@@ -985,7 +985,9 @@ def utime(path, times=None, ns=None, follow_symlinks=True, **kwargs):
             time_tuple = times
 
             # seconds in 100s of nanoseonds, may be float
-            op = lambda a, b: int(a * b)
+            def op(a, b):
+                return int(a * b)
+
             op_amt = 10000000
         else:
             time_tuple = ns

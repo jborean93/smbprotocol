@@ -39,7 +39,6 @@ from smbprotocol.exceptions import (
 from smbprotocol.header import Smb2Flags, SMB2HeaderResponse
 from smbprotocol.ioctl import SMB2IOCTLRequest
 from smbprotocol.session import Session
-from smbprotocol.tree import TreeConnect
 
 
 @pytest.fixture
@@ -78,7 +77,7 @@ class TestSMB2NegotiateRequest:
             b"\x10\x02"
             b"\x00\x03"
             b"\x02\x03"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 44
         assert actual == expected
@@ -98,7 +97,7 @@ class TestSMB2NegotiateRequest:
             b"\x10\x02"
             b"\x00\x03"
             b"\x02\x03"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 44
         assert actual["structure_size"].get_value() == 36
@@ -167,7 +166,7 @@ class TestSMB3NegotiateRequest:
             b"\x00\x00\x00\x00"
             b"\x05\x00\x08\x00\x00\x00\x00\x00"
             b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-        )
+        )  # fmt: skip
 
         actual = message.pack()
         assert len(message) == 80
@@ -202,7 +201,7 @@ class TestSMB3NegotiateRequest:
             b"\x02\x00\x04\x00\x00\x00\x00\x00"
             b"\x01\x00\x02\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 56
         assert actual == expected
@@ -231,7 +230,7 @@ class TestSMB3NegotiateRequest:
             b"\x00\x00\x00\x00"
             b"\x05\x00\x08\x00\x00\x00\x00\x00"
             b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-        )
+        )  # fmt: skip
 
         actual.unpack(data)
         assert len(actual) == 76
@@ -337,7 +336,7 @@ class TestSMB3NegotiateRequest:
             b"\x69\x00\x6e\x00\x67\x00\x31\x00"
             b"\x08\x00\x08\x00\x00\x00\x00\x00"
             b"\x03\x00\x02\x00\x01\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 144
         assert actual == expected
@@ -370,7 +369,7 @@ class TestSMB3NegotiateRequest:
             b"\x69\x00\x6e\x00\x67\x00\x31\x00"
             b"\x08\x00\x08\x00\x00\x00\x00\x00"
             b"\x03\x00\x02\x00\x01\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 140
         assert actual["structure_size"].get_value() == 36
@@ -443,14 +442,27 @@ class TestSMB2NegotiateContextRequest:
         enc_cap = SMB2EncryptionCapabilities()
         enc_cap["ciphers"] = [Ciphers.AES_128_GCM]
         message["data"] = enc_cap
-        expected = b"\x02\x00" b"\x04\x00" b"\x00\x00\x00\x00" b"\x01\x00" b"\x02\x00" b"\x00\x00\x00\x00"
+        expected = (
+            b"\x02\x00"
+            b"\x04\x00"
+            b"\x00\x00\x00\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2NegotiateContextRequest()
-        data = b"\x02\x00" b"\x04\x00" b"\x00\x00\x00\x00" b"\x01\x00" b"\x02\x00"
+        data = (
+            b"\x02\x00"
+            b"\x04\x00"
+            b"\x00\x00\x00\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 12
         assert actual["context_type"].get_value() == NegotiateContextType.SMB2_ENCRYPTION_CAPABILITIES
@@ -462,7 +474,13 @@ class TestSMB2NegotiateContextRequest:
 
     def test_parse_message_invalid_context_type(self):
         actual = SMB2NegotiateContextRequest()
-        data = b"\xff\xff" b"\x04\x00" b"\x00\x00\x00\x00" b"\x01\x00" b"\x02\x00"
+        data = (
+            b"\xff\xff"
+            b"\x04\x00"
+            b"\x00\x00\x00\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+        )  # fmt: skip
         with pytest.raises(Exception) as exc:
             actual.unpack(data)
         assert (
@@ -478,8 +496,12 @@ class TestSMB2PreauthIntegrityCapabilities:
         message["hash_algorithms"] = [HashAlgorithms.SHA_512]
         message["salt"] = b"\x01" * 16
         expected = (
-            b"\x01\x00" b"\x10\x00" b"\x01\x00" b"\x01\x01\x01\x01\x01\x01\x01\x01" b"\x01\x01\x01\x01\x01\x01\x01\x01"
-        )
+            b"\x01\x00"
+            b"\x10\x00"
+            b"\x01\x00"
+            b"\x01\x01\x01\x01\x01\x01\x01\x01"
+            b"\x01\x01\x01\x01\x01\x01\x01\x01"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 22
         assert actual == expected
@@ -487,8 +509,12 @@ class TestSMB2PreauthIntegrityCapabilities:
     def test_parse_message(self):
         actual = SMB2PreauthIntegrityCapabilities()
         data = (
-            b"\x01\x00" b"\x10\x00" b"\x01\x00" b"\x01\x01\x01\x01\x01\x01\x01\x01" b"\x01\x01\x01\x01\x01\x01\x01\x01"
-        )
+            b"\x01\x00"
+            b"\x10\x00"
+            b"\x01\x00"
+            b"\x01\x01\x01\x01\x01\x01\x01\x01"
+            b"\x01\x01\x01\x01\x01\x01\x01\x01"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 22
         assert actual["hash_algorithm_count"].get_value() == 1
@@ -501,14 +527,22 @@ class TestSMB2EncryptionCapabilities:
     def test_create_message(self):
         message = SMB2EncryptionCapabilities()
         message["ciphers"] = [Ciphers.AES_128_CCM, Ciphers.AES_128_GCM]
-        expected = b"\x02\x00" b"\x01\x00" b"\x02\x00"
+        expected = (
+            b"\x02\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 6
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2EncryptionCapabilities()
-        data = b"\x02\x00" b"\x01\x00" b"\x02\x00"
+        data = (
+            b"\x02\x00"
+            b"\x01\x00"
+            b"\x02\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 6
         assert actual["cipher_count"].get_value() == 2
@@ -519,14 +553,14 @@ class TestSMB2NetnameNegotiateContextId:
     def test_create_message(self):
         message = SMB2NetnameNegotiateContextId()
         message["net_name"] = "hostname"
-        expected = b"\x68\x00\x6f\x00\x73\x00\x74\x00" b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
+        expected = b"\x68\x00\x6f\x00\x73\x00\x74\x00" b"\x6e\x00\x61\x00\x6d\x00\x65\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 16
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2NetnameNegotiateContextId()
-        data = b"\x68\x00\x6f\x00\x73\x00\x74\x00" b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
+        data = b"\x68\x00\x6f\x00\x73\x00\x74\x00" b"\x6e\x00\x61\x00\x6d\x00\x65\x00"  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 16
         assert actual["net_name"].get_value() == "hostname"
@@ -540,14 +574,24 @@ class TestSMB2SigningCapabilities:
             SigningAlgorithms.AES_CMAC,
             SigningAlgorithms.HMAC_SHA256,
         ]
-        expected = b"\x03\x00" b"\x02\x00" b"\x01\x00" b"\x00\x00"
+        expected = (
+            b"\x03\x00"
+            b"\x02\x00"
+            b"\x01\x00"
+            b"\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 8
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2SigningCapabilities()
-        data = b"\x03\x00" b"\x02\x00" b"\x01\x00" b"\x00\x00"
+        data = (
+            b"\x03\x00"
+            b"\x02\x00"
+            b"\x01\x00"
+            b"\x00\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 8
         assert actual["signing_algorithms"].get_value() == [
@@ -571,7 +615,7 @@ class TestSMB2NegotiateResponse:
         message["server_start_time"] = datetime(
             year=2017, month=11, day=15, hour=11, minute=27, second=26, microsecond=349606
         )
-        message["buffer"] = b"\x01\x02\x03\x04\x05\x06\x07\x08" b"\x09\x10"
+        message["buffer"] = b"\x01\x02\x03\x04\x05\x06\x07\x08" b"\x09\x10"  # fmt: skip
 
         expected = (
             b"\x41\x00"
@@ -591,7 +635,7 @@ class TestSMB2NegotiateResponse:
             b"\x00\x00\x00\x00"
             b"\x01\x02\x03\x04\x05\x06\x07\x08"
             b"\x09\x10"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 74
         assert actual == expected
@@ -609,7 +653,7 @@ class TestSMB2NegotiateResponse:
         message["server_start_time"] = datetime(
             year=2017, month=11, day=15, hour=11, minute=27, second=26, microsecond=349606
         )
-        message["buffer"] = b"\x01\x02\x03\x04\x05\x06\x07\x08" b"\x09\x10"
+        message["buffer"] = b"\x01\x02\x03\x04\x05\x06\x07\x08" b"\x09\x10"  # fmt: skip
 
         int_cap = SMB2PreauthIntegrityCapabilities()
         int_cap["hash_algorithms"] = [HashAlgorithms.SHA_512]
@@ -646,7 +690,7 @@ class TestSMB2NegotiateResponse:
             b"\x22\x22\x22\x22\x22\x22\x22\x22"
             b"\x22\x22\x22\x22\x22\x22"
             b"\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 128
         assert actual == expected
@@ -684,7 +728,7 @@ class TestSMB2NegotiateResponse:
             b"\x69\x6e\x5f\x52\x46\x43\x34\x31"
             b"\x37\x38\x40\x70\x6c\x65\x61\x73"
             b"\x65\x5f\x69\x67\x6e\x6f\x72\x65"
-        )
+        )  # fmt: skip
         actual.unpack(data)
 
         assert len(actual) == 184
@@ -766,7 +810,7 @@ class TestSMB2NegotiateResponse:
             b"\x22\x22\x22\x22\x22\x22\x22\x22"
             b"\x22\x22\x22\x22\x22\x22\x22\x22"
             b"\x22\x22\x22\x22\x22\x22"
-        )
+        )  # fmt: skip
         actual.unpack(data)
 
         assert len(actual) == 230
@@ -826,14 +870,14 @@ class TestSMB2NegotiateResponse:
 class TestSMB2Echo:
     def test_create_message(self):
         message = SMB2Echo()
-        expected = b"\x04\x00" b"\x00\x00"
+        expected = b"\x04\x00" b"\x00\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 4
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2Echo()
-        data = b"\x04\x00" b"\x00\x00"
+        data = b"\x04\x00" b"\x00\x00"  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 4
         assert data == b""
@@ -842,7 +886,7 @@ class TestSMB2Echo:
 
 
 class TestSMB2CancelRequest:
-    DATA = b"\x04\x00" b"\x00\x00"
+    DATA = b"\x04\x00" b"\x00\x00"  # fmt: skip
 
     def test_create_message(self):
         message = SMB2CancelRequest()
@@ -876,7 +920,7 @@ class TestSMB2TransformHeader:
             b"\x01\x00"
             b"\x01\x00\x00\x00\x00\x00\x00\x00"
             b"\x01\x02\x03\x04"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 56
         assert actual == expected
@@ -894,7 +938,7 @@ class TestSMB2TransformHeader:
             b"\x01\x00"
             b"\x01\x00\x00\x00\x00\x00\x00\x00"
             b"\x01\x02\x03\x04"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 56
         assert actual["protocol_id"].get_value() == b"\xfd\x53\x4d\x42"

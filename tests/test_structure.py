@@ -158,7 +158,7 @@ class TestStructure:
         del structure["int_field"]
         assert len(structure.fields) == 6
         with pytest.raises(ValueError) as exc:
-            value = structure["int_field"]
+            structure["int_field"]
         assert str(exc.value) == "Structure does not contain field int_field"
 
     def test_pack_structure(self):
@@ -184,7 +184,7 @@ class TestStructure:
             b"\x7d\x00\x00\x00\x10\x11\x12\x13"
             b"\x00\x08"
             b"\x7d\x00\x00\x00\x10\x11\x12\x13"
-        )
+        )  # fmt: skip
         actual = structure.pack()
         assert actual == expected
         assert len(structure) == len(actual)
@@ -200,7 +200,7 @@ class TestStructure:
             b"\x7d\x00\x00\x00\x10\x11\x12\x13"
             b"\x00\x08"
             b"\x7d\x00\x00\x00\x10\x11\x12\x13"
-        )
+        )  # fmt: skip
 
         actual = Structure1()
         actual.unpack(packed_data)
@@ -688,7 +688,7 @@ class TestListField:
 
     def test_unpack(self):
         field = self.StructureTest()["field"]
-        data = field.unpack(b"\x7a\x00\x79\x00")
+        field.unpack(b"\x7a\x00\x79\x00")
         expected = [b"\x7a\x00", b"\x79\x00"]
         actual = field.get_value()
         assert actual == expected
@@ -1206,14 +1206,14 @@ class TestUuidField:
         field = self.StructureTest()["field"]
         field.little_endian = False
         field.set_value(uuid.UUID("00000001-0001-0001-0001-000000000001"))
-        expected = b"\x01\x00\x00\x00\x01\x00\x01\x00" b"\x00\x01\x00\x00\x00\x00\x00\x01"
+        expected = b"\x01\x00\x00\x00\x01\x00\x01\x00" b"\x00\x01\x00\x00\x00\x00\x00\x01"  # fmt: skip
         actual = field.pack()
         assert actual == expected
 
     def test_unpack_uuid_field_big_endian(self):
         field = self.StructureTest()["field"]
         field.little_endian = False
-        field.unpack(b"\x01\x00\x00\x00\x01\x00\x01\x00" b"\x00\x01\x00\x00\x00\x00\x00\x01")
+        field.unpack(b"\x01\x00\x00\x00\x01\x00\x01\x00\x00\x01\x00\x00\x00\x00\x00\x01")
         expected = uuid.UUID("00000001-0001-0001-0001-000000000001")
         actual = field.get_value()
         assert actual == expected
@@ -1824,7 +1824,11 @@ class TestTextField:
 
     def test_pack(self):
         field = self.StructureTest()["field"]
-        expected = b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f" b"\x72\x6c\x64\x20\x2d\x20\x63\x61" b"\x66\xc3\xa9"
+        expected = (
+            b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f"
+            b"\x72\x6c\x64\x20\x2d\x20\x63\x61"
+            b"\x66\xc3\xa9"
+        )  # fmt: skip
         if field.null_terminated:
             expected += "\x00".encode(field.encoding)
         actual = field.pack()
@@ -1832,7 +1836,7 @@ class TestTextField:
 
     def test_unpack(self):
         field = self.StructureTest()["field"]
-        field.unpack(b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f" b"\x72\x6c\x64\x20\x2d\x20\x63\x61" b"\x66\xc3\xa9")
+        field.unpack(b"\x48\x65\x6c\x6c\x6f\x20\x57\x6f\x72\x6c\x64\x20\x2d\x20\x63\x61\x66\xc3\xa9")
         expected = self.STRING_VALUE
         actual = field.get_value()
         assert actual == expected
