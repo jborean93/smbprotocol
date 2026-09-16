@@ -8,8 +8,10 @@ import pytest
 from smbprotocol import Dialects
 from smbprotocol.connection import Ciphers, Connection, SigningAlgorithms
 from smbprotocol.exceptions import AccessDenied, SMBException
+from smbprotocol.header import SMB2HeaderResponse
 from smbprotocol.session import Session
 from smbprotocol.tree import (
+    ShareCapabilities,
     SMB2TreeConnectRequest,
     SMB2TreeConnectResponse,
     SMB2TreeDisconnect,
@@ -97,6 +99,28 @@ class TestSMB2TreeDisconnect:
         assert len(actual) == 4
         assert actual["structure_size"].get_value() == 4
         assert actual["reserved"].get_value() == 0
+
+
+class TestTreeConnectUseDfs:
+    def test_use_dfs(self, mocker):
+        tree_response = SMB2TreeConnectResponse()
+        tree_response["capabilities"] = ShareCapabilities.SMB2_SHARE_CAP_DFS
+
+        response = SMB2HeaderResponse()
+        response["tree_id"] = 10
+        response["data"] = tree_response.pack()
+
+        session = mocker.MagicMock()
+        session.connection.dialect = Dialects.SMB_2_0_2
+        session.connection.receive.return_value = response
+
+        tree = TreeConnect(session, r"\\server\share")
+        tree.connect(require_secure_negotiate=False)
+        assert tree.is_dfs_share is True
+
+        tree = TreeConnect(session, r"\\server\share")
+        tree.connect(require_secure_negotiate=False, use_dfs=False)
+        assert tree.is_dfs_share is False
 
 
 class TestTreeConnect:

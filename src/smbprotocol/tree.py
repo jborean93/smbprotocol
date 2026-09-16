@@ -229,13 +229,15 @@ class TreeConnect:
         self.encrypt_data = None
         self.is_scaleout_share = None
 
-    def connect(self, require_secure_negotiate=True):
+    def connect(self, require_secure_negotiate=True, use_dfs=True):
         """
         Connect to the share.
 
         :param require_secure_negotiate: For Dialects 3.0 and 3.0.2, will
             verify the negotiation parameters with the server to prevent
             SMB downgrade attacks
+        :param use_dfs: Treat the share as a DFS share if the server advertises
+            it as one. Set to False to always treat it as a normal share.
         """
         log.info(f"Session: {self.session.username} - Creating connection to share {self.share_name}")
         utf_share_name = self.share_name.encode("utf-16-le")
@@ -259,7 +261,7 @@ class TreeConnect:
         self.session.tree_connect_table[self.tree_connect_id] = self
 
         capabilities = tree_response["capabilities"]
-        self.is_dfs_share = capabilities.has_flag(ShareCapabilities.SMB2_SHARE_CAP_DFS)
+        self.is_dfs_share = use_dfs and capabilities.has_flag(ShareCapabilities.SMB2_SHARE_CAP_DFS)
         self.is_ca_share = capabilities.has_flag(ShareCapabilities.SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY)
 
         dialect = self.session.connection.dialect

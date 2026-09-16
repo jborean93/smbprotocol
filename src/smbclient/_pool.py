@@ -329,11 +329,16 @@ def get_smb_tree(
     if not tree:
         tree = TreeConnect(session, share_path)
         try:
-            tree.connect(require_secure_negotiate=client_config.require_secure_negotiate)
+            tree.connect(
+                require_secure_negotiate=client_config.require_secure_negotiate,
+                use_dfs=not client_config.skip_dfs,
+            )
         except BadNetworkName as err:
             # If the server doesn't mention it supports DFS then don't try to
             # resolve the DFS path.
-            if not session.connection.server_capabilities.has_flag(Capabilities.SMB2_GLOBAL_CAP_DFS):
+            if client_config.skip_dfs or not session.connection.server_capabilities.has_flag(
+                Capabilities.SMB2_GLOBAL_CAP_DFS
+            ):
                 raise
 
             ipc_path = rf"\\{server}\IPC$"

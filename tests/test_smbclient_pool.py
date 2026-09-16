@@ -142,6 +142,40 @@ def test_dfs_referral_no_links_from_domain(reset_config, monkeypatch, mocker):
         actual_get_smb_tree(rf"\\{DOMAIN_NAME}\dfs")
 
 
+def test_get_smb_tree_uses_dfs_by_default(reset_config, monkeypatch, mocker):
+    connect_mock = mocker.MagicMock()
+    monkeypatch.setattr(pool.TreeConnect, "connect", connect_mock)
+    monkeypatch.setattr(pool, "register_session", mocker.MagicMock())
+
+    pool.get_smb_tree(r"\\server\share\file.txt")
+
+    assert connect_mock.call_args.kwargs["use_dfs"] is True
+
+
+def test_get_smb_tree_skip_dfs_disables_dfs_on_tree(reset_config, monkeypatch, mocker):
+    connect_mock = mocker.MagicMock()
+    monkeypatch.setattr(pool.TreeConnect, "connect", connect_mock)
+    monkeypatch.setattr(pool, "register_session", mocker.MagicMock())
+    pool.ClientConfig(skip_dfs=True)
+
+    pool.get_smb_tree(r"\\server\share\file.txt")
+
+    assert connect_mock.call_args.kwargs["use_dfs"] is False
+
+
+def test_get_smb_tree_skip_dfs_does_not_request_root_referral(reset_config, monkeypatch, mocker):
+    dfs_mock = mocker.MagicMock()
+    monkeypatch.setattr(pool, "dfs_request", dfs_mock)
+    monkeypatch.setattr(pool.TreeConnect, "connect", mocker.MagicMock(side_effect=(BadNetworkName(), None)))
+    monkeypatch.setattr(pool, "register_session", mocker.MagicMock())
+    pool.ClientConfig(skip_dfs=True)
+
+    with pytest.raises(BadNetworkName):
+        pool.get_smb_tree(r"\\server\dfs")
+
+    assert dfs_mock.call_count == 0
+
+
 def test_resolve_dfs_referral_no_links(reset_config, monkeypatch, mocker):
     no_referral = DFSReferralResponse()
     no_referral["path_consumed"] = 0
