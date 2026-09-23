@@ -124,8 +124,7 @@ class ClientConfig(metaclass=_ConfigSingleton):
             domain_referral_response = dfs_request(ipc_tree, "")
         except InvalidParameter:
             log.warning(
-                "Specified domain controller %s return STATUS_INVALID_PARAMETER, cannot use as DFS domain "
-                "cache source",
+                "Specified domain controller %s return STATUS_INVALID_PARAMETER, cannot use as DFS domain cache source",
                 value,
             )
             return

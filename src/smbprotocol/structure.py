@@ -7,7 +7,6 @@ import inspect
 import math
 import struct
 import textwrap
-import types
 import uuid
 import weakref
 from abc import ABCMeta, abstractmethod
@@ -441,10 +440,7 @@ class ListField(Field):
             raise InvalidFieldDefinition("ListField unpack_func must be a lambda function or None")
         elif unpack_func is None and (list_count is None or list_type.size is None):
             raise InvalidFieldDefinition(
-                "ListField must either define "
-                "unpack_func as a lambda or set "
-                "list_count and list_size with a "
-                "size"
+                "ListField must either define unpack_func as a lambda or set list_count and list_size with a size"
             )
         self.unpack_func = unpack_func
 

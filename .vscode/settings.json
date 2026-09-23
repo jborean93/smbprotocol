@@ -1,5 +1,5 @@
 {
-    "black-formatter.importStrategy": "fromEnvironment",
+    "ruff.importStrategy": "fromEnvironment",
     "editor.formatOnSave": true,
     "editor.rulers": [
         80,
@@ -7,7 +7,6 @@
     ],
     "files.trimTrailingWhitespace": true,
     "editor.trimAutoWhitespace": true,
-    "isort.importStrategy": "fromEnvironment",
     "python.testing.pytestArgs": [
         "tests",
         "-vv"
@@ -15,9 +14,11 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "[python]": {
-        "editor.defaultFoldingRangeProvider": "ms-python.black-formatter",
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.defaultFoldingRangeProvider": "charliermarsh.ruff",
         "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
         },
     },
     "python.envFile": "${workspaceFolder}/.vscode/.env",

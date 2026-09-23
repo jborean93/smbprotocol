@@ -13,9 +13,8 @@ from unittest.mock import patch
 
 import pytest
 
-from smbclient import listdir, makedirs, mkdir, open_file, readlink, remove, rmdir
+from smbclient import listdir, makedirs, mkdir, open_file, readlink, remove, rmdir, symlink, utime
 from smbclient import stat as smbclient_stat
-from smbclient import symlink, utime
 from smbclient._io import SMBFileTransaction, SMBRawIO, set_info
 from smbclient._os import is_remote_path
 from smbclient.path import exists, islink, samefile

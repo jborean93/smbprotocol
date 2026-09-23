@@ -29,7 +29,6 @@ from smbprotocol.structure import DateTimeField
 
 
 class TestFileBasicInformation:
-
     def test_parse_message(self):
         data = (
             b"\x00\xf2\xc4\x22\x2d\x1c\xdb\x01"
@@ -38,7 +37,7 @@ class TestFileBasicInformation:
             b"\x00\xf2\xc4\x22\x2d\x1c\xdb\x01"
             b"\x10\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
 
         actual = FileBasicInformation()
         data = actual.unpack(data)
@@ -54,7 +53,7 @@ class TestFileBasicInformation:
 
 
 class TestFileNameInformation:
-    DATA = b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"
+    DATA = b"\x08\x00\x00\x00" b"\x63\x00\x61\x00\x66\x00\xe9\x00"  # fmt: skip
 
     def test_create_message(self):
         message = FileNameInformation()
@@ -95,7 +94,7 @@ class TestFileAllInformation:
         b"\x00\x00\x00\x00"
         b"\x01\x00\x00\x00"
         b"\x00\x00\x00\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileAllInformation()
@@ -190,7 +189,7 @@ class TestFileBothDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 112
         assert actual == expected
@@ -217,7 +216,7 @@ class TestFileBothDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 112
         assert data == b""
@@ -265,7 +264,7 @@ class TestFileDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 82
         assert actual == expected
@@ -286,7 +285,7 @@ class TestFileDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 82
         assert data == b""
@@ -371,7 +370,7 @@ class TestFileFullDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 86
         assert actual == expected
@@ -393,7 +392,7 @@ class TestFileFullDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 86
         assert data == b""
@@ -412,7 +411,14 @@ class TestFileFullDirectoryInformation:
 
 
 class TestFileFullEaInformation:
-    DATA = b"\x14\x00\x00\x00" b"\x00" b"\x04" b"\x04\x00" b"\x43\x41\x46\xe9\x00" b"\x63\x61\x66\xe9"
+    DATA = (
+        b"\x14\x00\x00\x00"
+        b"\x00"
+        b"\x04"
+        b"\x04\x00"
+        b"\x43\x41\x46\xe9\x00"
+        b"\x63\x61\x66\xe9"
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileFullEaInformation()
@@ -441,7 +447,11 @@ class TestFileFullEaInformation:
 
 
 class TestFileGetEaInformation:
-    DATA = b"\x14\x00\x00\x00" b"\x04" b"\x43\x41\x46\xe9\x00"
+    DATA = (
+        b"\x14\x00\x00\x00"
+        b"\x04"
+        b"\x43\x41\x46\xe9\x00"
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileGetEaInformation()
@@ -500,7 +510,7 @@ class TestFileIdBothDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 122
         assert actual == expected
@@ -529,7 +539,7 @@ class TestFileIdBothDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 122
         assert data == b""
@@ -583,7 +593,7 @@ class TestFileIdFullDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 98
         assert actual == expected
@@ -607,7 +617,7 @@ class TestFileIdFullDirectoryInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 98
         assert data == b""
@@ -634,7 +644,7 @@ class TestFileLinkInformation:
         b"\x00\x00\x00\x00\x00\x00\x00\x00"
         b"\x08\x00\x00\x00"
         b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileLinkInformation()
@@ -667,7 +677,7 @@ class TestFileNamesInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 30
         assert actual == expected
@@ -681,7 +691,7 @@ class TestFileNamesInformation:
             b"\x66\x00\x69\x00\x6c\x00\x65\x00"
             b"\x31\x00\x2e\x00\x74\x00\x78\x00"
             b"\x74\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 30
         assert data == b""
@@ -698,7 +708,7 @@ class TestFileRenameInformation:
         b"\x00\x00\x00\x00\x00\x00\x00\x00"
         b"\x08\x00\x00\x00"
         b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileRenameInformation()
@@ -736,7 +746,7 @@ class TestFileStandardInformation:
             b"\x01"
             b"\x00"
             b"\x00\x00"
-        )
+        )  # fmt: skip
 
         actual = message.pack()
         assert len(message) == 24
@@ -751,7 +761,7 @@ class TestFileStandardInformation:
             b"\x01"
             b"\x00"
             b"\x00\x00"
-        )
+        )  # fmt: skip
 
         data = actual.unpack(data)
         assert len(actual) == 24
@@ -773,11 +783,11 @@ class TestFileFsObjectInformation:
         b"\x00\x00\x00\x00\x00\x00\x00\x00"
         b"\x00\x00\x00\x00\x00\x00\x00\x00"
         b"\x00\x00\x00\x00\x00\x00\x00\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileFsObjectIdInformation()
-        message["object_id"] = b"\x01\x02\x03\x04\x05\x06\x07\x08" b"\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"
+        message["object_id"] = b"\x01\x02\x03\x04\x05\x06\x07\x08" b"\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"  # fmt: skip
 
         actual = message.pack()
         assert len(message) == 64
@@ -804,7 +814,7 @@ class TestFileFsVolumeInformation:
         b"\x00"
         b"\x00"
         b"\x63\x00\x61\x00\x66\x00\xe9\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileFsVolumeInformation()
@@ -837,7 +847,7 @@ class TestFileFsFullSizeInformation:
         b"\x9c\x41\x12\x01\x00\x00\x00\x00"
         b"\x02\x00\x00\x00"
         b"\x00\x02\x00\x00"
-    )
+    )  # fmt: skip
 
     def test_create_message(self):
         message = FileFsFullSizeInformation()

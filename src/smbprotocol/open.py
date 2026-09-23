@@ -7,7 +7,8 @@ from collections import OrderedDict
 from smbprotocol import MAX_PAYLOAD_SIZE, Dialects
 from smbprotocol.create_contexts import SMB2CreateContextRequest
 from smbprotocol.exceptions import FileClosed, SMBException, SMBUnsupportedFeature
-from smbprotocol.file_info import (  # While this shouldn't ever be removed, we need to keep this imported so we stay backwards compat. These were; originally defined here.
+from smbprotocol.file_info import (
+    # Re-exported for backwards compatibility. These were originally defined here.
     FileAttributes,
     FileBothDirectoryInformation,
     FileDirectoryInformation,

@@ -252,7 +252,13 @@ class TestSMBResponseException:
     def test_exception_no_context_but_data(self):
         # Older dialects don't support the Error Context list but still return data in there. This tests those older
         # hosts.
-        data = b"\x09\x00" b"\x00" b"\x00" b"\x04\x00\x00\x00" b"\x01\x02\x03\x04"
+        data = (
+            b"\x09\x00"
+            b"\x00"
+            b"\x00"
+            b"\x04\x00\x00\x00"
+            b"\x01\x02\x03\x04"
+        )  # fmt: skip
         error_resp = SMB2ErrorResponse()
         data = error_resp.unpack(data)
 
@@ -282,7 +288,12 @@ class TestSMB2ErrorResponse:
         # This is a plain error response without the error context response
         # data appended
         message = SMB2ErrorResponse()
-        expected = b"\x09\x00" b"\x00" b"\x00" b"\x00\x00\x00\x00"
+        expected = (
+            b"\x09\x00"
+            b"\x00"
+            b"\x00"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(actual) == 8
         assert actual == expected
@@ -293,15 +304,26 @@ class TestSMB2ErrorResponse:
         error_context["error_context_data"] = b"\x01\x02\x03\x04"
         message["error_data"] = [error_context]
         expected = (
-            b"\x09\x00" b"\x01" b"\x00" b"\x0c\x00\x00\x00" b"\x04\x00\x00\x00" b"\x00\x00\x00\x00" b"\x01\x02\x03\x04"
-        )
+            b"\x09\x00"
+            b"\x01"
+            b"\x00"
+            b"\x0c\x00\x00\x00"
+            b"\x04\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+            b"\x01\x02\x03\x04"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 20
         assert actual == expected
 
     def test_parse_message_plain(self):
         actual = SMB2ErrorResponse()
-        data = b"\x09\x00" b"\x00" b"\x00" b"\x00\x00\x00\x00"
+        data = (
+            b"\x09\x00"
+            b"\x00"
+            b"\x00"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 8
         assert data == b""
@@ -314,8 +336,14 @@ class TestSMB2ErrorResponse:
     def test_parse_message_with_context(self):
         actual = SMB2ErrorResponse()
         data = (
-            b"\x09\x00" b"\x01" b"\x00" b"\x0c\x00\x00\x00" b"\x04\x00\x00\x00" b"\x00\x00\x00\x00" b"\x01\x02\x03\x04"
-        )  # just a fake bytes value for test
+            b"\x09\x00"
+            b"\x01"
+            b"\x00"
+            b"\x0c\x00\x00\x00"
+            b"\x04\x00\x00\x00"
+            b"\x00\x00\x00\x00"
+            b"\x01\x02\x03\x04"
+        )  # just a fake bytes value for test  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 20
         assert data == b""
@@ -336,14 +364,22 @@ class TestSMB2ErrorContextResponse:
         message = SMB2ErrorContextResponse()
         message["error_id"] = ErrorContextId.SMB2_ERROR_ID_SHARE_REDIRECT
         message["error_context_data"] = b"\x01\x02\x03\x04"
-        expected = b"\x04\x00\x00\x00" b"\x72\x64\x52\x53" b"\x01\x02\x03\x04"
+        expected = (
+            b"\x04\x00\x00\x00"
+            b"\x72\x64\x52\x53"
+            b"\x01\x02\x03\x04"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 12
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2ErrorContextResponse()
-        data = b"\x04\x00\x00\x00" b"\x72\x64\x52\x53" b"\x01\x02\x03\x04"
+        data = (
+            b"\x04\x00\x00\x00"
+            b"\x72\x64\x52\x53"
+            b"\x01\x02\x03\x04"
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 12
         assert data == b""
@@ -376,7 +412,7 @@ class TestSMB2SymbolicLinkErrorResponse:
             b"\x65\x00\x6d\x00\x70\x00\x5c\x00"
             b"\x66\x00\x6f\x00\x6c\x00\x64\x00"
             b"\x65\x00\x72\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(actual) == 92
         assert actual == expected
@@ -403,7 +439,7 @@ class TestSMB2SymbolicLinkErrorResponse:
             b"\x65\x00\x6d\x00\x70\x00\x5c\x00"
             b"\x66\x00\x6f\x00\x6c\x00\x64\x00"
             b"\x65\x00\x72\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 92
         assert data == b""
@@ -427,7 +463,7 @@ class TestSMB2SymbolicLinkErrorResponse:
             b"\x65\x00\x6d\x00\x70\x00\x5c\x00"
             b"\x66\x00\x6f\x00\x6c\x00\x64\x00"
             b"\x65\x00\x72\x00"
-        )
+        )  # fmt: skip
         assert actual.get_print_name() == r"C:\temp\folder"
         assert actual.get_substitute_name() == r"\??\C:\temp\folder"
 
@@ -589,7 +625,7 @@ class TestSMB2ShareRedirectErrorContext:
             b"\xfe\x80\x12\xab\x00\x00\x00\x00"
             b"\x00\x00\x00\x01\x00\x02\x00\x00"
             b"\x01\x02\x03\x04"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 76
         assert actual == expected
@@ -614,7 +650,7 @@ class TestSMB2ShareRedirectErrorContext:
             b"\xfe\x80\x12\xab\x00\x00\x00\x00"
             b"\x00\x00\x00\x01\x00\x02\x00\x00"
             b"\x01\x02\x03\x04"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 76
         assert data == b""
@@ -636,7 +672,10 @@ class TestSMB2ShareRedirectErrorContext:
         ip2 = ip_addr[1]
         assert ip2["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V6
         assert ip2["reserved"].get_value() == 0
-        assert ip2["ip_address"].get_value() == b"\xfe\x80\x12\xab\x00\x00\x00\x00" b"\x00\x00\x00\x01\x00\x02\x00\x00"
+        assert ip2["ip_address"].get_value() == (
+            b"\xfe\x80\x12\xab\x00\x00\x00\x00"
+            b"\x00\x00\x00\x01\x00\x02\x00\x00"
+        )  # fmt: skip
         assert ip2["reserved2"].get_value() == b""
         assert actual["resource_name"].get_value() == b"\x01\x02\x03\x04"
 
@@ -652,7 +691,7 @@ class TestSMB2MoveDstIpAddrStructure:
             b"\xc0\xa8\x01\x64"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 24
         assert actual == expected
@@ -666,7 +705,7 @@ class TestSMB2MoveDstIpAddrStructure:
             b"\x00\x00\x00\x00"
             b"\xfe\x80\x12\xab\x00\x00\x00\x00"
             b"\x00\x00\x00\x01\x00\x02\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 24
         assert actual == expected
@@ -686,7 +725,7 @@ class TestSMB2MoveDstIpAddrStructure:
             b"\xc0\xa8\x01\x64"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 24
         assert data == b""
@@ -703,14 +742,12 @@ class TestSMB2MoveDstIpAddrStructure:
             b"\x00\x00\x00\x00"
             b"\xfe\x80\x12\xab\x00\x00\x00\x00"
             b"\x00\x00\x00\x01\x00\x02\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 24
         assert data == b""
         assert actual["type"].get_value() == IpAddrType.MOVE_DST_IPADDR_V6
         assert actual["reserved"].get_value() == 0
-        assert (
-            actual["ip_address"].get_value() == b"\xfe\x80\x12\xab\x00\x00\x00\x00" b"\x00\x00\x00\x01\x00\x02\x00\x00"
-        )
+        assert actual["ip_address"].get_value() == b"\xfe\x80\x12\xab\x00\x00\x00\x00\x00\x00\x00\x01\x00\x02\x00\x00"
         assert actual["reserved2"].get_value() == b""
         assert actual.get_ipaddress() == "fe80:12ab:0000:0000:0000:0001:0002:0000"

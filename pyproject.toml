@@ -42,9 +42,8 @@ test = [
     "pytest-mock",
 ]
 lint = [
-    "black == 26.3.1",
-    "isort == 8.0.1",
     "pre-commit",
+    "ruff == 0.15.13",
 ]
 dev = [
     {include-group = "test"},
@@ -54,25 +53,16 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
+target-version = "py310"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"src/smbprotocol/query_info.py" = ["F403"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"

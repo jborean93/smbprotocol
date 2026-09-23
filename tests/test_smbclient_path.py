@@ -3,7 +3,6 @@
 
 import os
 import re
-import stat
 
 import pytest
 

@@ -121,7 +121,7 @@ class TestSMB2CreateContextName:
             b"\x00\x00\x00\x00"
             b"\x51\x46\x69\x64"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
 
         actual = SMB2CreateContextRequest.pack_multiple([ea_buffers, alloc_size_context, query_disk])
 
@@ -145,7 +145,7 @@ class TestSMB2CreateContextName:
             b"\x41\x6c\x53\x69"
             b"\x00\x00\x00\x00"
             b"\x00\x04\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = SMB2CreateContextRequest.pack_multiple([alloc_size])
         assert actual == expected
 
@@ -204,7 +204,7 @@ class TestSMB2CreateContextName:
             b"\x00\x00\x00\x00"
             b"\x51\x46\x69\x64"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual1.unpack(data)
         data = actual2.unpack(data)
         data = actual3.unpack(data)
@@ -288,7 +288,7 @@ class TestSMB2CreateContextName:
             b"\x30\x50\xd7\xd8\x04\x82\xff\xff"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         message.unpack(data)
         actual = message.get_context_data()
         assert isinstance(actual, SMB2CreateQueryOnDiskIDResponse)
@@ -308,7 +308,7 @@ class TestSMB2CreateContextName:
             b"\x45\x78\x74\x41"
             b"\x00\x00\x00\x00"
             b"\x20\x00\x00\x00"
-        )
+        )  # fmt: skip
         message.unpack(data)
         actual = message.get_context_data()
         assert actual == b"\x20\x00\x00\x00"
@@ -341,7 +341,7 @@ class TestSMB2CreateEABuffer:
             b"\x4a\x6f\x72\x64\x61\x6e\x20\x42"
             b"\x6f\x72\x65\x61\x6e\x20\x54\x69"
             b"\x74\x6c\x65"
-        )
+        )  # fmt: skip
 
         # size of msg1 won't have any padding as we haven't set the next offset
         assert len(msg1) == 29
@@ -374,7 +374,7 @@ class TestSMB2CreateEABuffer:
             b"\x4a\x6f\x72\x64\x61\x6e\x20\x42"
             b"\x6f\x72\x65\x61\x6e\x20\x54\x69"
             b"\x74\x6c\x65"
-        )
+        )  # fmt: skip
         data = actual1.unpack(data)
         data = actual2.unpack(data)
         assert len(actual1) == 32
@@ -469,14 +469,14 @@ class TestSMB2CreateQueryMaximalAccessResponse:
     def test_create_message(self):
         message = SMB2CreateQueryMaximalAccessResponse()
         message["maximal_access"] = 2032127
-        expected = b"\x00\x00\x00\x00" b"\xff\x01\x1f\x00"
+        expected = b"\x00\x00\x00\x00" b"\xff\x01\x1f\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 8
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2CreateQueryMaximalAccessResponse()
-        data = b"\x00\x00\x00\x00" b"\xff\x01\x1f\x00"
+        data = b"\x00\x00\x00\x00" b"\xff\x01\x1f\x00"  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 8
         assert data == b""
@@ -532,7 +532,7 @@ class TestSMB2CreateRequestLease:
             b"\x02\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 32
         assert actual == expected
@@ -545,7 +545,7 @@ class TestSMB2CreateRequestLease:
             b"\x02\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 32
         assert data == b""
@@ -568,7 +568,7 @@ class TestSMB2CreateResponseLease:
             b"\x02\x00\x00\x00"
             b"\x02\x00\x00\x00"
             b"\x0c\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 32
         assert actual == expected
@@ -581,7 +581,7 @@ class TestSMB2CreateResponseLease:
             b"\x02\x00\x00\x00"
             b"\x02\x00\x00\x00"
             b"\x0c\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 32
         assert data == b""
@@ -601,7 +601,7 @@ class TestSMB2CreateQueryOnDiskIDResponse:
             b"\x30\x50\xd7\xd8\x04\x82\xff\xff"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 32
         assert actual == expected
@@ -613,7 +613,7 @@ class TestSMB2CreateQueryOnDiskIDResponse:
             b"\x30\x50\xd7\xd8\x04\x82\xff\xff"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 32
         assert data == b""
@@ -641,7 +641,7 @@ class TestSMB2CreateRequestLeaseV2:
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\xdd\xdd"
             b"\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 52
         assert actual == expected
@@ -658,7 +658,7 @@ class TestSMB2CreateRequestLeaseV2:
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\xdd\xdd"
             b"\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 52
         assert data == b""
@@ -690,7 +690,7 @@ class TestSMB2CreateResponseLeaseV2:
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\x64\x00"
             b"\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 52
         assert actual == expected
@@ -707,7 +707,7 @@ class TestSMB2CreateResponseLeaseV2:
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\x64\x00"
             b"\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 52
         assert data == b""
@@ -732,7 +732,7 @@ class TestSMB2CreateDurableHandleRequestV2:
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 32
         assert actual == expected
@@ -745,7 +745,7 @@ class TestSMB2CreateDurableHandleRequestV2:
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
             b"\xff\xff\xff\xff\xff\xff\xff\xff"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 32
         assert data == b""
@@ -767,7 +767,7 @@ class TestSMB2CreateDurableHandleReconnectV2:
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\x02\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 36
         assert actual == expected
@@ -780,7 +780,7 @@ class TestSMB2CreateDurableHandleReconnectV2:
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\xee\xee\xee\xee\xee\xee\xee\xee"
             b"\x02\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 36
         assert data == b""
@@ -793,14 +793,14 @@ class TestSMB2CreateDurableHandleResponseV2:
     def test_create_message(self):
         message = SMB2CreateDurableHandleResponseV2()
         message["timeout"] = 10
-        expected = b"\x0a\x00\x00\x00" b"\x00\x00\x00\x00"
+        expected = b"\x0a\x00\x00\x00" b"\x00\x00\x00\x00"  # fmt: skip
         actual = message.pack()
         assert len(message) == 8
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2CreateDurableHandleResponseV2()
-        data = b"\x0a\x00\x00\x00" b"\x00\x00\x00\x00"
+        data = b"\x0a\x00\x00\x00" b"\x00\x00\x00\x00"  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 8
         assert data == b""
@@ -812,14 +812,24 @@ class TestSMB2CreateAppInstanceId:
     def test_create_message(self):
         message = SMB2CreateAppInstanceId()
         message["app_instance_id"] = b"\xff" * 16
-        expected = b"\x14\x00" b"\x00\x00" b"\xff\xff\xff\xff\xff\xff\xff\xff" b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        expected = (
+            b"\x14\x00"
+            b"\x00\x00"
+            b"\xff\xff\xff\xff\xff\xff\xff\xff"
+            b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 20
         assert actual == expected
 
     def test_parse_message(self):
         actual = SMB2CreateAppInstanceId()
-        data = b"\x14\x00" b"\x00\x00" b"\xff\xff\xff\xff\xff\xff\xff\xff" b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        data = (
+            b"\x14\x00"
+            b"\x00\x00"
+            b"\xff\xff\xff\xff\xff\xff\xff\xff"
+            b"\xff\xff\xff\xff\xff\xff\xff\xff"
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 20
         assert data == b""
@@ -846,7 +856,7 @@ class TestSMB2SVHDXOpenDeviceContextRequest:
             b"\x10\x00"
             b"\x68\x00\x6f\x00\x73\x00\x74\x00"
             b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 54
         assert actual == expected
@@ -864,7 +874,7 @@ class TestSMB2SVHDXOpenDeviceContextRequest:
             b"\x10\x00"
             b"\x68\x00\x6f\x00\x73\x00\x74\x00"
             b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 54
         assert data == b""
@@ -896,7 +906,7 @@ class TestSMB2SVHDXOpenDeviceContextResponse:
             b"\x10\x00"
             b"\x68\x00\x6f\x00\x73\x00\x74\x00"
             b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 58
         assert actual == expected
@@ -915,7 +925,7 @@ class TestSMB2SVHDXOpenDeviceContextResponse:
             b"\x10\x00"
             b"\x68\x00\x6f\x00\x73\x00\x74\x00"
             b"\x6e\x00\x61\x00\x6d\x00\x65\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 58
         assert data == b""
@@ -953,7 +963,7 @@ class TestSMB2SVHDXOpenDeviceContextV2Request:
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 78
         assert actual == expected
@@ -976,7 +986,7 @@ class TestSMB2SVHDXOpenDeviceContextV2Request:
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 78
         assert data == b""
@@ -1018,7 +1028,7 @@ class TestSMB2SVHDXOpenDeviceContextV2Response:
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 82
         assert actual == expected
@@ -1042,7 +1052,7 @@ class TestSMB2SVHDXOpenDeviceContextV2Response:
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00"
             b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 82
         assert data == b""
@@ -1073,7 +1083,7 @@ class TestSMB2CreateAppInstanceVersion:
             b"\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 24
         assert actual == expected
@@ -1086,7 +1096,7 @@ class TestSMB2CreateAppInstanceVersion:
             b"\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
             b"\x0a\x00\x00\x00\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 24
         assert data == b""

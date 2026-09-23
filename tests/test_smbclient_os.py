@@ -13,11 +13,10 @@ import time
 import pytest
 
 import smbclient  # Tests that we expose this in smbclient/__init__.py
-from smbclient._io import SMBFileTransaction, query_info
 from smbclient._os import SMBDirectoryIO, SMBDirEntry, SMBFileIO
 from smbclient.shutil import rmtree
 from smbprotocol.exceptions import SMBAuthenticationError, SMBOSError
-from smbprotocol.file_info import FileAttributes, FileStreamInformation
+from smbprotocol.file_info import FileAttributes
 from smbprotocol.reparse_point import ReparseDataBuffer, ReparseTags
 
 
@@ -459,7 +458,7 @@ def test_read_text_file(smb_share):
         actual = fd.readlines()
 
         expected_lines = file_contents.split("\n")
-        expected = [l + "\n" if idx != len(expected_lines) - 1 else l for idx, l in enumerate(expected_lines)]
+        expected = [line + "\n" if idx != len(expected_lines) - 1 else line for idx, line in enumerate(expected_lines)]
         assert actual == expected
 
         assert int(fd.tell()) == len(file_contents)

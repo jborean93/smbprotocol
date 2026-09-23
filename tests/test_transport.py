@@ -1,7 +1,6 @@
 # Copyright: (c) 2019, Jordan Borean (@jborean93) <jborean93@gmail.com>
 # MIT License (see LICENSE or https://opensource.org/licenses/MIT)
 
-import re
 import socket
 import struct
 import threading
@@ -39,7 +38,7 @@ class TestDirectTcpPacket:
     def test_create_message(self):
         message = DirectTCPPacket()
         message["smb2_message"] = b"\xfe\x53\x4d\x42"
-        expected = b"\x00\x00\x00\x04" b"\xfe\x53\x4d\x42"
+        expected = b"\x00\x00\x00\x04" b"\xfe\x53\x4d\x42"  # fmt: skip
 
         actual = message.pack()
         assert len(message) == 8
@@ -48,7 +47,7 @@ class TestDirectTcpPacket:
 
     def test_parse_message(self):
         actual = DirectTCPPacket()
-        data = b"\x00\x00\x00\x04" b"\xfe\x53\x4d\x42"
+        data = b"\x00\x00\x00\x04" b"\xfe\x53\x4d\x42"  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 8
         assert actual["stream_protocol_length"].get_value() == 4
@@ -65,11 +64,7 @@ class TestTcp:
         tcp.connected = True
         with pytest.raises(ValueError) as exc:
             tcp.send(b"\x00" * 16777216)
-        assert (
-            str(exc.value) == "Data to be sent over Direct TCP size "
-            "16777216 exceeds the max length allowed "
-            "16777215"
-        )
+        assert str(exc.value) == "Data to be sent over Direct TCP size 16777216 exceeds the max length allowed 16777215"
 
     def test_invalid_host(self):
         """

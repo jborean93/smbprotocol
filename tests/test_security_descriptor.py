@@ -21,7 +21,13 @@ class TestSIDPacket:
         sid = "S-1-1-0"
         message = SIDPacket()
         message.from_string(sid)
-        expected = b"\x01" b"\x01" b"\x00\x00" b"\x00\x00\x00\x01" b"\x00\x00\x00\x00"
+        expected = (
+            b"\x01"
+            b"\x01"
+            b"\x00\x00"
+            b"\x00\x00\x00\x01"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 12
         assert actual == expected
@@ -41,7 +47,7 @@ class TestSIDPacket:
             b"\xa5\x92\x3e\xe1"
             b"\xb9\x36\xe4\x62"
             b"\x50\x04\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 28
         assert actual == expected
@@ -65,7 +71,13 @@ class TestSIDPacket:
 
     def test_parse_message(self):
         actual = SIDPacket()
-        data = b"\x01" b"\x01" b"\x00\x00" b"\x00\x00\x00\x01" b"\x00\x00\x00\x00"
+        data = (
+            b"\x01"
+            b"\x01"
+            b"\x00\x00"
+            b"\x00\x00\x00\x01"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 12
         assert str(actual) == "S-1-1-0"
@@ -90,7 +102,7 @@ class TestSIDPacket:
             b"\xa5\x92\x3e\xe1"
             b"\xb9\x36\xe4\x62"
             b"\x50\x04\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 28
         assert str(actual) == "S-1-5-21-3242954042-3778974373-1659123385-1104"
@@ -126,7 +138,7 @@ class TestAccessAllowedAce:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 20
         assert actual == expected
@@ -143,7 +155,7 @@ class TestAccessAllowedAce:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 20
         assert data == b""
@@ -172,7 +184,7 @@ class TestAccessDeniedAce:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 20
         assert actual == expected
@@ -189,7 +201,7 @@ class TestAccessDeniedAce:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 20
         assert data == b""
@@ -218,7 +230,7 @@ class TestSystemAuditAce:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 20
         assert actual == expected
@@ -235,7 +247,7 @@ class TestSystemAuditAce:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         data = actual.unpack(data)
         assert len(actual) == 20
         assert data == b""
@@ -304,7 +316,7 @@ class TestAclPacket:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 84
         assert actual == expected
@@ -348,7 +360,7 @@ class TestAclPacket:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
 
         actual.unpack(data)
         assert len(actual) == 84
@@ -373,7 +385,11 @@ class TestAclPacket:
         assert str(aces[1]["sid"].get_value()) == "S-1-5-21-3242954042-3778974373-1659123385-1104"
 
         assert isinstance(aces[2], bytes)
-        assert aces[2] == b"\x05\x00\x14\x00\x00\x00\x00\x00" b"\x01\x01\x00\x00\x00\x00\x00\x01" b"\x00\x00\x00\x00"
+        assert aces[2] == (
+            b"\x05\x00\x14\x00\x00\x00\x00\x00"
+            b"\x01\x01\x00\x00\x00\x00\x00\x01"
+            b"\x00\x00\x00\x00"
+        )  # fmt: skip
 
 
 class TestSMB2SDBuffer:
@@ -447,7 +463,7 @@ class TestSMB2SDBuffer:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 124
         assert actual == expected
@@ -494,7 +510,7 @@ class TestSMB2SDBuffer:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual = message.pack()
         assert len(message) == 60
         assert actual == expected
@@ -528,7 +544,7 @@ class TestSMB2SDBuffer:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 60
         assert actual["revision"].get_value() == 1
@@ -609,7 +625,7 @@ class TestSMB2SDBuffer:
             b"\x00\x00"
             b"\x00\x00\x00\x01"
             b"\x00\x00\x00\x00"
-        )
+        )  # fmt: skip
         actual.unpack(data)
         assert len(actual) == 124
         assert actual["revision"].get_value() == 1
@@ -656,7 +672,7 @@ class TestSMB2SDBuffer:
             b"\x00\x00\x14\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x05\x0c\x00\x00\x00"
             b"\x00\x00\x14\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x05\x07\x00\x00\x00"
             b"exceeding data after ACEs after ace_count which should be ignored while parsing"
-        )
+        )  # fmt: skip
         actual.unpack(data)
 
         assert actual["acl_revision"].get_value() == 2
