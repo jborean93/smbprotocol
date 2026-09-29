@@ -221,7 +221,7 @@ def ioctl_request(transaction, ctl_code, output_size=0, flags=IOCTLFlags.SMB2_0_
     transaction += (ioctl_req, _receive_resp)
 
 
-def query_info(transaction, info_class, flags=0, output_buffer_length=None):
+def query_info(transaction, info_class, flags=0, output_buffer_length=None, additional_information=None):
     """
     Sends a QUERY INFO request to the server for the information class passed in.
 
@@ -229,6 +229,7 @@ def query_info(transaction, info_class, flags=0, output_buffer_length=None):
     :param info_class: The required information class type defined in file_info.py that is being requested.
     :param flags: Optional flags to set on the query request.
     :param output_buffer_length: Override the max output buffer length, defaults to the size of the information class.
+    :param additional_information: Bitmask of additional info to request or None
     """
     info_obj = info_class()
     query_req = SMB2QueryInfoRequest()
@@ -237,6 +238,8 @@ def query_info(transaction, info_class, flags=0, output_buffer_length=None):
     query_req["file_id"] = transaction.raw.fd.file_id
     query_req["output_buffer_length"] = len(info_obj) if output_buffer_length is None else output_buffer_length
     query_req["flags"] = flags
+    if additional_information is not None:
+        query_req["additional_information"] = additional_information
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)
@@ -247,18 +250,21 @@ def query_info(transaction, info_class, flags=0, output_buffer_length=None):
     transaction += (query_req, _receive_resp)
 
 
-def set_info(transaction, info_buffer):
+def set_info(transaction, info_buffer, additional_information=None):
     """
     Sends a SET INFO request to the server with the information class input.
 
     :param transaction: The SMBFileTransaction the request is to run under.
     :param info_buffer: The input information class to set.
+    :param additional_information: Bitmask of additional info to request or None
     """
     set_req = SMB2SetInfoRequest()
     set_req["info_type"] = info_buffer.INFO_TYPE
     set_req["file_info_class"] = info_buffer.INFO_CLASS
     set_req["file_id"] = transaction.raw.fd.file_id
     set_req["buffer"] = info_buffer
+    if additional_information is not None:
+        set_req["additional_information"] = additional_information
 
     def _receive_resp(request):
         response = transaction.raw.fd.connection.receive(request)
