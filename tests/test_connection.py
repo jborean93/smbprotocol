@@ -10,6 +10,7 @@ import pytest
 
 from smbprotocol import Dialects
 from smbprotocol.connection import (
+    MAX_SYMLINK_DEPTH,
     Ciphers,
     Connection,
     HashAlgorithms,
@@ -31,13 +32,18 @@ from smbprotocol.connection import (
 )
 from smbprotocol.exceptions import (
     NtStatus,
+    SMB2ErrorContextResponse,
     SMB2ErrorResponse,
+    SMB2SymbolicLinkErrorResponse,
     SMBConnectionClosed,
     SMBException,
+    SMBLinkRedirectionError,
     StoppedOnSymlink,
+    SymbolicLinkErrorFlags,
 )
-from smbprotocol.header import Smb2Flags, SMB2HeaderResponse
+from smbprotocol.header import Smb2Flags, SMB2HeaderRequest, SMB2HeaderResponse
 from smbprotocol.ioctl import SMB2IOCTLRequest
+from smbprotocol.open import SMB2CreateRequest
 from smbprotocol.session import Session
 from smbprotocol.tree import TreeConnect
 
@@ -1379,4 +1385,78 @@ class TestConnection:
         with pytest.raises(StoppedOnSymlink):
             connection.receive(request)
 
+        assert len(connection.outstanding_requests) == 0
+
+    @staticmethod
+    def _setup_symlink_chain(monkeypatch, symlink_hops):
+        connection = Connection(uuid.uuid4(), "server", 445)
+        connection.dialect = Dialects.SMB_3_1_1
+        monkeypatch.setattr(connection, "_check_worker_running", lambda: None)
+
+        session = Session(connection, "user", "pass")
+        session.session_id = 1
+        connection.session_table[1] = session
+
+        tree = TreeConnect(session, r"\\server\share")
+        tree.tree_connect_id = 1
+        session.tree_connect_table[1] = tree
+
+        hops = [0]
+
+        def make_request(msg_id, path):
+            create = SMB2CreateRequest()
+            create["buffer_path"] = path.encode("utf-16-le")
+            hdr = SMB2HeaderRequest()
+            hdr["message_id"] = msg_id
+            hdr["tree_id"] = 1
+            hdr["data"] = create.pack()
+            req = Request(hdr, SMB2CreateRequest, connection, session_id=1)
+            connection.outstanding_requests[msg_id] = req
+
+            resp = SMB2HeaderResponse()
+            resp["message_id"] = msg_id
+            if symlink_hops is None or msg_id < symlink_hops:
+                sym = SMB2SymbolicLinkErrorResponse()
+                sym["flags"] = SymbolicLinkErrorFlags.SYMLINK_FLAG_RELATIVE
+                sym.set_name(f"link{msg_id + 1}", f"link{msg_id + 1}")
+                ctx = SMB2ErrorContextResponse()
+                ctx["error_context_data"] = sym
+                err = SMB2ErrorResponse()
+                err["error_data"] = [ctx]
+                resp["status"] = NtStatus.STATUS_STOPPED_ON_SYMLINK
+                resp["data"] = err.pack()
+            else:
+                resp["status"] = NtStatus.STATUS_SUCCESS
+                resp["data"] = b""
+
+            req.response = resp
+            req.response_event.set()
+            return req
+
+        def fake_send_compound(msgs, sid, tid, related=False):
+            hops[0] += 1
+            return [make_request(hops[0], f"link{hops[0]}")]
+
+        monkeypatch.setattr(connection, "send_compound", fake_send_compound)
+        return connection, make_request(0, "link0"), hops
+
+    def test_stopped_on_symlink_within_max_depth(self, monkeypatch):
+        connection, request, hops = self._setup_symlink_chain(monkeypatch, symlink_hops=3)
+
+        response = connection.receive(request)
+
+        assert response["status"].get_value() == NtStatus.STATUS_SUCCESS
+        assert hops[0] == 3
+        assert len(connection.outstanding_requests) == 0
+
+    def test_stopped_on_symlink_exceeds_max_depth(self, monkeypatch):
+        connection, request, hops = self._setup_symlink_chain(monkeypatch, symlink_hops=None)
+
+        with pytest.raises(
+            SMBLinkRedirectionError,
+            match=f"Exceeded maximum symlink redirection depth of {MAX_SYMLINK_DEPTH}",
+        ):
+            connection.receive(request)
+
+        assert hops[0] == MAX_SYMLINK_DEPTH
         assert len(connection.outstanding_requests) == 0
