@@ -24,6 +24,7 @@ from smbprotocol.exceptions import (
     SMB2SymbolicLinkErrorResponse,
     SMBConnectionClosed,
     SMBException,
+    SMBLinkRedirectionError,
     SMBResponseException,
 )
 from smbprotocol.header import (
@@ -50,6 +51,9 @@ from smbprotocol.structure import (
 from smbprotocol.transport import Tcp
 
 log = logging.getLogger(__name__)
+
+# Matches Windows NTFS/SMB reparse point evaluation limit.
+MAX_SYMLINK_DEPTH = 63
 
 
 class SecurityMode:
@@ -1021,7 +1025,7 @@ class Connection:
         """
         return self._send(messages, session_id=sid, tree_id=tid, related=related)
 
-    def receive(self, request, wait=True, timeout=None, resolve_symlinks=True):
+    def receive(self, request, wait=True, timeout=None, resolve_symlinks=True, _symlink_depth=0):
         """
         Polls the message buffer of the TCP connection and waits until a valid
         message is received based on the message_id passed in.
@@ -1097,6 +1101,15 @@ class Connection:
                     )
                     new_path = reparse_buffer.resolve_path(original_path)[len(tree_share_name) :]
 
+                    if _symlink_depth >= MAX_SYMLINK_DEPTH:
+                        for old_request in [request] + related_requests:
+                            self.outstanding_requests.pop(old_request.message["message_id"].get_value(), None)
+                        raise SMBLinkRedirectionError(
+                            f"Exceeded maximum symlink redirection depth of {MAX_SYMLINK_DEPTH}",
+                            original_path,
+                            tree_share_name + new_path,
+                        )
+
                     new_open = Open(tree, new_path)
                     create_req = new_open.create(
                         old_create["impersonation_level"].get_value(),
@@ -1117,15 +1130,21 @@ class Connection:
                     # info.
                     error = None
                     try:
-                        new_response = self.receive(new_requests[0], wait=wait, timeout=timeout, resolve_symlinks=True)
-                    except SMBResponseException as exc:
+                        new_response = self.receive(
+                            new_requests[0],
+                            wait=wait,
+                            timeout=timeout,
+                            resolve_symlinks=True,
+                            _symlink_depth=_symlink_depth + 1,
+                        )
+                    except (SMBResponseException, SMBLinkRedirectionError) as exc:
                         # We need to make sure we fix up the remaining responses before throwing this.
                         error = exc
                     [r.response_event.wait() for r in new_requests]
 
                     # Update the old requests with the new response information
                     for i, old_request in enumerate([request] + related_requests):
-                        del self.outstanding_requests[old_request.message["message_id"].get_value()]
+                        self.outstanding_requests.pop(old_request.message["message_id"].get_value(), None)
                         old_request.update_request(new_requests[i])
 
                     if error:
